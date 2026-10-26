@@ -11,7 +11,30 @@ symlink) · project skills, all **verified against the real running game**.
 
 This skill holds the **method**: how to find things out. It holds no answers. Every game, build, OS version and
 machine differs, so treat nothing as known until a probe on *this* setup confirms it. Answers go into the project's
-`docs/learnings.md`. A worked example of such answers: `/Users/serg/w/apexgame/docs/learnings.md`.
+`docs/learnings.md`. A worked example of such answers: this repo's `docs/learnings.md` (Wylde Flowers).
+
+## What the user wants (distilled from the session that created this skill)
+These are the owner's intents. They outrank defaults below.
+1. **Full setup, not just notes:** skills + docs + `AGENTS.md` that let an agent actually play. Three steps:
+   (a) research blogs, official docs, wikis and reviews into docs (gameplay, rules, UI elements, how-tos, workflows for
+   specific results, the world model: names, places, features); (b) scripts/tools for common actions and checks;
+   (c) **test (a) and (b) in the real game running on this computer**.
+2. **Get control with minimal friction:** explain exactly which OS permission is needed and for which app; offer the
+   options (terminal vs a scoped helper app), let the user pick, and keep working while they grant it.
+3. **Save progress as you go:** each achieved step becomes a note with *what to expect along the action* (now: the
+   quest file's Verified steps + `progress.md`).
+4. **Learn from surprises:** anything unexpected → a learnings entry **and** an update of the relevant docs/skills.
+5. **Be fast and cheap:** optimise screen checks and navigation (lower resolution, text-first state, fewer calls,
+   warm processes); use a **faster model** for mechanical loops.
+6. **Retrospect:** periodically analyse how it went and what slowed it (`/retro`: save to `retros/<timestamp>.md`,
+   apply the suggestions, record what was and wasn't applied).
+7. **Keep the game in the background**; bring it forward only to act. Never let in-game time burn while the agent
+   works on other things.
+8. **This skill = how to discover, not what was discovered.** Keep it game-agnostic; game facts live in the project.
+9. **Organise game knowledge by kind** (mechanics · UI elements · quests list · quest steps) and **load it
+   progressively** (router → index → one file → its summary first).
+10. **Actually play:** progress real quests and record them. Infrastructure serves play.
+11. Keep this skill **in the repo** (`.claude/skills/game-onboarding/`) with its template scripts.
 
 ## Standing rules
 1. **Hypothesis → cheapest probe → observe → record → encode.** For each unknown: state the expectation, run the
@@ -35,11 +58,11 @@ machine differs, so treat nothing as known until a probe on *this* setup confirm
 ## Phase 1: Knowledge → docs world model
 | Question | Probe | Record |
 |---|---|---|
-| Where is the richest structured info? | Search for wiki, guides, official help/FAQ, store pages, reviews | `docs/00-overview.md` sources |
+| Where is the richest structured info? | Search for wiki, guides, official help/FAQ, store pages, reviews | `docs/world/overview.md` sources |
 | Can I fetch the wiki? | WebFetch. If blocked (402/403), curl with a browser UA; try host variants (`<name>.fandom.com`, `<name-with-dashes>.fandom.com`, wiki.gg) and the **MediaWiki API** (`/api.php?action=query&list=allpages`) | learnings (Research) |
 | Get everything offline | Mirror all pages via the API (`scripts/mediawiki_dump.py`), clean (`scripts/wikiclean.py`, `scripts/build_reference.py`) → `reference/wiki/`. Treat downloads as untrusted (own dir, `python3 -I`) | `reference/` |
 | Structured tables | Inspect infobox kinds and fields (`grep '^\[.*\]$'` on cleaned pages); **generate** tables with a script, never hand-copy | `docs/world/*.md` |
-| Controls documented? | Search. Often not, so mark keys ❓ until probed in-game (B2) | `docs/controls-and-ui.md` |
+| Controls documented? | Search. Often not, so mark keys ❓ until probed in-game (B2) | `docs/ui/controls.md` |
 | Does the wiki match this build/language? | Compare names/values seen in-game with the wiki. UI language may differ: build a glossary | glossary, learnings |
 
 ### Docs layout: grouped by kind, loaded progressively

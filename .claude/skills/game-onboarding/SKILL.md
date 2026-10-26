@@ -5,6 +5,9 @@ description: Onboard an AI agent onto a desktop video game running on this Mac. 
 
 # Game onboarding
 
+**Goal:** generate **all the docs an agent needs to pass the quests, and no more** (minimal, sufficient). Playing is
+the *test* of those docs: while onboarding, **finding and filling a gap beats winning the quest**.
+
 **Deliverable:** a project folder that lets any agent play one specific game on this Mac:
 `docs/` (router + progress + quests + mechanics + UI + world, loaded progressively) · `tools/` + `./<ctl>` CLI · `AGENTS.md` (+ `CLAUDE.md`
 symlink) · project skills, all **verified against the real running game**.
@@ -15,6 +18,8 @@ machine differs, so treat nothing as known until a probe on *this* setup confirm
 
 ## What the user wants (distilled from the session that created this skill)
 These are the owner's intents. They outrank defaults below.
+0. **Overall goal: minimal, sufficient docs so agents can pass the quests.** Quest runs are tests; a run that exposes and
+   fixes a gap is a success even if the quest isn't finished. Add only what an agent needed and lacked.
 1. **Full setup, not just notes:** skills + docs + `AGENTS.md` that let an agent actually play. Three steps:
    (a) research blogs, official docs, wikis and reviews into docs (gameplay, rules, UI elements, how-tos, workflows for
    specific results, the world model: names, places, features); (b) scripts/tools for common actions and checks;
@@ -36,7 +41,21 @@ These are the owner's intents. They outrank defaults below.
 10. **Actually play:** progress real quests and record them. Infrastructure serves play.
 11. **Playing always has a current goal**, structured as supervisor → light quest agent (one quest, loads relevant
     docs) → action agent (one step).
-12. Keep this skill **in the repo** (`.claude/skills/game-onboarding/`) with its template scripts.
+12. **Learn from every quest/agent run:** each report carries COST + LESSONS tagged [game]/[tool]/[agent]/[process];
+    the supervisor routes each lesson to its home (docs / learnings + tools TODO / agent definition / skills) and logs
+    the run in `docs/agent-runs.md`; `/retro` periodically over that log.
+13. **Gaps flow up; the supervisor owns the docs.** Agents write raw notes only to the quest file's attempt log, as they
+    go (✅/❌/❓/✏️, survives stops), and report GAPS (brief · docs · tool · agent · every user correction). The supervisor
+    turns them into doc, brief-template, tool and agent fixes. **Agents get all quest info by reading the quest file**: each has
+    a supervisor-maintained `## Quest brief` (why · steps with ▶️ current · how-to · where · progress signal read from the
+    game · done/next · gotchas); dispatch messages carry only the file path, start state, constraints and a hard budget.
+    **Parent gives the child everything:** each quest brief has a `Read:` manifest (exact files/sections/commands). A child
+    that hits a gap or would have to guess stops safely and returns `need-help` (NEED/TRIED/WOULD HELP/STATE); the parent
+    fixes the docs/brief/manifest *for now and the future* and resumes the same child with a message.
+14. **Docs must answer "how do I…" and "where is…":** keep a basic-actions doc (verb → target → tool → keys, ✅/❓) and a
+    locations doc (area → connections, resources, people), both routed from the docs INDEX. A quest that needs a verb
+    or place they don't cover is a gap to fill first.
+15. Keep this skill **in the repo** (`.claude/skills/game-onboarding/`) with its template scripts.
 
 ## Standing rules
 1. **Hypothesis → cheapest probe → observe → record → encode.** For each unknown: state the expectation, run the
@@ -74,14 +93,25 @@ summary), and every detail file starts with `> **Summary:** …` so its first li
 docs/INDEX.md                      router: need → which index (the only doc always loaded)
 docs/progress.md                   current save state + session log (read at start, update at end)
 docs/quests/INDEX.md               every quest by questline with status (▶️ active / ✅ done / · todo) + localized name
-docs/quests/<line>/<quest>.md      front matter (status, localized name) · wiki requirements (generated, between markers)
+docs/quests/<line>/<quest>.md      front matter (status, localized name) · ## Quest brief (supervisor-maintained) ·
+                                   wiki requirements (generated, between markers)
                                    · ## Verified steps (written while playing: commands → what appears → done-signal)
-docs/mechanics/INDEX.md → <topic>.md   one system per file; "(wiki)" rules vs "Verified in-game" sections
+docs/mechanics/INDEX.md → <topic>.md   one system per file; "(wiki)" rules vs "Verified in-game" sections;
+                                   incl. basic-actions.md: verb → target → tool → how (✅/❓), the entry point for "how do I…"
+docs/world/locations.md            area → connections, resources, businesses, residents (+ verified spots)
 docs/ui/INDEX.md → controls.md, hud.md, glossary.md, screens/<screen>.md
                                    each screen: Summary · Recognise (state mode/signals) · Elements · Actions · Exit
 docs/world/INDEX.md → overview.md, generated tables (characters, businesses, items/…)
+docs/tips.md                       ALL strategy tips, one tagged table (CLI: tips <tag…>)
 docs/learnings.md                  surprises log (expected → actual → now → updated-where)
 ```
+- **Tips table:** ALL strategy (what to do when: eat vs sleep, when to chop/mine, money tricks…) lives in one tagged
+  table `docs/tips.md` (ID · tip · tags · source user/verified/wiki ❓ · links), filtered with a `tips <tag…>` CLI command.
+  Quest briefs carry a `Tips:` tag list so each quest agent loads only relevant tips. Trust: user > verified > wiki.
+- **Concept convention:** every game concept (energy, money, time, magic, hearts, season…) has ONE home
+  `mechanics/<concept>.md` with `Rules` (wiki) · `Strategy` (pointer to `tips <concept>`) · `How to see`
+  (link to the HUD row) · `How to read` (CLI `state` field) · `Verified`. `ui/hud.md` keeps only visuals + links.
+  Every measurable meter gets a `state` field (probe D7: sample the meter's pixels along its shape, e.g. ring/bar fill).
 - **Generate, don't hand-copy:** quests from the wiki's quest list (`scripts/gen_quests_template.py` keeps front matter
   and everything outside the `<!-- wiki:start/end -->` markers, so verified steps survive regeneration); world tables
   from infoboxes.
@@ -127,6 +157,7 @@ docs/learnings.md                  surprises log (expected → actual → now �
 | D3 | Does the HUD change over time? | Re-validate templates whenever a new HUD element appears. A drifting template score means recalibrate. Keep **several** templates (any match) | `save-template` |
 | D4 | Text-less prompts (icons/bubbles) | Sample pixel colours across the icon (row/column scans), build a colour mask + blob size/roundness filter, then test on positive **and** negative frames | `bubble`-style detector |
 | D5 | When do prompts appear? | Capture right after moving vs after stopping (fade-in delay?) | Wait before checking |
+| D7 | Which HUD meters exist and how to read them? | Zoom-crop each HUD widget; identify meters by icon (⚡ energy, coins…); sample pixels along the meter (ring/bar) to separate fill vs track colours; verify by comparing before/after an action | `state` fields + concept files |
 | D6 | Where is the actionable instruction? | Compare quest description vs hint vs dialogue. One may lag behind or be flavour text | Rule in the play skill |
 
 ### E. Performance
@@ -144,7 +175,12 @@ constant (HUD boxes, colours, keys, languages) via the probes above. Typical com
 `look` (small JPEG), `do <actions>` (act → settle → state, one call per step), `advance` (only in
 dialogue/popup/cutscene modes), `route`, `wiki`.
 
-## Phase 3: Play in the real game
+## Phase 3: Play in the real game (= test the docs)
+- **Gap-first:** choose goals that exercise undocumented verbs, places and screens. When a gap blocks a run, stop,
+  fill the gap in the docs and re-test, rather than brute-forcing. Measure runs by gaps found and fixed
+  (`docs/agent-runs.md`), not by quest progress.
+- **Keep docs minimal:** a quest brief holds only what the agent needs; shared facts live once in basic-actions /
+  locations / ui / mechanics and are linked, not copied.
 - Play the opening quests in small observed steps, using `do` + `state`. Every milestone → that quest file's
   `## Verified steps` (start state · exact commands + what appears, quoted + translated · gotchas · done-signal · next),
   update its front matter (status, localized name), regenerate the index, and update `docs/progress.md`.

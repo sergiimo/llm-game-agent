@@ -7,7 +7,8 @@ To change a status or add the RU name, edit the quest file front matter and re-r
 
 - [The Most Elaborate Icebreaker](town/the-most-elaborate-icebreaker.md) — Скоростные знакомства · Town
 - [From Bud To Spud](gardening-foraging-and-plants/from-bud-to-spud.md) — Крошка-картошка · Gardening, Foraging, and Plants
-- [The Fungus Among Us](gardening-foraging-and-plants/the-fungus-among-us.md) — Занимательная микология · Gardening, Foraging, and Plants
+- [Rice and Shine](gardening-foraging-and-plants/rice-and-shine.md) — Пальчики облизотто · Gardening, Foraging, and Plants
+- [Steeped in Mystery](coven/steeped-in-mystery.md) — На чистую воду · Coven
 
 ## Town (0/16 done)
 
@@ -30,15 +31,15 @@ To change a status or add the RU name, edit the quest file front matter and re-r
 | · | [Get a Lode of This](town/get-a-lode-of-this.md) |  | Fall | Giva wants a sample from the lowest levels of the mine, but the coven members may have opi |
 | · | [Can’t Hold a Candle](town/cant-hold-a-candle.md) |  | Winter | Sophia has asked for some beeswax candles for her menorah. (from Sophia Moretti; 1 step(s) |
 
-## Gardening, Foraging, and Plants (1/7 done)
+## Gardening, Foraging, and Plants (3/7 done)
 
 | | Quest | RU | Season | Summary |
 |---|---|---|---|---|
 | ✅ | [To Gramma's House I Go](gardening-foraging-and-plants/to-grammas-house-i-go.md) | В гости к бабушке | Spring Year 1 | Head to Gramma's Farm. It's to the north-west of town. (from Starting Quest; 1 step(s)) |
 | ▶️ | [From Bud To Spud](gardening-foraging-and-plants/from-bud-to-spud.md) | Крошка-картошка | Spring Year 1 | Plant the Potato Seeds in the garden bed by the farm. (from Gramma Hazel; 4 step(s)) |
-| ▶️ | [The Fungus Among Us](gardening-foraging-and-plants/the-fungus-among-us.md) | Занимательная микология | Spring Year 1 | Gramma has asked for mushrooms in order to make something tasty. (from Gramma Hazel; 2 ste |
-| · | [Wood-n't You Know It?](gardening-foraging-and-plants/wood-nt-you-know-it.md) |  | Spring Year 1 | Gramma has asked you to chop some logs around the farm. (from Gramma Hazel; 3 step(s)) |
-| · | [Rice and Shine](gardening-foraging-and-plants/rice-and-shine.md) |  | Spring Year 1 | Buy Rice and collect Mushrooms so you can make Gramma's favorite dish. (from Gramma; 3 ste |
+| ✅ | [The Fungus Among Us](gardening-foraging-and-plants/the-fungus-among-us.md) | Занимательная микология | Spring Year 1 | Gramma has asked for mushrooms in order to make something tasty. (from Gramma Hazel; 2 ste |
+| ✅ | [Wood-n't You Know It?](gardening-foraging-and-plants/wood-nt-you-know-it.md) | Палочка-выручалочка | Spring Year 1 | Gramma has asked you to chop some logs around the farm. (from Gramma Hazel; 3 step(s)) |
+| ▶️ | [Rice and Shine](gardening-foraging-and-plants/rice-and-shine.md) | Пальчики облизотто | Spring Year 1 | Buy Rice and collect Mushrooms so you can make Gramma's favorite dish. (from Gramma; 3 ste |
 | · | [You Must Be Plotting Something](gardening-foraging-and-plants/you-must-be-plotting-something.md) |  | Spring Year 1 | Gramma could use some help keeping the farm running!  To start, make a Compost Bin so that |
 | · | [Out of Whole Cloth](gardening-foraging-and-plants/out-of-whole-cloth.md) |  | Summer Year 1 | Thomas wants you to plant cotton. (from Thomas Lightfoot; 2 step(s)) |
 
@@ -127,7 +128,7 @@ To change a status or add the RU name, edit the quest file front matter and re-r
 
 | | Quest | RU | Season | Summary |
 |---|---|---|---|---|
-| · | [Steeped in Mystery](coven/steeped-in-mystery.md) |  | Spring | Go to the woods at night and pick a moonflower. (from Gramma Hazel; 6 step(s)) |
+| ▶️ | [Steeped in Mystery](coven/steeped-in-mystery.md) | На чистую воду | Spring | Go to the woods at night and pick a moonflower. (from Gramma Hazel; 6 step(s)) |
 | · | [What Is The Wellspring?](coven/what-is-the-wellspring.md) |  | Spring | Give an offering to the Wellspring. (from Gramma; 1 step(s)) |
 | · | [Something's Brewing](coven/somethings-brewing.md) |  | Spring | Speak with the Acolyte to begin your magic lessons. (from High Priestess; 3 step(s)) |
 | · | [See the Farseer](coven/see-the-farseer.md) |  | Summer | Speak to the Farseer to learn about the witch identity rites. (from High Priestess; 2 step |

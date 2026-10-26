@@ -5,6 +5,7 @@
 | File | What |
 |---|---|
 | [overview.md](overview.md) | Premise, story structure by season, core systems, map connections, sources |
+| [locations.md](locations.md) | Areas: connections, forage, businesses, residents; farm resource spots for early quests |
 | [characters.md](characters.md) | All villagers: job, workplace, home, romanceable, favourite gifts (generated) |
 | [businesses.md](businesses.md) | Shops: owner, opening hours, what they buy/sell (generated) |
 | [items/](items/) | crops, seeds, forage, fish, food-and-drink, crafting-ingredients, potions-and-incantations, workstations, tools, books, misc-items (generated) |

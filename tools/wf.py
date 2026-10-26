@@ -13,6 +13,7 @@ Requires macOS permissions for the host terminal (System Settings > Privacy & Se
   * Accessibility                    (keyboard / mouse injection)
 """
 import argparse
+import re
 import json
 import os
 import subprocess
@@ -457,6 +458,9 @@ HUD_TEMPLATES = {'hud_pause': (50, 50, 120, 120), 'hud_journal3': (1605, 55, 110
 MONEY_REGION = (1700, 130, 200, 70)
 MONEY_BOX = (1700, 130, 1900, 200)      # same, as a PIL crop box
 CLOCK_REGION = (150, 25, 350, 90)      # day name + time next to the analog clock (top-left, after clock appears)
+POPUP_WORDS = ('одтвердить',          # "Подтвердить" Confirm (OCR sometimes reads П as Л)
+               'Ура!',                # completion popup button "Hooray!"
+               'Задание выполнено')   # "Quest complete" header
 SUBTITLE_Y = 940                        # dialogue subtitles ("Name: text") are OCR'd below this y
 
 
@@ -498,14 +502,18 @@ def classify(path_or_img, with_bubble=True, full_text=False):
     letterbox = top < 6 and bot < 6
     scores = {n: _match(img, n) for n in HUD_TEMPLATES}
     hud_ok = any(ok for ok, _ in scores.values())
-    if hud_ok and not letterbox and not full_text:
-        # gameplay fast path: only the clock and the subtitle band can carry text
+    if hud_ok and not letterbox and not full_text and os.environ.get('WF_FAST_OCR') == '1':
+        # optional gameplay fast path (misses quest-tracker popups, e.g. "Древесина: 5/6"; learnings L34).
+        # Default is full OCR: observation runs with the game in the background (paused), where it's cheap.
         cx, cy, cw, ch = CLOCK_REGION
         lines = ocr_image(img.crop((cx, cy, cx + cw, cy + ch)), scale=1, offset=(cx, cy))
         lines += [r for r in ocr_image(img.crop((0, SUBTITLE_Y, W, H)), scale=0.5, offset=(0, SUBTITLE_Y))]
         lines += [r for r in ocr_image(img.crop(MONEY_BOX), scale=1, offset=MONEY_BOX[:2])]
     else:
-        lines = ocr_image(img)
+        lines = [r for r in ocr_image(img) if not _in(r, CLOCK_REGION)]
+        if hud_ok:  # the small clock text needs full resolution
+            cx, cy, cw, ch = CLOCK_REGION
+            lines += ocr_image(img.crop((cx, cy, cx + cw, cy + ch)), scale=1, offset=(cx, cy))
     money = [r['text'] for r in lines if _in(r, MONEY_REGION) and r['text'].isdigit()]
     clock = [r['text'] for r in lines if _in(r, CLOCK_REGION)]
     subs = [r['text'] for r in lines if r['cy'] >= SUBTITLE_Y and r['text'] not in money]
@@ -515,7 +523,7 @@ def classify(path_or_img, with_bubble=True, full_text=False):
         mode = 'cutscene'
     elif subs and ':' in ' '.join(subs):
         mode = 'dialogue'
-    elif 'одтвердить' in joined:  # "Подтвердить" (OCR sometimes reads П as Л)
+    elif any(w in joined for w in POPUP_WORDS):  # confirm-type popup buttons / headers
         mode = 'popup'
     elif hud_ok:
         mode = 'gameplay'
@@ -523,8 +531,11 @@ def classify(path_or_img, with_bubble=True, full_text=False):
         mode = 'overlay'
     res = {'mode': mode, 'money': int(money[0]) if money else None,
            'clock': ' '.join(clock) or None,
+           'tracker': [r['text'] for r in text if re.search(r'\d+\s*/\s*\d+', r['text'])] or None,
            'text': [f"({r['cx']},{r['cy']}) {r['text']}" for r in text],
            'hud_scores': {n: s for n, (_, s) in scores.items()}, 'screenshot': path}
+    if hud_ok:
+        res['energy'] = read_energy(img)
     if with_bubble and mode == 'gameplay':
         res['bubble'] = find_bubble(img)
     return res
@@ -548,10 +559,40 @@ def brief(s):
         parts.append(s['clock'])
     if s.get('money') is not None:
         parts.append(f"{s['money']}c")
+    if s.get('energy') is not None:
+        parts.append(f"⚡{s['energy']}%")
     if s.get('bubble'):
         parts.append(f"bubble@{s['bubble'][0]},{s['bubble'][1]}")
+    if s.get('tracker'):
+        parts.append('tracker: ' + '; '.join(s['tracker']))
     txt = ' / '.join(t.split(') ', 1)[1] for t in s['text'])
     return ' | '.join(parts) + (f' | {txt}' if txt else '')
+
+
+# ---------------------------------------------------------------- meters (concepts readable from the HUD)
+
+ENERGY_RING = {'center': (116, 116), 'radius': 96, 'start_deg': 82, 'end_deg': 205}  # clockwise from 12 o'clock
+
+
+def read_energy(img):
+    """Energy as 0-100 from the orange arc next to the clock (⚡ marks its start). None if the ring isn't visible.
+    Orange = filled; pale brown track = empty. See docs/mechanics/energy.md."""
+    import math
+    cx, cy = ENERGY_RING['center']
+    r = ENERGY_RING['radius']
+    filled = empty = 0
+    a = ENERGY_RING['start_deg']
+    while a <= ENERGY_RING['end_deg']:
+        x = int(cx + r * math.sin(math.radians(a)))
+        y = int(cy - r * math.cos(math.radians(a)))
+        R, G, B = img.getpixel((x, y))[:3]
+        if R >= 225 and 150 <= G <= 195 and B <= 115:
+            filled += 1
+        elif 180 <= R <= 215 and 145 <= G <= 175 and 115 <= B <= 150:
+            empty += 1
+        a += 2.5
+    total = filled + empty
+    return round(100 * filled / total) if total >= 20 else None
 
 
 # ---------------------------------------------------------------- prompt bubble detection
@@ -800,6 +841,25 @@ def wiki(query, limit=15, show=False):
             break
 
 
+# ---------------------------------------------------------------- tips
+
+def tips(tags, require_all=False):
+    """Print rows of docs/tips.md matching tags (any by default)."""
+    want = {t.lower().strip(',') for t in tags}
+    rows = [l for l in open(os.path.join(ROOT, 'docs', 'tips.md')) if re.match(r'\| T\d+ ', l)]
+    n = 0
+    for l in rows:
+        cells = [c.strip() for c in l.strip().strip('|').split('|')]
+        rid, tip, tg, src, links = (cells + [''] * 5)[:5]
+        have = {t.strip() for t in tg.split(',')}
+        ok = want <= have if require_all else (not want or want & have)
+        if ok:
+            print(f'{rid} [{src}] {tip}  (tags: {tg}; see {links})')
+            n += 1
+    if not n:
+        print('no tips for', ' '.join(sorted(want)))
+
+
 # ---------------------------------------------------------------- CLI
 
 def main(argv=None):
@@ -877,6 +937,9 @@ def main(argv=None):
     p.add_argument('query')
     p.add_argument('--show', action='store_true', help='print best title match in full')
     p.add_argument('--limit', type=int, default=15)
+    p = sub.add_parser('tips', help='list tips from docs/tips.md by tag: wf tips energy mining [--all]')
+    p.add_argument('tags', nargs='*')
+    p.add_argument('--all', action='store_true', help='require every tag')
     p = sub.add_parser('wait', help='sleep N seconds (game time keeps running!)')
     p.add_argument('seconds', type=float)
     sub.add_parser('serve', help='run the warm daemon (normally auto-started by ./wf); keeps Vision/Quartz loaded')
@@ -886,6 +949,8 @@ def main(argv=None):
 
     if a.cmd == 'wiki':
         return wiki(a.query, a.limit, a.show)
+    if a.cmd == 'tips':
+        return tips(a.tags, a.all)
     if a.cmd == 'wait':
         time.sleep(a.seconds)
         return
@@ -958,7 +1023,11 @@ def main(argv=None):
         if a.cmd != 'do':
             wait_settle(timeout=2.0)  # let the result render before the game pauses in background
     finally:
-        release_focus()
+        released = release_focus()
+    if a.cmd not in ('do', 'advance'):
+        if released:
+            time.sleep(0.4)
+        print(brief(state()))  # every input command reports the settled state (one call per step)
 
 
 def _dispatch_input(a):

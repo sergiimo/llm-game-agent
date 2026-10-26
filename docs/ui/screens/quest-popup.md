@@ -3,7 +3,7 @@
 > **Summary:** Centered card announcing a quest or quest step.
 
 ## Recognise
-Mode `popup`: OCR contains **Подтвердить** (Confirm), sometimes read as "Лодтвердить".
+Mode `popup`: OCR contains **Подтвердить** (Confirm; sometimes read "Лодтвердить"), or for completion **"Задание выполнено!"** + button **Ура!**.
 
 ## Elements
 - Quest title, step text, optional progress counter (e.g. `0/2`), button **Подтвердить**.

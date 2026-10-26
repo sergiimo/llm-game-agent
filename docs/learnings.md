@@ -42,6 +42,21 @@ wiki or an assumption, then fix the affected doc/tool/skill in the same change.
 
 | L28 | We could send input to the game in the background | **The game pauses when not frontmost**: game time freezes (clock unchanged over 12 s) and it ignores keys posted to its pid (`CGEventPostToPid`) | **Background by default.** `./wf` focuses the game only for the instant of an input command, then gives focus back to the previous app (Warp). Game time runs only during actions; checks run on the frozen frame (fast). `WF_KEEP_FRONT=1` disables it | wf.py `ensure_front/release_focus`, AGENTS.md |
 
+| L29 | `./wf state` tells the supervisor where Tara is | It has no location. The supervisor assumed "in the garden" while Tara was **inside the house** (woke there on day 2; the bubble was the bed's sleep prompt) | Supervisor orients with one `./wf look` at session/day start and puts the location in the brief | wylde-supervise skill |
+| L30 | `find_bubble` catches all prompt bubbles | It **missed the potato+water-drop bubble** on the planted bed (screenshot showed it) | ⏸ Re-sample the colours from that frame and widen the detector; meanwhile verify with `./wf look` when `bubble` is absent | wf.py `find_bubble` (todo) |
+| L31 | Quest agent delegates each step to the runner | The Sonnet quest agent did all 24 calls itself (faster to iterate on its own visual checks) | Accept for short goals. Delegate only long mechanical loops (dialogue chains, routes, repeated interactions) | wylde-quest agent §3 |
+
+| L32 | Walking only moves Tara | A `walk right` once opened the **photo/camera** screen (Esc closes it). Cause unknown | If `state` shows an unexpected overlay after a walk: Esc, then continue | ui (todo: camera screen file) |
+| L33 | Agents click in `look` image coordinates | `click` takes **game** coordinates (= look pixels / scale). An agent clicked at half scale | ⏸ add `./wf click --img X Y` (uses the last look's scale/offset) | tools/TODO.md |
+
+| L34 | `state` shows quest progress | The gameplay fast-path OCR'd only clock/subtitles/money, so **tracker popups ("Древесина: 5/6") were invisible** and the agent miscounted | Full OCR by default (cheap in the background) + a `tracker:` field; clock OCR'd from its own crop | wf.py `classify`, `brief` |
+| L35 | The supervisor learns what agents learned | The user's mid-run corrections to the agent (4 messages) never reached the supervisor's docs; the agent also left stale counts in its notes | Agents write raw notes only to the quest file and report GAPS incl. `[user]`; the supervisor owns the shared docs and the brief template | wylde-quest §5–6, wylde-supervise §3/§5 |
+
+| L36 | (wiki tips) carry food/coffee and eat when low | **User: eating is expensive and gives little vs sleeping; the only good reason is same-day pushes like mining (keys reset when you leave the mine)** | Energy Strategy: default sleep; agents don't eat unless the brief says so | mechanics/energy.md, basic-actions, mining, wylde-quest, wylde-supervise |
+| L39 | Agents find what they need in the docs on their own | They hunted, guessed, and the user had to correct them; gaps surfaced only at the end | **Manifest protocol:** the quest brief `Read:` lists every needed file/section/command; on a gap the child returns `need-help` and the parent fixes the docs and resumes it | wylde-quest §1/§4, wylde-supervise §3/§3b, quest briefs |
+| L38 | Strategy goes in each concept file | Strategies span concepts (eat vs sleep vs mine vs chop) and were scattered across concept files and the supervisor skill | **One tips table** (`docs/tips.md`, tagged, sourced) + `./wf tips <tags>`; quest briefs carry tags | docs/tips.md, wf.py `tips`, quest briefs, agents |
+| L37 | Concepts live where convenient | Energy facts were scattered (hud ❓, energy.md ❓ duplicate, basic-actions) and unreadable by tools | Convention: one concept file (Rules/Strategy/How to see/How to read/Verified), hud = visual + link, a `state` field per measurable concept (`⚡N%` added) | docs/INDEX.md Conventions, wf.py `read_energy` |
+
 ## Performance
 | # | Expected | Actual | Now | Updated |
 |---|---|---|---|---|
@@ -50,6 +65,7 @@ wiki or an assumption, then fix the affected doc/tool/skill in the same change.
 | P3 | Screenshot cost negligible | PNG encode+decode of 1920×1080 = 0.5 s (1.2 s with the game in front) | In-memory `grab()` (CGImage → PIL); files only for `look` (JPEG) | wf.py `grab` |
 | P4 | Speed same regardless of focus | **With the game in front everything is 3–10× slower** (game + WindowServer + a running VM compete for the machine): `state` ≈3 s, `do` ≈5 s | Accept for now. Batch actions per `do` call; prefer text checks; see retro ⏸ items | retros/2026-10-26-2116.md |
 | P6 | Focusing the game is instant | Switching to the full-screen game's Space takes **3–4.7 s** (slide animation); switching back ~0.3 s. A `do` step ≈ 6–8 s, most of it the switch | ⏸ Options: macOS *Reduce motion* (Space switch becomes a fade) or the game in windowed mode on Warp's Space. Both are user settings, so ask first | retros/2026-10-26-2116.md |
+| P7 | Actions are cheap in game time | Each `./wf` input call costs **~10–20 game minutes** (3–4 s focus switch at Normal speed ≈ 1 h 40 min/real min). The day-2 watering trip took 3 h 20 min of game time | Batch actions in one `do`; prefer routes; ⏸ the user's choice: Reduce motion / windowed mode / Relaxed day speed | retros |
 | P5 | Fixed sleeps fine | Sleeps waste 1–2.5 s/step; change-detection with a high threshold hit its timeout | `wait_settle`: 2 consecutive still frames (diff<1.5 on 96×54 gray), poll 0.1 s | wf.py |
 
 ## Research

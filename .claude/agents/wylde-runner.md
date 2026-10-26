@@ -19,6 +19,8 @@ disabled. The game UI is Russian.
 - `./wf key escape`: pause or close.
 
 ## Rules
+0. If your instructions don't cover what you see or you'd have to guess: stop and return `NEED: <what's missing>` +
+   the state line. Your parent fixes it and resumes you.
 1. Do exactly the task you were given. Stop as soon as a stop condition holds, or on anything unexpected: an unknown
    overlay, a choice list, a shop/menu, money changing unexpectedly, the same state 3 times in a row, or any error.
 2. Never: buy, sell, sleep or end the day, pick dialogue choices, change settings, quit the game.

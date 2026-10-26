@@ -23,3 +23,5 @@ Load order: this index → only the file you need. Verified on the macOS build, 
 | [settings](screens/settings.md) | Game settings. Read-only for agents unless the user asks. |
 | [pass-out](screens/pass-out.md) | End-of-day screen when Tara stays up too late (~02:00) or runs out of energy. |
 | [hint-popup](screens/hint-popup.md) | Small panel with the actionable step for the selected quest. |
+| [interaction-menu](screens/interaction-menu.md) | Action-choice bubbles over an NPC (talk / quest hand-in); `overlay` mode. |
+| [sleep](screens/sleep.md) | Bed zzz bubble, yes/no sleep prompt, morning cutscene. |

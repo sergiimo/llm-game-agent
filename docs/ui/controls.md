@@ -10,7 +10,7 @@
 | J | journal toggle | ✅ |
 | M | map | ✅ |
 | Esc | pause menu open/close; closes journal/map | ✅ (L20) |
-| I | inventory (backpack button) | ❓ |
+| I | inventory; sections incl. **Инструменты** (Tools: watering can, axe…) and **Семена** (Seeds) | ✅ |
 | E | does nothing | ✅ (L19) |
 | tool/item switching | ? | ❓ |
 | Mouse left click | UI buttons (OK, hint, Выбрать, seed cards, settings tabs). **Not** prompt bubbles, **not** "Продолжить игру" | ✅ |

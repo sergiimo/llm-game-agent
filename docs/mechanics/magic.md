@@ -8,3 +8,9 @@
 - Weather/time spells: Summon Rain, Sunny Day, Summon Wind/Storm/Night, Speed/Freeze/Reverse Time.
 - Recipes: [../world/items/potions-and-incantations.md](../world/items/potions-and-incantations.md).
 - Season changes are coven rituals (see [seasons-and-weather.md](seasons-and-weather.md)).
+
+## How to see
+❓ Not seen yet (expected: a magic meter once the wand is obtained in the Coven questline).
+
+## How to read
+Not readable yet.

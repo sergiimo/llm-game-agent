@@ -21,6 +21,17 @@ SEED = {
     'The Fungus Among Us': ('active', 'Занимательная микология'),
     'The Most Elaborate Icebreaker': ('active', 'Скоростные знакомства'),
 }
+BRIEF_TEMPLATE = '''## Quest brief (supervisor-maintained; the agent's single source of truth)
+- **Why:** ❓
+- **Steps (current → end):** ❓
+- **How-to:** ❓ (see `docs/mechanics/basic-actions.md` rows)
+- **Where:** ❓ (see `docs/world/locations.md`)
+- **Progress signal:** ❓ (tracker text via `./wf state` → `tracker:` / journal J)
+- **Done when:** ❓ · **Next after done:** ❓
+- **Read:** ❓ (manifest: exact files/sections/commands the agent needs)
+- **Tips:** ❓ tags → `./wf tips <tags>`
+- **Gotchas:** —
+'''
 STATUS_ICON = {'done': '✅', 'active': '▶️', 'todo': '·'}
 
 
@@ -101,9 +112,10 @@ def main():
         else:
             title = q['name'] + (f' ({meta["ru"]})' if meta['ru'] else '')
             rest = (f'# {title}\n\n> **Summary:** {summary(q["body"])}\n\n'
+                    f'{BRIEF_TEMPLATE}\n'
                     f'## Wiki requirements\n{gen}\n\n'
-                    f'## Verified steps\n_Not played yet. Add steps as they are verified in-game: exact `./wf` commands → '
-                    f'what appears (RU quoted + EN) → done-signal._\n')
+                    f'## Verified steps\n_Not played yet. Record AS YOU GO under `### Attempt N (<day/time>)`: ✅ worked '
+                    f'(exact `./wf` commands → what appears, RU + EN) · ❌ dead end (why) · ❓ open question/gap._\n')
         front = (f'---\nquest: {q["name"]}\nru: {meta["ru"]}\nline: {q["line"]}\nseason: {q["season"]}\n'
                  f'status: {meta["status"]}   # todo | active | done\n---\n')
         open(path, 'w').write(front + rest)

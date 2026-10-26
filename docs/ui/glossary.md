@@ -26,3 +26,22 @@
 | Время вышло! Ты выбилась из сил | Time's up! You're exhausted |
 | Пауза / Продолжить игру / Настройки / Вернуться в меню / Выйти из игры | Pause / Continue / Settings / Back to menu / Quit |
 | Скорость дня: Нормальная | Day speed: Normal |
+| Скорость дня: Спокойная | Day speed: Relaxed |
+| Ржавая лейка | Rusty Watering Can |
+| Гриб | Mushroom (forage item, picked with Space in the mountain-road meadow) |
+| Палочка-выручалочка | Wood-n't You Know It (quest: chop logs) |
+| На чистую воду | Steeped in Mystery (quest: moonflower at night) |
+| Ржавый топор | Rusty Axe |
+| Грибной крем-суп | Cream of Mushroom Soup |
+| Инструменты | Tools (inventory section) |
+| поленья | logs |
+| Да, пожалуй / Еще рано | Yes, I suppose / It's too early (sleep prompt) |
+| Бревен порублено: 1/2 | Logs chopped: 1/2 |
+| Древесина: N/6 | Wood: N/6 |
+| У меня больше нет сил! | I have no strength left! (out of energy) |
+| Еда / Съесть | Food (inventory section) / Eat |
+| Ура! | Hooray! (completion popup button) |
+| Задание выполнено! Твоя награда: | Quest complete! Your reward: |
+| Съешь что-нибудь из своей сумки | Eat something from your bag |
+| Пальчики облизотто | Rice and Shine (quest: buy rice + 2 mushrooms → mushroom risotto) |
+| Отдай бабушке древесину | Give the wood to Gramma |

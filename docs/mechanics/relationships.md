@@ -7,3 +7,9 @@
 - When the bar stops rising, the journal says the character "is really getting to know" you, so meet them at the event place/time (`reference/wiki/<Name>__Events.md`).
 - Romanceable: Amira, Cameron, Damon, Eury, Giva, Kai, Kim, Westley (one at a time). Favourites: [../world/characters.md](../world/characters.md).
 - Ask the user before romance choices.
+
+## How to see
+Interaction menu shows the NPC name plate with hearts ([../ui/screens/interaction-menu.md](../ui/screens/interaction-menu.md)) ❓ details.
+
+## How to read
+Not readable yet (name plate OCR gives the name).

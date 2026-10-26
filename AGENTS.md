@@ -1,5 +1,7 @@
 # AGENTS.md — playing Wylde Flowers on this Mac
 
+**Goal:** minimal, sufficient docs so agents can pass the quests. Current phase: testing; **filling gaps beats winning**.
+
 This repo is a toolkit for an AI agent to **play Wylde Flowers** (Apple Arcade macOS build, running full-screen,
 UI language **Russian**) and a **world model** of the game.
 
@@ -37,6 +39,8 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 Always have **one current goal** (in `docs/progress.md`). The main conversation supervises (`wylde-supervise`):
 choose the goal, dispatch `wylde-quest`, review, ask the user for decisions. The quest agent loads only the relevant
 docs and drives steps through `wylde-runner`.
+**Manifest protocol:** the parent gives the child every file/reference it needs (quest file + its `Read:` list). A child that
+hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief for now and the future, then resumes it.
 
 ## Rules of play
 0. **The game lives in the background.** It pauses when unfocused (time frozen, L28). `./wf` brings it forward only

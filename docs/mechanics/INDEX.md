@@ -4,6 +4,7 @@ Load order: this index → only the mechanic you need. "(wiki)" sections are unv
 
 | Mechanic | Summary |
 |---|---|
+| [basic-actions](basic-actions.md) | **How to do things:** interact model (bubble → Space), which tool for which target (axe/can/pickaxe/rod), forage, talk, sleep, eat. Start here for any verb |
 | [time-and-calendar](time-and-calendar.md) | Clock runs in 10-min ticks; weekdays gate shop hours; the day ends by sleeping or by passing out at ~02:00. |
 | [energy](energy.md) | Stamina for tools/foraging; restore by eating/coffee; sleep refills; starts low. |
 | [magic](magic.md) | Separate magic meter for wand spells; crafting of potions/incantations in the Basement. |

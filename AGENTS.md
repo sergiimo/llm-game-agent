@@ -20,7 +20,9 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 | `./wf` → `tools/wfc.py` → daemon `tools/wf.py serve` | CLI to observe/control the game. **`./wf stop` after editing wf.py** |
 | `routes/*.txt` | Recorded, verified walking routes (`./wf route <name>`) |
 | `.claude/skills/` | `wylde-play` (main loop), `wylde-navigate`, `wylde-lookup`; generic `game-onboarding` (method for onboarding any game, with template scripts) |
-| `.claude/agents/wylde-runner.md` | Haiku subagent for mechanical text-only loops |
+| `.claude/skills/wylde-supervise/` | **How to play:** supervisor loop (main conversation) → one `wylde-quest` per goal |
+| `.claude/agents/wylde-quest.md` | Quest agent (Sonnet): one goal, loads relevant docs, plans, records verified steps |
+| `.claude/agents/wylde-runner.md` | Action agent (Haiku): executes one concrete step via `./wf`, text-only |
 | `retros/` | Retrospectives (`/retro`) |
 | `tools/gen_quests.py`, `gen_world_tables.py`, `build_reference.py`, `wikiclean.py` | Regenerate quests/world/reference (verified steps are preserved) |
 
@@ -30,6 +32,11 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 - Run `./wf` commands that touch the game **outside the sandbox** (window server access).
 - Python deps live in `.venv` (pyobjc Quartz/Vision/Cocoa, Pillow); `./wf` uses it automatically.
 - Input commands bring the game to the front for the action only (≈3–4 s Space switch), then return focus.
+
+## Playing = supervisor → quest agent → action agent
+Always have **one current goal** (in `docs/progress.md`). The main conversation supervises (`wylde-supervise`):
+choose the goal, dispatch `wylde-quest`, review, ask the user for decisions. The quest agent loads only the relevant
+docs and drives steps through `wylde-runner`.
 
 ## Rules of play
 0. **The game lives in the background.** It pauses when unfocused (time frozen, L28). `./wf` brings it forward only

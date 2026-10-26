@@ -34,7 +34,9 @@ These are the owner's intents. They outrank defaults below.
 9. **Organise game knowledge by kind** (mechanics · UI elements · quests list · quest steps) and **load it
    progressively** (router → index → one file → its summary first).
 10. **Actually play:** progress real quests and record them. Infrastructure serves play.
-11. Keep this skill **in the repo** (`.claude/skills/game-onboarding/`) with its template scripts.
+11. **Playing always has a current goal**, structured as supervisor → light quest agent (one quest, loads relevant
+    docs) → action agent (one step).
+12. Keep this skill **in the repo** (`.claude/skills/game-onboarding/`) with its template scripts.
 
 ## Standing rules
 1. **Hypothesis → cheapest probe → observe → record → encode.** For each unknown: state the expectation, run the
@@ -153,10 +155,18 @@ dialogue/popup/cutscene modes), `route`, `wiki`.
 ## Phase 4: AGENTS.md, skills, delegation
 - `AGENTS.md`: progressive-loading layout table (start at `docs/INDEX.md` + `docs/progress.md`), setup facts (from
   probes A/B/C), rules of play (standing rules adapted with the probe results).
-- Skills: `<game>-play` (preflight → observe/decide/act/verify → guardrails → recording), `<game>-navigate`,
+- Skills: `<game>-supervise` (goal loop), `<game>-play` (preflight → observe/decide/act/verify → guardrails → recording), `<game>-navigate`,
   `<game>-lookup`.
-- Optional: a fast-model runner agent (`.claude/agents/<game>-runner.md`, `model: haiku`) for text-only mechanical loops
-  with strict stop rules. Agent files load at session start, so smoke-test with a general agent on the same model meanwhile.
+- **Play through a hierarchy with one current goal at a time** (subagents may nest up to 3 levels):
+  - **supervisor** = main conversation (skill `<game>-supervise`): owns `progress.md` (current goal, goal queue, log),
+    picks the next small verifiable goal (time/shop-hours/energy aware), dispatches, reviews, asks the user for decisions;
+  - **quest agent** (`.claude/agents/<game>-quest.md`, light model e.g. `sonnet`): one goal; loads docs progressively
+    (progress → quest file → only needed ui/mechanics/world files); plans steps with done-signals; records verified steps;
+    returns a fixed-format report (done/partial/blocked/decision-needed);
+  - **action agent** (`.claude/agents/<game>-runner.md`, `model: haiku`, `disallowedTools: Agent`): one concrete step via
+    the CLI, text-only, strict stop rules.
+  - Agent files load at session start; until then use `general-purpose` with the same `model` and tell it to follow
+    the agent file.
 
 ## Done when
 All probes A–E are answered and logged; the CLI encodes them and is verified live; docs + generated tables + offline

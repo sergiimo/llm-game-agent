@@ -1,0 +1,7 @@
+# Town Center fountain (Tara SE of statue) -> Hazel Wylde's Farm. Verified Spring Y1 day 1 (playbook 01).
+left:1.0 up:3.0
+left:0.6 up:3.5
+left:1.2 nw:1.5 up:0.6 left:3
+left:4
+up:0.7 left:5
+left:2 nw:2 left:2

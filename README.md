@@ -8,9 +8,9 @@ The game has no API, mod support or accessibility hooks. Everything goes through
 human uses, plus side channels found by reverse-engineering the sandboxed app container.
 
 <p align="center">
-  <img src="docs/media/quest-1.gif" width="720" alt="Agent closing Angus's shop menu in the bakery and walking out with click-to-move"><br>
-  <sub>A quest agent on <i>The Most Elaborate Icebreaker</i>: after meeting Angus in Seton's Bakery (tracker 5/22),
-  the agent closes the shop menu and walks out with <code>go:</code> click-to-move hops. The caption is the live <code>./wf</code> call.
+  <img src="docs/media/quest-1.gif" width="720" alt="Agent walking up to Angus in the bakery with click-to-move and meeting him"><br>
+  <sub>A quest agent on <i>The Most Elaborate Icebreaker</i>: a <code>go:</code> click-to-move hop to the counter in Seton's Bakery,
+  dialogue with Angus, his shop menu, and the villager tracker ticking to 5/22. The caption is the live <code>./wf</code> call.
   <b><a href="docs/media/quest-1.mp4">Full video (MP4, 72 s)</a></b></sub>
 </p>
 

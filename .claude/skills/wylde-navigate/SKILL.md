@@ -5,10 +5,16 @@ description: Move Tara around Fairhaven in Wylde Flowers — recorded routes, th
 
 # Navigating
 
-## Prefer recorded routes
+## Default: click-to-move (L49)
+`./wf look` → pick the destination (object or ground point) → `./wf do go:<x>:<y>` (game coords = look coords ÷ 0.4).
+The game pathfinds around fences/objects; Tara stops in front of a clicked object with its bubble shown, then
+`./wf do key:space`. One `go:` per on-screen hop; chain hops with a look between for far places. `NO MOVE` = clicked a
+non-walkable spot. Use the keyboard (`walk:`/`bubble:`/routes) only as a fallback.
+
+## Recorded routes
 `./wf route --list` shows them; `./wf route <name>` replays one. Routes are dead-reckoning (direction:seconds)
 and assume the **start position written in the route's first comment line**. Verify arrival with
-`./wf state` (an area banner OCRs as text, e.g. "Ферма Хейзел Уайлд") or `./wf look`.
+`./wf state` (an area banner OCRs as text, e.g. "Hazel Wylde's Farm") or `./wf look`.
 
 ## Finding the way
 - `./wf key m` opens the map: the pink pin is Tara and a dotted line marks the current quest route. Close with Esc.
@@ -24,7 +30,7 @@ since that can open their panel (learnings L25/L26).
 - `./wf walk <dir> <sec>` / `./wf path up:1.2 left:3 nw:0.8`. Directions are screen-relative (W=up …), with
   diagonals ne/nw/se/sw. Speed is about 1 screen-width per 4–5 s.
 - Walk in chunks of ≤ 4 s, then `./wf look` to check position.
-- **Stuck** (screen unchanged after a walk): side-step perpendicular 0.5 s and retry. Lamp posts, stair edges and
+- **Stuck**: `do` prints `BLOCKED walk:<dir>` (or `NO BUBBLE: BLOCKED`) when the screen didn't change. Side-step perpendicular 0.5 s, re-look, retry. Approaching objects: `docs/mechanics/basic-actions.md` → Approach a target. Lamp posts, stair edges and
   gate pillars snag Tara (learnings L7).
 - Area change = letterbox + location banner bottom-left (sometimes a short camera pan). Wait about 2 s, then `./wf state`.
 

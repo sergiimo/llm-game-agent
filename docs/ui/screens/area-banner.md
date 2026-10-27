@@ -6,7 +6,7 @@
 OCR text bottom-left next to a small house icon, usually during a short letterbox pan.
 
 ## Elements
-- Seen: "Ферма Хейзел Уайлд" (Hazel Wylde's Farm).
+- Seen: "Hazel Wylde's Farm" (Hazel Wylde's Farm).
 
 ## Actions
 - None needed; useful as an arrival signal for routes.

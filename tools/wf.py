@@ -4,9 +4,9 @@
 Run with the project venv:  .venv/bin/python tools/wf.py <command> [args]
 (or the wrapper:            ./wf <command> [args])
 
-All coordinates are GAME-WINDOW POINTS: (0,0) = top-left of the game window, same units as
-`wf.py status` reports for the window size (1920x1080 when full-screen on a 1080p display).
-Screenshots are saved at that same resolution so pixel coords in the image == click coords.
+All coordinates are GAME POINTS in a virtual 1920x1080 frame: (0,0) = top-left of the game picture, whatever the
+real window size (full screen, or windowed e.g. 1600x900 + title bar). Screenshots are scaled to that frame, so pixel
+coords in the image == click coords.
 
 Requires macOS permissions for the host terminal (System Settings > Privacy & Security):
   * Screen & System Audio Recording  (screenshots / OCR)
@@ -24,7 +24,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOT_DIR = os.environ.get('WF_SHOT_DIR', os.path.join(ROOT, '.shots'))
 APP_NAME = 'Wylde Flowers'
 # The game UI language on this machine is Russian; OCR both. Override: WF_OCR_LANGS=en-US
-OCR_LANGS = os.environ.get('WF_OCR_LANGS', 'ru-RU,en-US').split(',')
+OCR_LANGS = os.environ.get('WF_OCR_LANGS', 'en-US,ru-RU').split(',')  # game UI is English since D4 (L48)
 BUNDLE_ID = 'com.studiodrydock.mayflower'
 
 # macOS virtual key codes (ANSI layout)
@@ -105,6 +105,17 @@ def game_window():
     return big[0]
 
 
+FRAME_W, FRAME_H = 1920, 1080  # every wf coordinate is in this virtual frame, whatever the window size
+
+
+def content_box(w):
+    """(x0, y0, scale) of the 16:9 game picture inside window `w`, in window points: windowed mode adds a title bar
+    on top (e.g. 1600x928 window = 28 pt bar + 1600x900 picture). game point (gx, gy) -> window (x0 + gx*scale, ...)."""
+    scale = min(w['w'] / FRAME_W, w['h'] / FRAME_H)
+    cw, ch = FRAME_W * scale, FRAME_H * scale
+    return (w['w'] - cw) / 2, w['h'] - ch, scale
+
+
 def permissions():
     Q = _quartz()
     import ApplicationServices as AS
@@ -126,16 +137,26 @@ def focus():
     so go through LaunchServices (`open -a`), which is always honoured.
     """
     subprocess.run(['open', '-b', BUNDLE_ID], check=False)
-    for _ in range(20):
-        time.sleep(0.15)
+    for _ in range(100):
+        time.sleep(0.03)
         if is_frontmost():
-            time.sleep(0.4)  # let the Space transition finish
+            time.sleep(SPACE_SETTLE())  # let a full-screen Space transition finish
             return True
     return False
 
 
+def SPACE_SETTLE():
+    """Extra wait after a focus change: the full-screen Space slide needs ~0.4 s, a window needs almost none."""
+    w = game_window()
+    return 0.4 if w and content_box(w) == (0, 0, 1) else 0.05
+
+
 def is_frontmost():
     from AppKit import NSWorkspace
+    from Foundation import NSDate, NSRunLoop
+    # frontmostApplication only refreshes when the run loop runs; without this a long-lived process (the daemon)
+    # never saw the switch and focus() always waited out its timeout (~3 s per call, L45)
+    NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(0.005))
     app = NSWorkspace.sharedWorkspace().frontmostApplication()
     return app is not None and app.bundleIdentifier() == BUNDLE_ID
 
@@ -153,11 +174,19 @@ def ensure_front():
         focus()
 
 
+FRONT_FLAG = os.path.join(SHOT_DIR, 'keep_front')
+
+
+def keep_front():
+    """True when the game should stay in front between calls (`./wf focus-mode front`, user's choice)."""
+    return os.environ.get('WF_KEEP_FRONT') == '1' or os.path.exists(FRONT_FLAG)
+
+
 def release_focus():
     """Give focus back to the previous app. The game (Unity) pauses when unfocused: game time stops and
-    screen checks get ~10x faster. Disable with WF_KEEP_FRONT=1."""
+    screen checks get ~10x faster. Disabled by `./wf focus-mode front` (or WF_KEEP_FRONT=1)."""
     global _PREV_APP
-    if os.environ.get('WF_KEEP_FRONT') == '1' or not _PREV_APP or _PREV_APP == BUNDLE_ID:
+    if keep_front() or not _PREV_APP or _PREV_APP == BUNDLE_ID:
         return False
     subprocess.run(['open', '-b', _PREV_APP], check=False)
     _PREV_APP = None
@@ -187,10 +216,18 @@ def _capture_window_quartz(window_id, out_png):
     return bool(Q.CGImageDestinationFinalize(dest))
 
 
+def screen_locked():
+    Q = _quartz()
+    d = Q.CGSessionCopyCurrentDictionary() or {}
+    return bool(d.get('CGSSessionScreenIsLocked', False))
+
+
 def grab():
     """Fast in-memory capture of the game window as a PIL RGB image at window-point size (~50 ms)."""
     from PIL import Image
     Q = _quartz()
+    if screen_locked():
+        sys.exit('ERROR: the Mac screen is LOCKED; captures are black and input is blocked. Ask the user to unlock.')
     w = require_window()
     cg = Q.CGWindowListCreateImage(Q.CGRectNull, Q.kCGWindowListOptionIncludingWindow, w['id'],
                                    Q.kCGWindowImageBoundsIgnoreFraming | Q.kCGWindowImageNominalResolution)
@@ -202,6 +239,16 @@ def grab():
     img = Image.frombuffer('RGBA', (cw, ch), bytes(data), 'raw', 'BGRA', bpr, 1).convert('RGB')
     if img.size != (w['w'], w['h']):
         img = img.resize((w['w'], w['h']), Image.BILINEAR)
+    return _to_frame(img, w)
+
+
+def _to_frame(img, w):
+    """Crop the title bar and scale to the 1920x1080 virtual frame (no-op in 1080p full screen)."""
+    from PIL import Image
+    x0, y0, sc = content_box(w)
+    if (x0, y0, sc) != (0, 0, 1):
+        img = img.crop((round(x0), round(y0), round(x0 + FRAME_W * sc), round(y0 + FRAME_H * sc)))
+        img = img.resize((FRAME_W, FRAME_H), Image.BILINEAR)
     return img
 
 
@@ -224,7 +271,7 @@ def screenshot(path=None, region=None):
             r = subprocess.run(['screencapture', '-x', '-o', '-l', str(w['id']), raw], capture_output=True, text=True)
             if r.returncode != 0 or not os.path.exists(raw):
                 sys.exit('ERROR: capture failed (Screen Recording permission?): ' + (r.stderr or r.stdout).strip())
-        img = Image.open(raw).convert('RGB')
+        img = _to_frame(Image.open(raw).convert('RGB').resize((w['w'], w['h'])), w)
         os.remove(raw)
     if region:
         x, y, rw, rh = region
@@ -325,7 +372,8 @@ def find_text(needle, path=None, region=None, exact=False):
 
 def _to_screen(x, y):
     w = require_window()
-    return w['x'] + x, w['y'] + y
+    x0, y0, sc = content_box(w)
+    return w['x'] + x0 + x * sc, w['y'] + y0 + y * sc
 
 
 def _post_key(code, down, flags=0):
@@ -433,8 +481,7 @@ HUD_REGIONS_1080 = {
 
 
 def hud(path=None):
-    w = require_window()
-    sx, sy = w['w'] / 1920, w['h'] / 1080
+    sx = sy = 1  # screenshots are always in the 1920x1080 frame
     path = path or screenshot()
     from PIL import Image
     img = Image.open(path)
@@ -458,9 +505,10 @@ HUD_TEMPLATES = {'hud_pause': (50, 50, 120, 120), 'hud_journal3': (1605, 55, 110
 MONEY_REGION = (1700, 130, 200, 70)
 MONEY_BOX = (1700, 130, 1900, 200)      # same, as a PIL crop box
 CLOCK_REGION = (150, 25, 350, 90)      # day name + time next to the analog clock (top-left, after clock appears)
-POPUP_WORDS = ('одтвердить',          # "Подтвердить" Confirm (OCR sometimes reads П as Л)
-               'Ура!',                # completion popup button "Hooray!"
-               'Задание выполнено')   # "Quest complete" header
+POPUP_WORDS = ('Confirm', 'Hooray', 'Quest Complete', 'Quest complete',  # EN UI (L48; exact EN wording unverified)
+               'одтвердить',          # RU "Подтвердить" Confirm (OCR sometimes reads П as Л)
+               'Ура!',                # RU completion popup button "Hooray!"
+               'Задание выполнено')   # RU "Quest complete" header
 SUBTITLE_Y = 940                        # dialogue subtitles ("Name: text") are OCR'd below this y
 
 
@@ -480,6 +528,15 @@ def _match(img, name, thresh=18.0):
 def _in(r, region):
     x, y, w, h = region
     return x <= r['cx'] <= x + w and y <= r['cy'] <= y + h
+
+
+def _meaningful(r):
+    """Drop OCR noise from scenery (e.g. '11 12 >', '* vŽni'): keep confident text with a real word or an n/m counter."""
+    t = r['text']
+    if re.search(r'\d+\s*/\s*\d+', t):
+        return True
+    words = re.findall(r'[A-Za-zА-Яа-яЁё]{3,}', t)
+    return bool(words) and r.get('conf', 1) >= 0.5
 
 
 def classify(path_or_img, with_bubble=True, full_text=False):
@@ -514,10 +571,10 @@ def classify(path_or_img, with_bubble=True, full_text=False):
         if hud_ok:  # the small clock text needs full resolution
             cx, cy, cw, ch = CLOCK_REGION
             lines += ocr_image(img.crop((cx, cy, cx + cw, cy + ch)), scale=1, offset=(cx, cy))
-    money = [r['text'] for r in lines if _in(r, MONEY_REGION) and r['text'].isdigit()]
+    money = [r['text'] for r in lines if _in(r, MONEY_REGION) and re.fullmatch(r'\d{1,6}', r['text'].strip())]
     clock = [r['text'] for r in lines if _in(r, CLOCK_REGION)]
     subs = [r['text'] for r in lines if r['cy'] >= SUBTITLE_Y and r['text'] not in money]
-    text = [r for r in lines if r['text'] not in money and r['text'] not in clock]
+    text = [r for r in lines if r['text'] not in money and r['text'] not in clock and _meaningful(r)]
     joined = ' '.join(r['text'] for r in text)
     if letterbox:
         mode = 'cutscene'
@@ -634,6 +691,22 @@ def find_bubble(img):
     return best[0] if best else None
 
 
+MOVE_DIFF = 3.0  # verified: moving 0.2 s+ = 8-10, blocked = 1.1-1.6 (water animating). Mean grey diff (96x54) between frames before/after a walk; below = the camera didn't move
+
+
+def _walk_checked(direction, seconds):
+    """Walk and report when the screen didn't change (Tara blocked by a rock/fence/water edge). The camera follows
+    Tara, so a real move shifts the whole frame; idle animation stays well below MOVE_DIFF."""
+    before = _signature()
+    hold_keys(DIRS[direction], float(seconds))
+    time.sleep(0.15)
+    d = _diff(before, _signature())
+    if os.environ.get('WF_DEBUG_MOVE'):
+        print(f'move diff {direction}:{seconds} = {d:.2f}')
+    return f'BLOCKED walk:{direction} (screen unchanged; go around: side-step, then approach from another side)' \
+        if d < MOVE_DIFF else None
+
+
 def walk_until_bubble(direction, max_seconds=4.0, step=0.25, fade=0.35):
     """Walk in short steps until a prompt bubble shows. Returns bubble position or None.
 
@@ -646,14 +719,21 @@ def walk_until_bubble(direction, max_seconds=4.0, step=0.25, fade=0.35):
         b = find_bubble(grab())
         if b or t >= max_seconds:
             return b
-        hold_keys(DIRS[direction], step)
+        if _walk_checked(direction, step):
+            return 'BLOCKED'
         t += step
 
 
 # ---------------------------------------------------------------- change detection / one-call actions
 
+_FRAMES = None  # when a list, _signature() also keeps full frames (for toast capture in `do`)
+
+
 def _signature():
-    return grab().convert('L').resize((96, 54))
+    img = grab()
+    if _FRAMES is not None and len(_FRAMES) < 12:
+        _FRAMES.append(img)
+    return img.convert('L').resize((96, 54))
 
 
 def _diff(a, b):
@@ -681,19 +761,47 @@ def wait_settle(before=None, timeout=3.0, interval=0.1, still=1.5, min_wait=0.25
     return round(time.time() - t0, 2)
 
 
+def go_to(x, y, timeout=15.0, interval=0.15):
+    """Click-to-move (L49): left-click a ground point or object; the game pathfinds around fences/objects and Tara
+    walks there (clicking an object stops her in front of it, bubble shown, no interaction). Waits until the camera
+    stops moving. Returns None on arrival, or a NO MOVE / STILL MOVING message."""
+    before = _signature()
+    click(int(x), int(y))
+    t0 = time.time()
+    time.sleep(0.4)  # start-up
+    prev, calm = _signature(), 0
+    while time.time() - t0 < timeout:
+        time.sleep(interval)
+        cur = _signature()
+        calm = calm + 1 if _diff(prev, cur) < 1.5 else 0
+        if calm >= 2:
+            break
+        prev = cur
+    else:
+        return f'STILL MOVING after {timeout:.0f}s (long path?): check with look'
+    if os.environ.get('WF_DEBUG_MOVE'):
+        print(f'go diff = {_diff(before, cur):.2f} in {time.time() - t0:.1f}s')
+    if _diff(before, cur) < MOVE_DIFF:
+        return f'NO MOVE go:{x}:{y} (not walkable or already there; pick a ground point nearer, or use walk)'
+    return None
+
+
 def run_action(spec):
-    """Execute one action spec: key:<k> | walk:<dir>:<s> | path:<dir:s,dir:s> | click:<x>:<y> |
-    text:<label> (click-text) | route:<name> | bubble:<dir>[:<max_s>] (walk until prompt) | wait:<s>"""
+    """Execute one action spec: go:<x>:<y> (click-to-move, game pathfinds) | key:<k> | walk:<dir>:<s> |
+    path:<dir:s,dir:s> | click:<x>:<y> | text:<label> (click-text) | route:<name> |
+    bubble:<dir>[:<max_s>] (walk until prompt) | wait:<s>"""
     kind, _, arg = spec.partition(':')
     if kind == 'key':
         key(arg)
+    elif kind == 'go':
+        x, y = arg.split(':')
+        return go_to(int(x), int(y))
     elif kind == 'walk':
         d, s = arg.split(':')
-        hold_keys(DIRS[d], float(s))
+        return _walk_checked(d, float(s))
     elif kind == 'path':
-        for st in arg.split(','):
-            d, s = st.split(':')
-            hold_keys(DIRS[d], float(s))
+        msgs = [_walk_checked(*st.split(':')) for st in arg.split(',')]
+        return ' / '.join(m for m in msgs if m) or None
     elif kind == 'click':
         x, y = arg.split(':')
         click(int(x), int(y))
@@ -707,6 +815,8 @@ def run_action(spec):
     elif kind == 'bubble':
         d, _, m = arg.partition(':')
         b = walk_until_bubble(d, float(m or 4))
+        if b == 'BLOCKED':
+            return f'NO BUBBLE: BLOCKED walking {d} (go around: side-step, then approach from another side)'
         return f'bubble at {b}' if b else 'NO BUBBLE'
     elif kind == 'wait':
         time.sleep(float(arg))
@@ -715,18 +825,38 @@ def run_action(spec):
     return None
 
 
+def _toasts(frames, final_text):
+    """OCR captured frames (game already in background) and return short-lived texts not in the final state."""
+    seen = []
+    for img in frames[::2]:
+        for r in ocr_image(img):
+            t = r['text'].strip()
+            if _meaningful(r) and t not in final_text and t not in seen and not _in(r, CLOCK_REGION):
+                seen.append(t)
+    return seen
+
+
 def do(specs, look_scale=None, crop=None):
-    """Run actions, wait for the screen to settle, print a one-line state (+ optional low-res look)."""
+    """Run actions, wait for the screen to settle, print a one-line state (+ optional low-res look).
+    Short-lived toasts (e.g. "Гриб: 1/2" after a pickup) seen while settling are reported as `saw: …`."""
+    global _FRAMES
     before = _signature()
+    _FRAMES = []
     for sp in specs:
         msg = run_action(sp)
         if msg:
             print(msg)
     waited = wait_settle(before)
+    frames, _FRAMES = _FRAMES, None
     if release_focus():  # game pauses in background => fast, time-frozen observation
-        time.sleep(0.4)  # let the Space transition finish before capturing
+        time.sleep(SPACE_SETTLE())  # let the Space transition finish before capturing
     s = state()
     print(brief(s) + f'  [settled {waited}s]')
+    final = ' '.join(t.split(') ', 1)[1] for t in s['text'])
+    saw = _toasts(frames, final)
+    if saw:
+        print('saw: ' + ' / '.join(saw))
+    print_log()
     if look_scale:
         out, sc, (ox, oy) = look(look_scale, crop)
         print(f'look: {out} (game = {ox}+img/{sc}, {oy}+img/{sc})')
@@ -860,6 +990,154 @@ def tips(tags, require_all=False):
         print('no tips for', ' '.join(sorted(want)))
 
 
+# ---------------------------------------------------------------- game files: event log + save (L41)
+# Cheaper and more exact than screenshots. Read outside the sandbox (the files are in the game's container).
+
+CONTAINER = os.path.expanduser(f'~/Library/Containers/{BUNDLE_ID}/Data/Library')
+GAME_LOG = os.path.join(CONTAINER, 'Logs', 'Studio Drydock', 'Wylde Flowers', 'Player.log')
+SAVE_DIR = os.path.join(CONTAINER, 'Application Support', BUNDLE_ID, 'save')
+APP_DATA = f'/Applications/{APP_NAME}.app/Contents/Resources/Data'
+NAMES_CACHE = os.path.join(SHOT_DIR, 'hashnames.tsv')
+LOG_POS = os.path.join(SHOT_DIR, 'gamelog.pos')
+LOG_NOISE = re.compile(r'\[(SHELL|CLOUD|SAVE|MSG|DEVICE|VIEW)\]|no applicable performances|\[TRIGGER\] Dequeue|'
+                       r'nav mesh|Restoring scene persistence|\] < \w')
+_NAMES = None
+
+
+def _names():
+    """CRC32(internal name) -> name. The game stores ids as signed CRC32 of names like 'GrandmaFaveFood'; the
+    candidate names are the identifier strings in the app's asset files (cached in .shots, ~20 s to build)."""
+    global _NAMES
+    if _NAMES is not None:
+        return _NAMES
+    import zlib
+    if not os.path.exists(NAMES_CACHE):
+        ident = re.compile(r'^[A-Za-z][A-Za-z0-9_]{2,60}$')
+        names = set()
+        for dirpath, _, files in os.walk(APP_DATA):
+            for f in files:
+                p = os.path.join(dirpath, f)
+                if f.endswith(('.resS', '.vp', '.sp')) or os.path.getsize(p) > 400e6:
+                    continue
+                out = subprocess.run(['strings', '-n', '3', p], capture_output=True, text=True, errors='replace').stdout
+                names.update(s for s in out.splitlines() if ident.match(s))
+        os.makedirs(SHOT_DIR, exist_ok=True)
+        with open(NAMES_CACHE, 'w') as fh:
+            for n in sorted(names):
+                h = zlib.crc32(n.encode())
+                fh.write(f'{h - (1 << 32) if h >= 1 << 31 else h}\t{n}\n')
+    _NAMES = {}
+    with open(NAMES_CACHE) as fh:
+        for line in fh:
+            h, n = line.rstrip('\n').split('\t')
+            _NAMES.setdefault(int(h), n)
+    return _NAMES
+
+
+def _unhash(text):
+    """Replace '#-123' ids in log text with names where known."""
+    names = _names()
+    return re.sub(r'#{1,2}(-?\d{3,})', lambda m: names.get(int(m.group(1)), m.group(0)), text)
+
+
+def game_log(tail=None, raw=False):
+    """New event-log lines since the previous call (quests, dialogue, scene/building changes, loot, purchases).
+    tail=N: the last N lines instead (also resets the read position). Returns a list of strings."""
+    try:
+        st = os.stat(GAME_LOG)
+    except OSError as e:
+        return [f'(no game log: {e})']
+    try:
+        ino, pos = json.load(open(LOG_POS))
+    except (OSError, ValueError):
+        ino, pos = None, None
+    if ino is None and tail is None:  # first read ever: show recent context
+        tail = 20
+    if tail is not None or ino != st.st_ino or pos > st.st_size:  # game restarted => new file
+        pos = 0
+    with open(GAME_LOG, 'rb') as fh:
+        fh.seek(pos)
+        data = fh.read()
+    end = data.rfind(b'\n') + 1  # keep a half-written last line for next time
+    with open(LOG_POS, 'w') as fh:
+        json.dump([st.st_ino, pos + end], fh)
+    lines = data[:end].decode('utf-8', 'replace').splitlines()
+    if not raw:
+        lines = [_unhash(l) for l in lines if l.startswith('[D') and not LOG_NOISE.search(l)]
+    return lines[-tail:] if tail else lines
+
+
+def print_log(prefix='log: ', limit=40):
+    lines = game_log()
+    for l in lines[-limit:]:
+        print(prefix + l)
+    if len(lines) > limit:
+        print(f'{prefix}(+{len(lines) - limit} earlier lines; `wf log --tail N`)')
+
+
+def latest_save():
+    files = [os.path.join(d, f) for d, _, fs in os.walk(SAVE_DIR) for f in fs if f.endswith('.local')]
+    return max(files, key=os.path.getmtime) if files else None
+
+
+def read_save(path=None):
+    """Latest save as JSON with hashed ids replaced by names ('#123' when unknown; '##Name' = id reference)."""
+    path = path or latest_save()
+    raw = open(path, 'rb').read()
+    try:
+        import zstandard
+        data = zstandard.ZstdDecompressor().stream_reader(raw).read()
+    except ImportError:
+        data = subprocess.run(['zstd', '-dc'], input=raw, capture_output=True, check=True).stdout
+    names = _names()
+
+    def dec(o):
+        if isinstance(o, dict):
+            if len(o) == 1 and '_hash' in o:
+                return names.get(o['_hash'], f"#{o['_hash']}") if o['_hash'] else None
+            return {k: dec(v) for k, v in o.items()}
+        if isinstance(o, list):
+            return [dec(v) for v in o]
+        if isinstance(o, str) and o.startswith('##') and o[2:].lstrip('-').isdigit():
+            return '##' + names.get(int(o[2:]), o[2:])
+        return o
+    return path, dec(json.loads(data))
+
+
+def _hhmm(sec):
+    return f'{int(sec) // 3600:02d}:{int(sec) % 3600 // 60:02d}'
+
+
+def save_summary(path=None):
+    path, s = read_save(path)
+    g = s['gameState']
+    t = g['time']
+    player = next(c for c in g['characters'] if c['name'] == 'Player')
+    pv = {e['name']: e['value'] for e in player['state']['userState']['entries']}
+    age = time.time() - os.path.getmtime(path)
+    pos = s.get('currentPlayerPosition') or {}
+    out = [f"save {os.path.basename(os.path.dirname(path))}/{os.path.basename(path)} ({age / 60:.0f} min ago, "
+           f"saveCount {s['saveCount']})",
+           f"Y{t['year']} {t['season']} day {t['day']} {_hhmm(t['timeOfDay']['totalSeconds'])} | money {pv.get('money')} "
+           f"| stamina {pv.get('stamina')}/{pv.get('maxStaminaUpgrade')} mana {pv.get('mana')}/{pv.get('maxMana')} "
+           f"| scene {s.get('currentScene')} at ({pos.get('x', 0):.1f}, {pos.get('y', 0):.1f}, {pos.get('z', 0):.1f})"]
+    qs = g['quests']['quests']
+    active = [q for q in qs if q['dayQuestStarted'] >= 0 and q['dayQuestCompleted'] < 0 and q['dayQuestFailed'] < 0]
+    out.append('quests active: ' + '; '.join(
+        f"{q['questNameHash']} goal {q['goalIndex']}" + (f" {q['goalValues']}" if q['goalValues'] else '')
+        for q in active))
+    done = sorted((q for q in qs if q['dayQuestCompleted'] >= 0), key=lambda q: q['dayQuestCompleted'])
+    out.append('quests done: ' + ', '.join(f"{q['questNameHash']}(d{q['dayQuestCompleted']})" for q in done))
+    out.append('inventory: ' + ', '.join(f"{i['nameHash']} x{i['count']}" for i in g['player']['inventory']['items']))
+    rel = []
+    for c in g['characters']:
+        e = {x['name']: x['value'] for x in c['state']['userState']['entries']}
+        if 'friendship' in e:
+            rel.append(f"{c['name']} {e['friendship']}")
+    out.append('friendship: ' + (', '.join(rel) or '-'))
+    return '\n'.join(out)
+
+
 # ---------------------------------------------------------------- CLI
 
 def main(argv=None):
@@ -867,6 +1145,9 @@ def main(argv=None):
     sub = ap.add_subparsers(dest='cmd', required=True)
     sub.add_parser('status', help='game running? window bounds, permissions, frontmost')
     sub.add_parser('focus', help='bring game to front')
+    p = sub.add_parser('focus-mode', help='front = the game stays in front between calls (game time RUNS); '
+                                          'background = focus only during input (time frozen between calls)')
+    p.add_argument('mode', nargs='?', choices=['front', 'background'])
     p = sub.add_parser('shot', help='screenshot game window; prints path')
     p.add_argument('--out')
     p.add_argument('--region', nargs=4, type=int, metavar=('X', 'Y', 'W', 'H'))
@@ -912,14 +1193,14 @@ def main(argv=None):
     p = sub.add_parser('state', help='CHEAP: classify screen (gameplay/dialogue/popup/cutscene/overlay) + clock, money, bubble, OCR text')
     p.add_argument('--json', action='store_true', help='full JSON instead of one line')
     p = sub.add_parser('do', help="ONE CALL PER STEP: run actions, wait until the screen settles, print state line "
-                                  "(+ --look). Actions: key:space walk:left:0.5 path:up:1,left:2 click:x:y "
+                                  "(+ --look). Actions: go:x:y (click-to-move, game pathfinds) key:space walk:left:0.5 path:up:1,left:2 click:x:y "
                                   "text:<label> route:<name> bubble:<dir>[:max_s] wait:<s>")
     p.add_argument('actions', nargs='+')
     p.add_argument('--look', type=float, nargs='?', const=0.4, default=None, help='also save a low-res look (scale, default 0.4)')
     p.add_argument('--crop', nargs=4, type=int, metavar=('X', 'Y', 'W', 'H'))
     p = sub.add_parser('bubble', help='detect the interaction prompt bubble on the current frame (prints x,y or NONE)')
-    p = sub.add_parser('look', help='low-res JPEG for viewing (default 960x540); prints path + coord factor')
-    p.add_argument('--scale', type=float, default=0.5)
+    p = sub.add_parser('look', help='low-res JPEG for viewing (default scale 0.4 = 768x432); prints path + coord factor')
+    p.add_argument('--scale', type=float, default=0.4)
     p.add_argument('--crop', nargs=4, type=int, metavar=('X', 'Y', 'W', 'H'), help='crop first (game coords)')
     p = sub.add_parser('until', help='poll until text appears and/or mode reached')
     p.add_argument('--text')
@@ -928,6 +1209,7 @@ def main(argv=None):
     p.add_argument('--interval', type=float, default=1.0)
     p = sub.add_parser('advance', help='Space ONLY while cutscene/dialogue/confirm-popup; stops on anything else')
     p.add_argument('--max', type=int, default=40)
+    p.add_argument('--look', type=float, nargs='?', const=0.4, default=None, help='also save a low-res look at the end')
     p = sub.add_parser('route', help='replay recorded walking route from routes/<name>.txt (--list)')
     p.add_argument('name', nargs='?')
     p.add_argument('--list', action='store_true')
@@ -940,6 +1222,14 @@ def main(argv=None):
     p = sub.add_parser('tips', help='list tips from docs/tips.md by tag: wf tips energy mining [--all]')
     p.add_argument('tags', nargs='*')
     p.add_argument('--all', action='store_true', help='require every tag')
+    p = sub.add_parser('log', help='CHEAP + EXACT: new game event-log lines since last read (quests, dialogue, '
+                                   'scenes, buildings, loot, purchases). `do`/`advance`/input commands print them too')
+    p.add_argument('--tail', type=int, help='last N lines instead of new ones')
+    p.add_argument('--raw', action='store_true', help='no noise filter / name decoding')
+    p.add_argument('--grep', help='only lines matching this regex')
+    p = sub.add_parser('save', help='EXACT state from the latest autosave: day/time, money, stamina, scene, '
+                                    'quests+goals, inventory, friendship (as of the last save)')
+    p.add_argument('--json', action='store_true', help='dump the whole decoded save to .shots/save.json (for jq/grep)')
     p = sub.add_parser('wait', help='sleep N seconds (game time keeps running!)')
     p.add_argument('seconds', type=float)
     sub.add_parser('serve', help='run the warm daemon (normally auto-started by ./wf); keeps Vision/Quartz loaded')
@@ -954,10 +1244,33 @@ def main(argv=None):
     if a.cmd == 'wait':
         time.sleep(a.seconds)
         return
+    if a.cmd == 'log':
+        lines = game_log(a.tail, a.raw)
+        if a.grep:
+            lines = [l for l in lines if re.search(a.grep, l)]
+        print('\n'.join(lines) if lines else '(no new log lines)')
+        return
+    if a.cmd == 'save':
+        if a.json:
+            path, s = read_save()
+            out = os.path.join(SHOT_DIR, 'save.json')
+            json.dump(s, open(out, 'w'), ensure_ascii=False, indent=1)
+            print(out, '<-', path)
+        else:
+            print(save_summary())
+        return
     if a.cmd == 'status':
         w = game_window()
-        print(json.dumps({'running': bool(w), 'window': w, 'permissions': permissions(),
+        print(json.dumps({'running': bool(w), 'window': w, 'permissions': permissions(), 'screen_locked': screen_locked(),
                           'frontmost': is_frontmost() if w else False}, indent=1))
+        return
+    if a.cmd == 'focus-mode':
+        if a.mode == 'front':
+            open(FRONT_FLAG, 'w').close()
+            focus()
+        elif a.mode == 'background' and os.path.exists(FRONT_FLAG):
+            os.remove(FRONT_FLAG)
+        print('front (game stays focused, time runs)' if keep_front() else 'background (focus only during input)')
         return
     if a.cmd == 'focus':
         print('frontmost' if focus() else 'WARNING: could not activate game')
@@ -1008,7 +1321,7 @@ def main(argv=None):
         Image.open(screenshot()).crop((x, y, x + w, y + h)).save(os.path.join(TEMPLATES, a.name + '.png'))
         print('saved', a.name)
         return
-    if a.cmd == 'route' and a.list:
+    if a.cmd == 'route' and (a.list or not a.name):
         for f in sorted(os.listdir(ROUTES)):
             print(f[:-4] + ':', open(os.path.join(ROUTES, f)).readline().strip('# \n'))
         return
@@ -1026,8 +1339,9 @@ def main(argv=None):
         released = release_focus()
     if a.cmd not in ('do', 'advance'):
         if released:
-            time.sleep(0.4)
+            time.sleep(SPACE_SETTLE())
         print(brief(state()))  # every input command reports the settled state (one call per step)
+        print_log()
 
 
 def _dispatch_input(a):
@@ -1063,6 +1377,12 @@ def _dispatch_input(a):
         type_text(a.text)
     elif a.cmd == 'advance':
         advance(a.max)
+        print_log()
+        if a.look:
+            release_focus()
+            time.sleep(SPACE_SETTLE())
+            out, sc, (ox, oy) = look(a.look)
+            print(f'look: {out} (game = {ox}+img/{sc}, {oy}+img/{sc})')
     elif a.cmd == 'route':
         route(a.name)
 

@@ -1,12 +1,13 @@
 # UI index
 
-Load order: this index → only the file you need. Verified on the macOS build, Russian UI, 1920×1080.
+Load order: this index → only the file you need. Verified on the macOS build, English UI since D4 (was Russian, L48), virtual 1920×1080 frame.
 
 | File | What |
 |---|---|
 | [controls.md](controls.md) | Keys and mouse: what each does (✅ verified / ❓ not yet) |
 | [hud.md](hud.md) | HUD elements and positions, and how they change over the tutorial |
-| [glossary.md](glossary.md) | RU ↔ EN for every UI string and quest name seen |
+| [glossary.md](glossary.md) | EN on-screen text ↔ old RU strings (✅ = EN seen in-game, ❓ = translated, not yet seen) |
+| [game-files.md](game-files.md) | **Read before screenshots:** `./wf log` (live events, dialogue, quest progress) + `./wf save` (exact state); internal quest names |
 
 ## Screens (`./wf state` mode → screen file)
 | Screen | Summary |
@@ -25,3 +26,5 @@ Load order: this index → only the file you need. Verified on the macOS build, 
 | [hint-popup](screens/hint-popup.md) | Small panel with the actionable step for the selected quest. |
 | [interaction-menu](screens/interaction-menu.md) | Action-choice bubbles over an NPC (talk / quest hand-in); `overlay` mode. |
 | [sleep](screens/sleep.md) | Bed zzz bubble, yes/no sleep prompt, morning cutscene. |
+| [shop](screens/shop.md) | Buy/sell window at a shopkeeper (❓ wiki-based until first visit) |
+| [info-card](screens/info-card.md) | Building sign card with name + opening hours (Space at a sign bubble) |

@@ -3,10 +3,10 @@
 > **Summary:** Spoken lines shown as a subtitle at the bottom of the screen.
 
 ## Recognise
-Mode `dialogue`: OCR line below y≈940 in the form "Имя: текст" (e.g. "Бабуля: …").
+Mode `dialogue`: OCR line below y≈940 in the form "Name: text" (e.g. "Gramma: …").
 
 ## Elements
-- Subtitle text only; no box and no portrait seen so far. Speaker names: Бабуля (Gramma), Тара (Tara).
+- Subtitle text only; no box and no portrait seen so far. Speaker names: Gramma, Tara.
 
 ## Actions
 - Advance: Space, or `./wf advance` (stops when the mode changes).

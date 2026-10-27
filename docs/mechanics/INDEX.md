@@ -19,3 +19,4 @@ Load order: this index → only the mechanic you need. "(wiki)" sections are unv
 | [mining](mining.md) | 20-level mine next to the farm (after Parker repairs it); keys from ore nodes; pickaxe upgrades matter most. |
 | [crafting](crafting.md) | Tool Shed stations (mundane), Basement (magic), kitchen stove (cooking); blueprints from quests. |
 | [tools-and-upgrades](tools-and-upgrades.md) | Rusty watering can/axe/pickaxe → copper/silver/gold at the Blacksmith; rod from Bruno; shovel crafted. |
+| [cooking](cooking.md) | Cook at the farmhouse stove from recipes; Mushroom Risotto = mushroom + rice (❓ UI) |

@@ -1,11 +1,11 @@
 ---
 quest: From Bud To Spud
-ru: Крошка-картошка
+id: GrandmaPotato   # internal id in ./wf log / save
 line: Gardening, Foraging, and Plants
 season: Spring Year 1
 status: active   # todo | active | done
 ---
-# From Bud To Spud (Крошка-картошка)
+# From Bud To Spud
 
 > **Summary:** Plant the Potato Seeds in the garden bed by the farm. (from Gramma Hazel; 4 step(s))
 
@@ -41,34 +41,33 @@ _Verified 2026-10-26: planted + first watering on day 1 (Monday)._ Remaining: wa
 - A **sprout bubble** floats over the right-hand bed when Tara stands next to it.
 
 ### Steps (verified)
-1. Journal check (optional): `./wf key j` → **Крошка-картошка**. Description says "Ты посадила первое растение.
-   Молодец!", which is misleading (L12). The hint button says: "Чтобы посадить семена картошки, активируй
-   взаимодействие с грядкой" (interact with the bed). Close with **J** (Esc sometimes doesn't close it, L20).
+1. Journal check (optional): `./wf key j` → **From Bud To Spud**. Description says "You planted your first plant. Well done!", which is misleading (L12). The hint
+   button says: "To plant potato seeds, interact with the garden bed" (EN wording ❓). Close with **J** (Esc sometimes doesn't close it, L20).
 2. **Plant:** stand at the right bed (sprout bubble visible) → `./wf key space`.
-   - The camera zooms on the bed; a panel **Инвентарь → Семена** shows **Семена картошки ×1**.
-   - Click the card (≈ (110,540)) → details: "Посади эти семена на грядке, и через 5 д. из них вырастет картошка.
-     Сезон: весна." (grows in 5 days, spring) → click **Выбрать** (`./wf click-text Выбрать`).
-   - The bed now shows 4 seed spots. Gramma (subtitle): "У тебя отлично получилось! Теперь… ее надо полить."
-3. Quest popup "Чтобы растения росли, их нужно ежедневно поливать. Наполни свою лейку из колодца." + **Подтвердить**
+   - The camera zooms on the bed; a panel **Inventory → Seeds** shows **Potato Seeds ×1**.
+   - Click the card (≈ (110,540)) → details: "Plant these seeds in a garden bed; potatoes grow in 5 days.
+     Season: Spring." (EN ❓) → click **Select** (EN ❓; `./wf click-text Select`).
+   - The bed now shows 4 seed spots. Gramma (subtitle): "Great job! Now… it needs watering." (EN ❓)
+3. Quest popup "Plants must be watered daily to grow. Fill your watering can at the well." (EN ❓) + **Confirm**
    → Space. (Tara now has the watering can. No separate "get can" step was visible.)
 4. **Fill the can:** walk to the well (`./wf do bubble:left:2`): a **watering-can bubble** appears over the well →
-   Space. No popup. The journal step changes to "Полей картофель, который ты посадила." (water the potatoes).
+   Space. No popup. The journal step changes to "Water the potatoes you planted." (EN ❓) (water the potatoes).
 5. **Water:** walk back next to the planted bed (from the well: right ≈1.0 s, then fine-tune) until a **potato + water
-   drop bubble** shows → Space. Gramma: "Ну вот. Этого должно хватить. Первые побеги появятся только через
-   несколько дней…"
+   drop bubble** shows → Space. Gramma: "There. That should do it. The first sprouts will only appear in
+   a few days…" (EN ❓)
 6. Dialogue chain (`./wf advance`): Gramma sends Tara to forage mushrooms on the road to the mountain, then go to town
    for seeds and **introduce herself to the mayor at Town Hall** (big building with a flag in the town centre).
    Two quest popups follow (Space each):
-   - **Занимательная микология** (The Fungus Among Us): bring Gramma 2 mushrooms. Progress 0/2.
-   - **Скоростные знакомства** (The Most Elaborate Icebreaker): meet the mayor at Town Hall.
-7. A **day/time banner "Понедельник 10:00"** appears, and the **clock widget** replaces the pause button. Day 1 = Monday.
+   - **The Fungus Among Us**: bring Gramma 2 mushrooms. Progress 0/2.
+   - **The Most Elaborate Icebreaker**: meet the mayor at Town Hall.
+7. A **day/time banner "Monday 10:00 am"** appears, and the **clock widget** replaces the pause button. Day 1 = Monday.
 
 ### Day 2 watering (verified 2026-10-26, Tuesday)
 - Start: Tara was INSIDE Gramma's house next to the bed (sleep "zzz" bubble; do not press Space there). Exit: `walk right 1.0`,
   then `walk left 0.2`, `walk down 1.5` (through the gap in the porch rail, then the yard gate). From the gate:
   `walk up 0.4`, `walk left 1.2` puts Tara in front of the garden.
 - Well: bubbles first show a sprout over the EMPTY left bed (ignore). Stand right of the well, `./wf do bubble:left:1`
-  -> watering-can bubble over the well -> `./wf key space` -> HUD shows "Ржавая лейка" (Rusty Watering Can) + water drop (filled).
+  -> watering-can bubble over the well -> `./wf key space` -> HUD shows "Rusty Watering Can" (Rusty Watering Can) + water drop (filled).
 - Bed: from the well `walk right 1.0`, then `./wf do bubble:down:1` (printed NO BUBBLE but the potato + water-drop bubble was
   visible in the screenshot; state had no bubble@) -> `./wf key space` -> watering animation, soil darkens. No dialogue.
 - Gotcha: every walk/key call advances ~10-20 game minutes (walk 1s ~ +10-20 min); the whole trip took 12:20 -> 15:40.
@@ -77,15 +76,25 @@ _Verified 2026-10-26: planted + first watering on day 1 (Monday)._ Remaining: wa
 - **Space is interact** (not E). Clicking bubbles does nothing (L19).
 - Bubbles appear only when standing still next to the target (L26). Don't push into a bed for seconds (L25).
 - After the clock appears, **time runs**. Leaving the game unpaused while doing non-game work burned day 1 until
-  02:00 → "Время вышло! Ты выбилась из сил…" pass-out popup with the single button **Хр-р-р** (L27).
+  02:00 → "Time's up! You're exhausted…" (EN wording ❓) pass-out popup with the single button **Zzz (EN ❓)** (L27).
 
 ### Done when
 Planted and watered for day 1. Remaining quest part: water daily until the potatoes are ready (~5 days), then sell
 4 potatoes to Lina (Dahl General Store: Mon–Wed 8–17, Fri–Sat 9–17; closed Thu, Sun).
 
 ### Next
-- Click **Хр-р-р** → next morning (expected at home). Then each day: fill can → water the bed.
+- Click **Zzz (EN ❓)** → next morning (expected at home). Then each day: fill can → water the bed.
 - Parallel quests: 2 mushrooms (forage along the road toward the mountain / farm edges) and meet the mayor in town
   (`./wf route town-square-to-farm` in reverse is not recorded yet).
 
 ### Day 3 watering (Wed d3, by 08:50): ✅ done (quest agent run #4).
+
+### Attempt 5 (Wed night -> Thu d4, 07:00-07:36), quest agent
+- ✅ Bed -> sleep: start in right room beside Gramma's bed (partition opening). `walk:down:0.9 walk:left:0.5` (now left of partition, lower) then `walk:down:0.6 walk:left:0.8` -> bubble@904,480 zzz at the pink bed foot. Space -> log `sleep12 target=Bed`, choice [0] Yes, I suppose (EN ❓) / [1] Not yet (state shows dialogue "What a long day!"; top highlighted) -> Space -> `SleepTransition` overlay -> `sleep 8` + Space + `./wf advance` -> `advance_day`, `Day 4`, cutscene "Thursday" -> gameplay Thursday 7:00 am ⚡100%. Tara wakes at the pink bed (x10.8,z-24.1) INSIDE the house (not at the gate this time). NO quest started on waking (no `[QUEST] Start`).
+- ✅ Bed -> outside: `walk:right:1.0` (x16.5, stands in doorway opening below the rug room) then `walk:right:0.2 walk:down:2.0` -> through porch gap and gate; log `OnExitBuilding House`, `OnEnterFarmHouseArea`. (First `walk:down:1.5/2.0` without the +0.2 right was BLOCKED.)
+- ✅ Yard -> garden: from the gate `walk:up:0.5 walk:left:1.2` walks through the gate; then `walk:up:0.5`, `walk:up:0.6`, (blocked by empty bed going up) `walk:right:0.4 walk:up:0.8` ... Tara ends right of the well. Needed ~6 calls; the shortcut: gate -> `up:1.0 left:1.2`, then `right:0.4 up:0.8`, `up:0.3 left:0.4`, `up:0.3 left:0.3`, `up:0.45`.
+- ✅ Well: the sprout bubble (empty left bed) wins until Tara is level with the well; keep stepping `walk:up:0.2` until ONLY the watering-can bubble shows (bubble@744,432), Space -> `fill_watering_can target=Well`, HUD "Rusty Watering Can".
+- ✅ Bed: wait ~3 s (fill animation swallows input), `walk:right:1.0 bubble:down:1` -> potato+drop bubble -> Space -> `water … GardenBed (4)`; later `plant_growing`. Bubble becomes plain potato = watered.
+- ✅ Potato info card (overlay "Potato … 2 days left" (EN ❓)) appeared once after my journal-key spam: the potatoes need 2 more days (ready ~d6).
+- Journal (J): 3 quests: Steeped in Mystery (GrandmaHerblore, goal 0: description "Go to the woods at night and pick a moonflower."; hint "You'll need to visit the woods. Check your map if you're not sure where to go."), From Bud To Spud, The Most Elaborate Icebreaker (MayorMeetEveryone, 0/1). No new quest on day 4.
+- ❌ `./wf key j` right after the watering animation did nothing (swallowed); a later `key j` opened the journal. Then `click-text OK` + `key j` ended in the potato info card instead of closing the journal: close with Esc.

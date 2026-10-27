@@ -1,0 +1,22 @@
+# Tool TODO (from agent debriefs)
+
+- [ ] `find_bubble` misses the potato+water-drop bubble over planted beds (L30). Re-sample colours from a frame where it's visible; add a test frame under `tools/testframes/`.
+- [ ] `advance`: after a final popup, stop instead of pressing Space again (an extra Space reopened the NPC menu, run #3).
+- [ ] Location awareness: `state` has no location (L29). Idea: OCR area banners + remember the last area; or a coarse scene classifier from reference frames.
+- [ ] `click --img X Y`: convert from the last `look` image coords automatically (L33).
+- [ ] `state`: report quest-tracker popups (e.g. "Wood: 6/6") explicitly as `tracker:` so progress is read, not inferred.
+- [x] `walk`/`path`/`key` print nothing; agents then call `state`+`look` separately. Make plain input commands print the settled `brief()` line too (like `do`).
+- [ ] NPC helper: `do npc:<name>`, walk toward a named NPC (OCR name plate / last look) and stop when its bubble shows and it is stationary.
+- [x] Completion popup (button "Hooray!") wasn't classified as `popup` → POPUP_WORDS list.
+- [ ] Money OCR misses the coin badge inside the house (shows 50 on screen). Re-check MONEY_BOX / OCR scale.
+- [ ] `do click:x:y --look` exists; make sure agents know `click` prints only state (doc in the agent file).
+- [ ] After a wall-blocked walk, `state` showed a stale clock + odd bubble: make `do` report 'no movement' when the frame diff ≈ 0.
+- [x] `route` with no args crashed → lists routes.
+- [x] `advance --look`.
+- [ ] Tracker shows the quest + step name without n/m after a partial step ("Rice and Shine / Rice"): confirm progress via the journal; consider OCR of the tracker panel at full res.
+- [x] OCR scenery noise in the state text ("11 12 >") → `_meaningful` filter; money must be pure digits.
+- [x] `look` default scale 0.4 everywhere (was 0.5 standalone vs 0.4 in do).
+- [ ] `click --img X Y` (L33), so agents stop converting look coords by hand (run #10 misclick).
+- [x] Pickup toasts fade in <1 s: have `do` poll state during settle and report any toast/tracker text seen (`saw: Mushroom: 1/2`), to replace journal round-trips (run #10).
+- [ ] (run #12) `walk:left:1` reported nothing while Tara didn't move: the camera may pan/re-frame or NPCs animate → diff > 3. Maybe compare a centre crop around Tara vs background, or detect Tara's position.
+- [ ] (run #12) `bubble@` in the state line looked stale after walking away from the bed bubble; check find_bubble runs on the fresh settled frame.

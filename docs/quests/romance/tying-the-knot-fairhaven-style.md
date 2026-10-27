@@ -1,6 +1,6 @@
 ---
 quest: Tying The Knot, Fairhaven Style
-ru: 
+id:    # internal id in ./wf log / save
 line: Romance
 season: 
 status: todo   # todo | active | done
@@ -36,4 +36,4 @@ status: todo   # todo | active | done
 <!-- wiki:end -->
 
 ## Verified steps
-_Not played yet. Record AS YOU GO under `### Attempt N (<day/time>)`: ✅ worked (exact `./wf` commands → what appears, RU + EN) · ❌ dead end (why) · ❓ open question/gap._
+_Not played yet. Record AS YOU GO under `### Attempt N (<day/time>)`: ✅ worked (exact `./wf` commands → what appears, on-screen text) · ❌ dead end (why) · ❓ open question/gap._

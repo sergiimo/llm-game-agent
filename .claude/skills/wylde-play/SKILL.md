@@ -20,8 +20,12 @@ call pays a ~3–4 s focus switch) · the game stays **in the background** betwe
 `./wf` focuses it only while acting (L28).
 
 **Observe (cheapest first)**
+- **Game files (exact, no screenshot; `docs/ui/game-files.md`):** `./wf log` = new event-log lines (quest
+  start/advance/complete, every dialogue line, building/scene changes, pickups, purchases, friendship). Input commands
+  print them automatically as `log: …`. `./wf save` = day/time, money, stamina, scene, quest goal counters, inventory
+  from the last autosave (may be minutes old). Read both at goal start; read the log after every action.
 - `./wf state` → one line `mode | clock | money | bubble@x,y | text`. Modes: `gameplay` (HUD visible),
-  `dialogue` (subtitle "Имя: …"), `popup` (quest card with Подтвердить), `cutscene` (letterbox), `overlay`
+  `dialogue` (subtitle "Name: …"), `popup` (quest card with Confirm), `cutscene` (letterbox), `overlay`
   (journal/map/menu/shop/inventory). `--json` for full detail.
 - Need to see the scene (positions, icon bubbles, obstacles)? `./wf look` (960×540 JPEG) or
   `./wf look --crop X Y W H --scale 1` to zoom. Image→game coords: `game = offset + img / scale`.
@@ -29,7 +33,7 @@ call pays a ~3–4 s focus switch) · the game stays **in the background** betwe
 
 **Decide**
 - What is the current quest? `./wf key j`, then `./wf state` reads it. Get the actionable step with
-  `./wf click-text "Показать подсказку"`, read it, then `./wf click-text OK --exact` and `./wf key escape`.
+  `./wf click-text "Show Hint"`, read it, then `./wf click-text OK --exact` and `./wf key escape`.
 - Look up anything unknown: skill `wylde-lookup` (wiki, items, characters, shop hours).
 - Open `docs/quests/INDEX.md` → the active quest's file. If it has **Verified steps**, follow them. Unknown screen?
   `docs/ui/INDEX.md` → the screen file. Unknown system? `docs/mechanics/INDEX.md` → the topic file.
@@ -44,18 +48,18 @@ call pays a ~3–4 s focus switch) · the game stays **in the background** betwe
 - Mechanical text-only loops (long dialogue, routes, repeated interactions): delegate to the **wylde-runner** agent
   (Haiku) with a goal + stop conditions; keep decisions here.
 
-**Verify**: `./wf state` again. Did mode/text/money change as expected? If not, note it as a surprise (step 3).
+**Verify**: the `log:` lines first (`[QUEST]`, `[STATS]`, `grab_item`, …), then the state line. Did mode/text/money change as expected? If not, note it as a surprise (step 3).
 
 ## 2. Guardrails
 - No blind loops: every scripted loop must check state and stop on anything unexpected.
 - Ask the user before: changing settings/language, selling rare items, big purchases, sleeping/ending the day
   (unless told to play autonomously), romance or other irreversible story choices.
-- Game time runs only while the game is frontmost (during `./wf` input commands) and stops in menus. Never use
-  `WF_KEEP_FRONT=1` for long.
+- Focus mode is the user's choice (`./wf focus-mode`). **front** (current): the game stays focused and game time runs
+  between calls, so batch actions, keep thinking short, and watch the clock. **background**: time is frozen between calls.
 
 ## 3. Record progress (mandatory)
-- **Quest step done:** append to the quest file's `## Verified steps` (start state → exact commands → what appears, RU +
-  EN → done-signal → gotchas). New quest seen: set front-matter `ru:` and `status: active`; finished: `status: done`.
+- **Quest step done:** append to the quest file's `## Verified steps` (start state → exact commands → what appears
+  (exact on-screen text) → done-signal → gotchas). New quest seen: set front-matter `id:` (internal name from `./wf log`) and `status: active`; finished: `status: done`.
   Then `python3 -I tools/gen_quests.py` (rebuilds the index, keeps your text).
 - **New screen / HUD element / key:** add or extend `docs/ui/screens/<screen>.md` (Recognise · Elements · Actions ·
   Exit), `ui/hud.md`, `ui/controls.md` (✅/❓) and the index table; new strings go to `ui/glossary.md`.

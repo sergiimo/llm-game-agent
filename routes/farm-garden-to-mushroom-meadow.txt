@@ -1,0 +1,5 @@
+# Farm garden (beds/well) -> mushroom meadow before the river bridge. Verified Wed d3 (run #10): mine fork left = boarded mine (dead end), take the right branch.
+up:1.5 left:2 up:2
+left:3 up:2
+right:1.8 up:3
+up:1.2 left:2

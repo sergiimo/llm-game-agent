@@ -1,0 +1,7 @@
+# Mushroom meadow (river bridge, N of farm) -> inside the farmhouse (left room, doorway). Verified Wed d3 20:00-20:40 (run #12). Log: OnEnterFarmPorch, OnEnterBuilding House.
+down:1.2 right:2 down:3
+down:2 right:3 down:2.5
+sw:2 down:2
+se:2 right:2
+right:1.3
+right:0.2 up:2.5

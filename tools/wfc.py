@@ -28,8 +28,20 @@ def via_daemon(argv):
     return res['code']
 
 
+def log_call(argv):
+    """Append each call to .shots/actions.log (`<unix time>\t<args>`); tools/record.py shows it as a caption."""
+    if argv and argv[0] not in ('stop', 'status', 'log', 'save', 'wiki', 'tips', '-h', '--help'):
+        try:
+            import time
+            with open(os.path.join(os.path.dirname(SOCK), 'actions.log'), 'a') as f:
+                f.write(f"{time.time():.2f}\t{' '.join(argv)}\n")
+        except OSError:
+            pass
+
+
 def main():
     argv = sys.argv[1:]
+    log_call(argv)
     if argv and argv[0] in ('-h', '--help'):
         os.execv(PY, [PY, WF] + argv)
     if argv and argv[0] == 'stop':

@@ -1,20 +1,20 @@
 ---
 quest: Wood-n't You Know It?
-ru: Палочка-выручалочка
+id: GrandmaLogging   # internal id in ./wf log / save
 line: Gardening, Foraging, and Plants
 season: Spring Year 1
 status: done   # todo | active | done
 ---
-# Wood-n't You Know It? (Палочка-выручалочка)
+# Wood-n't You Know It?
 
 > **Summary:** Gramma has asked you to chop some logs around the farm. (from Gramma Hazel; 3 step(s))
 
 ## Quest brief (supervisor-maintained; the agent's single source of truth)
 - **Why:** firewood for Gramma ("Nights are still cold in the Spring around here"). Reward: 1× Cream of Mushroom Soup → next quest *Rice and Shine*.
-- **Steps (current → end):** chop 2 logs ✅ · collect 6 wood ✅ · give the wood to Gramma ✅ · **eat something from your bag AFTER the hand-in** ("Съешь что-нибудь из своей сумки" 0/1; eating earlier doesn't count) ✅ · talk to Gramma again (sprout "!" topic) ✅ → completion popup "Задание выполнено!" + button **Ура!** ✅ (Wed d3 13:00). DONE.
+- **Steps (current → end):** chop 2 logs ✅ · collect 6 wood ✅ · give the wood to Gramma ✅ · **eat something from your bag AFTER the hand-in** ("Eat something from your bag (EN ❓)" 0/1; eating earlier doesn't count) ✅ · talk to Gramma again (sprout "!" topic) ✅ → completion popup "Quest Complete!" + button **Hooray!** ✅ (Wed d3 13:00). DONE.
 - **How-to:** hand-in = approach Gramma while she **stands still** until her bubble shows → Space → interaction menu → choose the wood/quest topic (icon unverified: if no wood icon, try the highlighted one, read the dialogue line, Esc if it's the wrong topic) → Space through plain dialogue/popups. See `docs/ui/screens/interaction-menu.md`, `docs/mechanics/basic-actions.md` (Talk/give row).
 - **Where:** Gramma is inside the farmhouse but **wanders** (kitchen table ↔ next to the kitchen ↔ rocking chair in the right room). Re-`look` and approach where she is *now*. Interior layout + meadow → house route: `docs/world/locations.md` (Farm section). At the end of run #6 Tara is already **inside the house, kitchen/dining area**.
-- **Progress signal:** `./wf state` → tracker text; on completion a popup "Задание выполнено! Твоя награда:" (quest complete, your reward) + the soup.
+- **Progress signal:** `./wf state` → tracker text; on completion a popup "Quest Complete! Your reward:" (quest complete, your reward) + the soup.
 - **Done when:** completion popup seen; set `status: done`. **Next after done:** a new quest popup is expected (Rice and Shine: buy rice + 2 mushrooms → Mushroom Risotto). Confirm it and stop.
 - **Read:** ❓ (manifest: exact files/sections/commands the agent needs)
 - **Tips:** `./wf tips chopping energy food quests`
@@ -33,8 +33,8 @@ Collect 6 x Wood
 
 ## Verified steps
 ### Attempt 1 (Wed d3 07:20→08:50, stopped by user): not finished
-- Journal hint: "Чтобы использовать топор, активируй взаимодействие с поленьями" (to use the axe, interact with the logs).
-  No equip step: the axe (Ржавый топор) sits in the inventory section **Инструменты** (Tools), opened with `I`.
+- Journal hint: "To use the axe, interact with the logs" (EN wording ❓).
+  No equip step: the axe (Rusty Axe) sits in the inventory section **Tools** (Tools), opened with `I`.
 - Quest intro: "find a couple of the big old logs lying around the farm".
 - ❌ The **log pile behind the stump near the well is decoration**: Space from 3 sides gave no bubble and no action.
 - The real logs are elsewhere on the farm. Not found yet. Next: open the map (M) or scout the farm edges with `./wf look`
@@ -45,14 +45,14 @@ Collect 6 x Wood
   Meadow with pines/trees south of the ruined building/shed near the waterfall; 3 fallen logs lie in the grass. Standing beside one shows an AXE bubble.
 - ⚠ A `walk right 1` right after other walks opened the photo/camera screen once (Esc closed it); unclear cause.
 - ✅ Chop: stand next to a fallen log, axe bubble, Space. ~3-4 Space per log (each swing ~10 game min); a log yields wood drops + sticks on the ground
-  (bag "+" bubbles = pick up with Space, free). Tracker popup: "Бревен порублено: 1/2", then "Древесина: N/6". Journal (J) quest page shows 1/2 logs, 1/6 wood.
+  (bag "+" bubbles = pick up with Space, free). Tracker popup: "Logs chopped (EN ❓): 1/2", then "Wood: N/6". Journal (J) quest page shows 1/2 logs, 1/6 wood.
 - ✅ Logs are also on the grass between the road and the SW meadow, and 2 more just south of the farmhouse/garden (near a red-leaf tree).
 - ⚠ Tree + log can show 2 axe bubbles; pressing Space chops the top one. Extra Space on a depleted target gives no progress.
-- ✅ Energy ran out ~11:10: dialogue "Тара: У меня больше нет сил!" (no strength). Space dismisses. Eating: I -> Еда -> click Грибной крем-суп -> button "Съесть" (click) -> count 2->1, Tara drinks. Esc x2 closes.
+- ✅ Energy ran out ~11:10: dialogue "Tara: I have no strength left! (EN ❓)" (no strength). Space dismisses. Eating: I -> Food -> click Cream of Mushroom Soup -> button "Eat" (click) -> count 2->1, Tara drinks. Esc x2 closes.
 - ✏️ ~~At 11:20: wood 3/6, logs 1/2~~ wrong (agent counted presses). Actually **logs 2/2 were done and wood was 5/6 + 1
-  uncollected drop** (user correction). After picking up the drop: tracker "Палочка-выручалочка / Древесина: 6/6" ✅ (11:50).
-- ✅ Next step shown by the tracker: "Отдай бабушке древесину." (give the wood to Gramma).
-- ✅ 11:50: tracker "Палочка-выручалочка / Древесина: 6/6" with green check. Logs were already 2/2 earlier (user pointed out). Wood counts only once PICKED UP: each log leaves stick/wood drops (bag "+" bubble).
+  uncollected drop** (user correction). After picking up the drop: tracker "Wood-n't You Know It? / Wood: 6/6" ✅ (11:50).
+- ✅ Next step shown by the tracker: "Give the wood to Gramma. (EN ❓)" (give the wood to Gramma).
+- ✅ 11:50: tracker "Wood-n't You Know It? / Wood: 6/6" with green check. Logs were already 2/2 earlier (user pointed out). Wood counts only once PICKED UP: each log leaves stick/wood drops (bag "+" bubble).
   Mistake: I kept swinging at a tree/rock (axe bubble has priority over pickup bubble); fix = step with `walk 0.3` until the "+" bag bubble is the highlighted one, then Space.
 - Purpose of wood (wiki): firewood for Gramma ("Nights are still cold in the Spring"). Reward 1x Cream of Mushroom Soup; next quest "Rice and Shine".
 - ❓ Not yet done: hand wood to Gramma (in farmhouse? not verified); "eat something" step already satisfied by eating soup at 11:20 (not verified as counted).
@@ -60,17 +60,17 @@ Collect 6 x Wood
 ### Attempt 3 (Wed d3 11:50→12:40, hand-in walk; budget 25 hit, NOT finished)
 - ✅ Route from the red-leaf-tree meadow to the house: `walk right 0.8`, `walk up 1.5`/`up 1.0` x3 (screen scrolls, take `look` between), align with the white gate arch (x~half-screen+), `walk up 2.5` -> Tara auto-enters the house door (interior view, 12:20).
 - ✅ Gramma WANDERS: at 12:20 at the kitchen table (left room), at 12:40 next to the kitchen, then at the rocking chair (right room, "!" bubble). Rooms are split by a partition; the passage is behind the table/chairs (walk up 0.4 then left).
-- ❌ Gramma's bubble at 12:40 was a green SPROUT (potato topic "Крошка-картошка"), not a wood icon; I pressed Space once at that moment and she had walked away -> no menu opened (state "OI IY" garbage text, gameplay). Quest hand-in not done yet.
+- ❌ Gramma's bubble at 12:40 was a green SPROUT (potato topic "From Bud To Spud"), not a wood icon; I pressed Space once at that moment and she had walked away -> no menu opened (state "OI IY" garbage text, gameplay). Quest hand-in not done yet.
 - ❓ Each `walk` ~5-10 game min; house trip cost ~50 min. Next: find Gramma (rocking chair right room), wait for her to stop, `look` before Space; menu may show several topics, pick the wood/quest one.
 
 ### Attempt 4 (Wed d3 12:40→, hand-in re-test)
 - ✅ From partition opening: `walk down 0.6`+`walk right 1` overshot to behind the fireplace wall (12:50); `walk down 0.4`+`walk left 0.6` -> Tara left of Gramma's chair, state showed `bubble@1128,520`. Gramma's bubble = sprout (with orange "!").
-- ✅ Space -> `overlay | Хейзел Уайлд`: 4 icons: grey speech (talk), potato, swirl, SPROUT (highlighted, with "!"). No wood icon: the highlighted sprout "!" icon IS the quest topic (wood hand-in).
-- ✅ Space on it -> dialogue "Бабуля: Эти дрова отлично подойдут для растопки! Замечательно! Спасибо, что помогла мне!" (hand-in worked).
-- ✅ Space through dialogue (Тара "Да не за что!", Бабуля "Да ты же совсем вымоталась!..." -> "Старая деревенская кухня!") -> popup-like line "Грибной крем-суп / Вот тебе немного супа" -> back to gameplay 13:00. NO "Задание выполнено" popup yet: the quest is NOT complete; wood hand-in only advanced it to step 3.
-- ✅ Journal (J) after hand-in: "Палочка-выручалочка" still listed, text "Не стоит работать на износ! Съешь что-нибудь из своей сумки, чтобы восстановить силы." (eat step 3, tracker 0/1). So the earlier soup eating at 11:20 did NOT count; wiki's 3rd step is real and comes AFTER hand-in. Reward soup given by Gramma (bag soup count 2 after).
-- ✅ I -> Еда -> click soup (218,255) -> click "Съесть" (510,710): count 2->1, Tara drinks. Esc x2 -> gameplay; Gramma again shows sprout "!" bubble.
-- ✅ Space -> menu -> Space (sprout highlighted) -> dialogue "Вот видишь? Немного еды — как раз то, что нужно, чтобы восстановить твои силы." (stopped here: budget hit, mid-dialogue; next: Space until completion popup "Задание выполнено", then confirm next quest popup).
+- ✅ Space -> `overlay | Hazel Wylde`: 4 icons: grey speech (talk), potato, swirl, SPROUT (highlighted, with "!"). No wood icon: the highlighted sprout "!" icon IS the quest topic (wood hand-in).
+- ✅ Space on it -> dialogue "Gramma: This wood will be perfect for kindling! Wonderful! Thanks for helping me!" (EN ❓) (hand-in worked).
+- ✅ Space through dialogue (Tara "No problem!", Gramma "You're all worn out!..." -> "Old country cooking!"; EN ❓) -> popup-like line "Cream of Mushroom Soup / Here's some soup" -> back to gameplay 13:00. NO "Quest Complete" popup yet: the quest is NOT complete; wood hand-in only advanced it to step 3.
+- ✅ Journal (J) after hand-in: "Wood-n't You Know It?" still listed, text "Don't work yourself to the bone! Eat something from your bag to restore your energy." (EN ❓) (eat step 3, tracker 0/1). So the earlier soup eating at 11:20 did NOT count; wiki's 3rd step is real and comes AFTER hand-in. Reward soup given by Gramma (bag soup count 2 after).
+- ✅ I -> Food -> click soup (218,255) -> click "Eat" (510,710): count 2->1, Tara drinks. Esc x2 -> gameplay; Gramma again shows sprout "!" bubble.
+- ✅ Space -> menu -> Space (sprout highlighted) -> dialogue "See? A little food is just what you need to get your strength back." (EN ❓) (stopped here: budget hit, mid-dialogue; next: Space until completion popup "Quest Complete", then confirm next quest popup).
 
 ### Supervisor close-out (Wed d3 13:00)
-- `./wf advance` finished the dialogue (recipe book hidden in the stove; Gramma's favourite = mushroom risotto) → popup "Палочка-выручалочка / Задание выполнено! Твоя награда: / Ура!" → reward **3 Грибной крем-суп** → new quest popup **"Пальчики облизотто"**: "Купи рис и собери грибы, чтобы приготовить бабулино любимое блюдо." (rice 0/1, mushrooms 0/2) → Подтвердить → Gramma's menu → Esc.
+- `./wf advance` finished the dialogue (recipe book hidden in the stove; Gramma's favourite = mushroom risotto) → popup "Wood-n't You Know It? / Quest Complete! Your reward: / Hooray!" → reward **3 Cream of Mushroom Soup** → new quest popup **"Rice and Shine"**: "Buy Rice and collect Mushrooms so you can make Gramma's favorite dish." (rice 0/1, mushrooms 0/2) → Confirm → Gramma's menu → Esc.

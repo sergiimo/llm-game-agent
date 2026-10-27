@@ -1,11 +1,11 @@
 ---
 quest: The Fungus Among Us
-ru: Занимательная микология
+id: GrandmaMushroom   # internal id in ./wf log / save
 line: Gardening, Foraging, and Plants
 season: Spring Year 1
 status: done   # todo | active | done
 ---
-# The Fungus Among Us (Занимательная микология)
+# The Fungus Among Us
 
 > **Summary:** Gramma has asked for mushrooms in order to make something tasty. (from Gramma Hazel; 2 step(s))
 
@@ -31,9 +31,9 @@ status: done   # todo | active | done
 
 ## Verified steps
 _Received 2026-10-26 (day 1) from Gramma after the first watering, as a quest popup._
-- Popup: "Занимательная микология / Бабушка попросила принести грибов, чтобы приготовить кое-что вкусненькое. 0/2"
+- Popup: "The Fungus Among Us / Gramma has asked for mushrooms in order to make something tasty. 0/2"
   (Gramma asked for mushrooms to cook something tasty, 0/2) → Space confirms.
-- Gramma's hint (dialogue): "Пройдись по дороге, ведущей к горе, и найдешь много вкусных грибов." (walk the road that
+- Gramma's hint (dialogue): "Walk along the road to the mountain and you'll find lots of tasty mushrooms." (EN ❓; walk the road that
   leads to the mountain: lots of mushrooms there). Wiki: mushrooms on the Farm's lower grassy areas and the patch left of
   the Mountain entrance; also along the Woods paths.
 - Not yet played further.
@@ -43,22 +43,22 @@ _Received 2026-10-26 (day 1) from Gramma after the first watering, as a quest po
   well/fence); a Tara line about the old mine appears at the mine entrance (Space).
 - **Mine fork**: the LEFT branch is a dead-end loop around the boarded-up mine ("hammer" bubble). Keep to the right
   branch up to the grassy meadow by the river, just before the wooden bridge (the mountain-road meadow).
-- **Mushrooms** ("Гриб") are small brown mushrooms in that meadow's west part (3-4 visible). Pick: stand right
+- **Mushrooms** ("Mushroom") are small brown mushrooms in that meadow's west part (3-4 visible). Pick: stand right
   next to one (walk in 0.1-0.2s steps; camera follows Tara so it looks closer than it is) and press `key:space`.
-  Toast "Занимательная микология / Гриб: 1/2" then "2/2" with green check. The interaction bubble can appear late
+  Toast "The Fungus Among Us / Mushroom: 1/2" then "2/2" with green check. The interaction bubble can appear late
   or not at all; Space still works when adjacent.
 - Hand-in: Gramma was in the house (kitchen table at 18:50, rocking chair by the fireplace at 19:00+). Enter by the
-  front gate/door (walk up from the road). Walk to her until `bubble@...`, Space -> `overlay | Хейзел Уайлд` with 3
-  bubbles; Space selects the highlighted mushroom+spoon bubble -> dialogue ("У тебя получилось найти грибы?" /
-  "Какие крупные! Ты прирожденный грибник." / "Завтра я приготовлю тебе похлебку с грибами…") -> popup
-  "Бабушка готовит какое-то блюдо с грибами. Подтвердить" -> Space -> menu again -> `key:escape` -> gameplay.
+  front gate/door (walk up from the road). Walk to her until `bubble@...`, Space -> `overlay | Hazel Wylde` with 3
+  bubbles; Space selects the highlighted mushroom+spoon bubble -> dialogue ("Did you find the mushrooms?" /
+  "What big ones! You're a natural." / "Tomorrow I'll make you a mushroom stew…"; EN ❓) -> popup
+  "Gramma is making something with mushrooms. Confirm" -> Space -> menu again -> `key:escape` -> gameplay.
 - Step 2: wait until next day for 2x Cream of Mushroom Soup (not yet collected).
 
 ### Verified 2026-10-26 -> Wednesday (step 2, soup)
-- Slept (see docs/ui/screens/sleep.md), woke Среда 07:00 outside the house after a story cutscene. Entered the house, walked to
+- Slept (see docs/ui/screens/sleep.md), woke Wednesday 7:00 am outside the house after a story cutscene. Entered the house, walked to
   Gramma (rocking chair, "!" over her); Space -> menu -> highlighted mushroom bubble -> Space.
-- Dialogue: "Пока тебя не было, Лина принесла немного молока, и я сварила нам отличный грибной суп..." then she asks Tara to chop
-  logs. Popup "Занимательная микология / Задание выполнено! Твоя награда:" with "Ржавый топор" (Rusty Axe) shown, then reward
-  "2 Грибной крем-суп" (2x Cream of Mushroom Soup). New quest popup "Палочка-выручалочка" (chop logs on the farm, 0/2, 0/6).
+- Dialogue: "While you were out, Lina brought some milk and I made us a lovely mushroom soup..." (EN ❓) then she asks Tara to chop
+  logs. Popup "The Fungus Among Us / Quest Complete! Your reward:" with "Rusty Axe" (Rusty Axe) shown, then reward
+  "2 Cream of Mushroom Soup" (2x Cream of Mushroom Soup). New quest popup "Wood-n't You Know It?" (chop logs on the farm, 0/2, 0/6).
 - Gotcha: after the quest popup Gramma's menu reopens; extra Space presses select another topic (talk about Arthur, potato). Use
   `key:escape` right after the last popup.

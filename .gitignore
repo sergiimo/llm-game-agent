@@ -1,3 +1,5 @@
 .venv/
 .shots/
 __pycache__/
+recordings/
+.DS_Store

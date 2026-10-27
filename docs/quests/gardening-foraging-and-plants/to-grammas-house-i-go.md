@@ -1,11 +1,11 @@
 ---
 quest: To Gramma's House I Go
-ru: В гости к бабушке
+id:    # internal id in ./wf log / save
 line: Gardening, Foraging, and Plants
 season: Spring Year 1
 status: done   # todo | active | done
 ---
-# To Gramma's House I Go (В гости к бабушке)
+# To Gramma's House I Go
 
 > **Summary:** Head to Gramma's Farm. It's to the north-west of town. (from Starting Quest; 1 step(s))
 
@@ -40,9 +40,9 @@ _Verified 2026-10-26 (Spring Y1, Monday, first minutes)._ Route: `./wf route tow
 
 ### Steps
 1. Focus and verify control: `./wf status` should show `accessibility: true` and `screen_recording: true`.
-2. Read the quest: `./wf key j`. The journal **Задания** (Quests) opens with one entry. The right page shows the
-   description and a **Показать подсказку** (Show hint) button.
-   - `./wf click-text "Показать подсказку"` shows a popup: "Карта подскажет, куда идти." (The map will show where
+2. Read the quest: `./wf key j`. The journal **To-Do** (Quests) opens with one entry. The right page shows the
+   description and a **Show Hint** (Show hint) button.
+   - `./wf click-text "Show Hint"` shows a popup: "Check your map if you're not sure where to go." (where
      to go.) Then `./wf click-text OK --exact`, and `./wf key escape` closes the journal.
 3. Optional: `./wf key m` shows an illustrated island map. A **pink pin** marks Tara (town square). A **dotted
    path** runs north from the square, then west along the upper road, then north-west to the farmhouse (top-left
@@ -56,7 +56,7 @@ _Verified 2026-10-26 (Spring Y1, Monday, first minutes)._ Route: `./wf route tow
    ./wf path up:0.7 left:5        # dirt path west past the signpost (house-arrow ← = farm)
    ./wf path left:2 nw:2 left:2   # through the stone gate pillars → area transition
    ```
-5. Area transition: the screen letterboxes and a location banner **"Ферма Хейзел Уайлд"** (Hazel Wylde's Farm)
+5. Area transition: the screen letterboxes and a location banner **"Hazel Wylde's Farm"** (Hazel Wylde's Farm)
    appears bottom-left over a waterfall/pond shot, followed by a slow camera pan over the farmhouse (well, 2 small
    garden beds, mailbox, tool shed on the right). Gramma (white hair, purple coat) stands at the well.
 
@@ -73,7 +73,7 @@ _Verified 2026-10-26 (Spring Y1, Monday, first minutes)._ Route: `./wf route tow
   to the next shot.** Don't spam it blindly: observe each shot, because dialogue choices may appear.
 
 ### Done when
-The location banner "Ферма Хейзел Уайлд" appears and the farm arrival cutscene starts.
+The location banner "Hazel Wylde's Farm" appears and the farm arrival cutscene starts.
 
 ### Next
-Farm arrival cutscene → quest **Крошка-картошка** (From Bud To Spud): see [02-from-bud-to-spud.md](02-from-bud-to-spud.md).
+Farm arrival cutscene → quest **From Bud To Spud**: see [02-from-bud-to-spud.md](02-from-bud-to-spud.md).

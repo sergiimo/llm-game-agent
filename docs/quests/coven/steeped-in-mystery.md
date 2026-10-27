@@ -1,11 +1,11 @@
 ---
 quest: Steeped in Mystery
-ru: На чистую воду
+id: GrandmaHerblore   # internal id in ./wf log / save
 line: Coven
 season: Spring
 status: active   # todo | active | done
 ---
-# Steeped in Mystery (На чистую воду)
+# Steeped in Mystery
 
 > **Summary:** Go to the woods at night and pick a moonflower. (from Gramma Hazel; 6 step(s))
 
@@ -34,4 +34,4 @@ status: active   # todo | active | done
 <!-- wiki:end -->
 
 ## Verified steps
-_Not played yet. Record AS YOU GO under `### Attempt N (<day/time>)`: ✅ worked (exact `./wf` commands → what appears, RU + EN) · ❌ dead end (why) · ❓ open question/gap._
+_Not played yet. Record AS YOU GO under `### Attempt N (<day/time>)`: ✅ worked (exact `./wf` commands → what appears, on-screen text) · ❌ dead end (why) · ❓ open question/gap._

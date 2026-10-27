@@ -17,7 +17,7 @@ Summer: Corn · Tomato · **Strawberry 20→48 6d** · Sugarcane · Hops · Mari
 Fall: Cabbage · Grapes · Fennel · Pumpkin · Soybean · Tiger Lily · Turtlehead. Winter: Onion · Spinach · Sweet Potato · Fennel · Black Tea · Crocus · Primrose.
 Trees (125c at Kai's, any season, no watering): Apple, Lemon, Lime, Orange, Pomegranate, Mulberry, Olive.
 ## Verified in-game
-- Interact with an empty bed (Space at the sprout bubble) → planting panel → seed card → **Выбрать**. 1 seed packet fills the bed (4 spots).
+- Interact with an empty bed (Space at the sprout bubble) → planting panel → seed card → **Select (EN ❓)**. 1 seed packet fills the bed (4 spots).
 - Fill the can: Space at the well (watering-can bubble). Water: Space at the planted bed (potato + drop bubble).
 - Gramma supplies the first potato seeds; the can is given during *From Bud To Spud*.
 - Steps: [../quests/gardening-foraging-and-plants/from-bud-to-spud.md](../quests/gardening-foraging-and-plants/from-bud-to-spud.md).

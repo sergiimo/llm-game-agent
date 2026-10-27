@@ -128,7 +128,15 @@ docs/learnings.md                  surprises log (expected → actual → now �
 | A3 | Permissions? | `CGPreflightScreenCaptureAccess()`, `AXIsProcessTrusted()` from the tool's own process. Ask the user to grant the **host terminal app**; the OS prompt may name an unexpected helper process | Wait for both to be true |
 | A4 | Which capture path works? | Try the `screencapture -l <id>` CLI **and** in-process `CGWindowListCreateImage`. They can differ under the same permissions. Run outside the command sandbox if window-server calls fail | Use what works; keep the other as fallback |
 | A5 | Coordinates | Compare capture size with window bounds (Retina scaling) | Normalise to window points |
+| A7 | Is the session usable? | `CGSessionCopyCurrentDictionary()['CGSSessionScreenIsLocked']`; a locked screen gives all-black captures | Check before every capture; fail loudly |
 | A6 | Can I read the text? | Vision OCR with the UI language(s) actually in use. Sweep resolution (1.0/0.5) and level (accurate/fast) on real frames for speed **and** accuracy | Defaults for `ocr` |
+
+### A+. Reading state from files (cheaper and exact; try before building heavy screen parsing)
+| # | Question | Probe | Decide |
+|---|---|---|---|
+| F1 | Does the game write logs/saves? | `lsof -Fn -p <pid>` lists the game's open files: Unity `Player.log`, custom `app.log`, save files. Sandboxed apps live in `~/Library/Containers/<bundle>/Data/Library/…` | Note paths in learnings |
+| F2 | Can I read them? | `ls`/`tail` them. Containers are protected ("Operation not permitted"): reading needs Full Disk Access for the host terminal, which is **the user's decision** | Ask, with the trade-off |
+| F3 | What do they contain? | Tail the logs while doing one known action (pickup, quest step, purchase); check whether the save is JSON/plain or encrypted; diff saves before/after an action | `log --follow` / `save` CLI commands; prefer them over OCR for counters and quest state |
 
 ### B. Controlling the game
 | # | Question | Probe | Decide |

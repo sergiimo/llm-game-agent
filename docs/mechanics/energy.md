@@ -21,6 +21,6 @@ Orange arc on the right of the clock widget, starting at a ⚡ icon, filling clo
 82°→205°). Appears whenever the HUD is visible.
 
 ## Verified in-game
-- ✅ Out of energy (Wed d3 ~11:10, after ~1.5 logs + morning chores): "Тара: У меня больше нет сил!" (I have no strength
-  left); tool use stopped. Eating 1 Грибной крем-суп restored part of the bar.
+- ✅ Out of energy (Wed d3 ~11:10, after ~1.5 logs + morning chores): "Tara: I have no strength left! (EN ❓)" (I have no strength
+  left); tool use stopped. Eating 1 Cream of Mushroom Soup restored part of the bar.
 - ✅ The ⚡ arc is the energy meter (Wed d3 13:00 ≈ 47% after a soup and the morning's chopping).

@@ -19,7 +19,8 @@ docs, then re-test. Judge runs by gaps found and fixed.
 
 ## 1. Orient (cheap)
 - Read `docs/progress.md` (state + **Current goal** + goal queue) and `docs/quests/INDEX.md` → "Active now".
-- `./wf state` (sandbox disabled) **plus one `./wf look`** (read the image): `state` has no location (L29).
+- `./wf save` + `./wf log --tail 20` (sandbox disabled): exact day/time, money, scene, quest goals, inventory, and
+  recent events (`docs/ui/game-files.md`). Then `./wf state`; add one `./wf look` only if the exact spot matters.
   Fix progress.md first if reality differs, and put the observed location in the brief.
 
 ## 2. Choose the current goal
@@ -52,6 +53,9 @@ CONSTRAINTS: <approved decisions; forbidden; time limit; call budget = HARD stop
 ON GAPS: stop safely and return RESULT: need-help with NEED/TRIED/WOULD HELP/STATE. I'll fix the docs and resume you.
 REPORT: standard report with COST + GAPS (incl. every user message you received).
 ```
+Before dispatching a "get/use X here" goal, **check the target yourself with one `./wf look`** and put its on-screen
+direction from Tara in START STATE (e.g. "mushroom ~190 px left of Tara, a rock in between"). Don't pass on target
+positions from old attempt notes without checking them (run #11 chased a wrong position for 25 calls).
 One quest agent at a time.
 
 ## 3b. When the child pings (`RESULT: need-help`)

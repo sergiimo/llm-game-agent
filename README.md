@@ -20,7 +20,7 @@ human uses, plus side channels found by reverse-engineering the sandboxed app co
 
 | Area | Technique | Effect (measured) |
 |---|---|---|
-| **Perception cost** | Observation ladder: game **telemetry (log + save) → OCR text state → low-res vision → full screenshot** | Most steps need **0 image tokens**; a vision call is ~770×430 JPEG instead of 1920×1080 PNG |
+| **Perception cost** | Observation ladder: game **telemetry (log + save) → OCR text state → low-res vision → full screenshot** | **Outcome verification is text-only** (quest/goal, pickups, scene, mode, prompt). Images are used only for spatial targeting: one ~768×432 JPEG per navigation hop instead of a 1920×1080 screenshot |
 | **Telemetry side channel** | Live tail of Unity `Player.log` + decoding of the zstd-JSON autosave; ids resolved by **CRC32 reverse lookup** over strings mined from the app's asset bundles | Exact quest/goal state, inventory, money, position, dialogue lines; 413/428 hashed ids decoded |
 | **Navigation** | **Click-to-move with the engine's own pathfinding** (`go:x:y`) + frame-differencing arrival detection | Approaching a target: **3–6 calls → 1**; garden road → well in **one call, 3.7 s** |
 | **Latency** | Warm daemon over a Unix socket, in-memory capture, half-res OCR, run-loop-pumped focus detection | Focus switch **3.16 s → 0.22 s**; `state` ≈ **0.15–0.2 s**; a full act+observe step ≈ **2.3 s** (was 6–8 s) |
@@ -112,7 +112,8 @@ The macOS sandbox container holds two files most automation ignores:
   reverse-lookup table by running `strings` over the app's asset bundles and hashing every candidate (one-off, ~25 s,
   cached), then decodes quests and goal counters, inventory, stamina, money, scene and player transform.
 
-Result: "did that work?" is answered from **structured ground truth** instead of a vision call.
+Result: "did that work?" is answered from **structured ground truth** instead of a vision call. Vision is still
+needed for *where* questions: each navigation hop costs one model turn plus one small look image (see §2, Limits).
 
 ---
 
@@ -155,6 +156,11 @@ sequenceDiagram
 | Obstacles | Detected after the bump (`BLOCKED` via frame diff) | Planned around (fences, gate gaps) |
 | Typical approach | 3–6 calls (walk, look, nudge…) | **1 call** + Space |
 | Failure signal | Silent drift | `NO MOVE` / `STILL MOVING` |
+
+**Limits / next step.** Each hop is still a model turn: look → pick a pixel → `go:`. Targets off screen need a chain
+of hops, and each needs a fresh look because the camera moves. Planned: store verified hop chains for known places
+(like `routes/`, but as click targets relative to landmarks) so a known trip replays in one call without images, and
+reserve vision for unknown places.
 
 Before click-to-move was found, a **visual-odometry** fallback was prototyped: FFT phase correlation between
 consecutive frames to measure camera displacement (the camera is avatar-locked, so background shift = avatar motion),

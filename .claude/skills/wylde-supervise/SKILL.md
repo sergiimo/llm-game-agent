@@ -27,6 +27,8 @@ docs, then re-test. Judge runs by gaps found and fixed.
 Before choosing, check the docs cover the goal's verbs and places (`mechanics/basic-actions.md`, `world/locations.md`).
 Missing how-to/location → either make the goal "scout/learn X" first, or brief the agent to fill the gap.
 Plan with the tips: `./wf tips planning energy time` (+ the goal's tags). Approve eating only where the tips say so.
+**Energy feasibility:** for gathering/tool goals, add up the costs from `docs/mechanics/energy.md` (Cost table). If the total is over
+100% of the bar, split the goal by day (retro 2026-10-27: 240% in one day → 2 faints, 6 teas used, stone still short).
 Pick ONE goal that is small, verifiable, unblocked **now**, and **tests something not yet verified** (a ❓ row in
 basic-actions, an unknown place, a new screen) (time of day, weekday shop hours in
 `docs/world/businesses.md`, energy, money). Priority:
@@ -37,10 +39,12 @@ Write it to `docs/progress.md` → **Current goal** (goal, quest file, done-sign
 
 ## 3. Dispatch: give the child EVERYTHING it needs (the manifest)
 The child should finish the quest from the manifest alone. Before dispatching, complete the quest file:
-- `## Quest brief` fields: Why · Steps (▶️ current) · How-to · Where · Progress signal · Done when · Next · Tips · Gotchas.
+- `## Quest brief` fields: Why · Steps (▶️ current) · How-to · Where · Progress signal · Done when · Next · Tips ·
+  **Actions** (tags for `./wf actions`: the DB rows with expected outcomes the agent checks each step against) · Gotchas.
+  An action missing from `docs/actions.md`, or one with ❓ Expect → add the row first, or make verifying it part of the goal.
 - **`Read:`** field = the manifest: exact files + sections + commands the step needs, e.g.
   `docs/mechanics/basic-actions.md (Talk, Eat rows)`, `docs/world/locations.md (Farm → interior)`,
-  `docs/ui/screens/interaction-menu.md`, `routes/town-square-to-farm.txt`, `./wf tips shops money`,
+  `docs/ui/screens/interaction-menu.md`, `./wf tips shops money`,
   `reference/wiki/Rice and Shine.md`. If you can't list a source for something the step needs, it's a docs gap: fill it
   first, or make the goal "scout/learn it".
 
@@ -56,7 +60,10 @@ REPORT: standard report with COST + GAPS (incl. every user message you received)
 Before dispatching a "get/use X here" goal, **check the target yourself with one `./wf look`** and put its on-screen
 direction from Tara in START STATE (e.g. "mushroom ~190 px left of Tara, a rock in between"). Don't pass on target
 positions from old attempt notes without checking them (run #11 chased a wrong position for 25 calls).
-One quest agent at a time.
+One quest agent at a time. **Never send game input (keys, look-with-escape, pause) while an agent runs**, even after
+its `run end`: wait for its task notification (retro 2026-10-28: my Escapes fought the agent's inputs).
+**Hand-in mechanics:** read the wiki quest page's completion text; if how the hand-in works isn't verified in
+`docs/actions.md`, mark that step ❓ in the brief instead of guessing (retro 2026-10-28: "!" topic vs Build button).
 
 ## 3b. When the child pings (`RESULT: need-help`)
 1. Fix the source **for now and the future**: the shared doc (basic-actions / locations / ui / mechanics), `docs/tips.md`,
@@ -66,13 +73,17 @@ One quest agent at a time.
 3. Log the ping in `docs/agent-runs.md` (Gap → fix). Many pings on one quest means the manifest template needs a new field.
 
 ## 4. Review
+- `./wf run report [runs/<file>]`: timeline (attempts, issues, walks, game events) + time split (in calls / agent
+  thinking / Tara active). Retros start from run logs, not from video.
 - Read the report; verify with `./wf state`. Spot-check that the quest file's Verified steps were written.
 - RESULT=done → mark the goal done in progress.md and pick the next one.
 - partial/blocked → decide: re-brief with a narrower goal, fix a tool/doc (log in learnings), or ask the user.
 - decision-needed → **ask the user** (purchases, choices, sleeping/ending the day, romance), then re-dispatch.
 
 ## 5. Debrief: you own the shared docs (mandatory, before the next goal)
-Agents only write raw attempt notes in the quest file and report GAPS. **You** turn them into docs:
+Agents only write raw attempt notes in the quest file and report GAPS. **You** turn them into docs.
+First `./wf learn` (docs/self-improvement.md): check new bubble kinds (delete bad samples in `tools/bubbles/`), and
+copy observed hits/pickups into `docs/actions.md` Expect where they differ.
 | GAP kind | Your action |
 |---|---|
 | `[docs]` | update `mechanics/basic-actions.md`, `world/locations.md`, `ui/…`, `mechanics/<topic>` (flip ❓→✅, add gotchas) |

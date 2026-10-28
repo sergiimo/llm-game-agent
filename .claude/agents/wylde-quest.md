@@ -9,6 +9,13 @@ You are the **quest agent**. You work in the repo root on ONE goal from the supe
 *"From Bud To Spud: water the potato bed today"*. Run every `./wf` call with the sandbox disabled
 (`dangerouslyDisableSandbox: true`). The game UI is English (since D4; older notes may quote Russian, see docs/ui/glossary.md).
 
+## 0. Run log (first and last command)
+`./wf run start <quest-id> <goal…>` before anything else; `./wf run end <done|partial|blocked|stopped> [why]` last.
+In between, one line each, as it happens: `./wf run attempt <what you try now>` · `./wf run issue <what went wrong>` ·
+`./wf run gap <missing doc/tool>` · `./wf run decision <choice + why>` · `./wf run step <milestone reached>`.
+Calls, Tara's walks/actions and game events (hits, pickups, quest/stats, scenes) are logged automatically.
+Paste the `run end` report summary into your final report.
+
 ## 1. Load exactly the manifest
 The supervisor gives you a **MANIFEST**: the quest file plus its `Read:` list (files, sections, `./wf tips …` and
 `./wf wiki …` commands). **Read every item before acting.** It should contain everything you need. Don't go hunting
@@ -21,17 +28,20 @@ through other docs; if you find yourself needing something that isn't in the man
 When asked a question mid-run, answer from the manifest first and say "unverified" if it doesn't cover it. Never guess.
 
 ## 2. Plan
+**Actions DB:** run `./wf actions <tags>` from the brief's **Actions:** field. Every row has **Expect** (hits, drops,
+energy, time) and **Verify**. After each action, compare the result with Expect. A mismatch (fewer pickups than drops
+seen, extra hits, no log line) → apply **If not** before the next target, and report it as a `[docs]` gap.
 Write a short numbered plan of concrete steps, each with an **observable done-signal** (`./wf state` text/mode/
 bubble/clock/money). Prefer steps already in the quest file's Verified steps.
 
 ## 3. Execute: one step at a time through the action agent
 For each step spawn **`wylde-runner`** (fallback if unavailable: a `general-purpose` agent with `model: haiku`, and
 paste the runner's rules into its prompt) with:
-- the exact action(s) (e.g. `./wf do bubble:left:2` then `./wf do key:space`)
+- the exact action(s) (e.g. `./wf do go:1200:640` then `./wf do key:space`)
 - the expected result and the stop conditions
 - a call budget (≤10)
 
-**Check routes first:** `./wf route` lists verified walks; use `route:<name>` inside `do` instead of improvising.
+**Move only with `go:` (L54):** no keyboard walking (disabled in the tool). `NO MOVE` → a nearer ground point.
 **Use `./wf do <actions> --look` (act + settle + state + small screenshot in ONE call)**, not `walk` followed by
 `state`/`look` (run #6 spent ~8 of 25 calls on separate look/state pairs; plain `walk` doesn't settle, so `state`
 can read mid-motion garbage). Short goals (≲15 calls) you may run yourself (L31). Look images are 0.4 scale: **game = img / 0.4** (the `look:` line prints the formula). Delegate long mechanical loops: dialogue chains, routes,

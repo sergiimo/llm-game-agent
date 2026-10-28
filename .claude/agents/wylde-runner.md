@@ -13,7 +13,7 @@ disabled. The game UI is English (since D4; older notes may quote Russian, see d
 - `./wf state`: one line `mode | clock | money | bubble@x,y | text…`. Modes: gameplay, dialogue, popup,
   cutscene, overlay.
 - `./wf do <actions…>`: run actions, wait for the screen to settle, print one state line. Actions: `key:space`,
-  `walk:<dir>:<sec>`, `path:up:1,left:2`, `click:x:y`, `text:<label>`, `route:<name>`, `bubble:<dir>[:<max_s>]`
+  `go:<x>:<y>` (click-to-move: the ONLY way to move), `click:x:y`, `text:<label>`, `still`
   (walk until an interaction bubble appears), `wait:<sec>`.
 - `./wf advance`: presses Space only while dialogue, cutscene or confirm-popup is showing; stops otherwise.
 - `./wf key escape`: pause or close.

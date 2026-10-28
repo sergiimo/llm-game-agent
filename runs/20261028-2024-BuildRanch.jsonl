@@ -1,0 +1,76 @@
+{"t": 1793211881.83, "type": "start", "quest": "BuildRanch", "goal": "hand in to Parker"}
+{"t": 1793211882.04, "type": "call", "start": 1793211882.04, "end": 1793211883.19, "cmd": "do key:escape"}
+{"t": 1793211894.07, "type": "activity", "what": "go", "target": "go:1000:1100", "start": 1793211892.535289, "end": 1793211894.073863, "moved": false}
+{"t": 1793211892.23, "type": "call", "start": 1793211892.23, "end": 1793211895.52, "cmd": "do go:1000:1100 --look"}
+{"t": 1793211904.01, "type": "activity", "what": "go", "target": "go:1850:600", "start": 1793211901.195178, "end": 1793211904.0127401, "moved": true}
+{"t": 1793211900.34, "type": "call", "start": 1793211900.34, "end": 1793211905.24, "cmd": "do go:1850:600 --look"}
+{"t": 1793211912.74, "type": "activity", "what": "go", "target": "go:1850:600", "start": 1793211909.2242198, "end": 1793211912.738174, "moved": true}
+{"t": 1793211908.54, "type": "call", "start": 1793211908.54, "end": 1793211914.62, "cmd": "do go:1850:600 --look"}
+{"t": 1793211921.3, "type": "activity", "what": "go", "target": "go:1850:760", "start": 1793211918.758636, "end": 1793211921.301883, "moved": true}
+{"t": 1793211918.08, "type": "call", "start": 1793211918.08, "end": 1793211922.5, "cmd": "do go:1850:760 --look"}
+{"t": 1793211927.24, "type": "activity", "what": "go", "target": "go:1850:760", "start": 1793211924.8935869, "end": 1793211927.236934, "moved": true}
+{"t": 1793211924.22, "type": "call", "start": 1793211924.22, "end": 1793211928.45, "cmd": "do go:1850:760 --look"}
+{"t": 1793211934.84, "type": "activity", "what": "go", "target": "go:1700:450", "start": 1793211931.510904, "end": 1793211934.844077, "moved": true}
+{"t": 1793211930.83, "type": "call", "start": 1793211930.83, "end": 1793211936.03, "cmd": "do go:1700:450 --look"}
+{"t": 1793211941.28, "type": "activity", "what": "go", "target": "go:1800:800", "start": 1793211938.713612, "end": 1793211941.2830179, "moved": true}
+{"t": 1793211938.02, "type": "call", "start": 1793211938.02, "end": 1793211942.49, "cmd": "do go:1800:800 --look"}
+{"t": 1793211948.18, "type": "activity", "what": "go", "target": "go:1300:560", "start": 1793211945.21353, "end": 1793211948.175147, "moved": true}
+{"t": 1793211949.36, "type": "game", "line": "[D145 3:55:06 PM] [TRIGGER] OnEnterBuilding Carpenter"}
+{"t": 1793211944.52, "type": "call", "start": 1793211944.52, "end": 1793211949.4, "cmd": "do go:1300:560 --look"}
+{"t": 1793211955.0, "type": "activity", "what": "go", "target": "go:1130:560", "start": 1793211952.449447, "end": 1793211954.998465, "moved": true}
+{"t": 1793211951.76, "type": "call", "start": 1793211951.76, "end": 1793211956.19, "cmd": "do go:1130:560 --look"}
+{"t": 1793211959.91, "type": "activity", "what": "go", "target": "go:1180:545", "start": 1793211959.5099552, "end": 1793211959.907697, "moved": true}
+{"t": 1793211958.04, "type": "call", "start": 1793211958.04, "end": 1793211961.13, "cmd": "do go:1180:545 --look"}
+{"t": 1793211963.1, "type": "call", "start": 1793211963.1, "end": 1793211964.08, "cmd": "do act:talk --look"}
+{"t": 1793211967.67, "type": "activity", "what": "go", "target": "go:1120:690", "start": 1793211966.8909252, "end": 1793211967.673724, "moved": true}
+{"t": 1793211966.2, "type": "call", "start": 1793211966.2, "end": 1793211968.83, "cmd": "do go:1120:690 --look"}
+{"t": 1793211974.13, "type": "activity", "what": "go", "target": "go:960:770", "start": 1793211973.7299562, "end": 1793211974.127197, "moved": true}
+{"t": 1793211973.03, "type": "call", "start": 1793211973.03, "end": 1793211975.2, "cmd": "do go:960:770 --look"}
+{"t": 1793211976.91, "type": "call", "start": 1793211976.91, "end": 1793211977.87, "cmd": "do act:talk --look"}
+{"t": 1793211983.72, "type": "activity", "what": "go", "target": "go:1060:740", "start": 1793211982.144682, "end": 1793211983.7219698, "moved": true}
+{"t": 1793211981.45, "type": "call", "start": 1793211981.45, "end": 1793211984.93, "cmd": "do go:1060:740 --look"}
+{"t": 1793211986.71, "type": "call", "start": 1793211986.71, "end": 1793211987.7, "cmd": "do act:talk --look"}
+{"t": 1793211992.13, "type": "activity", "what": "go", "target": "go:740:760", "start": 1793211990.7555509, "end": 1793211992.128992, "moved": true}
+{"t": 1793211990.06, "type": "call", "start": 1793211990.06, "end": 1793211993.32, "cmd": "do go:740:760 --look"}
+{"t": 1793211994.98, "type": "call", "start": 1793211994.98, "end": 1793211995.95, "cmd": "do act:talk --look"}
+{"t": 1793211999.77, "type": "activity", "what": "go", "target": "go:1050:760", "start": 1793211999.1803489, "end": 1793211999.767993, "moved": true}
+{"t": 1793211998.5, "type": "call", "start": 1793211998.5, "end": 1793212000.87, "cmd": "do go:1050:760 --look"}
+{"t": 1793212006.06, "type": "call", "start": 1793212006.06, "end": 1793212008.9, "cmd": "do key:space --look"}
+{"t": 1793212011.79, "type": "issue", "text": "Nailed It: Emmi (child) bubble is nearer/first; space talked to Emmi not Parker; act:talk refuses (unknown dim)"}
+{"t": 1793212011.87, "type": "call", "start": 1793212011.87, "end": 1793212013.2, "cmd": "do key:escape --look"}
+{"t": 1793212017.66, "type": "activity", "what": "go", "target": "go:1180:720", "start": 1793212016.282291, "end": 1793212017.659792, "moved": true}
+{"t": 1793212015.58, "type": "call", "start": 1793212015.58, "end": 1793212018.87, "cmd": "do go:1180:720 --look"}
+{"t": 1793212023.56, "type": "activity", "what": "go", "target": "go:740:730", "start": 1793212021.994859, "end": 1793212023.5623732, "moved": false}
+{"t": 1793212021.71, "type": "call", "start": 1793212021.71, "end": 1793212024.79, "cmd": "do go:740:730 --look"}
+{"t": 1793212028.71, "type": "activity", "what": "go", "target": "go:770:780", "start": 1793212027.340372, "end": 1793212028.713841, "moved": true}
+{"t": 1793212026.65, "type": "call", "start": 1793212026.65, "end": 1793212029.89, "cmd": "do go:770:780 --look"}
+{"t": 1793212034.57, "type": "activity", "what": "go", "target": "go:600:840", "start": 1793212033.387263, "end": 1793212034.5698152, "moved": true}
+{"t": 1793212032.7, "type": "call", "start": 1793212032.7, "end": 1793212035.75, "cmd": "do go:600:840 --look"}
+{"t": 1793212038.12, "type": "call", "start": 1793212038.12, "end": 1793212039.12, "cmd": "do act:talk --look"}
+{"t": 1793212041.71, "type": "call", "start": 1793212041.71, "end": 1793212043.58, "cmd": "do key:space --look"}
+{"t": 1793212049.24, "type": "game", "line": "[D145 4:41:08 PM] [STATS] game.CharactersMet = 16"}
+{"t": 1793212049.24, "type": "game", "line": "[D145 4:41:08 PM] [REL] Finn chat value 1"}
+{"t": 1793212049.24, "type": "game", "line": "[D145 4:41:08 PM] [REL] Finn friendship = 1 (uncapped 1)"}
+{"t": 1793212045.85, "type": "call", "start": 1793212045.85, "end": 1793212049.79, "cmd": "advance"}
+{"t": 1793212049.88, "type": "call", "start": 1793212049.88, "end": 1793212051.44, "cmd": "do key:escape --look"}
+{"t": 1793212056.03, "type": "activity", "what": "go", "target": "go:1230:770", "start": 1793212054.8356428, "end": 1793212056.0269492, "moved": true}
+{"t": 1793212054.14, "type": "call", "start": 1793212054.14, "end": 1793212057.24, "cmd": "do go:1230:770 --look"}
+{"t": 1793212059.26, "type": "call", "start": 1793212059.26, "end": 1793212060.99, "cmd": "do key:space --look"}
+{"t": 1793212062.92, "type": "call", "start": 1793212062.92, "end": 1793212063.03, "cmd": "state"}
+{"t": 1793212063.12, "type": "call", "start": 1793212063.12, "end": 1793212063.17, "cmd": "look"}
+{"t": 1793212065.66, "type": "call", "start": 1793212065.66, "end": 1793212066.84, "cmd": "do key:space"}
+{"t": 1793212070.07, "type": "game", "line": "[D145 4:47:04 PM] [REL] Parker chat value 1"}
+{"t": 1793212070.07, "type": "game", "line": "[D145 4:47:04 PM] [REL] Parker friendship = 4 (uncapped 4)"}
+{"t": 1793212066.93, "type": "call", "start": 1793212066.93, "end": 1793212070.61, "cmd": "advance"}
+{"t": 1793212073.61, "type": "issue", "text": "Parker menu talk icon = banter, not quest hand-in; trying 3rd (blueprint) icon"}
+{"t": 1793212073.73, "type": "call", "start": 1793212073.73, "end": 1793212075.14, "cmd": "do key:right key:right --look"}
+{"t": 1793212077.09, "type": "call", "start": 1793212077.09, "end": 1793212078.51, "cmd": "do key:space --look"}
+{"t": 1793212078.6, "type": "call", "start": 1793212078.6, "end": 1793212079.28, "cmd": "advance"}
+{"t": 1793212085.04, "type": "call", "start": 1793212085.04, "end": 1793212086.16, "cmd": "do click:567:250 --look"}
+{"t": 1793212090.36, "type": "decision", "text": "Build button in Nailed It! menu is the hand-in (1000c+mats collected for it); pressing"}
+{"t": 1793212091.89, "type": "game", "line": "[D145 4:47:19 PM] [STATS] totalCrafted.Ranch = 1"}
+{"t": 1793212091.89, "type": "game", "line": "[D145 4:47:19 PM] [QUEST] Advance quest BuildRanch to goal 1 day 145"}
+{"t": 1793212090.46, "type": "call", "start": 1793212090.46, "end": 1793212091.92, "cmd": "do click:365:785 --look"}
+{"t": 1793212094.46, "type": "call", "start": 1793212094.46, "end": 1793212096.22, "cmd": "advance"}
+{"t": 1793212096.31, "type": "call", "start": 1793212096.31, "end": 1793212097.84, "cmd": "do key:escape"}
+{"t": 1793212098.08, "type": "end", "result": "partial", "text": "Build clicked at Parker's Nailed It! shop; ranch construction started, completes D146"}

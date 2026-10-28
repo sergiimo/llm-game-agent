@@ -17,10 +17,13 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 | `docs/mechanics/INDEX.md` → `mechanics/<topic>.md` | Game systems (time, energy, farming, fishing, shops, …); "(wiki)" vs "Verified in-game" sections |
 | `docs/ui/INDEX.md` → `controls.md`, `hud.md`, `screens/<screen>.md`, `glossary.md` | What's on screen, how to recognise it (`wf state` mode), actions, exit; RU↔EN |
 | `docs/world/INDEX.md` → `overview.md`, `characters.md`, `businesses.md`, `items/*.md` | Reference knowledge (generated from the wiki) |
+| `docs/actions.md` | **Actions DB:** each action → recipe, **expected** hits/drops/energy, verify signal, fix. `./wf actions <tags>` prints a job's rows |
+| `runs/*.jsonl` | **Run log per quest/task** (`./wf run start/attempt/issue/end`, auto: calls, Tara walks/actions, game events). `./wf run report` |
+| `docs/self-improvement.md` | **Self-improvement loop**: act → capture → label from the game log → store disagreements → verify (`./wf learn`) → use. Bubble kinds learn automatically |
 | `docs/learnings.md` | Surprises: expected vs actual → what changed |
 | `reference/wiki/` | Full offline fan-wiki mirror (1190 pages, CC BY-SA). Search: `./wf wiki "<term>"` |
 | `./wf` → `tools/wfc.py` → daemon `tools/wf.py serve` | CLI to observe/control the game. **`./wf stop` after editing wf.py** |
-| `routes/*.txt` | Recorded, verified walking routes (`./wf route <name>`) |
+| `routes/*.txt` | Old keyboard routes (disabled, L54); landmarks in them still describe the way |
 | `.claude/skills/` | `wylde-play` (main loop), `wylde-navigate`, `wylde-lookup`; generic `game-onboarding` (method for onboarding any game, with template scripts) |
 | `.claude/skills/wylde-supervise/` | **How to play:** supervisor loop (main conversation) → one `wylde-quest` per goal |
 | `.claude/agents/wylde-quest.md` | Quest agent (Sonnet): one goal, loads relevant docs, plans, records verified steps |
@@ -52,8 +55,9 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
    Observe with the game files first: `./wf log` (live events: quests, dialogue, scenes, pickups; input commands
    print new lines as `log: …`) and `./wf save` (exact money/time/quests/inventory as of the last autosave), see
    `docs/ui/game-files.md`. Then `./wf state` (text) → `./wf look` (small JPEG, then Read it) → `./wf shot` (full) only if needed.
-   **Move by clicking:** `./wf do go:<x>:<y>` (click-to-move; the game pathfinds, L49) to a spot/object from a look;
-   WASD `walk:`/routes are the fallback.
+   **Move only by clicking (L54, user rule):** `./wf do go:<x>:<y>` (click-to-move; the game pathfinds, L49) to a
+   spot/object from a look. There is no keyboard fallback: `walk:`/`path:`/`route:`/`bubble:` are disabled. `NO MOVE`
+   → click a nearer ground point; `ALREADY THERE` → act (Space).
 2. **Small steps, no blind loops.** Never spam keys through cutscenes, dialogue or menus. `./wf advance` stops at
    anything unexpected.
 3. **Don't change the user's settings** (language, game speed) or spend/sell/sleep through big decisions without

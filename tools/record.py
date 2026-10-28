@@ -2,6 +2,10 @@
 
 Captures the window itself (CGWindowListCreateImage), so it works while other windows cover the game.
 Captions come from .shots/actions.log, written by every ./wf call (tools/wfc.py).
+Next to the video it writes two tracks for tools/idle.py (visible non-doing time):
+  <video>.tara.tsv    video-seconds \t Tara's activity \t tracker confidence (wf.Tara, L52: scoped to her, so water,
+                      NPCs and camera pans don't count; first line `# t0 <unix>`)
+  <video>.events.tsv  video-seconds \t game-log line, stamped when it appeared (hits, pickups, dialogue, scenes)
 
   .venv/bin/python tools/record.py start [--fps 8] [--width 1280]   # background; prints the output path
   .venv/bin/python tools/record.py stop
@@ -9,6 +13,7 @@ Needs: imageio-ffmpeg in .venv (bundled ffmpeg binary). Run outside the sandbox.
 """
 import argparse
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -38,7 +43,8 @@ def run(fps, width, out):
     import imageio_ffmpeg
     from PIL import ImageDraw, ImageFont
     import wf
-    height = width * 9 // 16
+    win = wf.require_window()  # whole window: the game draws under the title bar, the 16:9 frame would clip it
+    height = round(width * win['h'] / win['w'] / 2) * 2
     ff = subprocess.Popen([imageio_ffmpeg.get_ffmpeg_exe(), '-loglevel', 'error', '-y', '-f', 'rawvideo',
                            '-pix_fmt', 'rgb24', '-s', f'{width}x{height}', '-r', str(fps), '-i', '-',
                            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26', '-pix_fmt', 'yuv420p', out],
@@ -49,12 +55,39 @@ def run(fps, width, out):
         font = ImageFont.load_default()
     stop = []
     signal.signal(signal.SIGTERM, lambda *_: stop.append(1))
-    t0, n, frame = time.time(), 0, None
+    base = os.path.splitext(out)[0]
+    mo, ev = open(base + '.tara.tsv', 'w', buffering=1), open(base + '.events.tsv', 'w', buffering=1)
+    try:
+        logpos = os.path.getsize(wf.GAME_LOG)  # own read position: don't disturb ./wf log's
+    except OSError:
+        logpos = None
+    t0, n, frame, tara, reseed = time.time(), 0, None, None, True
+    mo.write(f'# t0 {t0:.2f}\n')  # tools/idle.py aligns video time with actions.log by this
     while not stop:
         try:
-            frame = wf.grab().convert('RGB').resize((width, height))
+            raw = wf.grab(crop=False)
+            frame = raw.resize((width, height))
+            if reseed or tara.conf < 0.4:  # new scene / lost her: Tara is back at the camera centre
+                tara, reseed = wf.Tara(), False
+            act = tara.update(wf._to_frame(raw, win))
+            mo.write(f'{time.time() - t0:.3f}\t{act:.2f}\t{tara.conf:.2f}\n')
         except Exception:
             pass  # window briefly unavailable: repeat the last frame
+        vt = time.time() - t0
+        if logpos is not None:
+            try:
+                with open(wf.GAME_LOG, 'rb') as fh:
+                    fh.seek(logpos)
+                    data = fh.read()
+                end = data.rfind(b'\n') + 1
+                logpos += end
+                for l in data[:end].decode('utf-8', 'replace').splitlines():
+                    if l.startswith('[D') and not wf.LOG_NOISE.search(l):
+                        ev.write(f'{vt:.3f}\t{l}\n')
+                        if re.search(r'ChangeScene|OnEnterBuilding|OnExitBuilding|Spawning player', l):
+                            reseed = True
+            except OSError:
+                pass
         if frame is not None:
             img = frame.copy()
             ago, txt = last_action(t0)
@@ -71,6 +104,8 @@ def run(fps, width, out):
         time.sleep(max(0.0, t0 + n / fps - time.time()))  # real-time pacing: video time = wall time
     ff.stdin.close()
     ff.wait()
+    mo.close()
+    ev.close()
 
 
 def main():

@@ -22,12 +22,13 @@ human uses, plus side channels found by reverse-engineering the sandboxed app co
 |---|---|---|
 | **Perception cost** | Observation ladder: game **telemetry (log + save) → OCR text state → low-res vision → full screenshot** | **Outcome verification is text-only** (quest/goal, pickups, scene, mode, prompt). Images are used only for spatial targeting: one ~768×432 JPEG per navigation hop instead of a 1920×1080 screenshot |
 | **Telemetry side channel** | Live tail of Unity `Player.log` + decoding of the zstd-JSON autosave; ids resolved by **CRC32 reverse lookup** over strings mined from the app's asset bundles | Exact quest/goal state, inventory, money, position, dialogue lines; 413/428 hashed ids decoded |
-| **Navigation** | **Click-to-move with the engine's own pathfinding** (`go:x:y`) + frame-differencing arrival detection | Approaching a target: **3–6 calls → 1**; garden road → well in **one call, 3.7 s** |
+| **Navigation** | **Click-to-move with the engine's own pathfinding** (`go:x:y`), mouse only; arrival from a **character-scoped motion tracker** (Apple Vision object tracking + aligned crop differencing) | Approaching a target: **3–6 calls → 1**; arrival detected 1–2 s after Tara stops, immune to water, NPCs and camera pans |
+| **Prompt understanding** | Two-stage prompt recognition: colour/blob detector finds the bubble, **Vision feature-print embedding + nearest-neighbour** over labelled crops names it (`pickup`, `axe`, `talk`…), orange-ring test for "highlighted"; `act:<kind>` presses only on a match | Leave-one-out **41/41** on kinds with ≥2 refs; **~10 ms** extra per state read; 0 image tokens for the model |
 | **Latency** | Warm daemon over a Unix socket, in-memory capture, half-res OCR, run-loop-pumped focus detection | Focus switch **3.16 s → 0.22 s**; `state` ≈ **0.15–0.2 s**; a full act+observe step ≈ **2.3 s** (was 6–8 s) |
 | **Reasoning** | Curated **world model** (131 quests, mechanics, UI state machine, locations, routes) loaded **progressively** through a manifest | Each agent loads only the 3–6 files its goal needs |
 | **Orchestration** | **Supervisor → quest agent → action agent** hierarchy with a manifest protocol and `need-help` escalation | Gaps fixed once in shared docs, then reused by every later agent |
-| **Self-improvement** | Every surprise becomes a **learning** (expected vs actual → fix) and a doc/tool change in the same pass | 49 learnings + 7 performance findings; failed run (25 calls) → same task in 4 calls after the fix |
-| **Observability** | Game-window recorder with **per-frame command captions**; per-run cost ledger | Each run can be replayed and audited |
+| **Self-improvement** | **Self-labelling from game telemetry**: the logged interaction (`> water me=Player target=GardenBed`) labels the prompt crop, unseen ones create new classes, only disagreements are stored; an **actions DB** of expected outcomes (hits, drops, energy) checked against observed ones; every surprise becomes a learning + fix | 56 learnings; failed run (25 calls) → same task in 4 calls after the fix |
+| **Observability** | Structured **run logs** per task (attempts, issues, calls, Tara's walk/act segments, game events) + **idle analysis** (still screen split into "command running" vs "agent thinking") + captioned recordings | Retros start from numbers: e.g. 53% of a run's wall time was agent turns between calls |
 
 ---
 
@@ -54,7 +55,7 @@ flowchart LR
 
     subgraph Tool["./wf control plane"]
         C["wfc.py<br/>thin client"] -- "Unix socket" --> D["wf.py serve<br/>warm daemon"]
-        D --> P["Perception<br/>capture · OCR · templates · bubble detector"]
+        D --> P["Perception<br/>capture · OCR · templates · bubble detector + classifier · Tara tracker"]
         D --> A["Actuation<br/>Quartz CGEvents · focus mgmt"]
         D --> T["Telemetry<br/>Player.log tail · save decoder"]
     end
@@ -99,7 +100,9 @@ log: [D4 9:46:59 AM] [STATS] game.CharactersMet = 5
 | Mode (`gameplay / dialogue / popup / cutscene / overlay`) | Letterbox luminance test, fixed-position **HUD template matching** (mean abs diff), subtitle-band OCR, popup keyword match |
 | Clock, money, quest tracker | Apple **Vision** `VNRecognizeTextRequest` on the full frame at 0.5× (3.5× faster and *more* accurate than full-res for this font) plus a full-res crop for the small clock text |
 | Energy | Polar sampling of the HUD energy arc (no OCR) |
-| Interaction prompt | **Connected-component blob detector** for the round prompt bubble on a 1/4-scale mask → `bubble@x,y` |
+| Interaction prompt: where | **Colour thresholding + connected-component labelling** for the round cream bubble on a 1/4-scale mask (no model, ~25 ms) |
+| Interaction prompt: what | 140 px crop → Apple Vision **feature print** (768-d embedding, ~5 ms) → **nearest neighbour** over `tools/bubbles/<kind>/*.png` (distance > 0.6 = `unknown`); ring colour → highlighted. State line: `bubble@x,y:pickup` / `:axe(dim)` |
+| Tara's motion | Vision `VNTrackObjectRequest` seeded at the camera centre + **aligned crop difference** (±3 px best match cancels box jitter and slow pans): idle ≤ 5.5, walking 15–43 |
 | Transient toasts ("Mushroom: 1/2") | Frames buffered during the settle wait are OCR'd afterwards and reported as `saw:` |
 
 ### Telemetry side channel (reverse-engineered)
@@ -143,11 +146,11 @@ sequenceDiagram
     OS->>G: click
     G->>G: raycast → navmesh path → walk<br/>(camera follows avatar)
     loop every 150 ms
-        W->>W: 96×54 grayscale signature, inter-frame diff
+        W->>W: track Tara (Vision) · diff of her aligned crop
     end
-    Note over W: 2 consecutive still frames → arrived<br/>first↔last diff < 3 → NO MOVE
-    W-->>Q: gameplay | … | bubble@924,436
-    Q->>W: ./wf do key:space
+    Note over W: her activity stops → arrived<br/>never started → NO MOVE (or ALREADY THERE if a prompt shows)
+    W-->>Q: gameplay | … | bubble@924,436:pickup
+    Q->>W: ./wf do act:pickup
 ```
 
 | | Keyboard dead reckoning | Click-to-move (`go:`) |
@@ -155,7 +158,16 @@ sequenceDiagram
 | Control | Open loop, `walk:dir:seconds` | Engine navmesh pathfinding |
 | Obstacles | Detected after the bump (`BLOCKED` via frame diff) | Planned around (fences, gate gaps) |
 | Typical approach | 3–6 calls (walk, look, nudge…) | **1 call** + Space |
-| Failure signal | Silent drift | `NO MOVE` / `STILL MOVING` |
+| Failure signal | Silent drift | `NO MOVE` / `ALREADY THERE` / `STILL MOVING` |
+
+**Mouse only.** Keyboard walking is disabled in the tool: an agent that fell back to WASD after ambiguous `NO MOVE`s
+got stuck between café booths and burned its budget. `go:` now separates "not walkable" from "already there".
+
+### Character-scoped motion
+Whole-screen pixel change is a bad "is she moving?" signal: water, NPCs, camera pans and slow zooms move pixels while
+Tara stands, and a tool swing barely changes them. The tracker follows **only Tara** (Apple Vision object tracking,
+seeded at the camera centre, which follows her) and compares her crop to the previous frame after a ±3 px alignment.
+`go:` returns when *her* activity stops; the recorder writes the same signal per frame for post-run analysis.
 
 **Limits / next step.** Each hop is still a model turn: look → pick a pixel → `go:`. Targets off screen need a chain
 of hops, and each needs a fresh look because the camera moves. Planned: store verified hop chains for known places
@@ -281,6 +293,33 @@ fix applied. Examples:
 | Wood hand-in | partial, budget hit (25) | 7 doc gaps (NPC routes, interior layout, hand-in icon) | Docs + brief template | ✅ ~5 calls to reach the NPC |
 | Cooking quest | `need-help`: stove said "Not yet" | Goal state machine: `OnGoalReady` means report to the giver first | Telemetry doc + brief | ✅ quest completed |
 | Approach any object | 3–6 calls | Keyboard dead reckoning | Click-to-move `go:` | **1 call** |
+| Gather 26 stone | 9 short, ~7 stone left on the ground | Agent had no expected outcome per action | **Actions DB** (hits, drops, energy, verify signal) | quest materials complete next run |
+| Leave a café | stuck, budget gone | Keyboard fallback after ambiguous `NO MOVE` | Mouse only + `ALREADY THERE` | — |
+| Talk to Parker | ~15 calls, talked to his kids | Space fires the nearest prompt, icons unread | Bubble kinds + `act:<kind>` | — |
+
+### Self-labelling skills
+Skills that recognise things learn from play with no human labels. The **game log is the ground truth**:
+
+```mermaid
+flowchart LR
+    A["act<br/>(Space at a bubble)"] --> C["capture<br/>crop + predicted kind"]
+    C --> L["label from game log<br/>> water me=Player target=GardenBed"]
+    L --> D{"prediction<br/>right?"}
+    D -- "yes" --> X["nothing stored"]
+    D -- "wrong / unknown" --> S["store crop under kind<br/>(new kind if unseen; dedup; cap)"]
+    S --> V["./wf learn<br/>accuracy · additions · observed vs expected"]
+    V --> U["next prediction uses it"]
+```
+
+The same loop compares the actions DB's expected hits/drops with what run logs observed (`./wf learn`). Method:
+[`docs/self-improvement.md`](docs/self-improvement.md).
+
+### Run logs and idle analysis
+Each task writes `runs/<date>-<quest>.jsonl`: the agent adds attempts, issues and decisions, and the tools add
+every call (start/end), Tara's walk/action segments and key game events. `./wf run report` prints the timeline and
+a time split. `tools/idle.py` lines a recording's Tara-activity track up with the calls and splits still time into
+"command running" vs "agent thinking". On the ranch run: Tara active 9% of wall time, **agent turns 53%**; the next
+optimisation target is fewer, higher-level turns.
 
 ---
 
@@ -291,10 +330,15 @@ fix applied. Examples:
 | [`AGENTS.md`](AGENTS.md) | Operating rules for agents (start here) |
 | [`tools/wf.py`](tools/wf.py) | Control plane: capture, OCR, classifiers, input, telemetry, `do` / `go` / `advance` |
 | [`tools/wfc.py`](tools/wfc.py) | Thin client for the warm daemon; logs every call for replay captions |
-| [`tools/record.py`](tools/record.py) | Game-window recorder (H.264, command captions, real-time pacing) |
+| [`tools/record.py`](tools/record.py) | Game-window recorder (H.264, command captions, Tara-activity + game-event tracks) |
+| [`tools/idle.py`](tools/idle.py) | Post-run analysis of visible non-doing time |
+| [`tools/bubbles/`](tools/bubbles) | Labelled prompt crops (the classifier's memory; grows itself) |
+| [`docs/actions.md`](docs/actions.md) | Actions DB: recipe → expected outcome → verify signal → fix (`./wf actions <tags>`) |
+| [`docs/self-improvement.md`](docs/self-improvement.md) | The self-labelling loop |
+| [`runs/`](runs) · [`retros/`](retros) | Run logs per task and retrospectives built from them |
 | [`docs/`](docs/INDEX.md) | World model: quests, mechanics, UI, world, learnings, run ledger |
 | [`.claude/agents/`](.claude/agents) · [`.claude/skills/`](.claude/skills) | Agent definitions and skills (supervise, play, navigate, lookup) plus a generic **game-onboarding** skill for applying the method to other games |
-| [`routes/`](routes) | Recorded traversal routes |
+| [`routes/`](routes) | Old keyboard routes (disabled; their notes still describe landmarks) |
 
 ## Running it
 macOS with the Apple Arcade build of Wylde Flowers. Grant the terminal **Screen Recording** and **Accessibility**.
@@ -302,9 +346,12 @@ Create `.venv` with pyobjc (Quartz, Vision, Cocoa), Pillow, numpy, zstandard and
 ```bash
 ./wf status                     # permissions, window, daemon
 ./wf state                      # one-line classified state
-./wf do go:1750:925 key:space   # walk to a point via engine pathfinding, interact
+./wf do go:1750:925 act:pickup  # walk via engine pathfinding; press Space only if the prompt is a pickup
+./wf actions rock pickup        # expected outcomes for a job
+./wf run start <quest> <goal>   # … ./wf run issue <text> … ./wf run end done; ./wf run report
+./wf learn                      # self-improvement status
 ./wf log --tail 20; ./wf save   # telemetry
-.venv/bin/python tools/record.py start   # … play … then: record.py stop
+.venv/bin/python tools/record.py start   # … play … then: record.py stop; tools/idle.py <video>
 ```
 
 ## Credits / licences

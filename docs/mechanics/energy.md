@@ -9,6 +9,16 @@
 - Restored by sleeping (full), food/coffee/potions (partial), the Mountain Onsen (paid, 1×/day).
 - Max energy grows through story rewards (Increase Energy spell at the end of Spring).
 
+## Cost table (✅ day-144 save, copper tools, Give a Ranch Hand run)
+| Action | Energy | Yield |
+|---|---|---|
+| Tree (pine/oak), 4 hits | ~16% (~4–5% per hit) | 5–8 Wood |
+| Small rock `StoneRock`, 2 hits | ~10% | 1–2 Stone |
+| Boulder `StoneBoulder`, ~8 hits | ~50% | ~10 Stone (+ sometimes a recipe) |
+| Restorative Tea | **+~43%** | — |
+**Before a gathering goal, add up the costs.** If the total is over 100% of the bar, split the goal by day; don't plan on food.
+(49 wood + 26 stone ≈ 240% → ran out twice and used 6 teas; retro 2026-10-27.)
+
 ## Strategy
 `./wf tips energy` (all energy/food/sleep strategy lives in [../tips.md](../tips.md): T1–T5, T8).
 

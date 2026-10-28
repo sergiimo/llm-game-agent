@@ -222,8 +222,9 @@ def screen_locked():
     return bool(d.get('CGSSessionScreenIsLocked', False))
 
 
-def grab():
-    """Fast in-memory capture of the game window as a PIL RGB image at window-point size (~50 ms)."""
+def grab(crop=True):
+    """Fast in-memory capture of the game window as a PIL RGB image at window-point size (~50 ms).
+    crop=False keeps the whole window (title bar included) instead of the 1920x1080 virtual frame."""
     from PIL import Image
     Q = _quartz()
     if screen_locked():
@@ -239,7 +240,7 @@ def grab():
     img = Image.frombuffer('RGBA', (cw, ch), bytes(data), 'raw', 'BGRA', bpr, 1).convert('RGB')
     if img.size != (w['w'], w['h']):
         img = img.resize((w['w'], w['h']), Image.BILINEAR)
-    return _to_frame(img, w)
+    return _to_frame(img, w) if crop else img
 
 
 def _to_frame(img, w):
@@ -512,7 +513,7 @@ POPUP_WORDS = ('Confirm', 'Hooray', 'Quest Complete', 'Quest complete',  # EN UI
 SUBTITLE_Y = 940                        # dialogue subtitles ("Name: text") are OCR'd below this y
 
 
-def _match(img, name, thresh=18.0):
+def _match(img, name, thresh=30.0):  # gameplay <= ~18.4 (dark interior behind the button); menus, journal >= 78
     """Mean abs pixel difference of a fixed-position template (lower = better). Returns (ok, score)."""
     from PIL import Image, ImageChops, ImageStat
     p = os.path.join(TEMPLATES, name + '.png')
@@ -595,6 +596,9 @@ def classify(path_or_img, with_bubble=True, full_text=False):
         res['energy'] = read_energy(img)
     if with_bubble and mode == 'gameplay':
         res['bubble'] = find_bubble(img)
+        if res['bubble']:
+            res['bubble_kind'], res['bubble_dist'] = bubble_kind(img, res['bubble'])
+            res['bubble_hl'] = bubble_highlighted(img, res['bubble'])
     return res
 
 
@@ -619,7 +623,8 @@ def brief(s):
     if s.get('energy') is not None:
         parts.append(f"⚡{s['energy']}%")
     if s.get('bubble'):
-        parts.append(f"bubble@{s['bubble'][0]},{s['bubble'][1]}")
+        parts.append(f"bubble@{s['bubble'][0]},{s['bubble'][1]}:{s.get('bubble_kind', '?')}"
+                     + ('' if s.get('bubble_hl', True) else '(dim)'))
     if s.get('tracker'):
         parts.append('tracker: ' + '; '.join(s['tracker']))
     txt = ' / '.join(t.split(') ', 1)[1] for t in s['text'])
@@ -707,6 +712,193 @@ def _walk_checked(direction, seconds):
         if d < MOVE_DIFF else None
 
 
+# ---------------------------------------------------------------- bubble kinds (L55)
+# What a prompt bubble means, from its icon: Apple Vision image feature prints, nearest labelled reference in
+# tools/bubbles/<kind>/*.png (crops 140x140 around find_bubble's centre). Kinds so far: pickup (bag "+"), pickaxe,
+# axe, talk ("…"), info ("?"). `do` collects new labelled crops automatically (.shots/bubble_samples/<kind>/).
+BUBBLE_DIR = os.path.join(ROOT, 'tools', 'bubbles')
+BUBBLE_MAX_DIST = 0.6   # feature-print distance above this = unknown icon
+_BUBBLE_REFS = None
+
+
+def _featureprint(img):
+    import Vision
+    from Foundation import NSData
+    import io
+    buf = io.BytesIO()
+    img.convert('RGB').save(buf, 'PNG')
+    data = NSData.dataWithBytes_length_(buf.getvalue(), len(buf.getvalue()))
+    req = Vision.VNGenerateImageFeaturePrintRequest.alloc().init()
+    h = Vision.VNImageRequestHandler.alloc().initWithData_options_(data, None)
+    h.performRequests_error_([req], None)
+    import numpy as np
+    obs = req.results()[0]
+    v = np.frombuffer(bytes(obs.data()), dtype=np.float32 if obs.elementType() == 1 else np.float64)
+    return v / (np.linalg.norm(v) or 1)
+
+
+def _bubble_refs():
+    global _BUBBLE_REFS
+    if _BUBBLE_REFS is None:
+        from PIL import Image
+        _BUBBLE_REFS = []
+        for kind in sorted(os.listdir(BUBBLE_DIR)) if os.path.isdir(BUBBLE_DIR) else []:
+            d = os.path.join(BUBBLE_DIR, kind)
+            for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+                if f.endswith('.png'):
+                    _BUBBLE_REFS.append((kind, f, _featureprint(Image.open(os.path.join(d, f)))))
+    return _BUBBLE_REFS
+
+
+def bubble_crop(img, b):
+    return img.crop((b[0] - 70, b[1] - 70, b[0] + 70, b[1] + 70))
+
+
+def bubble_kind(img, b, exclude=None):
+    """(kind, distance) of the bubble at b in a 1920x1080 frame; kind 'unknown' if nothing is close."""
+    import numpy as np
+    fp = _featureprint(bubble_crop(img, b))
+    best = ('unknown', 9.0)
+    for kind, name, ref in _bubble_refs():
+        if name != exclude:
+            d = float(np.linalg.norm(fp - ref))
+            if d < best[1]:
+                best = (kind, d)
+    return best if best[1] <= BUBBLE_MAX_DIST else ('unknown', best[1])
+
+
+def bubble_highlighted(img, b):
+    """Active prompt = orange ring around the bubble (plain ones score 0.00-0.01, highlighted 0.03-0.5)."""
+    import numpy as np
+    a = np.asarray(bubble_crop(img, b).convert('RGB'), dtype=int)
+    r, g, bl = a[..., 0], a[..., 1], a[..., 2]
+    yy, xx = np.mgrid[:a.shape[0], :a.shape[1]]
+    d = np.hypot(xx - 70, yy - 70)
+    ring = (d >= 48) & (d <= 66)
+    orange = (r > 200) & (g > 110) & (g < 190) & (bl < 110) & (r - bl > 110)
+    return bool(orange[ring].mean() > 0.02)
+
+
+# Self-labelling (L56): the game logs every player interaction as `> <performance> me=Player target=<object>`.
+# That performance is the ground truth for the bubble Space was pressed at; an unseen one becomes a NEW kind (its name).
+PERF = re.compile(r'\] > (\w+?) me=Player target=([\w#()-]+)')
+PERF_IGNORE = re.compile(r'^(goal_notification|enter_scene|stamina_fail|advance_day|trigger_startday_events|day_start_intro|'
+                         r'SaveGameUpgrade|Mining_|scene_change|quest_complete|sleep_transition|grab_item_auto)')
+PERF_ALIAS = [(r'^grab_item$', 'pickup'), (r'^hit_rock$', 'pickaxe'), (r'^PlayerGardening', 'axe'), (r'^water$', 'water'),
+              (r'^fill_watering_can$', 'fill_can'), (r'^plant$', 'plant'), (r'^sleep\d*$', 'sleep'), (r'^routine_sign$', 'info'),
+              (r'_trade', 'talk')]
+BUBBLE_CAP = 30         # refs per kind
+BUBBLE_DUP = 0.15       # feature-print distance below this = near duplicate, not stored
+LEARNED_LOG = os.path.join(SHOT_DIR, 'learned.log')
+_PENDING = []  # (crop, kind seen) for Space presses at a bubble during this `do`
+
+
+def event_kind(lines):
+    """Kind named by the first player interaction in these log lines (None if there is none)."""
+    for l in lines:
+        m = PERF.search(l)
+        if m and not PERF_IGNORE.match(m.group(1)):
+            perf = m.group(1)
+            return next((k for rx, k in PERF_ALIAS if re.search(rx, perf)), re.sub(r'_?\d+$', '', perf).lower())
+        if re.search(r'\] [A-Z]\w+: ', l) and 'Player:' not in l:  # an NPC's dialogue line
+            return 'talk'
+    return None
+
+
+def learn_bubble(crop, kind, seen):
+    """Add a crop to tools/bubbles/<kind>/ unless it's a near duplicate or the kind is full. Returns True if stored."""
+    import numpy as np
+    global _BUBBLE_REFS
+    fp = _featureprint(crop)
+    same = [ref for k, _, ref in _bubble_refs() if k == kind]
+    if len(same) >= BUBBLE_CAP or any(float(np.linalg.norm(fp - r)) < BUBBLE_DUP for r in same):
+        return False
+    d = os.path.join(BUBBLE_DIR, kind)
+    os.makedirs(d, exist_ok=True)
+    name = f'{kind}-{time.strftime("%Y%m%d-%H%M%S")}.png'
+    crop.save(os.path.join(d, name))
+    _BUBBLE_REFS = None  # reload with the new reference
+    with open(LEARNED_LOG, 'a') as f:
+        f.write(f'{time.strftime("%Y-%m-%d %H:%M:%S")}\t{kind}\t(classifier said {seen})\t{name}\n')
+    return True
+
+
+def act(want):
+    """Press Space only if the highlighted bubble is `want` (e.g. act:pickup). Returns None or why it didn't."""
+    img = _frame()
+    b = find_bubble(img)
+    if not b:
+        return f'act:{want}: no bubble (not pressed)'
+    kind, dist = bubble_kind(img, b)
+    hl = bubble_highlighted(img, b)
+    if kind != want or not hl:
+        return f'act:{want}: bubble@{b[0]},{b[1]} is {kind}{"" if hl else "(dim)"} (dist {dist:.2f}): not pressed'
+    _PENDING.append((bubble_crop(img, b), kind))
+    key('space')
+    return None
+
+
+def collect_bubble_samples(log_lines):
+    """Self-improvement for bubble kinds (L56): label each bubble Space was pressed at by the interaction the game logged
+    next; if the classifier was wrong/unknown, learn the crop as a new reference (new kinds are created on the fly)."""
+    global _PENDING
+    pend, _PENDING = _PENDING, []
+    if not pend:
+        return
+    label = event_kind(log_lines)
+    for crop, seen in pend[-1:]:  # the last Space is the one the logged interaction belongs to
+        d = os.path.join(SHOT_DIR, 'bubble_samples', label or 'unlabelled')
+        os.makedirs(d, exist_ok=True)
+        crop.save(os.path.join(d, f'{time.strftime("%Y%m%d-%H%M%S")}-{seen}.png'))
+        if label and seen != label and learn_bubble(crop, label, seen):
+            print(f'learned: bubble kind {label!r} (classifier said {seen}) → tools/bubbles/{label}/')
+
+
+def learn_report():
+    """`wf learn`: what the self-improving parts know and how well (bubble kinds now; see docs/self-improvement.md)."""
+    import numpy as np
+    refs = _bubble_refs()
+    kinds = {}
+    for k, _, _ in refs:
+        kinds[k] = kinds.get(k, 0) + 1
+    ok, n = 0, 0
+    for i, (k, _, v) in enumerate(refs):
+        if kinds[k] < 2:
+            continue
+        near = min(((float(np.linalg.norm(v - w)), kk) for j, (kk, _, w) in enumerate(refs) if j != i))[1]
+        ok, n = ok + (near == k), n + 1
+    print(f'bubble kinds ({len(refs)} refs): ' + ', '.join(f'{k} {c}' for k, c in sorted(kinds.items())))
+    print(f'leave-one-out accuracy (kinds with ≥2 refs): {ok}/{n}')
+    try:
+        tail = open(LEARNED_LOG).read().splitlines()[-10:]
+    except OSError:
+        tail = []
+    print('recently learned:' + ('\n  ' + '\n  '.join(tail) if tail else ' nothing yet'))
+    pend = os.path.join(SHOT_DIR, 'bubble_samples', 'unlabelled')
+    if os.path.isdir(pend) and os.listdir(pend):
+        print(f'unlabelled samples (Space with no logged interaction): {len(os.listdir(pend))} in {pend}')
+    # action outcomes observed in run logs -> compare with docs/actions.md Expect
+    obs = {}
+    for f in sorted(os.listdir(RUNS_DIR)) if os.path.isdir(RUNS_DIR) else []:
+        cur = None
+        for l in open(os.path.join(RUNS_DIR, f)):
+            e = json.loads(l)
+            line = e.get('line', '')
+            m = re.search(r'Damage (\d+) to (\w+).*\(damage = (\d+)\).*destroying', line)
+            if m:
+                cur = m.group(2)
+                o = obs.setdefault(cur, {'n': 0, 'hits': [], 'picked': []})
+                o['n'] += 1
+                o['hits'].append(-(-int(m.group(3)) // int(m.group(1))))
+                o['picked'].append(0)
+            elif 'grab_item' in line and cur:
+                obs[cur]['picked'][-1] += 1
+    if obs:
+        print('observed in run logs (target: destroyed · hits each · pickups after each) → compare docs/actions.md Expect:')
+        for k, o in sorted(obs.items()):
+            print(f'  {k}: {o["n"]} · hits {sorted(set(o["hits"]))} · picked {o["picked"]}')
+
+
 def walk_until_bubble(direction, max_seconds=4.0, step=0.25, fade=0.35):
     """Walk in short steps until a prompt bubble shows. Returns bubble position or None.
 
@@ -729,16 +921,202 @@ def walk_until_bubble(direction, max_seconds=4.0, step=0.25, fade=0.35):
 _FRAMES = None  # when a list, _signature() also keeps full frames (for toast capture in `do`)
 
 
-def _signature():
+def _frame():
+    """grab() that also keeps the frame for toast capture in `do`."""
     img = grab()
     if _FRAMES is not None and len(_FRAMES) < 12:
         _FRAMES.append(img)
-    return img.convert('L').resize((96, 54))
+    return img
+
+
+def _signature():
+    return _frame().convert('L').resize((96, 54))
 
 
 def _diff(a, b):
     from PIL import ImageChops, ImageStat
     return ImageStat.Stat(ImageChops.difference(a, b)).mean[0]
+
+
+# ---------------------------------------------------------------- run log (one file per quest/task, L53)
+# runs/<YYYYMMDD-HHMM>-<quest>.jsonl, one JSON event per line {"t": unix, "type": ...}. The agent writes the meaning
+# (`wf run start/attempt/issue/end`); tools write timings automatically: every ./wf call (wfc.py), Tara's activity
+# segments (go:/still), key game events. `wf run report` = timeline + summary.
+RUNS_DIR = os.path.join(ROOT, 'runs')
+RUN_CUR = os.path.join(SHOT_DIR, 'run.current')
+RUN_NOTES = ('attempt', 'step', 'issue', 'gap', 'decision', 'note')
+RUN_GAME = re.compile(r'destroying|grab_item|\[QUEST\] (?!Posting)|\[STATS\]|\[REL\]|ChangeScene|OnEnterBuilding|'
+                      r'OnExitBuilding|giveloot|out of strength|no strength|Spawning player')
+
+
+def run_path():
+    try:
+        return open(RUN_CUR).read().strip() or None
+    except OSError:
+        return None
+
+
+def run_log(type_, **kw):
+    """Append one event to the current run (no-op when no run is open)."""
+    p = run_path()
+    if p:
+        with open(p, 'a') as f:
+            f.write(json.dumps({'t': round(kw.pop('t', time.time()), 2), 'type': type_, **kw}, ensure_ascii=False) + '\n')
+
+
+def run_cmd(sub_, args):
+    """wf run start <quest> <goal…> | attempt|step|issue|gap|decision|note <text…> | end <done|partial|blocked|stopped> [text…] | report [file]"""
+    if sub_ == 'start':
+        if not args:
+            sys.exit('usage: wf run start <quest-id> <goal…>')
+        if run_path():
+            run_log('end', result='abandoned', text='a new run started')
+        os.makedirs(RUNS_DIR, exist_ok=True)
+        path = os.path.join(RUNS_DIR, time.strftime('%Y%m%d-%H%M-') + re.sub(r'[^\w-]', '', args[0]) + '.jsonl')
+        open(RUN_CUR, 'w').write(path)
+        run_log('start', quest=args[0], goal=' '.join(args[1:]))
+        print('run:', os.path.relpath(path, ROOT))
+    elif sub_ in RUN_NOTES:
+        if not run_path():
+            sys.exit('no open run: wf run start <quest-id> <goal…>')
+        run_log(sub_, text=' '.join(args))
+    elif sub_ == 'end':
+        p = run_path()
+        if not p:
+            sys.exit('no open run')
+        run_log('end', result=(args or ['done'])[0], text=' '.join(args[1:]))
+        os.remove(RUN_CUR)
+        run_report(p)
+    elif sub_ == 'report':
+        p = args[0] if args else run_path() or max((os.path.join(RUNS_DIR, f) for f in os.listdir(RUNS_DIR)),
+                                                  key=os.path.getmtime)
+        run_report(p)
+    else:
+        sys.exit(run_cmd.__doc__)
+
+
+def run_report(path):
+    ev = [json.loads(l) for l in open(path) if l.strip()]
+    if not ev:
+        return print('(empty run)')
+    t0 = ev[0]['t']
+    t1 = ev[-1].get('end', ev[-1]['t'])
+    mmss = lambda t: time.strftime('%M:%S', time.gmtime(t - t0))
+    calls = [e for e in ev if e['type'] == 'call']
+    acts = [e for e in ev if e['type'] == 'activity']
+    in_call = sum(e['end'] - e['start'] for e in calls)
+    gaps = sum(max(0, b['start'] - a['end']) for a, b in zip(calls, calls[1:]))
+    active = sum(e['end'] - e['start'] for e in acts if e.get('moved'))
+    start = ev[0]
+    end = next((e for e in reversed(ev) if e['type'] == 'end'), None)
+    print(f"run {os.path.basename(path)}: {start.get('quest')}: {start.get('goal')}")
+    print(f"result: {end['result'] + (' ' + end['text'] if end.get('text') else '') if end else 'OPEN'}")
+    dur = lambda s: f'{int(s // 60)}:{int(s % 60):02d}'
+    print(f'time {dur(t1 - t0)} · {len(calls)} ./wf calls · in calls {dur(in_call)} · '
+          f'between calls (agent thinking) {dur(gaps)} · Tara active {dur(active)}')
+    for k in ('attempt', 'issue', 'gap', 'decision'):
+        n = sum(1 for e in ev if e['type'] == k)
+        if n:
+            print(f'{k}s: {n}', end='  ')
+    nomove = sum(1 for e in acts if not e.get('moved'))
+    print(f"NO MOVE/idle: {nomove}" if nomove else '')
+    print('\ntimeline:')
+    for e in ev:
+        ty = e['type']
+        if ty == 'call':
+            continue  # summarised above; `--calls` level detail lives in the file
+        if ty == 'activity':
+            walk = e.get('what') == 'go'
+            print(f"  {mmss(e['start'])} {'walk' if walk else 'action'} {e['end'] - e['start']:.1f}s "
+                  f"{e.get('target', '')}{'' if e.get('moved') else (' NO MOVE' if walk else ' (idle, nothing to wait for)')}")
+        elif ty == 'game':
+            print(f"  {mmss(e['t'])}   · {e['line'][:110]}")
+        else:
+            print(f"  {mmss(e['t'])} {ty.upper()}: {e.get('text') or e.get('goal') or e.get('result', '')}")
+
+
+class Tara:
+    """Tara tracker (L52): follows her on screen with Apple Vision's object tracker and measures ACTIVITY = mean grey
+    diff of her crop vs the previous frame. Scoped to her, so water, NPCs and camera pans elsewhere don't count.
+    Verified live (Fri d145): idle 0.2-1 with single blips <= 4.5; walking 10-30; arrive/turn 6-12 for ~1.5 s.
+    Seeds at the screen centre (the camera follows her; not at map edges, check `conf`)."""
+    SEED = (920, 490, 1000, 690)   # 1920x1080 frame, Tara standing at the camera centre
+    ACTIVE = 6.0                   # median of the last 3 activities above this = she is moving/acting (idle fidget <= ~5.5)
+
+    def __init__(self, box=SEED):
+        import Vision
+        self.V = Vision
+        x0, y0, x1, y1 = box
+        self.obs = Vision.VNDetectedObjectObservation.observationWithBoundingBox_(
+            ((x0 / FRAME_W, 1 - y1 / FRAME_H), ((x1 - x0) / FRAME_W, (y1 - y0) / FRAME_H)))
+        self.seq = Vision.VNSequenceRequestHandler.alloc().init()
+        self.box, self.conf, self.crop, self.acts = box, 1.0, None, []
+
+    @staticmethod
+    def _cg(img):
+        Q = _quartz()
+        raw = img.convert('RGBA').tobytes()
+        prov = Q.CGDataProviderCreateWithData(None, raw, len(raw), None)
+        return Q.CGImageCreate(img.width, img.height, 8, 32, img.width * 4, Q.CGColorSpaceCreateDeviceRGB(),
+                               Q.kCGImageAlphaLast, prov, None, False, 0)
+
+    def update(self, img):
+        """Feed a 1920x1080 frame; returns this frame's activity."""
+        from PIL import ImageChops, ImageStat
+        small = img.resize((FRAME_W // 2, FRAME_H // 2))
+        req = self.V.VNTrackObjectRequest.alloc().initWithDetectedObjectObservation_(self.obs)
+        req.setTrackingLevel_(self.V.VNRequestTrackingLevelAccurate)
+        self.seq.performRequests_onCGImage_error_([req], self._cg(small), None)
+        if req.results():
+            self.obs = req.results()[0]
+        b = self.obs.boundingBox()
+        self.conf = float(self.obs.confidence())
+        self.box = (b.origin.x * FRAME_W, (1 - b.origin.y - b.size.height) * FRAME_H,
+                    (b.origin.x + b.size.width) * FRAME_W, (1 - b.origin.y) * FRAME_H)
+        import numpy as np
+        g = np.asarray(small.convert('L'), dtype=np.float32)
+        x0, y0, x1, y1 = (int(v / 2) for v in self.box)
+        act = 0.0
+        if self.crop is not None:
+            # best match of the previous crop within +-R px: cancels box jitter and slow camera pans/zooms,
+            # so only Tara's own pose change (walk cycle, swing) remains
+            pc, R = self.crop, 3
+            h, w = pc.shape
+            act = min((float(np.abs(g[y0 + dy:y0 + dy + h, x0 + dx:x0 + dx + w] - pc).mean())
+                       for dy in range(-R, R + 1) for dx in range(-R, R + 1)
+                       if 0 <= y0 + dy and y0 + dy + h <= g.shape[0] and 0 <= x0 + dx and x0 + dx + w <= g.shape[1]),
+                      default=0.0)
+        self.crop = g[y0:y1, x0:x1].copy()
+        self.acts.append(act)
+        return act
+
+    def debug_shot(self, img, path=None):
+        """Save the frame with the tracked box (WF_DEBUG_MOVE) to check the tracker is on Tara."""
+        from PIL import ImageDraw
+        img = img.copy()
+        ImageDraw.Draw(img).rectangle(self.box, outline=(255, 0, 255), width=5)
+        img.resize((768, 432)).save(path or os.path.join(SHOT_DIR, 'tara.jpg'), quality=80)
+
+    def active(self):
+        last = sorted(self.acts[-3:])
+        return len(last) == 3 and last[1] > self.ACTIVE
+
+
+def wait_tara(tr=None, timeout=4.0, interval=0.1, start_within=1.0):
+    """Wait until Tara's own activity stops (after a swing, pickup, walk). Returns (seconds, was_active).
+    If she doesn't start acting within `start_within` s, returns early (nothing to wait for)."""
+    tr = tr or Tara()
+    t0, seen, t_act = time.time(), False, None
+    tr.update(_frame())
+    while time.time() - t0 < timeout:
+        time.sleep(interval)
+        tr.update(_frame())
+        if tr.active():
+            seen, t_act = True, t_act or time.time()
+        elif seen or time.time() - t0 > start_within:
+            break
+    run_log('activity', what='action', start=t_act or t0, end=time.time(), moved=seen)
+    return round(time.time() - t0, 2), seen
 
 
 def wait_settle(before=None, timeout=3.0, interval=0.1, still=1.5, min_wait=0.25):
@@ -764,44 +1142,57 @@ def wait_settle(before=None, timeout=3.0, interval=0.1, still=1.5, min_wait=0.25
 def go_to(x, y, timeout=15.0, interval=0.15):
     """Click-to-move (L49): left-click a ground point or object; the game pathfinds around fences/objects and Tara
     walks there (clicking an object stops her in front of it, bubble shown, no interaction). Waits until the camera
-    stops moving. Returns None on arrival, or a NO MOVE / STILL MOVING message."""
-    before = _signature()
+    stops moving. Returns None on arrival, or a NO MOVE / STILL MOVING message.
+    Arrival = Tara's own activity stops (Tara tracker, L52), not the whole screen: water/NPCs don't delay it."""
+    tr = Tara()
+    tr.update(_frame())
     click(int(x), int(y))
-    t0 = time.time()
-    time.sleep(0.4)  # start-up
-    prev, calm = _signature(), 0
+    t0, moved, t_act = time.time(), False, None
     while time.time() - t0 < timeout:
         time.sleep(interval)
-        cur = _signature()
-        calm = calm + 1 if _diff(prev, cur) < 1.5 else 0
-        if calm >= 2:
+        tr.update(_frame())
+        if tr.active():
+            moved, t_act = True, t_act or time.time()
+        elif moved or time.time() - t0 > 1.5:
             break
-        prev = cur
     else:
+        run_log('activity', what='go', target=f'go:{x}:{y}', start=t_act or t0, end=time.time(), moved=moved,
+                note='still moving at timeout')
         return f'STILL MOVING after {timeout:.0f}s (long path?): check with look'
     if os.environ.get('WF_DEBUG_MOVE'):
-        print(f'go diff = {_diff(before, cur):.2f} in {time.time() - t0:.1f}s')
-    if _diff(before, cur) < MOVE_DIFF:
-        return f'NO MOVE go:{x}:{y} (not walkable or already there; pick a ground point nearer, or use walk)'
+        print(f'go: tara {"moved" if moved else "idle"} in {time.time() - t0:.1f}s, conf {tr.conf:.2f}, '
+              f'acts {" ".join(f"{a:.0f}" for a in tr.acts)}')
+        tr.debug_shot(grab())
+    run_log('activity', what='go', target=f'go:{x}:{y}', start=t_act or t0, end=time.time(), moved=moved)
+    if not moved:
+        b = find_bubble(grab())
+        if b:  # she was already at the clicked object: its prompt is showing
+            return f'ALREADY THERE (no walk needed; bubble@{b[0]},{b[1]})'
+        return (f'NO MOVE go:{x}:{y}: not walkable (wall, furniture, water, off-map, or a menu is open). Click a '
+                f'ground point nearer to Tara, or the doorway/floor edge to leave a building')
     return None
 
 
 def run_action(spec):
-    """Execute one action spec: go:<x>:<y> (click-to-move, game pathfinds) | key:<k> | walk:<dir>:<s> |
-    path:<dir:s,dir:s> | click:<x>:<y> | text:<label> (click-text) | route:<name> |
-    bubble:<dir>[:<max_s>] (walk until prompt) | wait:<s>"""
+    """Execute one action spec: go:<x>:<y> (click-to-move, game pathfinds; the ONLY way to move, L54) | key:<k> |
+    click:<x>:<y> | text:<label> (click-text) | wait:<s> | still[:<max_s>] (until Tara's action/walk ends, L52) |
+    act:<kind> (Space only if the highlighted bubble is <kind>: pickup/axe/pickaxe/talk/info/stairs, L55)"""
     kind, _, arg = spec.partition(':')
     if kind == 'key':
+        if arg == 'space':
+            img = _frame()
+            b = find_bubble(img)
+            if b:
+                _PENDING.append((bubble_crop(img, b), bubble_kind(img, b)[0]))
         key(arg)
+    elif kind == 'act':
+        return act(arg)
     elif kind == 'go':
         x, y = arg.split(':')
         return go_to(int(x), int(y))
-    elif kind == 'walk':
-        d, s = arg.split(':')
-        return _walk_checked(d, float(s))
-    elif kind == 'path':
-        msgs = [_walk_checked(*st.split(':')) for st in arg.split(',')]
-        return ' / '.join(m for m in msgs if m) or None
+    elif kind in ('walk', 'path', 'route', 'bubble'):
+        return f'{kind}: KEYBOARD MOVEMENT DISABLED (mouse only, user rule L54): use go:<x>:<y> on the target, the ground next to it, or a doorway'
+
     elif kind == 'click':
         x, y = arg.split(':')
         click(int(x), int(y))
@@ -810,16 +1201,12 @@ def run_action(spec):
         if not hits:
             return f'NOT FOUND: {arg}'
         click(hits[0]['cx'], hits[0]['cy'])
-    elif kind == 'route':
-        route(arg)
-    elif kind == 'bubble':
-        d, _, m = arg.partition(':')
-        b = walk_until_bubble(d, float(m or 4))
-        if b == 'BLOCKED':
-            return f'NO BUBBLE: BLOCKED walking {d} (go around: side-step, then approach from another side)'
-        return f'bubble at {b}' if b else 'NO BUBBLE'
     elif kind == 'wait':
         time.sleep(float(arg))
+    elif kind == 'still':
+        s, active = wait_tara(timeout=float(arg or 4))
+        return None if active else f'still: Tara idle ({s}s)'
+
     else:
         return f'UNKNOWN ACTION {spec}'
     return None
@@ -840,6 +1227,10 @@ def do(specs, look_scale=None, crop=None):
     """Run actions, wait for the screen to settle, print a one-line state (+ optional low-res look).
     Short-lived toasts (e.g. "Гриб: 1/2" after a pickup) seen while settling are reported as `saw: …`."""
     global _FRAMES
+    if sum(sp.startswith('go:') for sp in specs) > 1:
+        print('ONE go: PER do: go: coords are screen coords and the camera scrolls while Tara walks, so a 2nd go: '
+              'hits a stale spot (retro 2026-10-28). Look between hops.')
+        specs = specs[:[i for i, sp in enumerate(specs) if sp.startswith('go:')][1]]
     before = _signature()
     _FRAMES = []
     for sp in specs:
@@ -990,6 +1381,24 @@ def tips(tags, require_all=False):
         print('no tips for', ' '.join(sorted(want)))
 
 
+def actions(tags, require_all=False):
+    """Print rows of docs/actions.md (action -> expected outcome -> verify) matching tags (any by default)."""
+    want = {t.lower().strip(',') for t in tags}
+    n = 0
+    for l in open(os.path.join(ROOT, 'docs', 'actions.md')):
+        if not re.match(r'\| A\d+ ', l):
+            continue
+        rid, name, tg, do, expect, verify, ifnot, status = ([c.strip() for c in l.strip().strip('|').split('|')] + [''] * 8)[:8]
+        have = {t.strip() for t in tg.split(',')}
+        if want <= have if require_all else (not want or want & have):
+            print(f'{rid} {name} [{status}]\n  do:     {do}\n  expect: {expect}\n  verify: {verify}')
+            if ifnot and ifnot != '—':
+                print(f'  if not: {ifnot}')
+            n += 1
+    if not n:
+        print('no actions for', ' '.join(sorted(want)))
+
+
 # ---------------------------------------------------------------- game files: event log + save (L41)
 # Cheaper and more exact than screenshots. Read outside the sandbox (the files are in the game's container).
 
@@ -1069,6 +1478,10 @@ def game_log(tail=None, raw=False):
 
 def print_log(prefix='log: ', limit=40):
     lines = game_log()
+    collect_bubble_samples(lines)
+    for l in lines:
+        if RUN_GAME.search(l):
+            run_log('game', line=l)
     for l in lines[-limit:]:
         print(prefix + l)
     if len(lines) > limit:
@@ -1219,6 +1632,14 @@ def main(argv=None):
     p.add_argument('query')
     p.add_argument('--show', action='store_true', help='print best title match in full')
     p.add_argument('--limit', type=int, default=15)
+    p = sub.add_parser('run', help='run log per quest/task: wf run start <quest> <goal…> | attempt|step|issue|gap|'
+                                   'decision|note <text…> | end <result> [text…] | report [file]')
+    p.add_argument('sub')
+    p.add_argument('args', nargs='*')
+    p = sub.add_parser('learn', help='self-improvement status: learned bubble kinds, accuracy, recent additions')
+    p = sub.add_parser('actions', help='action DB rows from docs/actions.md by tag (do/expect/verify): wf actions chop pickup [--all]')
+    p.add_argument('tags', nargs='*')
+    p.add_argument('--all', action='store_true')
     p = sub.add_parser('tips', help='list tips from docs/tips.md by tag: wf tips energy mining [--all]')
     p.add_argument('tags', nargs='*')
     p.add_argument('--all', action='store_true', help='require every tag')
@@ -1241,6 +1662,12 @@ def main(argv=None):
         return wiki(a.query, a.limit, a.show)
     if a.cmd == 'tips':
         return tips(a.tags, a.all)
+    if a.cmd == 'actions':
+        return actions(a.tags, a.all)
+    if a.cmd == 'run':
+        return run_cmd(a.sub, a.args)
+    if a.cmd == 'learn':
+        return learn_report()
     if a.cmd == 'wait':
         time.sleep(a.seconds)
         return
@@ -1363,14 +1790,11 @@ def _dispatch_input(a):
         for k in a.keys:
             key(k, a.hold)
             time.sleep(a.gap)
+    elif a.cmd in ('walk', 'path') or (a.cmd == 'hold' and set(a.keys) & set('wasd')):
+        print(f'{a.cmd}: KEYBOARD MOVEMENT DISABLED (mouse only, user rule L54): use ./wf do go:<x>:<y>')
+        return 2
     elif a.cmd == 'hold':
         hold_keys(a.keys, a.seconds)
-    elif a.cmd == 'walk':
-        hold_keys(DIRS[a.direction], a.seconds)
-    elif a.cmd == 'path':
-        for step in a.steps:
-            d, s = step.split(':')
-            hold_keys(DIRS[d], float(s))
     elif a.cmd == 'scroll':
         scroll(a.dy, *(a.at or (None, None)))
     elif a.cmd == 'type':
@@ -1384,7 +1808,8 @@ def _dispatch_input(a):
             out, sc, (ox, oy) = look(a.look)
             print(f'look: {out} (game = {ox}+img/{sc}, {oy}+img/{sc})')
     elif a.cmd == 'route':
-        route(a.name)
+        print('route: KEYBOARD MOVEMENT DISABLED (mouse only, user rule L54): use ./wf do go:<x>:<y>')
+        return 2
 
 
 # ---------------------------------------------------------------- warm daemon

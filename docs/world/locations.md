@@ -15,6 +15,8 @@ The Farm serves as Tara's home base throughout the game and supports crafting in
   counter. **First entry triggers an automatic Lina + Parker dialogue** (counts toward the villager tracker).
   From Town Hall: down the entrance steps → right end of the upper wall → top of the right-hand flight of stairs → down
   the big central staircase to the fountain → left along the south side of Kai's stall → the shop door.
+- **Cafe Moretti** ✅ (run #15): teal diner at the east edge of the fountain square; door at its south-west corner.
+- **Kim's Local Butcher and Deli** ✅ (run #15): dark-green shopfront directly west of Dahl General Store.
 - **Town Hall** ✅: blue double doors up a short staircase that is **left of the bench and the bell sign**. Walking up into
   the railing does nothing, so approach from below-left. The bell sign gives an **info card** ("Fairhaven Town Hall, Mon–Fri 9–17 (EN wording ❓)",
   Town Hall, Mon–Fri 9–17; Esc closes it). Inside: Otto's desk; his "!" talk bubble appears at the desk.
@@ -56,7 +58,9 @@ The Gloaming is a location that can be reached by magic.
   garden: down 2 s, left 2 s onto the dirt road, down 4 s, left 2 s, down ~2 s); (2) on the grass between the road and
   that meadow; (3) **2 logs just south of the farmhouse/garden**, near a red-leaf tree (closest). ❌ The log pile behind
   the stump near the well is decoration.
-- **Rocks (stone):** "rocks to break for stone" around the farm (pickaxe). Spots ❓.
+- **Rocks (stone):** ✅ (D144 save) 2 small rocks in the fenced paddock east of the farmhouse (right of the tool shed);
+  **boulders** in the SW meadow by the waterfall pond / ruined ranch (~10 Stone each). Rocks beside the porch/hedge and
+  cliff boulders = decoration. Trees: pines/oaks all over that SW meadow (left of the dirt road).
 - **Mushrooms:** ✅ meadow by the river just before the wooden bridge on the mountain road (right branch at the mine fork); several brown mushrooms in the west part near a pine, one up-right by the small bush at the bridge (approach from the right along the path). Routes: `farm-entry-to-garden` → `farm-garden-to-mushroom-meadow`.
 - **Well:** ✅ left side of the garden (fill the watering can).
 - **Farmhouse interior** ✅: two rooms split by a partition. **Left:** kitchen + dining table, and Tara's **pink bed**.

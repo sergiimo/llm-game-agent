@@ -1,0 +1,205 @@
+{"t": 1793210368.43, "type": "start", "quest": "BuildRanch", "goal": "finish Give a Ranch Hand"}
+{"t": 1793210370.91, "type": "call", "start": 1793210370.91, "end": 1793210372.15, "cmd": "do key:escape"}
+{"t": 1793210376.06, "type": "call", "start": 1793210376.06, "end": 1793210376.12, "cmd": "look"}
+{"t": 1793210376.27, "type": "call", "start": 1793210376.27, "end": 1793210376.44, "cmd": "state"}
+{"t": 1793210376.58, "type": "attempt", "text": "step1: SW meadow stone pickup"}
+{"t": 1793210382.81, "type": "step", "text": "start: paddock east of farmhouse, state ok"}
+{"t": 1793210387.94, "type": "activity", "what": "go", "target": "go:1380:415", "start": 1793210386.268692, "end": 1793210387.9401548, "moved": false}
+{"t": 1793210385.93, "type": "call", "start": 1793210385.93, "end": 1793210389.53, "cmd": "do go:1380:415 --look"}
+{"t": 1793210396.46, "type": "activity", "what": "go", "target": "go:400:930", "start": 1793210394.036132, "end": 1793210396.4615302, "moved": true}
+{"t": 1793210392.83, "type": "call", "start": 1793210392.83, "end": 1793210397.87, "cmd": "do go:400:930 --look"}
+{"t": 1793210405.27, "type": "activity", "what": "go", "target": "go:250:920", "start": 1793210401.63552, "end": 1793210405.2584388, "moved": true}
+{"t": 1793210400.9, "type": "call", "start": 1793210400.9, "end": 1793210406.84, "cmd": "do go:250:920 --look"}
+{"t": 1793210413.21, "type": "activity", "what": "go", "target": "go:700:1020", "start": 1793210411.186655, "end": 1793210413.210655, "moved": true}
+{"t": 1793210410.47, "type": "call", "start": 1793210410.47, "end": 1793210414.49, "cmd": "do go:700:1020 --look"}
+{"t": 1793210420.4, "type": "activity", "what": "go", "target": "go:1650:1000", "start": 1793210418.765836, "end": 1793210420.4028091, "moved": false}
+{"t": 1793210418.44, "type": "call", "start": 1793210418.44, "end": 1793210421.66, "cmd": "do go:1650:1000 --look"}
+{"t": 1793210427.11, "type": "activity", "what": "go", "target": "go:1500:960", "start": 1793210424.665334, "end": 1793210427.1140952, "moved": true}
+{"t": 1793210423.93, "type": "call", "start": 1793210423.93, "end": 1793210428.53, "cmd": "do go:1500:960 --look"}
+{"t": 1793210431.55, "type": "call", "start": 1793210431.55, "end": 1793210431.71, "cmd": "state"}
+{"t": 1793210435.53, "type": "activity", "what": "go", "target": "go:1030:785", "start": 1793210433.8660889, "end": 1793210435.53029, "moved": false}
+{"t": 1793210433.57, "type": "call", "start": 1793210433.57, "end": 1793210436.76, "cmd": "do go:1030:785 --look"}
+{"t": 1793210441.03, "type": "activity", "what": "go", "target": "go:1100:760", "start": 1793210439.433824, "end": 1793210441.0297742, "moved": false}
+{"t": 1793210439.12, "type": "call", "start": 1793210439.12, "end": 1793210442.87, "cmd": "do go:1100:760 --look"}
+{"t": 1793210445.15, "type": "call", "start": 1793210445.15, "end": 1793210446.96, "cmd": "do walk:down:0.5 --look"}
+{"t": 1793210450.12, "type": "call", "start": 1793210450.12, "end": 1793210453.14, "cmd": "do bubble:right:1"}
+{"t": 1793210455.09, "type": "call", "start": 1793210455.09, "end": 1793210458.99, "cmd": "do walk:down:0.4 bubble:right:1 --look"}
+{"t": 1793210461.98, "type": "call", "start": 1793210461.98, "end": 1793210466.42, "cmd": "do bubble:down:0.6"}
+{"t": 1793210468.12, "type": "call", "start": 1793210468.12, "end": 1793210470.91, "cmd": "do walk:right:0.3 --look"}
+{"t": 1793210471.0, "type": "call", "start": 1793210471.0, "end": 1793210471.16, "cmd": "state"}
+{"t": 1793210477.26, "type": "activity", "what": "go", "target": "go:1100:690", "start": 1793210475.7343428, "end": 1793210477.260929, "moved": false}
+{"t": 1793210475.42, "type": "call", "start": 1793210475.42, "end": 1793210478.61, "cmd": "do go:1100:690"}
+{"t": 1793210478.7, "type": "call", "start": 1793210478.7, "end": 1793210478.88, "cmd": "state"}
+{"t": 1793210482.3, "type": "call", "start": 1793210482.3, "end": 1793210489.65, "cmd": "do walk:down:0.8 walk:right:0.9 bubble:up:0.6 --look"}
+{"t": 1793210497.11, "type": "activity", "what": "go", "target": "go:1600:1020", "start": 1793210494.49746, "end": 1793210497.1134331, "moved": true}
+{"t": 1793210493.77, "type": "call", "start": 1793210493.77, "end": 1793210498.45, "cmd": "do go:1600:1020 --look"}
+{"t": 1793210503.28, "type": "activity", "what": "action", "start": 1793210502.1801999, "end": 1793210503.279348, "moved": false}
+{"t": 1793210504.77, "type": "game", "line": "[D145 10:26:50 AM] > grab_item me=Player target=Stone(Clone) at (28.01, 0.12, -81.42)"}
+{"t": 1793210501.88, "type": "call", "start": 1793210501.88, "end": 1793210504.81, "cmd": "do key:space still --look"}
+{"t": 1793210507.45, "type": "issue", "text": "boulder by ruined ranch gave no bubble; go: NO MOVE on stones beside it"}
+{"t": 1793210511.33, "type": "activity", "what": "go", "target": "go:825:410", "start": 1793210508.292162, "end": 1793210511.328793, "moved": true}
+{"t": 1793210507.56, "type": "call", "start": 1793210507.56, "end": 1793210512.59, "cmd": "do go:825:410 --look"}
+{"t": 1793210521.43, "type": "activity", "what": "go", "target": "go:1690:420", "start": 1793210516.996646, "end": 1793210521.434284, "moved": true}
+{"t": 1793210516.3, "type": "call", "start": 1793210516.3, "end": 1793210522.87, "cmd": "do go:1690:420 --look"}
+{"t": 1793210528.0, "type": "activity", "what": "go", "target": "go:860:520", "start": 1793210526.9799922, "end": 1793210528.00208, "moved": true}
+{"t": 1793210526.29, "type": "call", "start": 1793210526.29, "end": 1793210529.25, "cmd": "do go:860:520 --look"}
+{"t": 1793210534.37, "type": "activity", "what": "action", "start": 1793210533.4651608, "end": 1793210534.372679, "moved": true}
+{"t": 1793210535.78, "type": "activity", "what": "action", "start": 1793210534.6245692, "end": 1793210535.782788, "moved": false}
+{"t": 1793210532.51, "type": "call", "start": 1793210532.51, "end": 1793210537.48, "cmd": "do key:space still key:space still --look"}
+{"t": 1793210540.6, "type": "issue", "text": "key:space still x2: only 1 hit logged; still returned after 1.16s idle (maybe returned before swing began)"}
+{"t": 1793210543.63, "type": "activity", "what": "action", "start": 1793210541.5270212, "end": 1793210543.629707, "moved": true}
+{"t": 1793210544.83, "type": "activity", "what": "action", "start": 1793210544.230256, "end": 1793210544.828987, "moved": true}
+{"t": 1793210546.18, "type": "activity", "what": "action", "start": 1793210545.0881312, "end": 1793210546.1753201, "moved": false}
+{"t": 1793210548.31, "type": "activity", "what": "action", "start": 1793210546.778185, "end": 1793210548.311415, "moved": true}
+{"t": 1793210540.7, "type": "call", "start": 1793210540.7, "end": 1793210549.57, "cmd": "do key:space still key:space still key:space still key:space still"}
+{"t": 1793210553.84, "type": "activity", "what": "action", "start": 1793210552.948021, "end": 1793210553.837941, "moved": true}
+{"t": 1793210554.78, "type": "activity", "what": "action", "start": 1793210554.478864, "end": 1793210554.779454, "moved": true}
+{"t": 1793210556.81, "type": "activity", "what": "action", "start": 1793210555.435379, "end": 1793210556.810514, "moved": true}
+{"t": 1793210558.05, "type": "activity", "what": "action", "start": 1793210557.415675, "end": 1793210558.051027, "moved": true}
+{"t": 1793210559.42, "type": "activity", "what": "action", "start": 1793210558.307911, "end": 1793210559.418798, "moved": false}
+{"t": 1793210552.13, "type": "call", "start": 1793210552.13, "end": 1793210560.65, "cmd": "do key:space still key:space still key:space still key:space still key:space still"}
+{"t": 1793210567.44, "type": "game", "line": "[D145 10:58:04 AM] [DAMAGE] Damage 30 to StoneBoulder (2) (Damageable) (damage = 240), transitioning to final state 4 and destroying"}
+{"t": 1793210567.44, "type": "game", "line": "[D145 10:58:04 AM] [STATS] totalDestroyed.StoneBoulder = 5"}
+{"t": 1793210563.02, "type": "call", "start": 1793210563.02, "end": 1793210567.47, "cmd": "do key:space wait:1.5 key:space wait:1.5 --look"}
+{"t": 1793210570.74, "type": "game", "line": "[D145 10:58:31 AM] /giveloot 1 TreasureFarm generated:"}
+{"t": 1793210569.43, "type": "call", "start": 1793210569.43, "end": 1793210571.3, "cmd": "advance"}
+{"t": 1793210571.4, "type": "call", "start": 1793210571.4, "end": 1793210573.38, "cmd": "do wait:1 --look"}
+{"t": 1793210580.88, "type": "game", "line": "[D145 11:02:32 AM] > grab_item me=Player target=Stone(Clone) at (40.13, 0.12, -51.72)"}
+{"t": 1793210580.88, "type": "game", "line": "[D145 11:03:04 AM] > grab_item me=Player target=Stone(Clone) at (37.85, 0.12, -52.42)"}
+{"t": 1793210577.57, "type": "call", "start": 1793210577.57, "end": 1793210580.92, "cmd": "do key:space wait:0.8 key:space wait:0.8 --look"}
+{"t": 1793210585.74, "type": "activity", "what": "go", "target": "go:1155:655", "start": 1793210585.135436, "end": 1793210585.7445781, "moved": true}
+{"t": 1793210588.5, "type": "activity", "what": "go", "target": "go:1175:625", "start": 1793210587.26218, "end": 1793210588.503217, "moved": true}
+{"t": 1793210591.21, "type": "activity", "what": "go", "target": "go:1207:605", "start": 1793210590.000284, "end": 1793210591.211541, "moved": true}
+{"t": 1793210593.91, "type": "activity", "what": "go", "target": "go:1170:750", "start": 1793210592.711065, "end": 1793210593.91183, "moved": true}
+{"t": 1793210596.04, "type": "game", "line": "[D145 11:06:35 AM] > grab_item me=Player target=Stone(Clone) at (40.49, 0.12, -52.30)"}
+{"t": 1793210596.04, "type": "game", "line": "[D145 11:07:58 AM] > grab_item me=Player target=Stone(Clone) at (42.71, 0.12, -50.18)"}
+{"t": 1793210584.44, "type": "call", "start": 1793210584.44, "end": 1793210596.07, "cmd": "do go:1155:655 key:space wait:0.6 go:1175:625 key:space wait:0.6 go:1207:605 key:space wait:0.6 go:1170:750 key:space wait:0.6 --look"}
+{"t": 1793210598.75, "type": "issue", "text": "batch go:+space across stone drops: 4th space hit a Rock (pickaxe) instead of picking up"}
+{"t": 1793210606.14, "type": "game", "line": "[D145 11:15:16 AM] [DAMAGE] Damage 30 to StoneRock (13) (Damageable) (damage = 45), transitioning to final state 1 and destroying"}
+{"t": 1793210606.14, "type": "game", "line": "[D145 11:15:16 AM] [STATS] totalDestroyed.StoneRock = 23"}
+{"t": 1793210601.65, "type": "call", "start": 1793210601.65, "end": 1793210606.18, "cmd": "do key:space wait:1.5 key:space wait:1.5 --look"}
+{"t": 1793210609.94, "type": "game", "line": "[D145 11:17:49 AM] > grab_item me=Player target=Stone(Clone) at (52.19, 0.12, -50.61)"}
+{"t": 1793210608.13, "type": "call", "start": 1793210608.13, "end": 1793210609.97, "cmd": "do key:space wait:0.6 --look"}
+{"t": 1793210615.09, "type": "activity", "what": "go", "target": "go:535:562", "start": 1793210613.49729, "end": 1793210615.094199, "moved": true}
+{"t": 1793210618.63, "type": "activity", "what": "go", "target": "go:520:532", "start": 1793210616.598198, "end": 1793210618.6294038, "moved": true}
+{"t": 1793210622.71, "type": "activity", "what": "go", "target": "go:445:512", "start": 1793210620.1278, "end": 1793210622.7109592, "moved": true}
+{"t": 1793210624.81, "type": "game", "line": "[D145 11:21:16 AM] > grab_item me=Player target=Stone(Clone) at (44.04, 0.12, -46.54)"}
+{"t": 1793210612.79, "type": "call", "start": 1793210612.79, "end": 1793210624.85, "cmd": "do go:535:562 key:space wait:0.6 go:520:532 key:space wait:0.6 go:445:512 key:space wait:0.6 --look"}
+{"t": 1793210629.28, "type": "issue", "text": "go: coords are screen coords and camera scrolls as Tara moves: chained go: after first leg targeted stale positions, Tara walked back to the farmhouse"}
+{"t": 1793210629.49, "type": "call", "start": 1793210629.49, "end": 1793210631.67, "cmd": "do key:i wait:1 --look"}
+{"t": 1793210639.05, "type": "activity", "what": "go", "target": "go:1200:1000", "start": 1793210637.030493, "end": 1793210639.046986, "moved": true}
+{"t": 1793210636.07, "type": "call", "start": 1793210636.07, "end": 1793210641.29, "cmd": "do key:escape go:1200:1000 --look"}
+{"t": 1793210647.33, "type": "activity", "what": "go", "target": "go:1725:682", "start": 1793210645.2815151, "end": 1793210647.3302898, "moved": true}
+{"t": 1793210644.57, "type": "call", "start": 1793210644.57, "end": 1793210648.77, "cmd": "do go:1725:682 --look"}
+{"t": 1793210652.26, "type": "game", "line": "[D145 11:35:40 AM] > grab_item me=Player target=Stone(Clone) at (42.03, 0.12, -44.00)"}
+{"t": 1793210650.46, "type": "call", "start": 1793210650.46, "end": 1793210652.31, "cmd": "do key:space wait:0.6 --look"}
+{"t": 1793210657.95, "type": "activity", "what": "go", "target": "go:1132:685", "start": 1793210657.1161861, "end": 1793210657.948632, "moved": true}
+{"t": 1793210660.06, "type": "game", "line": "[D145 11:39:23 AM] > grab_item me=Player target=Stone(Clone) at (43.52, 0.12, -45.07)"}
+{"t": 1793210656.13, "type": "call", "start": 1793210656.13, "end": 1793210660.11, "cmd": "do go:1132:685 key:space wait:0.6 --look"}
+{"t": 1793210668.77, "type": "activity", "what": "go", "target": "go:862:752", "start": 1793210667.926899, "end": 1793210668.772696, "moved": true}
+{"t": 1793210671.31, "type": "activity", "what": "go", "target": "go:967:822", "start": 1793210670.179101, "end": 1793210671.3051121, "moved": true}
+{"t": 1793210673.52, "type": "game", "line": "[D145 11:44:48 AM] > grab_item me=Player target=Stone(Clone) at (41.14, 0.12, -47.96)"}
+{"t": 1793210673.52, "type": "game", "line": "[D145 11:46:04 AM] > grab_item me=Player target=Stone(Clone) at (42.59, 0.12, -50.20)"}
+{"t": 1793210667.13, "type": "call", "start": 1793210667.13, "end": 1793210673.56, "cmd": "do go:862:752 key:space wait:0.5 go:967:822 key:space wait:0.5 --look"}
+{"t": 1793210678.08, "type": "game", "line": "[D145 11:48:20 AM] > grab_item me=Player target=Stone(Clone) at (41.67, 0.12, -52.19)"}
+{"t": 1793210675.79, "type": "call", "start": 1793210675.79, "end": 1793210678.19, "cmd": "do key:space wait:0.5 --look"}
+{"t": 1793210683.04, "type": "game", "line": "[D145 11:50:43 AM] > grab_item me=Player target=Stone(Clone) at (42.08, 0.12, -50.88)"}
+{"t": 1793210680.56, "type": "call", "start": 1793210680.56, "end": 1793210683.07, "cmd": "do key:space wait:0.5 key:space wait:0.5 --look"}
+{"t": 1793210689.3, "type": "activity", "what": "go", "target": "go:958:788", "start": 1793210688.266165, "end": 1793210689.30131, "moved": true}
+{"t": 1793210691.43, "type": "game", "line": "[D145 11:55:04 AM] > grab_item me=Player target=Stone(Clone) at (41.63, 0.12, -55.65)"}
+{"t": 1793210687.54, "type": "call", "start": 1793210687.54, "end": 1793210691.48, "cmd": "do go:958:788 key:space wait:0.5 --look"}
+{"t": 1793210696.42, "type": "activity", "what": "go", "target": "go:1470:565", "start": 1793210694.4093928, "end": 1793210696.4161248, "moved": true}
+{"t": 1793210699.29, "type": "game", "line": "[D145 11:58:37 AM] > grab_item me=Player target=Stone(Clone) at (49.88, 0.12, -49.13)"}
+{"t": 1793210693.7, "type": "call", "start": 1793210693.7, "end": 1793210699.33, "cmd": "do go:1470:565 key:space wait:0.5 key:space wait:0.5 --look"}
+{"t": 1793210703.75, "type": "decision", "text": "Stone 50/50 reached; ~6 surplus stone drops left on road meadow (not needed) to save game time"}
+{"t": 1793210704.0, "type": "step", "text": "Stone 50/50 at 11:50"}
+{"t": 1793210706.1, "type": "activity", "what": "go", "target": "go:1800:480", "start": 1793210704.4440901, "end": 1793210706.0986, "moved": false}
+{"t": 1793210704.12, "type": "call", "start": 1793210704.12, "end": 1793210707.82, "cmd": "do go:1800:480 --look"}
+{"t": 1793210715.1, "type": "activity", "what": "go", "target": "go:1750:480", "start": 1793210713.4129238, "end": 1793210715.103508, "moved": false}
+{"t": 1793210713.11, "type": "call", "start": 1793210713.11, "end": 1793210716.47, "cmd": "do go:1750:480 --look"}
+{"t": 1793210719.0, "type": "call", "start": 1793210719.0, "end": 1793210724.11, "cmd": "do walk:up:0.4 walk:right:3 --look"}
+{"t": 1793210730.0, "type": "activity", "what": "go", "target": "go:900:490", "start": 1793210728.198273, "end": 1793210729.998206, "moved": true}
+{"t": 1793210727.19, "type": "call", "start": 1793210727.19, "end": 1793210734.56, "cmd": "do go:900:490 walk:right:3 --look"}
+{"t": 1793210738.08, "type": "call", "start": 1793210738.08, "end": 1793210743.42, "cmd": "do walk:down:0.4 walk:right:3 --look"}
+{"t": 1793210750.44, "type": "game", "line": "[D145 12:13:45 PM] [GAME] ChangeScene Town/LinkFarm"}
+{"t": 1793210750.44, "type": "game", "line": "[D145 12:13:45 PM] [MODE] Spawning player at Town/LinkFarm"}
+{"t": 1793210746.51, "type": "call", "start": 1793210746.51, "end": 1793210750.48, "cmd": "do wait:2 --look"}
+{"t": 1793210750.57, "type": "call", "start": 1793210750.57, "end": 1793210750.74, "cmd": "state"}
+{"t": 1793210754.74, "type": "step", "text": "arrived Town at 12:13, Blacksmith visible east of the farm entrance"}
+{"t": 1793210759.56, "type": "activity", "what": "go", "target": "go:1650:440", "start": 1793210755.546342, "end": 1793210759.562573, "moved": true}
+{"t": 1793210760.88, "type": "game", "line": "[D145 12:18:34 PM] [TRIGGER] OnEnterBuilding Blacksmith"}
+{"t": 1793210754.84, "type": "call", "start": 1793210754.84, "end": 1793210760.92, "cmd": "do go:1650:440 --look"}
+{"t": 1793210762.71, "type": "call", "start": 1793210762.71, "end": 1793210764.26, "cmd": "do key:space --look"}
+{"t": 1793210767.37, "type": "call", "start": 1793210767.37, "end": 1793210770.12, "cmd": "do key:right key:right key:space wait:1 --look"}
+{"t": 1793210773.8, "type": "call", "start": 1793210773.8, "end": 1793210775.99, "cmd": "do click:217:237 wait:1 --look"}
+{"t": 1793210776.08, "type": "call", "start": 1793210776.08, "end": 1793210776.19, "cmd": "state --json"}
+{"t": 1793210780.0, "type": "call", "start": 1793210780.0, "end": 1793210781.65, "cmd": "do click:682:770 wait:0.5 --look"}
+{"t": 1793210786.09, "type": "game", "line": "[D145 12:21:21 PM] [STATS] totalCrafted.Iron = 58"}
+{"t": 1793210783.52, "type": "call", "start": 1793210783.52, "end": 1793210786.14, "cmd": "do click:438:778 wait:1.5 --look"}
+{"t": 1793210789.96, "type": "step", "text": "smelted 10 Iron Ingot at Natalia: 925c"}
+{"t": 1793210790.25, "type": "call", "start": 1793210790.25, "end": 1793210793.19, "cmd": "do key:escape wait:0.7 key:escape wait:0.7"}
+{"t": 1793210793.29, "type": "call", "start": 1793210793.29, "end": 1793210793.43, "cmd": "state"}
+{"t": 1793210803.61, "type": "step", "text": "recorded smelting in quest file"}
+{"t": 1793210805.78, "type": "call", "start": 1793210805.78, "end": 1793210806.97, "cmd": "do wait:0.2 --look"}
+{"t": 1793210810.9, "type": "call", "start": 1793210810.9, "end": 1793210816.09, "cmd": "do walk:down:0.5 walk:right:3 --look"}
+{"t": 1793210827.45, "type": "game", "line": "[D145 12:38:21 PM] [TRIGGER] OnExitBuilding Blacksmith"}
+{"t": 1793210823.29, "type": "call", "start": 1793210823.29, "end": 1793210827.5, "cmd": "do walk:left:0.8 walk:down:1.5 --look"}
+{"t": 1793210830.76, "type": "call", "start": 1793210830.76, "end": 1793210837.36, "cmd": "do walk:down:0.5 walk:right:4 --look"}
+{"t": 1793210844.33, "type": "activity", "what": "go", "target": "go:1500:880", "start": 1793210841.99692, "end": 1793210844.3324301, "moved": true}
+{"t": 1793210841.29, "type": "call", "start": 1793210841.29, "end": 1793210849.3, "cmd": "do go:1500:880 walk:right:3 --look"}
+{"t": 1793210853.7, "type": "call", "start": 1793210853.7, "end": 1793210859.0, "cmd": "do walk:right:3.5 --look"}
+{"t": 1793210862.71, "type": "call", "start": 1793210862.71, "end": 1793210867.19, "cmd": "do walk:right:3 --look"}
+{"t": 1793210871.13, "type": "call", "start": 1793210871.13, "end": 1793210876.63, "cmd": "do walk:right:4 --look"}
+{"t": 1793210880.97, "type": "call", "start": 1793210880.97, "end": 1793210885.62, "cmd": "do walk:right:3 --look"}
+{"t": 1793210890.95, "type": "step", "text": "found Nailed It! (green workshop right of the cobbled street, with signpost to Woods) at 13:00"}
+{"t": 1793210891.05, "type": "call", "start": 1793210891.05, "end": 1793210898.53, "cmd": "do walk:left:3.5 walk:down:2 --look"}
+{"t": 1793210905.51, "type": "activity", "what": "go", "target": "go:200:960", "start": 1793210902.814911, "end": 1793210905.5126588, "moved": true}
+{"t": 1793210902.04, "type": "call", "start": 1793210902.04, "end": 1793210906.78, "cmd": "do go:200:960 --look"}
+{"t": 1793210912.96, "type": "activity", "what": "go", "target": "go:1750:980", "start": 1793210910.958199, "end": 1793210912.9604611, "moved": true}
+{"t": 1793210910.16, "type": "call", "start": 1793210910.16, "end": 1793210914.2, "cmd": "do go:1750:980 --look"}
+{"t": 1793210917.24, "type": "call", "start": 1793210917.24, "end": 1793210921.57, "cmd": "do walk:down:3 --look"}
+{"t": 1793210927.63, "type": "activity", "what": "go", "target": "go:1500:880", "start": 1793210925.634181, "end": 1793210927.632125, "moved": true}
+{"t": 1793210924.93, "type": "call", "start": 1793210924.93, "end": 1793210932.32, "cmd": "do go:1500:880 walk:right:3 --look"}
+{"t": 1793210936.01, "type": "call", "start": 1793210936.01, "end": 1793210938.26, "cmd": "do key:m wait:1 --look"}
+{"t": 1793210943.88, "type": "call", "start": 1793210943.88, "end": 1793210951.36, "cmd": "do key:escape wait:0.5 walk:left:3 walk:down:2 --look"}
+{"t": 1793210955.2, "type": "call", "start": 1793210955.2, "end": 1793210961.72, "cmd": "do walk:left:5 --look"}
+{"t": 1793210969.04, "type": "activity", "what": "go", "target": "go:330:470", "start": 1793210966.146844, "end": 1793210969.0356731, "moved": true}
+{"t": 1793210965.44, "type": "call", "start": 1793210965.44, "end": 1793210970.32, "cmd": "do go:330:470 --look"}
+{"t": 1793210972.5, "type": "step", "text": "at Cafe Moretti door 13:43"}
+{"t": 1793210972.59, "type": "call", "start": 1793210972.59, "end": 1793210972.6, "cmd": "do --look walk:up:0.5"}
+{"t": 1793210972.69, "type": "call", "start": 1793210972.69, "end": 1793210972.85, "cmd": "state"}
+{"t": 1793210974.94, "type": "call", "start": 1793210974.94, "end": 1793210976.14, "cmd": "do wait:0.2 --look"}
+{"t": 1793210982.92, "type": "game", "line": "[D145 1:50:29 PM] [TRIGGER] OnEnterBuilding Diner"}
+{"t": 1793210980.0, "type": "call", "start": 1793210980.0, "end": 1793210982.96, "cmd": "do walk:up:1.2 --look"}
+{"t": 1793210986.25, "type": "call", "start": 1793210986.25, "end": 1793210990.35, "cmd": "do key:space --look"}
+{"t": 1793210992.35, "type": "call", "start": 1793210992.35, "end": 1793210994.19, "cmd": "do key:escape wait:0.5 --look"}
+{"t": 1793211000.42, "type": "activity", "what": "go", "target": "go:1180:545", "start": 1793210998.7719119, "end": 1793211000.4232829, "moved": false}
+{"t": 1793210998.47, "type": "call", "start": 1793210998.47, "end": 1793211001.69, "cmd": "do go:1180:545 --look"}
+{"t": 1793211005.76, "type": "activity", "what": "go", "target": "go:1200:650", "start": 1793211004.2423239, "end": 1793211005.761348, "moved": false}
+{"t": 1793211003.92, "type": "call", "start": 1793211003.92, "end": 1793211009.49, "cmd": "do go:1200:650 --look"}
+{"t": 1793211014.94, "type": "call", "start": 1793211014.94, "end": 1793211018.03, "cmd": "do bubble:up:0.6 --look"}
+{"t": 1793211021.8, "type": "call", "start": 1793211021.8, "end": 1793211026.37, "cmd": "do walk:down:0.5 walk:right:0.9 bubble:up:0.8 --look"}
+{"t": 1793211028.41, "type": "call", "start": 1793211028.41, "end": 1793211032.54, "cmd": "do key:space --look"}
+{"t": 1793211034.28, "type": "call", "start": 1793211034.28, "end": 1793211037.06, "cmd": "do key:right key:right key:space wait:1 --look"}
+{"t": 1793211040.72, "type": "call", "start": 1793211040.72, "end": 1793211042.89, "cmd": "do click:70:237 wait:1 --look"}
+{"t": 1793211046.89, "type": "call", "start": 1793211046.89, "end": 1793211049.07, "cmd": "do click:500:237 wait:1 --look"}
+{"t": 1793211053.44, "type": "call", "start": 1793211053.44, "end": 1793211056.36, "cmd": "do click:605:702 wait:0.4 click:605:702 wait:0.4 click:605:702 wait:0.5 --look"}
+{"t": 1793211061.47, "type": "game", "line": "[D145 2:14:02 PM] [STATS] totalSold.MushroomRisotto = 4"}
+{"t": 1793211061.47, "type": "game", "line": "[D145 2:14:02 PM] [STATS] totalSoldValue.MushroomRisotto = 80"}
+{"t": 1793211058.26, "type": "call", "start": 1793211058.26, "end": 1793211061.53, "cmd": "do click:420:707 wait:1.5 --look"}
+{"t": 1793211064.6, "type": "step", "text": "sold 4 Mushroom Risotto to Sophia for 80c -> 1005c"}
+{"t": 1793211064.74, "type": "call", "start": 1793211064.74, "end": 1793211068.39, "cmd": "do key:escape wait:0.7 key:escape wait:0.7 key:escape wait:0.5"}
+{"t": 1793211068.49, "type": "call", "start": 1793211068.49, "end": 1793211068.64, "cmd": "state"}
+{"t": 1793211075.6, "type": "call", "start": 1793211075.6, "end": 1793211077.29, "cmd": "do key:escape wait:0.5"}
+{"t": 1793211079.84, "type": "call", "start": 1793211079.84, "end": 1793211088.63, "cmd": "do walk:down:2 walk:right:5 --look"}
+{"t": 1793211092.01, "type": "call", "start": 1793211092.01, "end": 1793211100.57, "cmd": "do walk:down:1.5 walk:left:3.5 walk:down:1.5 --look"}
+{"t": 1793211105.62, "type": "call", "start": 1793211105.62, "end": 1793211114.11, "cmd": "do walk:down:1.5 walk:right:5 --look"}
+{"t": 1793211118.02, "type": "activity", "what": "go", "target": "go:300:900", "start": 1793211116.44099, "end": 1793211118.023144, "moved": false}
+{"t": 1793211115.89, "type": "call", "start": 1793211115.89, "end": 1793211119.26, "cmd": "do go:300:900 --look"}
+{"t": 1793211122.37, "type": "call", "start": 1793211122.37, "end": 1793211126.87, "cmd": "do walk:left:0.6 walk:down:2 --look"}
+{"t": 1793211128.6, "type": "call", "start": 1793211128.6, "end": 1793211136.15, "cmd": "do walk:right:6 --look"}
+{"t": 1793211140.77, "type": "call", "start": 1793211140.77, "end": 1793211150.3, "cmd": "do walk:up:0.7 walk:left:5 walk:down:1.5 --look"}
+{"t": 1793211147.26, "type": "call", "start": 1793211147.26, "end": 1793211150.45, "cmd": "state"}
+{"t": 1793211153.67, "type": "gap", "text": "diner interior exit: walk:down BLOCKED by booths; need route Cafe Moretti door -> stairs to upper street -> Nailed It!"}
+{"t": 1793211153.78, "type": "call", "start": 1793211153.78, "end": 1793211155.66, "cmd": "do key:escape wait:0.5"}
+{"t": 1793211155.78, "type": "end", "result": "partial", "text": "stone 50, 10 ingots, 1005c done; stuck inside Cafe Moretti at 14:30, call budget exhausted before Parker hand-in"}

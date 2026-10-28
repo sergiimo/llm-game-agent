@@ -20,3 +20,4 @@
 - [x] Pickup toasts fade in <1 s: have `do` poll state during settle and report any toast/tracker text seen (`saw: Mushroom: 1/2`), to replace journal round-trips (run #10).
 - [ ] (run #12) `walk:left:1` reported nothing while Tara didn't move: the camera may pan/re-frame or NPCs animate → diff > 3. Maybe compare a centre crop around Tara vs background, or detect Tara's position.
 - [ ] (run #12) `bubble@` in the state line looked stale after walking away from the bed bubble; check find_bubble runs on the fresh settled frame.
+- `./wf advance` auto-picked a dialogue choice in Kim's intro (run #15). It should stop on choice lists (or at least log the option it picked).

@@ -39,10 +39,10 @@ call pays a ~3–4 s focus switch) · the game stays **in the background** betwe
   `docs/ui/INDEX.md` → the screen file. Unknown system? `docs/mechanics/INDEX.md` → the topic file.
 
 **Act (one call per step)**
-- `./wf do <actions…> [--look]`: actions `key:space` (Space = **interact**/confirm), `walk:<dir>:<s>`,
-  `path:up:1,left:2`, `bubble:<dir>[:<max_s>]` (walk until an interaction bubble appears), `text:<label>`,
-  `click:x:y`, `route:<name>`, `wait:<s>`. It prints the settled state, and the look path with `--look`.
-- Interaction pattern: `./wf do bubble:<dir>` → see `bubble@x,y` → `./wf do key:space`.
+- `./wf do <actions…> [--look]`: actions `go:<x>:<y>` (click-to-move: the **only** way to move, L54),
+  `key:space` (Space = **interact**/confirm), `text:<label>`, `click:x:y`, `wait:<s>`, `still`. It prints the settled
+  state, and the look path with `--look`.
+- Interaction pattern: `./wf do go:<object x>:<y>` → see `bubble@x,y` → `./wf do key:space`.
 - Dialogue/cutscene/quest popups: `./wf advance`. It presses Space only in dialogue/popup/cutscene and stops on
   anything else.
 - Mechanical text-only loops (long dialogue, routes, repeated interactions): delegate to the **wylde-runner** agent
@@ -67,4 +67,4 @@ call pays a ~3–4 s focus switch) · the game stays **in the background** betwe
 - **Session end:** update `docs/progress.md` (current state + one log row).
 - **Surprise** (doc/wiki/assumption was wrong, tool misbehaved, unexpected UI): add a row to `docs/learnings.md`
   (expected → actual → now → updated), then fix the doc/tool/skill it affects.
-- A walk that worked: save it as `routes/<from>-to-<to>.txt`.
+- A way that worked (landmarks + `go:` hops): add it to `docs/world/locations.md`.

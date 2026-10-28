@@ -1,0 +1,12 @@
+[project]
+name = "llm-game-agent"
+version = "0.1.0"
+requires-python = ">=3.12"  # .python-version pins 3.12.13: macOS privacy grants are per binary path
+dependencies = [
+    "imageio-ffmpeg>=0.7.0",
+    "numpy>=2.5.4",
+    "pillow>=13.0.0",
+    "pyobjc-framework-applicationservices>=12.2.2",
+    "pyobjc-framework-vision>=12.2.2",
+    "zstandard>=0.25.0",
+]

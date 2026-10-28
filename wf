@@ -2,4 +2,4 @@
 # Wrapper: talk to the warm wf daemon (auto-started) or run tools/wf.py with the project venv.
 # `./wf stop` stops the daemon (do this after editing tools/wf.py so changes load). WF_NO_DAEMON=1 disables it.
 DIR="$(cd "$(dirname "$0")" && pwd)"
-exec /usr/bin/python3 -I "$DIR/tools/wfc.py" "$@"
+exec "$DIR/.venv/bin/python" -I "$DIR/tools/wfc.py" "$@"

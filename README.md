@@ -346,8 +346,14 @@ actions (e.g. "break this object and collect every drop" as one call), not faste
 | [`AGENTS.md`](AGENTS.md) · [`.claude/`](.claude) | Agent rules, agent definitions and skills, incl. a generic onboarding skill for new apps |
 
 ## Running it
-macOS, the target app, and **Screen Recording** + **Accessibility** permissions for the terminal. `.venv` with pyobjc
-(Quartz, Vision, Cocoa), numpy, Pillow, zstandard, imageio-ffmpeg. Then:
+macOS and the target app. Dependencies are locked with [uv](https://docs.astral.sh/uv/) (`pyproject.toml` +
+`uv.lock`, Python pinned in `.python-version`):
+```bash
+uv sync                          # exact Python + numpy, Pillow, pyobjc (Quartz, Vision), zstandard, ffmpeg
+```
+macOS grants **Screen Recording** and **Accessibility** per binary: add the interpreter `.venv/bin/python` resolves to
+(`readlink -f .venv/bin/python`) to both lists in System Settings → Privacy & Security. Everything, including the
+`./wf` launcher, runs on that one interpreter. Then:
 ```bash
 ./wf status                      # permissions, window, daemon
 ./wf state                       # one-line classified state (numpy + OCR + embeddings)

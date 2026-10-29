@@ -1,0 +1,17 @@
+# Routines (daily chores, L61)
+
+> **Summary:** things to do every day **before** quest work. `./wf routines` prints today's status from the save (what
+> exists: beds, ripe/wilted crops) and today's engine log (what was done). The supervisor runs it every morning and
+> dispatches DUE routines first.
+
+| ID | Routine | When / skip | Steps | Done when | Cost |
+|---|---|---|---|---|---|
+| R1 | **Water the garden** (12 beds, 4×3 grid left of the farmhouse) | every day; **skip if** today's log says `Forecast is Rain/Storm` (rain waters everything). Wilted beds first | `Bed` → `House-door` (edges) → the **well** (left side of the garden): `act:fill_can` → each dry bed: `go:` onto it → `act:water`. Rusty can: **1 fill waters 1 bed** (refill between beds) | `./wf routines` R1 = DONE (`> water me=Player target=GardenBed` lines today ≥ beds not ripe) | small ⚡ per pour; ~10 game min per bed |
+| R2 | **Harvest ripe crops** | when the save shows `plantState ##produced` in a bed | `go:` onto the ripe bed → bag bubble → `act:pickup` (harvest = pickup ❓ verify) | R2 = DONE | free |
+| R3 | Bee hives (8) | ❓ (log shows pollen levels per hive overnight) | ❓ | ❓ | ❓ |
+
+## Rules
+- **Morning order:** routines (R1 wilted beds first) → quests. Wilted crops don't grow; 2+ dry days = wilted.
+- New bubble kinds on the way (`fill_can`, `water`) are learned by one deliberate Space (docs/self-improvement.md).
+- Trips are the same every day: record them as anchored edges (`./wf edge add`), replay them (`./wf edge replay`).
+- Status is exact, not remembered: always re-run `./wf routines` instead of counting by hand.

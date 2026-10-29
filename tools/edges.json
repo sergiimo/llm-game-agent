@@ -1,0 +1,62 @@
+{
+ "Town/LinkFarm>Farm/LinkTown": {
+  "clicks": [
+   [
+    500,
+    560
+   ]
+  ],
+  "ok": 0,
+  "fail": 0
+ },
+ "Farm/LinkTown>House": {
+  "clicks": [
+   [
+    100,
+    662
+   ],
+   [
+    60,
+    630
+   ],
+   [
+    100,
+    600
+   ],
+   [
+    905,
+    290
+   ]
+  ],
+  "ok": 0,
+  "fail": 0
+ },
+ "Bed>House-door": {
+  "clicks": [
+   [
+    1400,
+    925
+   ],
+   [
+    1000,
+    1010
+   ]
+  ],
+  "ok": 1,
+  "fail": 0
+ },
+ "House>House-door": {
+  "clicks": [
+   [
+    960,
+    1040
+   ],
+   [
+    1000,
+    1010
+   ]
+  ],
+  "ok": 0,
+  "fail": 0
+ }
+}

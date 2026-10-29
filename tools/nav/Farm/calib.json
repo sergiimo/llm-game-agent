@@ -1,0 +1,28 @@
+{
+ "H": [
+  [
+   8.659732326357654,
+   -0.00581400678791004,
+   -0.0015969112682464274
+  ],
+  [
+   0.07474797452810585,
+   -21.41469209627477,
+   5.617554033720968
+  ],
+  [
+   -0.005491004564234404,
+   0.5096036689671338,
+   1.0
+  ]
+ ],
+ "n": 21,
+ "kept": 18,
+ "err": 0.039,
+ "tara": [
+  960,
+  671
+ ],
+ "day": "2026-10-29",
+ "_doc": "Cache derived from tools/nav/facts.jsonl (every clean one-click checkpoint, L62): H maps normalised screen ((x-960)/500, (y-540)/500) to the world offset (dx, dz) from Tara; tara = her ground point on screen; err = median residual in world units."
+}

@@ -20,6 +20,7 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 | `docs/actions.md` | **Actions DB:** each action → recipe, **expected** hits/drops/energy, verify signal, fix. `./wf actions <tags>` prints a job's rows |
 | `runs/*.jsonl` | **Run log per quest/task** (`./wf run start/attempt/issue/end`, auto: calls, Tara walks/actions, game events). `./wf run report` |
 | `docs/self-improvement.md` | **Self-improvement loop**: act → capture → label from the game log → store disagreements → verify (`./wf learn`) → use. Bubble kinds learn automatically |
+| `docs/routines.md` | **Daily chores** (water garden, harvest…): `./wf routines` = today's status from save + log; do DUE ones before quests |
 | `docs/learnings.md` | Surprises: expected vs actual → what changed |
 | `reference/wiki/` | Full offline fan-wiki mirror (1190 pages, CC BY-SA). Search: `./wf wiki "<term>"` |
 | `./wf` → `tools/wfc.py` → daemon `tools/wf.py serve` | CLI to observe/control the game. **`./wf stop` after editing wf.py** |
@@ -51,6 +52,9 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
 0. **Focus mode (user's choice, L47): the game stays in front** (`./wf focus-mode front`; check with `./wf focus-mode`).
    Game time RUNS between calls (Relaxed speed), so batch actions, think briefly, and watch the clock: Tara passes out at
    ~02:00 (L27). `./wf focus-mode background` = old mode: focus only during input, time frozen between calls (L28).
+   **Before any off-game work (coding, docs, long thinking) `./wf pause`** and `./wf resume` after: 1 real minute ≈ 100
+   game minutes, so 10 minutes of coding = a passed-out night (L63). **After 23:00 game time: no optional work**
+   (exploring, `wf improve`); finish the step and ask about bed (`improve` stops by itself).
 1. **One call per step:** `./wf do <actions> [--look]` acts, waits for the screen to settle and prints a one-line state.
    Observe with the game files first: `./wf log` (live events: quests, dialogue, scenes, pickups; input commands
    print new lines as `log: …`) and `./wf save` (exact money/time/quests/inventory as of the last autosave), see

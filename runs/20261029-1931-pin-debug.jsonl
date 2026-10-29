@@ -1,0 +1,33 @@
+{"t": 1793295075.05, "type": "start", "quest": "pin-debug", "goal": ""}
+{"t": 1793295080.26, "type": "nav", "what": "pos", "scene": "Farm", "x": 28.92, "z": -21.19, "fresh": false, "secs": 4.3}
+{"t": 1793295075.11, "type": "call", "start": 1793295075.11, "end": 1793295081.91, "cmd": "pos"}
+{"t": 1793295084.99, "type": "call", "start": 1793295084.99, "end": 1793295085.19, "cmd": "state"}
+{"t": 1793295085.23, "type": "call", "start": 1793295085.23, "end": 1793295085.28, "cmd": "look"}
+{"t": 1793295101.07, "type": "call", "start": 1793295101.07, "end": 1793295104.28, "cmd": "pause"}
+{"t": 1793295114.03, "type": "call", "start": 1793295114.03, "end": 1793295117.77, "cmd": "pause"}
+{"t": 1793295772.23, "type": "call", "start": 1793295772.23, "end": 1793295776.62, "cmd": "resume"}
+{"t": 1793295784.44, "type": "activity", "what": "go", "target": "go:225:602", "start": 1793295780.191741, "end": 1793295784.436129, "moved": true}
+{"t": 1793295798.38, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.69, "z": -21.32, "fresh": true, "secs": 1.3}
+{"t": 1793295798.39, "type": "nav", "what": "route", "place": "House:in", "steps": 2}
+{"t": 1793295799.86, "type": "game", "line": "[D147 11:55:55 PM] [TRIGGER] OnEnterBuilding House"}
+{"t": 1793295776.66, "type": "call", "start": 1793295776.66, "end": 1793295799.87, "cmd": "goto House:in"}
+{"t": 1793295806.54, "type": "call", "start": 1793295806.54, "end": 1793295806.77, "cmd": "look"}
+{"t": 1793295817.09, "type": "activity", "what": "go", "target": "go:1262:455", "start": 1793295815.388852, "end": 1793295817.086008, "moved": false}
+{"t": 1793295814.36, "type": "call", "start": 1793295814.36, "end": 1793295818.81, "cmd": "do go:1262:455 --look"}
+{"t": 1793295828.77, "type": "activity", "what": "go", "target": "go:1090:585", "start": 1793295825.310297, "end": 1793295828.751364, "moved": true}
+{"t": 1793295822.55, "type": "call", "start": 1793295822.55, "end": 1793295838.75, "cmd": "do go:1090:585 --look"}
+{"t": 1793295850.65, "type": "activity", "what": "go", "target": "go:1175:640", "start": 1793295847.891168, "end": 1793295850.648674, "moved": true}
+{"t": 1793295845.79, "type": "call", "start": 1793295845.79, "end": 1793295853.36, "cmd": "do go:1175:640"}
+{"t": 1793295855.66, "type": "call", "start": 1793295855.66, "end": 1793295855.7, "cmd": "look"}
+{"t": 1793295869.39, "type": "activity", "what": "go", "target": "go:740:960", "start": 1793295867.724391, "end": 1793295869.3935418, "moved": true}
+{"t": 1793295864.03, "type": "call", "start": 1793295864.03, "end": 1793295874.84, "cmd": "do go:740:960 --look"}
+{"t": 1793295891.2, "type": "activity", "what": "go", "target": "go:230:830", "start": 1793295887.039459, "end": 1793295891.196197, "moved": true}
+{"t": 1793295884.79, "type": "call", "start": 1793295884.79, "end": 1793295901.81, "cmd": "do go:230:830 --look"}
+{"t": 1793295906.36, "type": "call", "start": 1793295906.36, "end": 1793295910.92, "cmd": "do key:space --look"}
+{"t": 1793295920.01, "type": "nav", "what": "pos", "scene": "Farm", "x": 18.85, "z": -16.44, "fresh": true, "secs": 1.9}
+{"t": 1793295925.09, "type": "game", "line": "[D147 12:48:59 AM] [GAME] ChangeScene Farm/Bed"}
+{"t": 1793295925.1, "type": "game", "line": "[D147 12:48:59 AM] [MODE] Spawning player at Farm/Bed"}
+{"t": 1793295914.23, "type": "call", "start": 1793295914.23, "end": 1793295925.12, "cmd": "do text:Yes"}
+{"t": 1793295934.52, "type": "call", "start": 1793295934.52, "end": 1793295938.69, "cmd": "pause"}
+{"t": 1793297748.63, "type": "routine", "status": ["R1 water garden: DUE 0/11 beds watered today · 11 WILTED: water first", "R2 harvest ripe crops: DUE 1 ripe per save, 0 harvested today"]}
+{"t": 1793297810.13, "type": "end", "result": "abandoned", "text": "a new run started"}

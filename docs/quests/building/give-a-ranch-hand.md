@@ -1,9 +1,9 @@
 ---
 quest: Give a Ranch Hand
-id: BuildRanch  # internal id in ./wf log / save
+id: BuildRanch   # internal id in ./wf log / save
 line: Building
 season: 
-status: active   # todo | active | done
+status: done   # todo | active | done
 ---
 # Give a Ranch Hand
 
@@ -14,8 +14,13 @@ status: active   # todo | active | done
 - **Steps (current → end):** ✅ gathered 80 Wood / 50 Stone, smelted 10 Iron Ingot (Natalia), sold 4 Risotto (Sophia) → 1005c
   (D145). ✅ **Hand-in = the Build button** in Parker's blueprint shop (3rd icon), not a talk topic (`./wf actions build`):
   1000c + materials taken, quest → goal 1 "Wait for Parker to finish building the ranch" (D145 16:40).
-  ▶️ **D146+:** ranch done → letter from Otto in the mailbox (500c) → welcome the new rancher **Marty** at the ranch (by
-  Thomas's farm, Beach) → Chicken Coop blueprint; quest complete. Needs sleeping (approved 2026-10-27).
+  ▶️ **Run #3 (Fri D145 16:50 → D146/147):** 1. Town (Nailed It!, top-right) → farm (exit top-left of town, next to the
+  Blacksmith) → farmhouse → bed (zzz bubble) → sleep (approved). 2. D146 morning: **mailbox** (left of the farmhouse
+  gate arch) → Otto's letter ("I just sold the ranch! … The new rancher will arrive tomorrow", 500c). 3. Ranch = rebuilt
+  old ranch **by Thomas's farm**: farm → **Beach** exit at the farm's **bottom-left** ("exits north of Thomas's farm").
+  Talk to **Marty** there → quest complete + Chicken Coop blueprint. If Marty isn't there on D146 (letter says
+  "tomorrow"), sleep once more and go on D147. Done signal: log `[QUEST]` completing BuildRanch / `./wf save` quests done.
+- ▶️ **Run #4 (Mon D148 07:00), the last step:** the ranch was built (log D147 11:30 `Advance quest BuildRanch to goal 3`, achievement 100%); goal 3 = **welcome Marty** (letter: "The new rancher will arrive tomorrow. Go welcome him"). Start: in the farmhouse by the pink bed (game paused: `./wf resume`). Route: house → farm → the Beach exit = the dirt road south past the palm-icon signpost (not the screen's bottom-left) → step into the ranch: Marty's welcome is an **automatic cutscene** (`marty_intro` on `OnPlayerEnterRanch`), no talk needed → one `./wf advance` (no choices). ✅ Done D148 10:05 (next quest: All Cooped Up / MartyChickens). Done signal: log `[QUEST] Complete … BuildRanch` / `./wf save` quests done. Navigation: `./wf goto House:out` (world graph) to leave the house; `./wf goto beach` (map route) toward the exit; if the map fails once, don't retry it: `./wf look` + `go:` clicks (see skill wylde-navigate). Every scene change is recorded automatically (nav facts); record the exit/ranch landmarks in Verified steps.
 - **How-to:** move with `./wf do go:<x>:<y> --look`. Chop / break rock: stand next to it → tool bubble → `./wf do key:space` repeatedly (`docs/mechanics/basic-actions.md` Chop row; rocks expected the same, ❓ → record). Shops: talk to the owner → shop/sell UI (`docs/ui/screens/` shop screens; Lina flow verified run #9). Smelting UI at Natalia: unverified, record it.
 - **Where:** Blacksmith = teal garage with anvil sign right at the farm→town entrance. Cafe Moretti = teal diner, east edge of the fountain square (door SW corner). **Nailed It!** = next to the Town Center's exit to the **Woods** (top right of town; location ❓, verify by sign info card). Mine = next to the farm. Woods = through the exit by Nailed It!.
 - **Hours:** Natalia Mon–Wed, Fri–Sat 9–17 (**closed Thu, Sun**). Parker Mon–Fri 9–17. Sophia Tue–Fri, Sun 9–17. Day 144 is probably **Thursday** (check the HUD clock) → gather today, smelt/sell/hand in tomorrow (Fri).
@@ -73,3 +78,10 @@ Start: paused (pause menu); one `./wf do key:escape` → gameplay, Tara in the f
 - ✅ **Natalia**: `go:1650:440` → `OnEnterBuilding Blacksmith`, bubble → `key:space` → 3 icons (talk, gift, coin) → `key:right key:right key:space` (log `natalia_trade`) → window "Blacksmith" (tabs: hammer = smelt/tools, stump = wood). First card = grey **Iron Ingot** (card ≈ `click:217:237`) → popup "Iron ingots can be sold to Natalia or used to upgrade tools, build structures and craft items." showing ore `30 / 2`, price tag 5c, **Craft** button, arrows ▶ ▶▶(=+10) ▶| ; `click:682:770` (▶▶) → "Craft 10", ore `30 / 20`; `click:438:778` (Craft) → log `craft 10x Iron`, toast "10 Iron Ingot", money 975 → 925 (5c + 2 ore per ingot), instant. Exit: `key:escape` ×2.
 - ✅ Town layout (from Natalia): cobbled path east of the smithy → bell sign / Town Hall (blue doors) → Jewelry Box, Seton's Bakery, flower shop, **School** (teal house with playground) → further east **Nailed It!** (green workshop with open front, lumber yard with wheelbarrow to its left, Woods signpost to its right; Parker not yet checked). Staircases down from the street, west of the schoolyard (zigzag, 3 flights: `go:` bottom-right each time) → anchor-statue plaza (Mayor's Mansion to the east = dead end, water south) → **walk left along the plaza ~5 s** → teal **Cafe Moretti** (door/steps at its SW corner, "?" sign bubble = info card).
 - ✅ **Sophia** (behind the counter, red-white checker floor; Kim Izumi stands by the entrance and her bubble grabs first): from the door `walk:up:1.2` (`OnEnterBuilding Diner`) → `walk:down:0.5 walk:right:0.9 bubble:up:0.8` (front of the counter) → `key:space` → icon menu → `key:right key:right key:space` (log `sophia_trade_sell`; opens the BUY tab "Cafe Moretti" with 160c/40c items) → click the second left tab (stump/sack, `click:70:237`) = SELL tab ("You could also sell ..."): Mushroom Risotto card 3rd (`click:500:237`, 20c each, count 10) → popup with "Sell 1", ▶ (+1, `click:605:702`) ▶▶ (+10) ▶| (max) → 3× ▶ → "Sell 4" → `click:420:707` → log `sell 4x MushroomRisotto for $80`, `OnGoalReady BuildRanch`, money 925 → 1005. Esc ×2 leaves (a 3rd Esc opens the pause menu).
+
+### Attempt 4 (Mon D148 07:00 → 10:05)
+- ✅ `./wf resume`; `./wf goto House:out` → ARRIVED (porch, 7:30). `./wf goto beach` → NEED_VISION (map route not usable; not retried).
+- ✅ Route by `go:` (each ~10 game min, moves ~10 units): porch `go:825:1000` (through gate arch) → `go:75:900` (dirt road left, past mailbox) → `go:150:850` → `go:600:1050` → `go:1000:1060` ×2 → `go:1300:1060` (signpost w/ palm icon appears at bottom-left, road runs S) → `go:700:1060` → `go:1400:900` => log `[MODE] Spawning player at RuralBeach/LinkFarm`, scene RuralBeach (9:05). Signpost + fenced Thomas's farm (orchard) to the east.
+- ✅ In RuralBeach: `go:1750:1000` → `go:1850:780` (road along Thomas's farm fence) → `go:1750:620` → `go:1550:300` (path N along the farm's east fence; white picket fence + veranda house + sheep = ranch) → `go:1400:290` => `[TRIGGER] OnPlayerEnterRanch`, auto cutscene `marty_intro` (no talk needed; Marty: "Whoa! This ranch is incredible! I'm Martin Ma-- Emerson").
+- ✅ `./wf advance` ×1 → dialogue → popups: `[QUEST] Complete quest BuildRanch`, "Give a Ranch Hand / Task complete!", `Start quest MartyChickens` (All Cooped Up: talk to Parker), "New Blueprint! Chicken Coop". Ends in gameplay, 10:00 am.
+- Marty sells eggs ("For now, you can buy eggs from me", chicks later).

@@ -1,0 +1,39 @@
+{
+ "_doc": "On-screen road colour ranges (PIL HSV 0-255) per lighting period, keyed by the game clock: day 7-17, dusk 17-20, night 20-7. dusk calibrated by hand D145 19:20; others learn from `wf road --calibrate` and confident grass-contrast samples (L58).",
+ "dusk": {
+  "s_max": 68,
+  "v_min": 90,
+  "v_max": 200,
+  "samples": 1
+ },
+ "night": {
+  "s_max": 56,
+  "v_min": 115,
+  "v_max": 154,
+  "samples": 1
+ },
+ "Town:night": {
+  "s_max": 65,
+  "v_min": 84,
+  "v_max": 153,
+  "samples": 1
+ },
+ "Farm:night": {
+  "s_max": 51,
+  "v_min": 53,
+  "v_max": 163,
+  "samples": 2
+ },
+ "Town:day": {
+  "s_max": 186,
+  "v_min": 99,
+  "v_max": 202,
+  "samples": 1
+ },
+ "Town:dusk": {
+  "s_max": 160,
+  "v_min": 102,
+  "v_max": 213,
+  "samples": 1
+ }
+}

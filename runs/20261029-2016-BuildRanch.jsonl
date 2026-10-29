@@ -1,0 +1,183 @@
+{"t": 1793297810.13, "type": "start", "quest": "BuildRanch", "goal": "welcome Marty at the ranch"}
+{"t": 1793297810.17, "type": "call", "start": 1793297810.17, "end": 1793297820.58, "cmd": "resume"}
+{"t": 1793297820.87, "type": "call", "start": 1793297820.87, "end": 1793297822.13, "cmd": "state"}
+{"t": 1793297830.55, "type": "activity", "what": "go", "target": "go:906:951", "start": 1793297828.92108, "end": 1793297830.553888, "moved": false}
+{"t": 1793297833.26, "type": "activity", "what": "go", "target": "go:936:858", "start": 1793297831.587158, "end": 1793297833.263482, "moved": false}
+{"t": 1793297835.61, "type": "activity", "what": "go", "target": "go:949:816", "start": 1793297834.923145, "end": 1793297835.61276, "moved": true}
+{"t": 1793297837.65, "type": "activity", "what": "go", "target": "go:910:938", "start": 1793297836.934031, "end": 1793297837.647563, "moved": true}
+{"t": 1793297839.79, "type": "activity", "what": "go", "target": "go:901:967", "start": 1793297839.399233, "end": 1793297839.7899158, "moved": true}
+{"t": 1793297842.12, "type": "activity", "what": "go", "target": "go:906:950", "start": 1793297840.425104, "end": 1793297842.117981, "moved": false}
+{"t": 1793297845.62, "type": "activity", "what": "go", "target": "go:936:857", "start": 1793297844.9652421, "end": 1793297845.6200352, "moved": true}
+{"t": 1793297848.66, "type": "activity", "what": "go", "target": "go:902:962", "start": 1793297847.528728, "end": 1793297848.662957, "moved": true}
+{"t": 1793297850.86, "type": "nav", "what": "pos", "scene": "Farm", "x": 10.72, "z": -24.79, "fresh": true, "secs": 1.6}
+{"t": 1793297853.84, "type": "activity", "what": "go", "target": "go:1665:905", "start": 1793297852.3605409, "end": 1793297853.8406699, "moved": true}
+{"t": 1793297856.67, "type": "activity", "what": "go", "target": "go:1120:806", "start": 1793297855.190621, "end": 1793297856.670942, "moved": true}
+{"t": 1793297860.26, "type": "nav", "what": "pos", "scene": "Farm", "x": 18.93, "z": -26.0, "fresh": true, "secs": 1.5}
+{"t": 1793297860.27, "type": "nav", "what": "route", "place": "House:out", "steps": 2}
+{"t": 1793297861.88, "type": "game", "line": "[D148 7:27:21 AM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793297828.07, "type": "call", "start": 1793297828.07, "end": 1793297861.88, "cmd": "goto House:out"}
+{"t": 1793297866.91, "type": "nav", "what": "pos", "scene": "Farm", "x": 18.93, "z": -26.0, "fresh": false, "secs": 4.3}
+{"t": 1793297861.93, "type": "call", "start": 1793297861.93, "end": 1793297868.37, "cmd": "pos"}
+{"t": 1793297878.47, "type": "vision", "what": "ask", "kind": "road", "question": "Tara (Farm) must stand on a road. Which cells show walkable road/path near her?"}
+{"t": 1793297874.62, "type": "call", "start": 1793297874.62, "end": 1793297880.14, "cmd": "goto beach"}
+{"t": 1793297885.37, "type": "nav", "what": "pos", "scene": "Farm", "x": 18.93, "z": -26.0, "fresh": false, "secs": 4.3}
+{"t": 1793297880.3, "type": "call", "start": 1793297880.3, "end": 1793297886.71, "cmd": "pos"}
+{"t": 1793297890.44, "type": "call", "start": 1793297890.44, "end": 1793297890.59, "cmd": "look"}
+{"t": 1793297900.25, "type": "activity", "what": "go", "target": "go:825:1000", "start": 1793297898.540019, "end": 1793297900.24493, "moved": true}
+{"t": 1793297896.67, "type": "call", "start": 1793297896.67, "end": 1793297904.49, "cmd": "do go:825:1000 --look"}
+{"t": 1793297907.25, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.25, "z": -33.91, "fresh": true, "secs": 1.5}
+{"t": 1793297907.61, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 17, 13]}
+{"t": 1793297904.67, "type": "call", "start": 1793297904.67, "end": 1793297909.18, "cmd": "pos"}
+{"t": 1793297910.62, "type": "call", "start": 1793297910.62, "end": 1793297910.76, "cmd": "look"}
+{"t": 1793297919.73, "type": "activity", "what": "go", "target": "go:75:900", "start": 1793297916.375128, "end": 1793297919.730481, "moved": true}
+{"t": 1793297914.53, "type": "call", "start": 1793297914.53, "end": 1793297925.47, "cmd": "do go:75:900 --look"}
+{"t": 1793297927.72, "type": "nav", "what": "pos", "scene": "Farm", "x": 6.11, "z": -41.12, "fresh": true, "secs": 1.5}
+{"t": 1793297928.09, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 13]}
+{"t": 1793297925.56, "type": "call", "start": 1793297925.56, "end": 1793297929.74, "cmd": "pos"}
+{"t": 1793297940.49, "type": "activity", "what": "go", "target": "go:150:850", "start": 1793297938.5234828, "end": 1793297940.489354, "moved": true}
+{"t": 1793297934.11, "type": "call", "start": 1793297934.11, "end": 1793297944.78, "cmd": "do go:150:850 --look"}
+{"t": 1793297947.2, "type": "nav", "what": "pos", "scene": "Farm", "x": -4.52, "z": -46.99, "fresh": true, "secs": 1.3}
+{"t": 1793297947.69, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 14]}
+{"t": 1793297944.95, "type": "call", "start": 1793297944.95, "end": 1793297949.39, "cmd": "pos"}
+{"t": 1793297957.54, "type": "activity", "what": "go", "target": "go:600:1050", "start": 1793297954.185761, "end": 1793297957.54087, "moved": true}
+{"t": 1793297952.43, "type": "call", "start": 1793297952.43, "end": 1793297961.62, "cmd": "do go:600:1050 --look"}
+{"t": 1793297963.87, "type": "nav", "what": "pos", "scene": "Farm", "x": -8.58, "z": -57.67, "fresh": true, "secs": 1.3}
+{"t": 1793297964.22, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 14]}
+{"t": 1793297961.81, "type": "call", "start": 1793297961.81, "end": 1793297965.69, "cmd": "pos"}
+{"t": 1793297973.81, "type": "activity", "what": "go", "target": "go:1000:1060", "start": 1793297970.754326, "end": 1793297973.8077838, "moved": true}
+{"t": 1793297968.92, "type": "call", "start": 1793297968.92, "end": 1793297978.05, "cmd": "do go:1000:1060 --look"}
+{"t": 1793297980.29, "type": "nav", "what": "pos", "scene": "Farm", "x": -8.13, "z": -68.54, "fresh": true, "secs": 1.3}
+{"t": 1793297980.76, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 15]}
+{"t": 1793297978.25, "type": "call", "start": 1793297978.25, "end": 1793297982.13, "cmd": "pos"}
+{"t": 1793297990.19, "type": "activity", "what": "go", "target": "go:1000:1060", "start": 1793297987.029779, "end": 1793297990.1936378, "moved": true}
+{"t": 1793297985.15, "type": "call", "start": 1793297985.15, "end": 1793297997.07, "cmd": "do go:1000:1060 --look"}
+{"t": 1793297999.25, "type": "nav", "what": "pos", "scene": "Farm", "x": -7.69, "z": -79.41, "fresh": true, "secs": 1.3}
+{"t": 1793298002.77, "type": "nav", "what": "fill-pin", "scene": "Farm", "cell": ["map", 13, 16], "pin": [543, 626]}
+{"t": 1793297997.24, "type": "call", "start": 1793297997.24, "end": 1793298004.33, "cmd": "pos"}
+{"t": 1793298012.9, "type": "activity", "what": "go", "target": "go:1300:1060", "start": 1793298010.6808078, "end": 1793298012.89231, "moved": true}
+{"t": 1793298008.82, "type": "call", "start": 1793298008.82, "end": 1793298017.14, "cmd": "do go:1300:1060 --look"}
+{"t": 1793298019.31, "type": "nav", "what": "pos", "scene": "Farm", "x": -3.89, "z": -90.29, "fresh": true, "secs": 1.3}
+{"t": 1793298019.87, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 16]}
+{"t": 1793298017.34, "type": "call", "start": 1793298017.34, "end": 1793298021.39, "cmd": "pos"}
+{"t": 1793298030.05, "type": "activity", "what": "go", "target": "go:700:1060", "start": 1793298027.500007, "end": 1793298030.0480409, "moved": true}
+{"t": 1793298025.52, "type": "call", "start": 1793298025.52, "end": 1793298034.81, "cmd": "do go:700:1060 --look"}
+{"t": 1793298037.14, "type": "nav", "what": "pos", "scene": "Farm", "x": -6.8, "z": -101.16, "fresh": true, "secs": 1.3}
+{"t": 1793298040.67, "type": "nav", "what": "fill-pin", "scene": "Farm", "cell": ["map", 13, 17], "pin": [546, 677]}
+{"t": 1793298035.01, "type": "call", "start": 1793298035.01, "end": 1793298043.7, "cmd": "pos"}
+{"t": 1793298052.42, "type": "activity", "what": "go", "target": "go:1500:1050", "start": 1793298050.728631, "end": 1793298052.4123971, "moved": false}
+{"t": 1793298049.67, "type": "call", "start": 1793298049.67, "end": 1793298060.15, "cmd": "do go:1500:1050 --look"}
+{"t": 1793298065.53, "type": "nav", "what": "pos", "scene": "Farm", "x": -6.8, "z": -101.16, "fresh": false, "secs": 4.3}
+{"t": 1793298060.38, "type": "call", "start": 1793298060.38, "end": 1793298066.94, "cmd": "pos"}
+{"t": 1793298075.41, "type": "activity", "what": "go", "target": "go:1400:900", "start": 1793298071.536101, "end": 1793298075.406821, "moved": true}
+{"t": 1793298079.1, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -45.57, "z": -2.8, "fresh": true, "secs": 1.5}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [GAME] ChangeScene RuralBeach/LinkFarm"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] PotatoSeed = growing.5"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.PotatoSeed = 89"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.PotatoSeed = 6"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] PotatoSeed = growing.5"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.PotatoSeed = 90"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.PotatoSeed = 6"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] CarrotSeed = growing.2"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.CarrotSeed = 42"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.CarrotSeed = 3"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] CarrotSeed = growing.2"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.CarrotSeed = 43"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.CarrotSeed = 3"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] WheatSeed = growing.5"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.WheatSeed = 69"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.WheatSeed = 6"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] WheatSeed = growing.5"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.WheatSeed = 70"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.WheatSeed = 6"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] WheatSeed = growing.5"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.WheatSeed = 71"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.WheatSeed = 6"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] PotatoSeed = growing.5"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.PotatoSeed = 91"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.PotatoSeed = 6"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] PotatoSeed = growing.5"}
+{"t": 1793298082.78, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.PotatoSeed = 92"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.PotatoSeed = 6"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] WheatSeed = growing.5"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.WheatSeed = 72"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.WheatSeed = 6"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] CarrotSeed = growing.2"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.CarrotSeed = 44"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.CarrotSeed = 3"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] CarrotSeed = growing.2"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.CarrotSeed = 45"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.CarrotSeed = 3"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] PotatoSeed = growing.5"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.PotatoSeed = 93"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.PotatoSeed = 6"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] PotatoSeed = growing.5"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.PotatoSeed = 94"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.PotatoSeed = 6"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] PotatoSeed = growing.5"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.PotatoSeed = 95"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.PotatoSeed = 6"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] PotatoSeed = growing.5"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.PotatoSeed = 96"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.PotatoSeed = 6"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] PotatoSeed = growing.5"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.PotatoSeed = 97"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.PotatoSeed = 6"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] PotatoSeed = growing.5"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.PotatoSeed = 98"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.PotatoSeed = 6"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] WheatSeed = growing.5"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.WheatSeed = 73"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.WheatSeed = 6"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] PotatoSeed = growing.5"}
+{"t": 1793298082.79, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.PotatoSeed = 99"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.PotatoSeed = 6"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] PotatoSeed = growing.5"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.PotatoSeed = 100"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.PotatoSeed = 6"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] CarrotSeed = growing.2"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.CarrotSeed = 46"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.CarrotSeed = 3"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] CarrotSeed = growing.2"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.CarrotSeed = 47"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.CarrotSeed = 3"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] WheatSeed = growing.5"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] totalPlanted.WheatSeed = 74"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [STATS] growing.WheatSeed = 6"}
+{"t": 1793298082.8, "type": "game", "line": "[D148 9:04:43 AM] [MODE] Spawning player at RuralBeach/LinkFarm"}
+{"t": 1793298069.71, "type": "call", "start": 1793298069.71, "end": 1793298083.08, "cmd": "do go:1400:900 --look"}
+{"t": 1793298088.08, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -45.57, "z": -2.8, "fresh": false, "secs": 4.3}
+{"t": 1793298088.39, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": null}
+{"t": 1793298083.14, "type": "call", "start": 1793298083.14, "end": 1793298089.94, "cmd": "pos"}
+{"t": 1793298092.65, "type": "call", "start": 1793298092.65, "end": 1793298092.87, "cmd": "look"}
+{"t": 1793298108.04, "type": "activity", "what": "go", "target": "go:1750:1000", "start": 1793298101.550313, "end": 1793298108.039904, "moved": true}
+{"t": 1793298099.67, "type": "call", "start": 1793298099.67, "end": 1793298119.94, "cmd": "do go:1750:1000 --look"}
+{"t": 1793298122.58, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -36.34, "z": -12.4, "fresh": true, "secs": 1.6}
+{"t": 1793298122.97, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": null}
+{"t": 1793298120.11, "type": "call", "start": 1793298120.11, "end": 1793298124.61, "cmd": "pos"}
+{"t": 1793298132.22, "type": "activity", "what": "go", "target": "go:1850:780", "start": 1793298129.706642, "end": 1793298132.224144, "moved": true}
+{"t": 1793298127.86, "type": "call", "start": 1793298127.86, "end": 1793298136.26, "cmd": "do go:1850:780 --look"}
+{"t": 1793298138.54, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -23.96, "z": -16.21, "fresh": true, "secs": 1.3}
+{"t": 1793298138.79, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": null}
+{"t": 1793298136.47, "type": "call", "start": 1793298136.47, "end": 1793298140.31, "cmd": "pos"}
+{"t": 1793298143.5, "type": "call", "start": 1793298143.5, "end": 1793298148.89, "cmd": "do key:m wait:1 --look"}
+{"t": 1793298167.07, "type": "activity", "what": "go", "target": "go:1750:620", "start": 1793298158.4881039, "end": 1793298167.069288, "moved": true}
+{"t": 1793298154.93, "type": "call", "start": 1793298154.93, "end": 1793298181.7, "cmd": "do key:escape wait:1 go:1750:620 --look"}
+{"t": 1793298184.08, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -11.2, "z": -14.9, "fresh": true, "secs": 1.3}
+{"t": 1793298184.35, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": null}
+{"t": 1793298181.94, "type": "call", "start": 1793298181.94, "end": 1793298185.8, "cmd": "pos"}
+{"t": 1793298196.43, "type": "activity", "what": "go", "target": "go:1550:300", "start": 1793298191.006786, "end": 1793298196.429708, "moved": true}
+{"t": 1793298189.39, "type": "call", "start": 1793298189.39, "end": 1793298201.1, "cmd": "do go:1550:300 --look"}
+{"t": 1793298203.49, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 2.89, "z": 7.19, "fresh": true, "secs": 1.5}
+{"t": 1793298203.99, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": null}
+{"t": 1793298201.3, "type": "call", "start": 1793298201.3, "end": 1793298205.61, "cmd": "pos"}
+{"t": 1793298225.5, "type": "activity", "what": "go", "target": "go:1400:290", "start": 1793298211.0927172, "end": 1793298225.500031, "moved": true}
+{"t": 1793298232.61, "type": "game", "line": "[D148 10:05:01 AM] [STATS] game.CharactersMet = 17"}
+{"t": 1793298209.4, "type": "call", "start": 1793298209.4, "end": 1793298232.83, "cmd": "do go:1400:290 --look"}
+{"t": 1793298235.59, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 2.89, "z": 7.19, "fresh": true, "secs": 1.5}
+{"t": 1793298236.01, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": null}
+{"t": 1793298233.13, "type": "call", "start": 1793298233.13, "end": 1793298237.33, "cmd": "pos"}
+{"t": 1793298270.85, "type": "game", "line": "[D148 10:05:01 AM] [QUEST] Complete goal BuildRanch:meet day 148"}
+{"t": 1793298270.85, "type": "game", "line": "[D148 10:05:01 AM] [QUEST] Complete quest BuildRanch day 148"}
+{"t": 1793298270.85, "type": "game", "line": "[D148 10:05:01 AM] [QUEST] Start quest MartyChickens day 148"}
+{"t": 1793298238.95, "type": "call", "start": 1793298238.95, "end": 1793298271.81, "cmd": "advance"}
+{"t": 1793298280.38, "type": "end", "result": "done", "text": "Marty welcomed, BuildRanch complete"}

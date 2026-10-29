@@ -1,0 +1,67 @@
+{
+ "places": {
+  "farmhouse": [
+   712,
+   480
+  ],
+  "farm-garden": [
+   600,
+   470
+  ],
+  "barn": [
+   780,
+   660
+  ],
+  "ruined-ranch": [
+   430,
+   540
+  ],
+  "town-farm-exit": [
+   905,
+   585
+  ],
+  "town-hall": [
+   1022,
+   612
+  ],
+  "fountain-square": [
+   1030,
+   770
+  ],
+  "nailed-it": [
+   1200,
+   600
+  ],
+  "beach": [
+   360,
+   820
+  ],
+  "woods": [
+   1380,
+   420
+  ],
+  "farm-gate": [
+   712,
+   530
+  ]
+ },
+ "fits": {
+  "Farm": {
+   "a": 0.16267806708524532,
+   "b": -95.22648146944505,
+   "c": -0.4301840158367772,
+   "d": 190.59876421119557,
+   "n": 7,
+   "err": 1.15
+  },
+  "Town": {
+   "a": 0.4108944907915737,
+   "b": -419.5982028457263,
+   "c": -0.34785643564361113,
+   "d": 270.8327425742876,
+   "n": 5,
+   "err": 3.98
+  }
+ },
+ "_doc": "L4 map layer. places: map px (1920x1080 frame, map open with M) of named places, seeded by hand + `wf where --learn`. fits: per outdoor scene, world x = a*mx + b, z = c*my + d (cache, derived from pin facts). Indoor areas have no map layer."
+}

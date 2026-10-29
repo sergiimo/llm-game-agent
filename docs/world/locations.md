@@ -8,6 +8,7 @@ The Farm serves as Tara's home base throughout the game and supports crafting in
 **Connections:** Town Center (upper right; exits next to Blacksmith); Beach (bottom left; exits north of Thomas's farm); Mountain Overpass (top left, once unlocked); Mine (following the path along the left side of screen, once unlocked); Ravenwood Hollow (mid-left, once unlocked)
 **Forage:** Mushroom (Lower grassy areas and grass patch to the left of Mountain entrance, Year-round); Poppy Flower (Lower-right grassy area, Summer and Fall); Thistle (Lower-right grassy area, Year-round); Toadstool (Lower grassy areas and grass patch to the left of Mountain entrance, Year-round); Weed (Lower grassy areas, Year-round)
 **Residents:** Gramma, Tara Wylde
+**Verified (D148):** Farm → Beach: from the farmhouse take the dirt road south past the signpost with the palm icon, then south; the scene changes to `RuralBeach` (spawn `RuralBeach/LinkFarm`). It is not at the screen's bottom-left. The world graph knows this link now (`./wf plan RuralBeach/LinkFarm`).
 
 ## Town Center
 - **Dahl General Store (Lina)** ✅ (exit: `./wf route lina-shop-to-fountain-se`, then `town-square-to-farm`): the **brick corner building left of Kai's striped stall**, on the west side of the
@@ -29,6 +30,7 @@ The Beach consists of two upper and two lower areas. The upper left and right ar
 **Connections:** Farm (upper left; exits to the Farm's southwest); Town Center (upper right; exits next to Kim's Local Butcher and Deli & lower right; exits next to The Bar)
 **Forage:** Banana (Lower left and right areas, Year-round); Blueberry (Three bushes surrounding the lighthouse (upper right area), Summer, Spring, and Fall); Coconut (Lower left and right areas, Year-round); Conch Shell (Lower left and right areas, Year-round); Pearl (Lower left and right areas, Year-round); Seaweed (Lower left and right areas, Year-round); Seashell (Lower left and right areas, Year-round); Witch Weed (Below Thomas's farm, Spring and Summer); Heather (Below Thomas’s farm, Fall and Winter)
 **Businesses:** The Hayseed Homestead; Thomas's Farm
+**Verified (D148):** in game the scene is `RuralBeach`. **The ranch (Marty)**: from `RuralBeach/LinkFarm` east along Thomas's fenced orchard, then up the path along the farm's east fence: white picket fence, veranda house, sheep pasture (log `OnPlayerEnterRanch`).
 **Residents:** Thomas Lightfoot, Kim Izumi, Damon Mthembu-Haas, Kai Hoapili, Cameron Conner, Amira Syed, Marty Emerson
 
 ## Woods

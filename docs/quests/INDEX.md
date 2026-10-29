@@ -84,12 +84,12 @@ To change a status or add the internal id (seen in `./wf log`), edit the quest f
 | · | [Tying The Knot, Fairhaven Style](romance/tying-the-knot-fairhaven-style.md) |  |  | Talk to Lina at the general store to find out about the local Fairhaven proposal custom. ( |
 | · | [You’re Breaking Me Up](romance/youre-breaking-me-up.md) |  |  | Speak to Francis about the proper way to break up with [character]. (from Partner (after n |
 
-## Building (0/10 done)
+## Building (1/10 done)
 
 | | Quest | Id | Season | Summary |
 |---|---|---|---|---|
 | · | [Don't Take Mines For Granite](building/dont-take-mines-for-granite.md) |  |  | Collect wood and stone so that Parker can repair the mine on your farm. (from Natalia Kuzn |
-| · | [Give a Ranch Hand](building/give-a-ranch-hand.md) |  |  | Collect wood, stone, and iron ingots so that Parker can construct the ranch! (from Otto So |
+| ✅ | [Give a Ranch Hand](building/give-a-ranch-hand.md) | BuildRanch |  | Collect wood, stone, and iron ingots so that Parker can construct the ranch! (from Otto So |
 | · | [Patch Things Up](building/patch-things-up.md) |  |  | Parker can seed an additional vegetable patch for you if you bring him enough soil. (from  |
 | · | [All Cooped Up](building/all-cooped-up.md) |  |  | Talk to Parker about building a coop for the chickens. (from Marty Emerson; 3 step(s)) |
 | · | [Shed Happens](building/shed-happens.md) |  |  | Parker can increase the size of your shed if you bring him enough wood. (from Parker; 1 st |

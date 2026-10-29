@@ -1,12 +1,9 @@
 # Progress
 
-> **Summary:** Spring Y1, **Thursday 8:10 am (day 4)**, farm garden at the well (potatoes watered), 42 coins, ⚡94%, 4 soups, 1 mushroom.
-> Game UI English (L48); movement by click-to-move `go:` (L49). Active: Icebreaker (4/22) · From Bud To Spud (ready ~d6) · Steeped in Mystery (moonflower, Woods, at night).
+> **Summary:** Spring Y1, **Monday 10:10 am (day 148)**, Tara at the ranch in RuralBeach (10:10, after Marty's welcome), 5 coins, ⚡200/200. Docs below this line were last updated on day 4; the save (`./wf save`) is the truth. Active (save): MartyChickens (All Cooped Up, new), AngusRecipe, BuildVegetablePatch, GrandmaGifting, IntroIncantation, MayorMeetEveryone, SpringKimMeatAlt, ThomasBeans, VioletBeehives. Routine R1: 11 garden beds WILTED, not watered.
 
 ## Current goal (supervisor-owned; one at a time)
-- **Goal (run #14, first test of click-to-move `go:` in town):** The Most Elaborate Icebreaker: farm → town, meet Angus (bakery),
-  Sophia (Cafe Moretti), Kim (butcher/deli), all in their shops Thu 9–17; record shop locations. Done-signal: log
-  `game.CharactersMet = 7`. Stop by 15:00.
+- ✅ **Done D148 10:10 (run #13):** welcome Marty at the rebuilt ranch (Beach exit, bottom-left of the farm) → quest BuildRanch done. Quest file `docs/quests/building/give-a-ranch-hand.md`. Done-signal: `./wf save` lists BuildRanch under done. Record the run (`./wf run start BuildRanch`) and verified steps.
 
 ## Goal queue
 1. Rice and Shine: 2 mushrooms (farm meadow) → cook risotto at the stove (first cooking test) → give to Gramma.
@@ -37,3 +34,4 @@
 | 2026-10-27 | Wed d3 15:00→18:20 | Runs #10 + resume: shop → farm → meadow; mushroom 1/2; 2nd not pickable here. Session paused (usage limit) | agent-runs #10 |
 | 2026-10-27 | Wed d3 18:40→19:50 | Run #11 killed (blind nudges); supervisor picked mushroom 2/2 in 4 calls; added BLOCKED detection + approach procedure | agent-runs #11, L43 |
 | 2026-10-27 | Wed d3 20:00→23:30 | Run #12: meadow → house, report to Gramma, cooked risotto (first cooking), hand-in → Rice and Shine ✅ | agent-runs #12, L44 |
+| 2026-10-29 | Mon d148 07:00→10:10 | Run #13: farmhouse → RuralBeach → ranch; Marty's welcome cutscene → Give a Ranch Hand ✅ (+ Chicken Coop blueprint); new: All Cooped Up (MartyChickens) | agent-runs #13, L70 |

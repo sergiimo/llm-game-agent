@@ -1,0 +1,42 @@
+{"t": 1793259294.88, "type": "start", "quest": "BuildRanch", "goal": "D146: mailbox, edge replay test, ranch"}
+{"t": 1793259295.12, "type": "call", "start": 1793259295.12, "end": 1793259300.12, "cmd": "resume"}
+{"t": 1793259300.82, "type": "call", "start": 1793259300.82, "end": 1793259301.03, "cmd": "look"}
+{"t": 1793259315.46, "type": "activity", "what": "go", "target": "go:1400:925", "start": 1793259312.5788832, "end": 1793259315.456007, "moved": true}
+{"t": 1793259310.75, "type": "call", "start": 1793259310.75, "end": 1793259320.24, "cmd": "do go:1400:925 --look"}
+{"t": 1793259330.94, "type": "activity", "what": "go", "target": "go:1000:1010", "start": 1793259328.225485, "end": 1793259330.937682, "moved": true}
+{"t": 1793259335.1, "type": "game", "line": "[D146 7:18:18 AM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793259326.27, "type": "call", "start": 1793259326.27, "end": 1793259335.79, "cmd": "do go:1000:1010 --look"}
+{"t": 1793259350.73, "type": "call", "start": 1793259350.73, "end": 1793259352.66, "cmd": "edge add Bed House-door 1400:925 1000:1010"}
+{"t": 1793259356.3, "type": "activity", "what": "go", "target": "go:750:880", "start": 1793259354.392899, "end": 1793259356.3002932, "moved": true}
+{"t": 1793259352.81, "type": "call", "start": 1793259352.81, "end": 1793259359.4, "cmd": "do go:750:880"}
+{"t": 1793259364.08, "type": "call", "start": 1793259364.08, "end": 1793259364.29, "cmd": "look"}
+{"t": 1793259374.7, "type": "activity", "what": "go", "target": "go:990:790", "start": 1793259373.873418, "end": 1793259374.697999, "moved": true}
+{"t": 1793259372.24, "type": "call", "start": 1793259372.24, "end": 1793259378.11, "cmd": "do go:990:790"}
+{"t": 1793259380.91, "type": "activity", "what": "go", "target": "go:985:700", "start": 1793259380.3001301, "end": 1793259380.907626, "moved": true}
+{"t": 1793259378.48, "type": "call", "start": 1793259378.48, "end": 1793259384.95, "cmd": "do go:985:700"}
+{"t": 1793259390.08, "type": "call", "start": 1793259390.08, "end": 1793259390.38, "cmd": "look"}
+{"t": 1793259416.04, "type": "activity", "what": "go", "target": "go:1090:330", "start": 1793259414.4696288, "end": 1793259416.037606, "moved": false}
+{"t": 1793259412.57, "type": "call", "start": 1793259412.57, "end": 1793259417.41, "cmd": "do go:1090:330 --look"}
+{"t": 1793259427.98, "type": "activity", "what": "go", "target": "go:1125:630", "start": 1793259426.788137, "end": 1793259427.981387, "moved": true}
+{"t": 1793259424.94, "type": "call", "start": 1793259424.94, "end": 1793259432.14, "cmd": "do go:1125:630 --look"}
+{"t": 1793259443.52, "type": "activity", "what": "go", "target": "go:945:350", "start": 1793259440.284197, "end": 1793259443.516853, "moved": true}
+{"t": 1793259446.59, "type": "game", "line": "[D146 8:07:37 AM] [TRIGGER] OnEnterBuilding House"}
+{"t": 1793259438.46, "type": "call", "start": 1793259438.46, "end": 1793259446.59, "cmd": "do go:945:350"}
+{"t": 1793259450.01, "type": "call", "start": 1793259450.01, "end": 1793259450.05, "cmd": "look"}
+{"t": 1793259458.99, "type": "activity", "what": "go", "target": "go:960:1040", "start": 1793259457.4806771, "end": 1793259458.989401, "moved": true}
+{"t": 1793259455.29, "type": "call", "start": 1793259455.29, "end": 1793259473.79, "cmd": "do go:960:1040"}
+{"t": 1793259478.08, "type": "call", "start": 1793259478.08, "end": 1793259478.33, "cmd": "look"}
+{"t": 1793259488.21, "type": "activity", "what": "go", "target": "go:1000:1010", "start": 1793259486.309144, "end": 1793259488.202089, "moved": true}
+{"t": 1793259492.83, "type": "game", "line": "[D146 8:25:01 AM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793259484.57, "type": "call", "start": 1793259484.57, "end": 1793259492.84, "cmd": "do go:1000:1010"}
+{"t": 1793259498.87, "type": "call", "start": 1793259498.87, "end": 1793259500.75, "cmd": "edge add House House-door 960:1040 1000:1010"}
+{"t": 1793259500.93, "type": "call", "start": 1793259500.93, "end": 1793259501.09, "cmd": "look"}
+{"t": 1793259512.65, "type": "activity", "what": "go", "target": "go:962:1050", "start": 1793259509.873376, "end": 1793259512.6502678, "moved": true}
+{"t": 1793259507.97, "type": "call", "start": 1793259507.97, "end": 1793259517.61, "cmd": "do go:962:1050 --look"}
+{"t": 1793259537.63, "type": "activity", "what": "go", "target": "go:1450:760", "start": 1793259534.758601, "end": 1793259537.629745, "moved": true}
+{"t": 1793259532.39, "type": "call", "start": 1793259532.39, "end": 1793259539.33, "cmd": "do go:1450:760 --look"}
+{"t": 1793259546.26, "type": "activity", "what": "go", "target": "go:1850:715", "start": 1793259544.6486201, "end": 1793259546.2562041, "moved": false}
+{"t": 1793259601.22, "type": "call", "start": 1793259601.22, "end": 1793259605.77, "cmd": "pause"}
+{"t": 1793259708.52, "type": "routine", "status": ["R1 water garden: DUE 0/11 beds watered today · 11 WILTED: water first", "R2 harvest ripe crops: DUE 1 ripe per save, 0 harvested today"]}
+{"t": 1793259733.87, "type": "call", "start": 1793259733.87, "end": 1793259738.74, "cmd": "state"}
+{"t": 1793259747.94, "type": "end", "result": "stopped", "text": "routines built; watering dispatched to an agent"}

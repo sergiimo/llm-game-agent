@@ -1,0 +1,57 @@
+{"t": 1793255351.56, "type": "start", "quest": "BuildRanch", "goal": "sleep, letter, meet Marty"}
+{"t": 1793255353.33, "type": "call", "start": 1793255353.33, "end": 1793255383.98, "cmd": "do key:escape"}
+{"t": 1793255384.08, "type": "call", "start": 1793255384.08, "end": 1793255384.14, "cmd": "look"}
+{"t": 1793255385.67, "type": "call", "start": 1793255385.67, "end": 1793255385.89, "cmd": "state"}
+{"t": 1793255385.92, "type": "call", "start": 1793255385.92, "end": 1793255387.27, "cmd": "do key:escape --look"}
+{"t": 1793255393.54, "type": "activity", "what": "go", "target": "go:875:1030", "start": 1793255392.410414, "end": 1793255393.5353549, "moved": true}
+{"t": 1793255391.51, "type": "call", "start": 1793255391.51, "end": 1793255394.9, "cmd": "do go:875:1030 --look"}
+{"t": 1793255401.28, "type": "activity", "what": "go", "target": "go:750:960", "start": 1793255399.2189429, "end": 1793255401.283385, "moved": true}
+{"t": 1793255402.66, "type": "game", "line": "[D145 4:59:28 PM] [TRIGGER] OnExitBuilding Carpenter"}
+{"t": 1793255398.43, "type": "call", "start": 1793255398.43, "end": 1793255402.7, "cmd": "do go:750:960 --look"}
+{"t": 1793255407.83, "type": "activity", "what": "go", "target": "go:80:850", "start": 1793255405.348531, "end": 1793255407.8278441, "moved": true}
+{"t": 1793255404.61, "type": "call", "start": 1793255404.61, "end": 1793255409.2, "cmd": "do go:80:850 --look"}
+{"t": 1793255415.16, "type": "activity", "what": "go", "target": "go:200:480", "start": 1793255411.992654, "end": 1793255415.164594, "moved": true}
+{"t": 1793255411.24, "type": "call", "start": 1793255411.24, "end": 1793255416.52, "cmd": "do go:200:480 --look"}
+{"t": 1793255423.86, "type": "activity", "what": "go", "target": "go:700:300", "start": 1793255419.8672168, "end": 1793255423.857192, "moved": true}
+{"t": 1793255419.12, "type": "call", "start": 1793255419.12, "end": 1793255425.17, "cmd": "do go:700:300 --look"}
+{"t": 1793255426.96, "type": "call", "start": 1793255426.96, "end": 1793255428.25, "cmd": "do key:m --look"}
+{"t": 1793255432.42, "type": "activity", "what": "go", "target": "go:300:620", "start": 1793255430.841669, "end": 1793255432.4234471, "moved": false}
+{"t": 1793255430.26, "type": "call", "start": 1793255430.26, "end": 1793255433.71, "cmd": "do key:escape go:300:620 --look"}
+{"t": 1793255439.09, "type": "activity", "what": "go", "target": "go:330:680", "start": 1793255437.048977, "end": 1793255439.092386, "moved": true}
+{"t": 1793255436.31, "type": "call", "start": 1793255436.31, "end": 1793255440.5, "cmd": "do go:330:680 --look"}
+{"t": 1793255448.99, "type": "activity", "what": "go", "target": "go:1500:900", "start": 1793255446.7987242, "end": 1793255448.9927838, "moved": true}
+{"t": 1793255446.04, "type": "call", "start": 1793255446.04, "end": 1793255450.43, "cmd": "do go:1500:900 --look"}
+{"t": 1793255457.01, "type": "activity", "what": "go", "target": "go:1650:1050", "start": 1793255453.427757, "end": 1793255457.0146508, "moved": true}
+{"t": 1793255452.7, "type": "call", "start": 1793255452.7, "end": 1793255458.37, "cmd": "do go:1650:1050 --look"}
+{"t": 1793255464.44, "type": "activity", "what": "go", "target": "go:500:1060", "start": 1793255461.144746, "end": 1793255464.442531, "moved": true}
+{"t": 1793255460.38, "type": "call", "start": 1793255460.38, "end": 1793255465.72, "cmd": "do go:500:1060 --look"}
+{"t": 1793255470.91, "type": "activity", "what": "go", "target": "go:50:760", "start": 1793255468.2030458, "end": 1793255470.911346, "moved": true}
+{"t": 1793255467.45, "type": "call", "start": 1793255467.45, "end": 1793255472.37, "cmd": "do go:50:760 --look"}
+{"t": 1793255477.75, "type": "activity", "what": "go", "target": "go:30:690", "start": 1793255475.025711, "end": 1793255477.7511501, "moved": true}
+{"t": 1793255474.27, "type": "call", "start": 1793255474.27, "end": 1793255479.4, "cmd": "do go:30:690 --look"}
+{"t": 1793255484.85, "type": "activity", "what": "go", "target": "go:60:640", "start": 1793255482.153882, "end": 1793255484.848726, "moved": true}
+{"t": 1793255481.4, "type": "call", "start": 1793255481.4, "end": 1793255486.23, "cmd": "do go:60:640 --look"}
+{"t": 1793255491.27, "type": "activity", "what": "go", "target": "go:30:640", "start": 1793255488.568738, "end": 1793255491.2649522, "moved": true}
+{"t": 1793255487.81, "type": "call", "start": 1793255487.81, "end": 1793255492.62, "cmd": "do go:30:640 --look"}
+{"t": 1793255497.56, "type": "activity", "what": "go", "target": "go:950:1050", "start": 1793255495.5329468, "end": 1793255497.5629408, "moved": true}
+{"t": 1793255494.8, "type": "call", "start": 1793255494.8, "end": 1793255498.96, "cmd": "do go:950:1050 --look"}
+{"t": 1793255508.45, "type": "activity", "what": "go", "target": "go:60:230", "start": 1793255502.242578, "end": 1793255508.4469671, "moved": true}
+{"t": 1793255501.43, "type": "call", "start": 1793255501.43, "end": 1793255509.89, "cmd": "do go:60:230 --look"}
+{"t": 1793255514.1, "type": "activity", "what": "go", "target": "go:130:330", "start": 1793255512.529168, "end": 1793255514.1023738, "moved": false}
+{"t": 1793255512.23, "type": "call", "start": 1793255512.23, "end": 1793255515.54, "cmd": "do go:130:330 --look"}
+{"t": 1793255523.23, "type": "activity", "what": "go", "target": "go:280:345", "start": 1793255518.683556, "end": 1793255523.23329, "moved": true}
+{"t": 1793255517.9, "type": "call", "start": 1793255517.9, "end": 1793255524.54, "cmd": "do go:280:345 --look"}
+{"t": 1793255528.53, "type": "activity", "what": "go", "target": "go:250:700", "start": 1793255526.940408, "end": 1793255528.53174, "moved": false}
+{"t": 1793255526.66, "type": "call", "start": 1793255526.66, "end": 1793255529.89, "cmd": "do go:250:700 --look"}
+{"t": 1793255534.69, "type": "activity", "what": "go", "target": "go:330:600", "start": 1793255533.141033, "end": 1793255534.6943722, "moved": false}
+{"t": 1793255532.84, "type": "call", "start": 1793255532.84, "end": 1793255536.08, "cmd": "do go:330:600 --look"}
+{"t": 1793255540.64, "type": "activity", "what": "go", "target": "go:660:640", "start": 1793255538.942549, "end": 1793255540.639047, "moved": false}
+{"t": 1793255538.3, "type": "call", "start": 1793255538.3, "end": 1793255542.0, "cmd": "do go:660:640 --look"}
+{"t": 1793255546.87, "type": "activity", "what": "go", "target": "go:520:560", "start": 1793255545.203244, "end": 1793255546.873497, "moved": false}
+{"t": 1793255544.71, "type": "call", "start": 1793255544.71, "end": 1793255548.2, "cmd": "do go:520:560 --look"}
+{"t": 1793255555.47, "type": "activity", "what": "go", "target": "go:900:420", "start": 1793255555.0414, "end": 1793255555.468778, "moved": true}
+{"t": 1793255554.1, "type": "call", "start": 1793255554.1, "end": 1793255556.58, "cmd": "do go:900:420 --look"}
+{"t": 1793255564.49, "type": "activity", "what": "go", "target": "go:560:880", "start": 1793255562.817566, "end": 1793255564.491494, "moved": false}
+{"t": 1793255562.24, "type": "call", "start": 1793255562.24, "end": 1793255565.81, "cmd": "do go:560:880 --look"}
+{"t": 1793255574.01, "type": "call", "start": 1793255574.01, "end": 1793255574.17, "cmd": "state"}
+{"t": 1793255574.23, "type": "end", "result": "stopped", "text": "supervisor: wandering in town without a route; navigation fix"}

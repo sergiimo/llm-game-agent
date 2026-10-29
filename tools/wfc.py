@@ -9,7 +9,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOCK = os.path.join(os.environ.get('WF_SHOT_DIR', os.path.join(ROOT, '.shots')), 'wf.sock')
 PY = os.path.join(ROOT, '.venv', 'bin', 'python')
 WF = os.path.join(ROOT, 'tools', 'wf.py')
-LOCAL_ONLY = {'serve', 'wiki', 'wait', 'tips', 'actions', 'run', 'learn'}
+LOCAL_ONLY = {'serve', 'wiki', 'wait', 'tips', 'actions', 'run', 'learn', 'routines'}
 
 
 def via_daemon(argv):
@@ -31,7 +31,7 @@ def via_daemon(argv):
 def log_call(argv):
     """Append each call to .shots/actions.log (`<unix time>\t<args>`); tools/record.py shows it as a caption.
     Returns the start time (None if not logged); log_end() then writes `<start>\t<end>` to actions_done.log."""
-    if argv and argv[0] not in ('stop', 'status', 'log', 'save', 'wiki', 'tips', 'actions', 'run', 'learn', '-h', '--help'):
+    if argv and argv[0] not in ('stop', 'status', 'log', 'save', 'wiki', 'tips', 'actions', 'run', 'learn', 'routines', '-h', '--help'):
         try:
             import time
             t = round(time.time(), 2)
@@ -76,9 +76,19 @@ def main():
             log_end(start, argv)
             return code
         except (OSError, ValueError):
-            # start the daemon for next time, run this call locally
+            # start the daemon and send this call to it: a process run straight from some shells lacks the
+            # Screen Recording grant the daemon has (macOS attributes permissions by launching process)
+            import time
             log = open(os.path.join(os.path.dirname(SOCK), 'daemon.log'), 'a')
             subprocess.Popen([PY, WF, 'serve'], stdout=log, stderr=log, start_new_session=True)
+            for _ in range(60):
+                time.sleep(0.25)
+                try:
+                    code = via_daemon(argv)
+                    log_end(start, argv)
+                    return code
+                except (OSError, ValueError):
+                    pass
     os.execv(PY, [PY, WF] + argv)
 
 

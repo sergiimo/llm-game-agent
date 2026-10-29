@@ -893,6 +893,16 @@ def learn_report():
                 o['picked'].append(0)
             elif 'grab_item' in line and cur:
                 obs[cur]['picked'][-1] += 1
+    print('road colour sets (area:light): ' + ', '.join(f'{k} ({v.get("samples", 0)} samples)' for k, v in road_sets().items()))
+    print(f'remembered hops (taught by the model): {len(hops())}')
+    asks = {}
+    for f in sorted(os.listdir(RUNS_DIR)) if os.path.isdir(RUNS_DIR) else []:
+        for l in open(os.path.join(RUNS_DIR, f)):
+            e = json.loads(l)
+            if e.get('type') == 'vision' and e.get('what') == 'ask':
+                asks[f] = asks.get(f, 0) + 1
+    if asks:
+        print('model questions per run: ' + ', '.join(f'{f[:-6]} {n}' for f, n in asks.items()))
     if obs:
         print('observed in run logs (target: destroyed · hits each · pickups after each) → compare docs/actions.md Expect:')
         for k, o in sorted(obs.items()):
@@ -957,7 +967,11 @@ def run_path():
 
 
 def run_log(type_, **kw):
-    """Append one event to the current run (no-op when no run is open)."""
+    """Append one event to the current run (no-op when no run is open); nav events also always go to
+    tools/nav/events.jsonl, so a skip is never silent."""
+    if type_ == 'nav':
+        import nav
+        nav.event(**{k: v for k, v in kw.items() if k != 't'})
     p = run_path()
     if p:
         with open(p, 'a') as f:
@@ -1146,6 +1160,7 @@ def go_to(x, y, timeout=15.0, interval=0.15):
     Arrival = Tara's own activity stops (Tara tracker, L52), not the whole screen: water/NPCs don't delay it."""
     tr = Tara()
     tr.update(_frame())
+    mark = log_mark()
     click(int(x), int(y))
     t0, moved, t_act = time.time(), False, None
     while time.time() - t0 < timeout:
@@ -1158,14 +1173,17 @@ def go_to(x, y, timeout=15.0, interval=0.15):
     else:
         run_log('activity', what='go', target=f'go:{x}:{y}', start=t_act or t0, end=time.time(), moved=moved,
                 note='still moving at timeout')
+        note_click(x, y, None, mark)
         return f'STILL MOVING after {timeout:.0f}s (long path?): check with look'
     if os.environ.get('WF_DEBUG_MOVE'):
         print(f'go: tara {"moved" if moved else "idle"} in {time.time() - t0:.1f}s, conf {tr.conf:.2f}, '
               f'acts {" ".join(f"{a:.0f}" for a in tr.acts)}')
         tr.debug_shot(grab())
     run_log('activity', what='go', target=f'go:{x}:{y}', start=t_act or t0, end=time.time(), moved=moved)
+    b = None if moved else find_bubble(grab())
+    if not b:  # ALREADY THERE = no walk, nothing to learn
+        note_click(x, y, moved, mark)
     if not moved:
-        b = find_bubble(grab())
         if b:  # she was already at the clicked object: its prompt is showing
             return f'ALREADY THERE (no walk needed; bubble@{b[0]},{b[1]})'
         return (f'NO MOVE go:{x}:{y}: not walkable (wall, furniture, water, off-map, or a menu is open). Click a '
@@ -1173,10 +1191,1287 @@ def go_to(x, y, timeout=15.0, interval=0.15):
     return None
 
 
+# ---------------------------------------------------------------- exact position + navigation learning loop (L62)
+# The game autosaves when it goes to the background (only if something changed, e.g. Tara moved), and the save
+# holds the engine's world position. pos() = background the game for a moment, read the fresh save, focus back.
+# Learning loop (docs/superpowers/specs/2026-10-29-nav-learning-loop-design.md): go: clicks build a segment from the
+# last reading; a checkpoint takes a reading and appends one fact (predicted vs measured) to tools/nav/facts.jsonl.
+# Calibration (screen point -> world offset from Tara, one homography per area: the camera never rotates), place
+# positions, blocked spots and edge status are derived from the facts by tools/nav.py. Storage: one folder per
+# scene (each scene has its own coordinates, L65), see tools/nav.py.
+POS_AWAY_APP = 'com.apple.finder'         # where focus goes for the save when no previous app is known
+CALIB_MOVES = [(250, 0), (-250, 0), (0, 180), (0, -180), (200, 150), (-200, -150), (-200, 150), (200, -150)]
+CALIB_MAX_ERR = 0.3                       # world units: a worse own fit is not saved (outdoors borrows the shared camera)
+CALIB_SMALL = [(150, 100), (-150, -100), (0, 160), (0, -160), (-100, 120), (100, -120), (200, 40), (-200, -40)]  # indoors
+SEG_FILE = os.path.join(SHOT_DIR, 'nav_segment.json')
+SCENE_EVENT = r'ChangeScene|Spawning player|OnEnterBuilding|OnExitBuilding'
+ARRIVE_UNITS = 0.8                        # world units: close enough to a go-world target
+HOP_BOX = (200, 200, 1720, 980)           # clicks stay inside this screen box (HUD, edges)
+
+
+def save_pos(path=None):
+    """{'scene','x','y','z','day','hour','season','weather','count','age','path'} from a save (default: latest)."""
+    path, s = read_save(path)
+    p = s.get('currentPlayerPosition') or {}
+    t = s['gameState']['time']
+    sec = t['timeOfDay']['totalSeconds']
+    wd = t.get('weatherDays') or ['?']
+    event = (t.get('weatherEventStartTime') or {}).get('totalSeconds', -1) <= sec <= \
+        (t.get('weatherEventEndTime') or {}).get('totalSeconds', -1)
+    return {'scene': s.get('currentScene'), 'x': p.get('x', 0.0), 'y': p.get('y', 0.0), 'z': p.get('z', 0.0),
+            'day': t['day'], 'hour': round(sec / 3600, 2), 'season': t.get('season'),
+            'weather': f'w{wd[0]}' + ('-event' if event else ''),
+            'count': s.get('saveCount'), 'age': time.time() - os.path.getmtime(path), 'path': path}
+
+
+def pos(refocus=None, timeout=3.5):
+    """Exact world position now: game to the background -> wait for the autosave -> read it -> focus back
+    (refocus default: focus-mode front). 'fresh' False = no new save came (nothing changed since the last one,
+    so the last save's position should still hold)."""
+    global _PREV_APP
+    before = latest_save()
+    m0 = _mtime(before) if before else 0
+    away = _PREV_APP if _PREV_APP and _PREV_APP != BUNDLE_ID else POS_AWAY_APP
+    subprocess.run(['open', '-b', away], check=False)
+    _PREV_APP = None
+    t0, fresh = time.time(), False
+    while time.time() - t0 < timeout:
+        time.sleep(0.2)
+        cur = latest_save()
+        if cur and (cur != before or _mtime(cur) > m0):
+            fresh = True
+            time.sleep(0.3)  # let the write finish
+            break
+    for _ in range(5):
+        try:
+            p = save_pos()
+            break
+        except (ValueError, OSError, subprocess.CalledProcessError):  # caught mid-write
+            time.sleep(0.3)
+    else:
+        raise RuntimeError('pos: latest save unreadable')
+    if refocus if refocus is not None else keep_front():
+        focus()
+        _PREV_APP = away  # release_focus (background mode) gives focus back there at the end of the command
+    p['fresh'] = fresh
+    run_log('nav', what='pos', scene=p['scene'], x=round(p['x'], 2), z=round(p['z'], 2), fresh=fresh,
+            secs=round(time.time() - t0, 1))
+    return p
+
+
+def calib_load(scene):
+    import nav
+    return nav.calib_load(scene)
+
+
+def _seg():
+    try:
+        return json.load(open(SEG_FILE))
+    except (OSError, ValueError):
+        return {'from': None, 'clicks': [], 'dirty': False}
+
+
+def _seg_save(s):
+    json.dump(s, open(SEG_FILE, 'w'))
+
+
+def seg_dirty():
+    """An input that may move Tara without a go: click (Space, act, click:, text:): no prediction for this segment."""
+    s = _seg()
+    if s['from'] and not s['dirty']:
+        s['dirty'] = True
+        _seg_save(s)
+
+
+def seg_from():
+    """(scene, x, z) of the last reading: the exit point when the scene has no calibration to dead-reckon with."""
+    fr = _seg()['from']
+    return (fr['scene'], fr['x'], fr['z']) if fr else None
+
+
+def seg_estimate():
+    """(scene, x, z) dead-reckoned from the last reading + this segment's clicks, or None when unknown."""
+    import nav
+    s = _seg()
+    fr = s['from']
+    c = fr and calib_load(fr['scene'])
+    if not c or s['dirty']:
+        return None
+    x, z = nav.predict(c['H'], (fr['x'], fr['z']), s['clicks'])
+    return fr['scene'], x, z
+
+
+def refit(scene):
+    """Recompute the area's calibration from all clean facts (auto, L62); cached in tools/nav/<area>/calib.json."""
+    import nav
+    fit = nav.fit_robust(nav.calib_samples(nav.load(), scene))
+    if not fit or fit['err'] > CALIB_MAX_ERR:  # long pathfinding walks aren't straight: keep borrowing (D148 RuralBeach)
+        return None
+    fit['day'] = time.strftime('%Y-%m-%d')
+    nav.calib_save(scene, fit)
+    return fit
+
+
+def place_print(img=None):
+    """Feature print of the game view without the HUD (place fingerprint, phase 2)."""
+    from PIL import Image
+    img = (img or _frame()).crop((0, 180, FRAME_W, FRAME_H)).resize((640, 300), Image.BILINEAR)
+    import numpy as np
+    return np.asarray(_featureprint(img), np.float32)
+
+
+def area():
+    """'<scene>' outdoors, '<scene>/<building>' inside (from the log; the save only knows the scene)."""
+    inside = current_scene()
+    try:
+        scene = save_pos()['scene']
+    except Exception:  # save mid-write
+        return inside
+    return scene if inside in (None, scene) else f'{scene}/{inside}'
+
+
+def img_locate(scene=None, img=None):
+    """Image-only position guess: ({'pred': [x, z], 'd'}, vector) or (None, vector)."""
+    import nav
+    v = place_print(img)
+    scene = scene or (_seg()['from'] or {}).get('scene') or area()
+    return nav.img_predict(nav.load(), nav.prints_load(scene), scene, v), v
+
+
+def fill_pin(p):
+    """Continuous 'where am I' on the map layer (L67): if this reading's coverage cell has no map pin yet and Tara
+    stands on a road (the pin snaps to roads), open the map once and return the pin; else None."""
+    import nav
+    if not nav.outdoor(p['scene']):
+        return None
+    if not is_frontmost():
+        time.sleep(0.5)  # pos() just gave focus back
+        if not is_frontmost():
+            run_log('nav', what='fill-pin', skip='game not frontmost')
+            return None
+    try:
+        facts = nav.load()
+        fits = nav.map_load()['fits']
+        cell = nav.cell_of(p['scene'], p['x'], p['z'], fits)
+        pins = sum(1 for f in facts if f.get('scene') == p['scene'] and f.get('pin'))
+        if cell is None and pins >= 3:
+            run_log('nav', what='fill-pin', skip='no map fit yet, pins all on one line')
+            return None
+        if cell and 'L4' in nav.coverage(facts, fits, set()).get(cell, set()):
+            return None  # this cell already has a pin
+        frame = grab()
+        if on_road(frame) < ON_ROAD:
+            run_log('nav', what='fill-pin', skip='not on a road', cell=cell)
+            return None
+        img = map_snapshot()
+        pin = img is not None and map_pin(img)
+        run_log('nav', what='fill-pin', scene=p['scene'], cell=cell, pin=pin or None)
+        return pin or None
+    except Exception as e:  # never let coverage break a checkpoint
+        run_log('nav', what='fill-pin', error=str(e))
+        return None
+
+
+def checkpoint(result=None, goal=None, edge=None, target=None, refocus=True, pin=None, extra=None, radius=None,
+               fill=True):
+    """Take a reading, append one fact (segment since the last reading: predicted vs measured), start a new
+    segment. result None + target (x, z) = 'arrived' within ARRIVE_UNITS else 'short'; with a radius (a coarse map
+    target) 'near' within it, never 'arrived', so a coarse point doesn't become the place. Before the reading, the
+    place fingerprint predicts the position (checked by the reading, phase 2). Returns (reading, fact)."""
+    import math
+    import nav
+    try:
+        img_guess, vec = img_locate() if is_frontmost() else (None, None)
+    except Exception:  # Vision hiccup: the reading still counts
+        img_guess, vec = None, None
+    p = pos(refocus=refocus)
+    inside = current_scene()  # buildings share the outdoor scene's world coords (D147: House = Farm at y 1.1)
+    if inside and inside != p['scene']:
+        p['scene'] = f"{p['scene']}/{inside}"
+    s = _seg()
+    fr = s['from']
+    same = bool(fr) and fr['scene'] == p['scene']
+    c = calib_load(p['scene'])
+    pred = None
+    if same and c and not s['dirty'] and s['clicks']:
+        pred = [round(v, 3) for v in nav.predict(c['H'], (fr['x'], fr['z']), s['clicks'])]
+    if result is None:
+        left = target and math.dist((p['x'], p['z']), target)
+        if target and radius:
+            result = 'near' if left <= radius else 'short'
+        elif target:
+            result = 'arrived' if left <= ARRIVE_UNITS else 'short'
+        else:
+            result = 'moved' if s['clicks'] else 'idle'
+    fact = {'t': round(time.time(), 1), 'day': p['day'], 'hour': p['hour'], 'season': p['season'],
+            'weather': p['weather'], 'scene': p['scene'], 'from': [round(fr['x'], 3), round(fr['z'], 3)] if same else None,
+            'to': [round(p['x'], 3), round(p['z'], 3)], 'pred': pred, 'clicks': s['clicks'], 'goal': goal,
+            'edge': edge, 'result': result, 'dirty': s['dirty'] or not same}
+    if s['clicks'] and not p['fresh']:
+        fact['stale'] = True  # clicked, yet no new save: 'to' may be old
+    if pin is None and fill and result not in ('scene', 'still'):
+        pin = fill_pin(p)
+    if pin and nav.outdoor(p['scene']):  # map pins only mean something outdoors (L4)
+        fact['pin'] = [int(pin[0]), int(pin[1])]
+    if img_guess and img_guess.get('pred') and (s['from'] or {}).get('scene', p['scene']) == p['scene']:
+        fact['img'] = img_guess
+    fact.update(extra or {})
+    nav.append(fact)
+    if vec is not None and result != 'scene':  # a scene-change frame may still show the loading screen
+        nav.print_append(p['scene'], fact['t'], vec)
+    if fact.get('pin'):
+        nav.map_refit(nav.load())
+    _seg_save({'from': {k: p[k] for k in ('scene', 'x', 'z', 'day', 'hour')}, 'clicks': [], 'dirty': False})
+    if len(fact['clicks']) == 1 and fact['from'] and not fact['dirty'] and not fact.get('stale'):
+        refit(p['scene'])
+    return p, fact
+
+
+def note_click(x, y, moved, mark):
+    """Called by go_to after every click: grow the segment, record NO MOVE targets (no reading: she didn't move),
+    checkpoint when the click changed scene (spawn/door point = a free anchor) or the walk got stuck."""
+    import nav
+    if moved is None:  # STILL MOVING at timeout
+        _seg_add(x, y)
+        checkpoint('still')
+        return
+    if not moved:
+        est = seg_estimate()
+        fr = _seg()['from']
+        if fr:
+            target = None
+            if est:
+                c = calib_load(est[0])
+                dx, dz = nav.screen_to_ground(c['H'], x, y)
+                target = [round(est[1] + dx, 3), round(est[2] + dz, 3)]
+            hour = game_hour(_frame())
+            nav.append({'t': round(time.time(), 1), 'day': fr['day'], 'hour': round(hour, 2) if hour else fr['hour'],
+                        'scene': fr['scene'], 'clicks': [[x, y]], 'target': target, 'result': 'no_move'})
+        return
+    _seg_add(x, y)
+    if not scene_change(mark, seg_estimate()):  # an exit is stored only when traced, never guessed
+        lp = nav.log_position(_unhash(log_since(mark)))
+        if lp:
+            log_reading(*lp)
+
+
+def log_reading(scene, x, z):
+    """A walk stopped against a barrier and the log gave her exact position: a free checkpoint (no save needed).
+    The fact ('stuck') marks a wall spot; the segment restarts there."""
+    import nav
+    s = _seg()
+    fr = s['from']
+    if not fr or (scene and fr['scene'].split('/')[0] != scene):
+        return None
+    c = calib_load(fr['scene'])
+    pred = [round(v, 3) for v in nav.predict(c['H'], (fr['x'], fr['z']), s['clicks'])] if c and not s['dirty'] else None
+    fact = {'t': round(time.time(), 1), 'day': fr['day'], 'hour': fr['hour'], 'scene': fr['scene'],
+            'from': [round(fr['x'], 3), round(fr['z'], 3)], 'to': [round(x, 3), round(z, 3)], 'pred': pred,
+            'clicks': s['clicks'], 'result': 'stuck', 'src': 'log', 'dirty': s['dirty']}
+    nav.append(fact)
+    _seg_save({'from': dict(fr, x=x, z=z, src='log'), 'clicks': [], 'dirty': False})
+    run_log('nav', what='log-reading', scene=fr['scene'], x=x, z=z)
+    return fact
+
+
+def _stuck():
+    """True when the last click ended at a wall (log_reading restarted the segment there)."""
+    s = _seg()
+    return bool(s['from']) and s['from'].get('src') == 'log' and not s['clicks']
+
+
+def scene_anchor(txt):
+    """Anchor name from scene events in log text: last `Spawning player at X` -> X, `OnEnterBuilding B` -> B:in,
+    `OnExitBuilding B` -> B:out; None when there is none."""
+    name = None
+    for m in re.finditer(r'Spawning player at ([\w/]+)|OnEnterBuilding (\w+)|OnExitBuilding (\w+)', _unhash(txt)):
+        name = m.group(1) or (m.group(2) and m.group(2) + ':in') or (m.group(3) + ':out')
+    return name
+
+
+def scene_change(mark, exit_est):
+    """If the log shows a scene event since mark: checkpoint at the new anchor; the fact keeps where in the old
+    scene the move was aimed (exit_est = (scene, x, z) or None) -> a graph link exit -> anchor."""
+    txt = _unhash(log_since(mark))
+    if re.search(r'WaypointTrigger|scene_change me=Player', txt) and not re.search(SCENE_EVENT, txt):
+        for _ in range(30):  # a scene link was hit: the load takes up to ~10 s before ChangeScene is logged (L67)
+            time.sleep(0.5)
+            txt = _unhash(log_since(mark))
+            if re.search(SCENE_EVENT, txt):
+                break
+    if not re.search(SCENE_EVENT, txt):
+        return False
+    time.sleep(1.5)  # scene load
+    extra = {'from_scene': exit_est[0], 'exit': [round(exit_est[1], 3), round(exit_est[2], 3)]} if exit_est else None
+    checkpoint('scene', goal=scene_anchor(log_since(mark)), extra=extra)
+    return True
+
+
+def _seg_add(x, y):
+    s = _seg()
+    s['clicks'].append([int(x), int(y)])
+    _seg_save(s)
+
+
+def go_world(gx, gz, goal=None, max_rounds=2, radius=None):
+    """Walk to a world point (x, z) in the current scene by calibrated clicks: dead-reckon hops (clamped to the
+    screen box, around blocked spots), then one reading; a corrective round if still off. ≤ max_rounds readings.
+    radius = a coarse target (map node): within it = NEAR, done."""
+    import math
+    import nav
+    est = seg_estimate() or start_estimate()
+    scene, x, z = est
+    c = calib_load(scene)
+    if not c:
+        return f'go-world: no calibration for {scene}: run `wf calib` on open ground there first'
+    for rnd in range(max_rounds):
+        blocked = nav.blocks(nav.load(), scene, _seg()['from'] or {})
+        for _ in range(12):
+            dx, dz = gx - x, gz - z
+            if math.hypot(dx, dz) < ARRIVE_UNITS / 2:
+                break
+            hop = None
+            for rot in (0, 35, -35, 70, -70):
+                a = math.radians(rot)
+                rx, rz = dx * math.cos(a) - dz * math.sin(a), dx * math.sin(a) + dz * math.cos(a)
+                k = 1.0
+                while k > 0.05:
+                    sx, sy = nav.ground_to_screen(c['H'], rx * k, rz * k)
+                    if HOP_BOX[0] <= sx <= HOP_BOX[2] and HOP_BOX[1] <= sy <= HOP_BOX[3]:
+                        break
+                    k *= 0.8
+                if not any(math.dist((x + rx * k, z + rz * k), b) < ARRIVE_UNITS for b in blocked):
+                    hop = (sx, sy, rx * k, rz * k)
+                    break
+            if not hop:
+                return f'go-world: every direction toward ({gx:.1f}, {gz:.1f}) is blocked near ({x:.1f}, {z:.1f})'
+            sx, sy, hx, hz = hop
+            msg = go_to(sx, sy)
+            tries = 0
+            while msg and msg.startswith('NO MOVE') and tries < 2:  # half the hop
+                hx, hz, tries = hx / 2, hz / 2, tries + 1
+                sx, sy = nav.ground_to_screen(c['H'], hx, hz)
+                msg = go_to(sx, sy)
+            if msg and msg.startswith('NO MOVE'):
+                break
+            if _seg()['clicks'] == [] and _seg()['from'] and _seg()['from']['scene'] != scene:
+                return f'go-world: changed scene to {_seg()["from"]["scene"]} on the way'
+            if _stuck():  # stopped against a wall: exact position from the log; step around it
+                x, z = _seg()['from']['x'], _seg()['from']['z']
+                d = detour(c, x, z, gx, gz)
+                if not d:
+                    return f'go-world: wall at ({x:.1f}, {z:.1f}), no way around it found (tried 4 sideways hops)'
+                x, z = d
+                continue
+            x, z = x + hx, z + hz
+        p, f = checkpoint(goal=goal, target=(gx, gz), radius=radius)
+        if p['scene'] != scene:
+            return f'go-world: now in {p["scene"]}, not {scene}'
+        left = math.dist((p['x'], p['z']), (gx, gz))
+        if f['result'] == 'arrived':
+            return f'ARRIVED ({gx:.1f}, {gz:.1f}) in {scene}: {left:.2f} units off, {rnd + 1} reading(s)'
+        if f['result'] == 'near':
+            return (f'NEAR ({gx:.1f}, {gz:.1f}) in {scene}: {left:.2f} units off (coarse ±{radius:.1f}), '
+                    f'{rnd + 1} reading(s)')
+        x, z = p['x'], p['z']
+    return f'SHORT of ({gx:.1f}, {gz:.1f}): {left:.2f} units off at ({x:.1f}, {z:.1f}) after {max_rounds} readings'
+
+
+DETOUR_UNITS = 3.0
+
+
+def detour(c, x, z, gx, gz):
+    """Stopped against a wall at (x, z) on the way to (gx, gz): try sideways hops (70°, then 110° off the goal
+    direction, both sides) until one walks freely; its end becomes a graph node ('via' fact, exact reading), so the
+    next plan goes around the wall by itself (L67). Returns the new (x, z) or None."""
+    import math
+    import nav
+    dx, dz = gx - x, gz - z
+    L = math.hypot(dx, dz) or 1
+    for rot in (70, -70, 110, -110):
+        a = math.radians(rot)
+        rx, rz = (dx * math.cos(a) - dz * math.sin(a)) / L * DETOUR_UNITS, (dx * math.sin(a) + dz * math.cos(a)) / L * DETOUR_UNITS
+        msg = go_to(*nav.ground_to_screen(c['H'], rx, rz))
+        if msg and msg.startswith('NO MOVE'):
+            continue
+        if _stuck():  # this side is walled too
+            x, z = _seg()['from']['x'], _seg()['from']['z']
+            continue
+        p, _ = checkpoint('via')
+        run_log('nav', what='detour', rot=rot, x=round(p['x'], 2), z=round(p['z'], 2))
+        return p['x'], p['z']
+    return None
+
+
+def start_estimate():
+    """Position when the segment can't tell (after a scene change, Space, a daemon restart): a trusted place
+    fingerprint match (phase 2), else one reading."""
+    import nav
+    guess, _ = img_locate()
+    scene = (_seg()['from'] or {}).get('scene') or area()
+    if guess and nav.img_trusted(nav.load(), scene, guess['d']):
+        s = _seg()
+        s.update({'from': {'scene': scene, 'x': guess['pred'][0], 'z': guess['pred'][1], 'day': (s['from'] or {}).get('day', 0),
+                           'hour': (s['from'] or {}).get('hour', 0)}, 'clicks': [], 'dirty': False})
+        _seg_save(s)
+        run_log('nav', what='img-start', scene=scene, pred=guess['pred'], d=guess['d'])
+        return scene, guess['pred'][0], guess['pred'][1]
+    p, _ = checkpoint()
+    return p['scene'], p['x'], p['z']
+
+
+def graph_route(place):
+    """World-graph plan to a place/anchor name (phase 2): [(kind, node_key, node)] or None when the graph can't
+    get there (unknown name, or a walk through a scene without calibration)."""
+    import nav
+    facts = nav.load()
+    ns = nav.nodes(facts, places())
+    if not any(k == place or n['name'] == place for k, n in ns.items()):
+        return None
+    start = seg_estimate() or start_estimate()
+    steps = nav.plan(ns, nav.edges_graph(facts, ns, list(edges()), _seg()['from']), start, place, nav.walls(facts))
+    if not steps or any(kind == 'walk' and not calib_load(ns[k]['scene']) for kind, k in steps):
+        return None
+    return [(kind, k, ns[k]) for kind, k in steps]
+
+
+def run_route(place, steps):
+    """Execute a world-graph plan: walk = go_world; link = already crossed, or push past the exit; replay =
+    edge_replay. Every step ends at a checkpoint, so each run teaches the graph."""
+    import math
+    import nav
+    starts = []  # where each step began (the push past an exit keeps the walk's direction)
+    for i, (kind, k, n) in enumerate(steps):
+        fr0 = _seg()['from'] or {}
+        starts.append((fr0.get('x', 0), fr0.get('z', 0)))
+        here = fr0.get('scene')
+        if kind == 'walk':
+            if here != n['scene']:
+                return f'ROUTE {place}: expected to be in {n["scene"]}, now in {here} (step {i + 1}/{len(steps)})'
+            goal = n['name'] if n['src'] in ('arrived', 'map') else None
+            tgt = nav.target_of(n)
+            if not tgt:  # an exit we crossed once but couldn't trace: no position, no direction
+                return (f'ROUTE {place}: step {i + 1}/{len(steps)} needs exploring: the way to {n["to"]} from '
+                        f'{n["scene"]} has no known position; find it by looking, the crossing then records it')
+            msg = go_world(*tgt, goal=goal, radius=n.get('r'))
+            crossed = (_seg()['from'] or {}).get('scene') != n['scene']
+            if not msg.startswith(('ARRIVED', 'NEAR')) and not (crossed and n['src'] == 'exit'):
+                return f'ROUTE {place}: step {i + 1}/{len(steps)} walk to {k}: {msg}'
+        elif kind == 'link':
+            if here != n['scene']:  # still before the exit: push on in the same direction
+                c = calib_load(here)
+                ex = steps[i - 1][2] if i else None
+                fr = _seg()['from']
+                if ex and here.split('/')[0] == n['scene'].split('/')[0]:  # building door: same coords (L64),
+                    d = (n['x'] - ex['x'], n['z'] - ex['z'])                # so push toward the other side's anchor
+                else:
+                    d = (ex['x'] - starts[i - 1][0], ex['z'] - starts[i - 1][1]) if ex else (0, 1)
+                L = math.hypot(*d) or 1
+                for _ in range(2):
+                    go_to(*nav.ground_to_screen(c['H'], d[0] / L * 1.5, d[1] / L * 1.5))
+                    if (_seg()['from'] or {}).get('scene') == n['scene']:
+                        break
+                if (_seg()['from'] or {}).get('scene') != n['scene']:
+                    return f'ROUTE {place}: exit to {n["scene"]} did not change scene (at {fr and (fr["x"], fr["z"])})'
+        elif kind == 'replay':
+            msg = edge_replay(steps[i - 1][2]['name'] if i else '', n['name'])
+            if not msg.startswith('ARRIVED'):
+                return f'ROUTE {place}: replay to {k}: {msg}'
+    run_log('nav', what='route', place=place, steps=len(steps))
+    via = ' → '.join(f'{kind}:{k}' for kind, k, _ in steps)
+    if steps[-1][2].get('r'):  # a coarse map node (L4): the place is somewhere around here
+        return (f'NEAR {place} (map point ±{steps[-1][2]["r"]:.1f} units) via world graph ({via}): look, click the '
+                f'last bit, then `wf pos --learn {place}` so the next trip is exact')
+    return f'ARRIVED {place} via world graph ({via})'
+
+
+def calibrate(moves=CALIB_MOVES):
+    """Walk short hops around Tara on open ground; each hop is checkpointed, so it becomes a clean one-click fact;
+    then refit the scene from all its facts."""
+    p0, _ = checkpoint()
+    scene = p0['scene']
+    for dx, dy in moves:
+        feet = tara_feet(grab())
+        msg = go_to(feet[0] + dx, feet[1] + dy)
+        if msg:
+            print(f'  hop {dx:+d},{dy:+d}: {msg.split(":")[0]}, skipped')
+            continue
+        p, f = checkpoint()
+        if p['scene'] != scene:
+            return f'calib: scene changed {scene} -> {p["scene"]}: walk back onto open ground and retry'
+        d = (f['to'][0] - f['from'][0], f['to'][1] - f['from'][1]) if f['from'] else None
+        print(f'  hop click {f["clicks"]} -> world d={d and tuple(round(v, 2) for v in d)}'
+              + (' (stale save)' if f.get('stale') else ''))
+    fit = refit(scene)
+    if not fit:
+        return f'calib: fewer than 5 clean samples in {scene}: find open ground (no fences/water) and retry'
+    import nav
+    tx, ty = fit['tara']
+    ux = abs(nav.screen_to_ground(fit['H'], tx + 100, ty)[0])
+    uz_up, uz_dn = (abs(nav.screen_to_ground(fit['H'], tx, ty + dy)[1]) for dy in (-100, 100))
+    return (f'CALIBRATED {scene}: kept {fit["kept"]}/{fit["n"]} samples, median error {fit["err"]} world units | Tara '
+            f'at screen {tx},{ty} | per 100 px: x {ux:.2f}, z up {uz_up:.2f} / down {uz_dn:.2f}')
+
+
+def _xz(n):
+    if n.get('x') is not None:
+        return f'({n["x"]:.1f}, {n["z"]:.1f})'
+    return f'(no position; aim {n["aim"][0]:.1f}, {n["aim"][1]:.1f})' if n.get('aim') else '(no position: explore)'
+
+
+def learn_nav():
+    import nav
+    facts = nav.load()
+    calib = nav.calib_all(facts)
+    now = _seg()['from'] or (facts[-1] if facts else {})
+    ns = nav.nodes(facts, places())
+    es = nav.edges_graph(facts, ns, list(edges()), now)
+    kinds = {}
+    for *_, kind in es:
+        kinds[kind] = kinds.get(kind, 0) + 1
+    srcs = {}
+    for n in ns.values():
+        srcs[n['src']] = srcs.get(n['src'], 0) + 1
+    graph = (f'graph: {len(ns)} nodes (' + ', '.join(f'{k} {v}' for k, v in sorted(srcs.items())) + '), edges ('
+             + ', '.join(f'{k} {v}' for k, v in sorted(kinds.items())) + ')\n  '
+             + '\n  '.join(f'{k} {_xz(n)} {n["src"]}' for k, n in sorted(ns.items())))
+    prints_n = {a: len(nav.prints_load(a)) for a in {f['scene'] for f in facts if f.get('scene')}}
+    lay = 'layers per area (L4 map → L3 graph → L2 calib → L1 prints):\n  ' + '\n  '.join(
+        nav.layers(facts, calib, ns, prints_n))
+    return lay + '\n' + nav.report(facts, calib, now) + '\n' + graph
+
+
+# ---------------------------------------------------------------- map navigation (L57)
+# Localise with the map overlay (M): Tara = the pink pin (numpy colour mask, tip = her position). Plan on the map
+# image itself: roads are drawn in two beige tones -> boolean road grid (4 px cells) -> BFS shortest path from the pin
+# to a place (tools/nav/map.json places, map coords). Follow it with go: clicks in the map direction (the camera never
+# rotates: map-up = screen-up), re-localising after every hop.
+MAP_PANEL = (200, 110, 1760, 970)        # inner map area (the frame border shares the road colour)
+NAV_CELL = 4                              # px per BFS cell
+NAV_STEP = 420                            # screen px per go: hop (from Tara at the screen centre)
+NAV_ARRIVE = 24                           # map px: close enough to a place (40 was too loose: roads pass near doors)
+TARA_SCREEN = (960, 600)                  # where the camera keeps Tara (not at map edges)
+
+
+def map_pin(img):
+    """Pin tip (Tara's map position) in a frame with the map open, or None."""
+    import numpy as np
+    a = np.asarray(img.convert('RGB'), dtype=np.int16)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    m = (r >= 248) & (g >= 140) & (g <= 200) & (b >= 140) & (b <= 205) & (r - g >= 55) & (abs(g - b) <= 30)  # pin body ≈ (255, 157-179, 153-185)
+    x0, y0, x1, y1 = MAP_PANEL
+    m[:y0], m[y1:], m[:, :x0], m[:, x1:] = False, False, False, False
+    ys, xs = np.nonzero(m)
+    if len(xs) < 200:
+        return None
+    # densest 40 px cell = the pin (pink roofs are smaller), then its own pixels around it
+    H = np.zeros((m.shape[0] // 40 + 1, m.shape[1] // 40 + 1), dtype=np.int32)
+    np.add.at(H, (ys // 40, xs // 40), 1)
+    cy, cx = np.unravel_index(H.argmax(), H.shape)
+    keep = (abs(xs - (cx * 40 + 20)) < 70) & (abs(ys - (cy * 40 + 20)) < 90)
+    if keep.sum() < 200:
+        return None
+    return int(np.median(xs[keep])), int(ys[keep].max())
+
+
+def map_roads(img):
+    """Boolean road grid (NAV_CELL px cells) of the map overlay, dilated by one cell to close small gaps."""
+    import numpy as np
+    a = np.asarray(img.convert('RGB'), dtype=np.int16)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    road = ((r >= 215) & (g >= 170) & (g <= 232) & (b >= 105) & (b <= 192) & (r - b >= 45) & (r - b <= 125)
+            & (r - g >= 15) & (r - g <= 55))
+    x0, y0, x1, y1 = MAP_PANEL
+    mask = np.zeros_like(road)
+    mask[y0:y1, x0:x1] = road[y0:y1, x0:x1]
+    h, w = mask.shape[0] // NAV_CELL, mask.shape[1] // NAV_CELL
+    grid = mask[:h * NAV_CELL, :w * NAV_CELL].reshape(h, NAV_CELL, w, NAV_CELL).any(axis=(1, 3))  # max-pool
+    d = grid.copy()
+    for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        d |= np.roll(np.roll(grid, dy, 0), dx, 1)
+    return d
+
+
+def map_route(img, start, goal):
+    """Shortest road path (list of map points) from `start` to the road cell nearest `goal`; None if unreachable."""
+    import numpy as np
+    from collections import deque
+    grid = map_roads(img)
+    h, w = grid.shape
+    sx, sy = start[0] // NAV_CELL, start[1] // NAV_CELL
+    grid[max(0, sy - 3):sy + 4, max(0, sx - 3):sx + 4] = True  # the pin hides the road Tara stands on
+    dist = np.full(grid.shape, -1, dtype=np.int32)
+    par = np.full(grid.shape + (2,), -1, dtype=np.int32)
+    dist[sy, sx] = 0
+    q = deque([(sy, sx)])
+    while q:
+        y, x = q.popleft()
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):
+            ny, nx = y + dy, x + dx
+            if 0 <= ny < h and 0 <= nx < w and grid[ny, nx] and dist[ny, nx] < 0:
+                dist[ny, nx] = dist[y, x] + 1
+                par[ny, nx] = (y, x)
+                q.append((ny, nx))
+    ys, xs = np.nonzero(dist >= 0)
+    if not len(xs):
+        return None
+    gx, gy = goal[0] / NAV_CELL, goal[1] / NAV_CELL
+    i = int(np.argmin((xs - gx) ** 2 + (ys - gy) ** 2))  # reachable cell nearest the goal
+    y, x = int(ys[i]), int(xs[i])
+    path = []
+    while (y, x) != (sy, sx):
+        path.append((x * NAV_CELL + NAV_CELL // 2, y * NAV_CELL + NAV_CELL // 2))
+        y, x = (int(v) for v in par[y, x])
+    return path[::-1]
+
+
+# On screen, paths (gravel, dirt, cobbles) are low-saturation and mid-bright; grass is green, walls/rocks saturated,
+# doors dark. HSV thresholds are lighting-robust (calibrated at dusk, D145 19:20). Small blobs (lit windows, crates)
+# are dropped by keeping only big connected regions. The map pin snaps to the nearest road, so Tara must stand ON a
+# road before the pin is her position (user, 2026-10-29).
+ROAD_CELL = 8          # px per cell of the screen road grid
+ROAD_MIN_CELLS = 250   # connected road region at least this big (cells)
+ON_ROAD = 0.2          # on_road() at/above this = Tara stands on or right at a road (grass = 0.0)
+ROAD_COLORS = os.path.join(ROOT, 'tools', 'road_colors.json')
+GREEN_HUE = (50, 115)  # PIL HSV hue band of grass/bushes in every light
+
+
+def game_hour(img):
+    """Hour (0-23.99) from the HUD clock ("Friday 8:10 pm"), or None."""
+    cx, cy, cw, ch = CLOCK_REGION
+    txt = ' '.join(r['text'] for r in ocr_image(img.crop((cx, cy, cx + cw, cy + ch)), scale=1))
+    m = re.search(r'(\d{1,2})[:.](\d{2})\s*([ap])\.?m', txt.lower())
+    if not m:
+        return None
+    h = int(m.group(1)) % 12 + (12 if m.group(3) == 'p' else 0)
+    return h + int(m.group(2)) / 60
+
+
+def light_period(hour):
+    if hour is None:
+        return None
+    return 'day' if 7 <= hour < 17 else 'dusk' if 17 <= hour < 20 else 'night'
+
+
+def road_sets():
+    return {k: v for k, v in json.load(open(ROAD_COLORS)).items() if not k.startswith('_')}
+
+
+def current_scene():
+    """Area Tara is in (engine log tail): the last `ChangeScene <Area>/…`, or the building entered after it."""
+    try:
+        with open(GAME_LOG, 'rb') as fh:
+            fh.seek(max(0, os.path.getsize(GAME_LOG) - 400_000))
+            txt = fh.read().decode('utf-8', 'replace')
+    except OSError:
+        return None
+    scene = inside = spawn = None
+    # raw log names are hashed (#-12345), even the trigger names (OnExitBuilding): decode the candidate lines first
+    txt = _unhash('\n'.join(l for l in txt.splitlines() if 'ChangeScene' in l or '[TRIGGER]' in l))
+    known = spawn_inside()
+    for m in re.finditer(r'ChangeScene (\w+)/(\w+)|OnEnterBuilding (\w+)|OnExitBuilding (\w+)', txt):
+        if m.group(1):
+            scene, spawn = m.group(1), f'{m.group(1)}/{m.group(2)}'
+            inside = known.get(spawn)  # some spawn points are indoors (Farm/Bed = House, D147)
+        elif m.group(3):
+            inside, spawn = m.group(3), None
+        else:
+            if inside is None and spawn and spawn not in known:  # left a building we never entered: spawned inside
+                learn_spawn_inside(spawn, m.group(4))
+                known[spawn] = m.group(4)
+            inside, spawn = None, None
+    return inside or scene
+
+
+SPAWN_INSIDE = os.path.join(ROOT, 'tools', 'nav', 'spawn_inside.json')
+
+
+def spawn_inside():
+    """Spawn anchors that are inside a building (learned when Tara exits a building she never entered)."""
+    try:
+        return json.load(open(SPAWN_INSIDE))
+    except (OSError, ValueError):
+        return {'Farm/Bed': 'House'}
+
+
+def learn_spawn_inside(spawn, building):
+    data = spawn_inside()
+    data[spawn] = building
+    json.dump(data, open(SPAWN_INSIDE, 'w'), indent=1)
+
+
+def road_key(img):
+    """Colour-set key '<area>:<light>' (e.g. Farm:night); light from the HUD clock."""
+    return f'{current_scene()}:{light_period(game_hour(img))}'
+
+
+def road_set(key):
+    """The set for this area+light, else any set for this light, else None (relative fallback)."""
+    sets = road_sets()
+    return sets.get(key) or sets.get(key.split(':')[-1])
+
+
+def learn_road_colors(period, s_vals, v_vals):
+    """Widen (or create) the colour set `period` (a key like 'Farm:night') from ground pixels known to be road."""
+    import numpy as np
+    data = json.load(open(ROAD_COLORS))
+    s90, v10, v90 = float(np.percentile(s_vals, 90)), float(np.percentile(v_vals, 10)), float(np.percentile(v_vals, 90))
+    cur = data.get(period)
+    new = {'s_max': int(s90 + 8), 'v_min': int(max(0, v10 - 12)), 'v_max': int(min(255, v90 + 15))}
+    if cur:
+        new = {'s_max': max(cur['s_max'], new['s_max']), 'v_min': min(cur['v_min'], new['v_min']),
+               'v_max': max(cur['v_max'], new['v_max'])}
+    new['samples'] = (cur or {}).get('samples', 0) + 1
+    data[period] = new
+    json.dump(data, open(ROAD_COLORS, 'w'), indent=1)
+    return new
+
+
+def screen_road(img, period=None):  # period: a road_key ('Farm:night') or a light ('night')
+    """Boolean grid (ROAD_CELL px cells) of road on the game screen, big connected regions only.
+    Colour set by lighting period (game clock); without a set: 'clearly less saturated than the grass in view'."""
+    import numpy as np
+    from collections import deque
+    hsv = np.asarray(img.convert('HSV').resize((img.width // ROAD_CELL, img.height // ROAD_CELL)), dtype=np.int16)
+    h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    green = (h >= GREEN_HUE[0]) & (h <= GREEN_HUE[1])
+    cs = road_set(period or road_key(img))
+    if cs:
+        road = ~green & (s <= cs['s_max']) & (v >= cs['v_min']) & (v <= cs['v_max'])
+    else:  # relative fallback: grass saturation in this very frame sets the bar
+        gs = float(np.median(s[green & (s > 30)])) if (green & (s > 30)).any() else 80.0
+        road = ~green & (s <= 0.75 * gs) & (v >= np.percentile(v, 15)) & (v <= np.percentile(v, 97))
+    road[:230 // ROAD_CELL] = False  # HUD band
+    seen = np.zeros_like(road)
+    keep = np.zeros_like(road)
+    H, W = road.shape
+    for y, x in zip(*np.nonzero(road)):
+        if seen[y, x]:
+            continue
+        comp, q = [], deque([(y, x)])
+        seen[y, x] = True
+        while q:
+            cy, cx = q.popleft()
+            comp.append((cy, cx))
+            for ny, nx in ((cy + 1, cx), (cy - 1, cx), (cy, cx + 1), (cy, cx - 1)):
+                if 0 <= ny < H and 0 <= nx < W and road[ny, nx] and not seen[ny, nx]:
+                    seen[ny, nx] = True
+                    q.append((ny, nx))
+        if len(comp) >= ROAD_MIN_CELLS:
+            ys, xs = zip(*comp)
+            keep[list(ys), list(xs)] = True
+    return keep
+
+
+def tara_feet(img):
+    """Tara's feet on screen: bottom-centre of the tracker box (seeded at the camera centre)."""
+    tr = Tara()
+    tr.update(img)
+    x0, y0, x1, y1 = tr.box
+    return int((x0 + x1) / 2), int(y1)
+
+
+def calibrate_road(img=None, feet=None):
+    """Tara is known to stand on a road: learn this lighting period's colours from the ground under her feet."""
+    import numpy as np
+    img = img or grab()
+    period = road_key(img)
+    if period.endswith(':None'):
+        return 'calibrate: no clock on screen'
+    fx, fy = feet or tara_feet(img)
+    hsv = np.asarray(img.convert('HSV').crop((fx - 44, fy + 16, fx + 44, fy + 56)), dtype=np.int16).reshape(-1, 3)
+    hsv = hsv[~((hsv[:, 0] >= GREEN_HUE[0]) & (hsv[:, 0] <= GREEN_HUE[1]))]  # flowers/grass blades at the edge
+    if len(hsv) < 200:
+        return 'calibrate: the ground under her feet looks green (not a road?)'
+    cs = learn_road_colors(period, hsv[:, 1], hsv[:, 2])
+    run_log('nav', what='road_colors', period=period, set=cs)
+    return f'road colours [{period}]: {cs}'
+
+
+def on_road(img, feet=None, radius=72):
+    """Share of road in a disc around Tara's feet, minus her own body column (≥ 0.5 = on/at a road). A disc, not a
+    window below the feet: at a path's edge the road is beside her, and the pin's snap error there is tiny."""
+    import numpy as np
+    g = screen_road(img)
+    fx, fy = feet or tara_feet(img)
+    ys, xs = np.mgrid[:g.shape[0], :g.shape[1]]
+    dx, dy = xs * ROAD_CELL + ROAD_CELL // 2 - fx, ys * ROAD_CELL + ROAD_CELL // 2 - fy
+    disc = (np.hypot(dx, dy) <= radius) & ~((np.abs(dx) < 28) & (dy < 8))  # not her body/shadow
+    return min(1.0, float(g[disc].mean() * 2)) if disc.any() else 0.0  # ×2: half the disc road = fully at it
+
+
+def to_road(tries=3):
+    """Make sure Tara stands on a road: if not, click the nearest big road region on screen. Returns a status."""
+    import numpy as np
+    for i in range(tries):
+        img = grab()
+        feet = tara_feet(img)
+        share = on_road(img, feet)
+        if share >= ON_ROAD:
+            return f'ON ROAD ({share:.0%} under her feet)'
+        g = screen_road(img)
+        ys, xs = np.nonzero(g)
+        if not len(xs):
+            return 'NO ROAD ON SCREEN'
+        px, py = xs * ROAD_CELL + ROAD_CELL // 2, ys * ROAD_CELL + ROAD_CELL // 2
+        d = (px - feet[0]) ** 2 + (py - feet[1]) ** 2
+        j = int(np.argsort(d)[min(len(d) - 1, 6)])  # a few cells into the road, not its very edge
+        msg = go_to(int(px[j]), int(py[j]))
+        run_log('nav', what='to_road', try_=i + 1, share=round(share, 2), click=(int(px[j]), int(py[j])), msg=msg or 'ok')
+    img = grab()
+    share = on_road(img)
+    return f'ON ROAD ({share:.0%})' if share >= ON_ROAD else f'NOT ON ROAD after {tries} tries ({share:.0%})'
+
+
+def road_target(img, ang, feet=None, reach=(120, 470), avoid=()):
+    """A visible road point to click: the road cell farthest along direction `ang` (radians, screen) from Tara's feet,
+    within a cone that widens 35° → 60° → 90°. Trees/roofs over the road aren't road-coloured, so they're never
+    clicked (user, 2026-10-29). None if no road is visible that way."""
+    import math
+    import numpy as np
+    g = screen_road(img)
+    fx, fy = feet or tara_feet(img)
+    ys, xs = np.nonzero(g)
+    if not len(xs):
+        return None
+    px, py = xs * ROAD_CELL + ROAD_CELL // 2, ys * ROAD_CELL + ROAD_CELL // 2
+    dx, dy = px - fx, py - fy
+    dist = np.hypot(dx, dy)
+    for ax, ay in avoid:  # road-coloured but rejected by the game (NO MOVE): wall tops, paving behind fences
+        dist = np.where(np.hypot(px - ax, py - ay) < 80, 1e9, dist)
+    dev = np.abs((np.arctan2(dy, dx) - ang + math.pi) % (2 * math.pi) - math.pi)
+    along = dx * math.cos(ang) + dy * math.sin(ang)
+    for cone in (math.radians(35), math.radians(60), math.radians(90)):
+        ok = (dist >= reach[0]) & (dist <= reach[1]) & (dev <= cone)
+        if ok.any():
+            i = int(np.argmax(np.where(ok, along - 0.3 * dist * dev, -1e9)))
+            return int(px[i]), int(py[i])
+    return None
+
+
+# ---- model-in-the-loop (L59): code first; when it's unsure, ask the model ONE grid question and store the answer
+ASK_IMG = os.path.join(SHOT_DIR, 'ask.jpg')
+ASK_FRAME = os.path.join(SHOT_DIR, 'ask_frame.png')
+ASK_CTX = os.path.join(SHOT_DIR, 'ask.json')
+GRID_COLS, GRID_ROWS = 12, 8   # cells A-L × 1-8 over the 1920x1080 frame (160 × 135 px)
+HOPS = os.path.join(ROOT, 'tools', 'hops.json')
+
+
+def cell_box(cell):
+    col, row = ord(cell[0].upper()) - 65, int(cell[1:]) - 1
+    w, h = FRAME_W / GRID_COLS, FRAME_H / GRID_ROWS
+    return int(col * w), int(row * h), int((col + 1) * w), int((row + 1) * h)
+
+
+def ask_vision(kind, question, img, **ctx):
+    """Save a small gridded frame + context and return the NEED_VISION prompt for the agent."""
+    from PIL import ImageDraw
+    img.save(ASK_FRAME)
+    small = img.resize((768, 432))
+    d = ImageDraw.Draw(small)
+    cw, ch = 768 / GRID_COLS, 432 / GRID_ROWS
+    for c in range(GRID_COLS):
+        for r in range(GRID_ROWS):
+            d.rectangle((c * cw, r * ch, (c + 1) * cw, (r + 1) * ch), outline=(255, 255, 0))
+            d.text((c * cw + 3, r * ch + 2), f'{chr(65 + c)}{r + 1}', fill=(255, 255, 0))
+    small.save(ASK_IMG, quality=80)
+    json.dump({'kind': kind, 'question': question, **ctx}, open(ASK_CTX, 'w'))
+    run_log('vision', what='ask', kind=kind, question=question)
+    ex = {'road': 'C5 D5 D6', 'next': 'D6'}.get(kind, '…')
+    return (f'NEED_VISION {kind}: {question}\n  look: {ASK_IMG} (grid A-L × 1-8)\n'
+            f'  answer: ./wf teach {kind} <cells>   e.g. ./wf teach {kind} {ex}')
+
+
+def hop_key(pin, ang):
+    import math
+    return f'{pin[0] // 20 * 20},{pin[1] // 20 * 20},{round(math.degrees(ang) / 45) % 8}'
+
+
+def hops():
+    try:
+        return json.load(open(HOPS))
+    except (OSError, ValueError):
+        return {}
+
+
+def teach(kind, cells):
+    """Store the model's answer to the last NEED_VISION question (and act on it for `next`)."""
+    import numpy as np
+    from PIL import Image
+    try:
+        ctx = json.load(open(ASK_CTX))
+        img = Image.open(ASK_FRAME).convert('RGB')
+    except (OSError, ValueError):
+        return 'teach: no open question'
+    if kind != ctx['kind']:
+        return f'teach: the open question is {ctx["kind"]!r}, not {kind!r}'
+    if kind == 'road':
+        hsv = np.asarray(img.convert('HSV'), dtype=np.int16)
+        px = []
+        for c in cells:
+            x0, y0, x1, y1 = cell_box(c)
+            mx, my = (x1 - x0) // 5, (y1 - y0) // 5  # central part of the cell
+            px.append(hsv[y0 + my:y1 - my, x0 + mx:x1 - mx].reshape(-1, 3))
+        px = np.concatenate(px)
+        px = px[~((px[:, 0] >= GREEN_HUE[0]) & (px[:, 0] <= GREEN_HUE[1]))]
+        if len(px) < 200:
+            return 'teach road: those cells look green (grass), not road'
+        cs = learn_road_colors(ctx['key'], px[:, 1], px[:, 2])
+        run_log('vision', what='teach', kind=kind, cells=cells, key=ctx['key'])
+        os.remove(ASK_CTX)
+        return f'taught road colours [{ctx["key"]}]: {cs}. Re-run your command.'
+    if kind == 'next':
+        x0, y0, x1, y1 = cell_box(cells[0])
+        pt = ((x0 + x1) // 2, (y0 + y1) // 2)
+        msg = go_to(*pt)
+        if not msg or msg.startswith('ALREADY'):
+            data = hops()
+            data[ctx['hop']] = list(pt)  # next time at this map spot, this direction: click here, no question
+            json.dump(data, open(HOPS, 'w'), indent=1)
+        run_log('vision', what='teach', kind=kind, cells=cells, hop=ctx['hop'], msg=msg or 'ok')
+        os.remove(ASK_CTX)
+        return f'taught hop {ctx["hop"]} → {pt}: {msg or "moved"}. Re-run your command.'
+    return f'teach: unknown kind {kind!r}'
+
+
+def compass(ang):
+    import math
+    return ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'][
+        round(math.degrees(ang) / 45) % 8]
+
+
+def log_mark():
+    try:
+        return os.path.getsize(GAME_LOG)
+    except OSError:
+        return 0
+
+
+def log_since(pos):
+    try:
+        with open(GAME_LOG, 'rb') as fh:
+            fh.seek(pos)
+            return fh.read().decode('utf-8', 'replace')
+    except OSError:
+        return ''
+
+
+# ---- anchored route graph (L60): nodes = anchors the engine confirms exactly (spawn points, building doors);
+# edges = short recorded go: chains between neighbouring anchors; any trip = shortest path of edges, replayed.
+EDGES = os.path.join(ROOT, 'tools', 'edges.json')
+ANCHOR_EVENT = {  # anchor name -> engine-log evidence that Tara is exactly there
+    'Farm/LinkTown': r'Spawning player at Farm/LinkTown', 'Town/LinkFarm': r'Spawning player at Town/LinkFarm',
+    'House': r'OnEnterBuilding House', 'House-door': r'OnExitBuilding House', 'Bed': r'Spawning player at Farm/Bed'}
+
+
+def edges():
+    try:
+        return json.load(open(EDGES))
+    except (OSError, ValueError):
+        return {}
+
+
+def anchor_event(name):
+    return ANCHOR_EVENT.get(name) or re.escape(name)
+
+
+def edge_add(a, b, clicks):
+    data = edges()
+    data[f'{a}>{b}'] = {'clicks': [list(map(int, c.split(':'))) for c in clicks], 'ok': 0, 'fail': 0}
+    json.dump(data, open(EDGES, 'w'), indent=1)
+    return f'edge {a} → {b}: {len(clicks)} clicks stored'
+
+
+def edge_replay(a, b):
+    """Replay a stored edge from anchor a; success = b's engine event appears. Updates the edge's ok/fail counts."""
+    data = edges()
+    e = data.get(f'{a}>{b}')
+    if not e:
+        return f'no edge {a} → {b}; known: {", ".join(data) or "none"}'
+    mark = log_mark()
+    msgs = []
+    for x, y in e['clicks']:
+        msg = go_to(x, y)
+        msgs.append(msg or 'ok')
+        if re.search(anchor_event(b), _unhash(log_since(mark))):
+            break
+    time.sleep(1.5)  # scene loads / door transitions
+    ok = bool(re.search(anchor_event(b), _unhash(log_since(mark))))
+    e['ok' if ok else 'fail'] += 1
+    json.dump(data, open(EDGES, 'w'), indent=1)
+    run_log('nav', what='edge', edge=f'{a}>{b}', ok=ok, clicks=len(msgs), msgs=msgs)
+    import nav
+    p, _ = checkpoint('arrived' if ok else 'failed', edge=f'{a}>{b}')
+    st = nav.edge_status(nav.load(), p).get(f'{a}>{b}', {})
+    return (f'{"ARRIVED" if ok else "FAILED"} {a} → {b} ({len(msgs)} clicks; {st.get("status")}: {st.get("ok")} ok / '
+            f'{st.get("fail")} fail)')
+
+
+def places():
+    """Named places in map px (L4 map layer, tools/nav/map.json)."""
+    import nav
+    return {k: tuple(v) for k, v in nav.map_load()['places'].items()}
+
+
+def map_snapshot():
+    """Open the map, grab it, close it. Returns the frame (map visible) or None if the map didn't open."""
+    key('m')
+    time.sleep(0.9)
+    img = grab()
+    if map_pin(img):
+        key('escape')
+        time.sleep(0.6)
+        img.save(MAP_LAST)  # the last map picture: road cells for the coverage matrix (L67)
+        return img
+    s = state()  # map didn't open: a blind Escape would open the pause menu
+    if s['mode'] != 'gameplay' and not is_paused(s):
+        key('escape')
+        time.sleep(0.6)
+    return None
+
+
+MAP_LAST = os.path.join(SHOT_DIR, 'map_last.png')
+
+
+def map_road_cells():
+    """Coverage cells (COVER_CELL map px) that contain road on the last map picture, or an empty set."""
+    import nav
+    import numpy as np
+    from PIL import Image
+    try:
+        g = map_roads(Image.open(MAP_LAST))
+    except OSError:
+        return set()
+    ys, xs = np.nonzero(g)
+    k = nav.COVER_CELL // NAV_CELL
+    cnt = {}
+    for cx, cy in zip(xs // k, ys // k):
+        cnt[(int(cx), int(cy))] = cnt.get((int(cx), int(cy)), 0) + 1
+    return {c for c, n in cnt.items() if n >= k}  # at least a road line through the cell
+
+
+def coverage_report():
+    """Matrix per coverage grid + gaps of Tara's cell (L67)."""
+    import nav
+    facts = nav.load()
+    fits = nav.map_load()['fits']
+    printed = set()
+    for a in {f['scene'] for f in facts if f.get('scene')}:
+        printed |= set(nav.prints_load(a))
+    period = light_period(game_hour(_frame())) if is_frontmost() else None
+    cov = nav.coverage(facts, fits, printed, period)
+    fr = _seg()['from']
+    here = fr and nav.cell_of(fr['scene'], fr['x'], fr['z'], fits)
+    out = [f'L1 prints counted for: {period or "any light"}']
+    keys = ['map'] + sorted({c[0] for c in cov if c[0] != 'map'})
+    for k in keys:
+        cells = [c for c in cov if c[0] == k]
+        full = sum(1 for c in cells if not nav.missing(c, cov))
+        out.append(f'== {k}: {len(cells)} cells with data, {full} complete '
+                   f'({"4" if k == "map" else "3"} layers; digit = layers present, · = road without data, @ = Tara)')
+        out.append(nav.coverage_matrix(cov, k, map_road_cells() if k == 'map' else None,
+                                       here[1:] if here and here[0] == k else None))
+    no_fit = sorted({f['scene'] for f in facts if f.get('scene') and nav.outdoor(f['scene'])} - set(fits))
+    if no_fit:
+        out.append(f'not on the map yet (no map fit: need 2 pins apart): {", ".join(no_fit)}')
+    if here:
+        out.append(f'Tara {fr["scene"]} cell {here[1:]}: missing {", ".join(nav.missing(here, cov)) or "nothing"}')
+    return '\n'.join(out)
+
+
+def improve(n=3):
+    """Auto-improver (L67): fill the gaps of Tara's cell (L4 map pin, L2 one short checked hop; L3/L1 come with
+    every reading), then walk to the nearest road cell with no data and repeat, n cells. Outdoors only."""
+    import math
+    import nav
+    done, tried = [], set()
+    for i in range(n):
+        p, f = checkpoint()  # reading + L3/L1 (+ L4 by fill_pin)
+        if p['hour'] >= 23 or p['hour'] < 6:  # clock guard: optional work stops late (retro 2026-10-29, L27)
+            done.append(f'{p["hour"]:.1f}h: too late for optional work; go to bed')
+            break
+        if not nav.outdoor(p['scene']):
+            done.append(f'{p["scene"]}: indoors, L3/L1 recorded; walk around for L2')
+            break
+        fits = nav.map_load()['fits']
+        facts = nav.load()
+        printed = set(nav.prints_load(p['scene']))
+        period = nav.light(p['hour'])
+        cov = nav.coverage(facts, fits, printed, period)
+        cell = nav.cell_of(p['scene'], p['x'], p['z'], fits)
+        if cell and 'L2' in nav.missing(cell, cov) and calib_load(p['scene']):
+            c = calib_load(p['scene'])
+            tx, ty = c['tara']
+            for dx, dy in ((150, 0), (-150, 0), (0, 120), (0, -120)):  # one short hop: a checked prediction
+                if not go_to(tx + dx, ty + dy):
+                    checkpoint(fill=False)
+                    break
+            cov = nav.coverage(nav.load(), fits, set(nav.prints_load(p['scene'])), period)
+        done.append(f'cell {cell and cell[1:]}: missing {", ".join(nav.missing(cell, cov)) or "nothing"}' if cell
+                    else f'{p["scene"]}: no map fit yet (pins so far are too close together)')
+        if i == n - 1 or not cell:
+            break
+        fit = fits[p['scene']]
+        roads = map_road_cells() or (map_snapshot() is not None and map_road_cells())
+        todo = [r for r in roads if ('map', *r) not in cov and r != cell[1:] and r not in tried]
+        if not todo:
+            done.append('no uncovered road cell on the last map picture')
+            break
+        here = cell[1:]
+        nxt = min(todo, key=lambda r: math.dist(r, here))
+        tried.add(nxt)  # a coarse fit may land her short of it: don't aim at the same cell twice
+        mx, my = (nxt[0] + 0.5) * nav.COVER_CELL, (nxt[1] + 0.5) * nav.COVER_CELL
+        gx, gz = nav.map_to_world(fit, mx, my)
+        msg = go_world(gx, gz, radius=nav.COVER_CELL * abs(fit['a']) / 2)
+        done.append(f'→ cell {nxt}: {msg}')
+        if not msg.startswith(('ARRIVED', 'NEAR')):
+            break
+    return 'IMPROVE\n  ' + '\n  '.join(done)
+
+
+def where(learn=None):
+    """Tara's map position + nearest known place. learn=<name>: store the current position as that place."""
+    img = map_snapshot()
+    if img is None:
+        return 'where: map did not open (or no pin): check state'
+    pin = map_pin(img)
+    pl = places()
+    if learn:
+        import nav
+        data = nav.map_load()
+        data['places'][learn] = list(pin)
+        nav.map_save(data)
+        pl[learn] = pin
+    name, p = min(pl.items(), key=lambda kv: (kv[1][0] - pin[0]) ** 2 + (kv[1][1] - pin[1]) ** 2)
+    d = ((p[0] - pin[0]) ** 2 + (p[1] - pin[1]) ** 2) ** 0.5
+    run_log('nav', what='where', pin=pin, near=name, dist=round(d))
+    p, _ = checkpoint(pin=pin)  # map -> world pair (phase 2)
+    return f'where: map {pin[0]},{pin[1]} · nearest place {name} ({d:.0f} map px) · world {p["scene"]} ({p["x"]:.1f}, {p["z"]:.1f})'
+
+
+def goto(place, max_hops=30):
+    """Walk to a known place by map route: localise (map) → route on roads → one go: hop toward the next waypoint →
+    repeat. Returns ARRIVED / NOT REACHED messages. The world graph (phase 2) goes first when it knows the place."""
+    import math
+    steps = graph_route(place)
+    if steps:  # world graph (phase 2): walk / link / replay steps
+        return run_route(place, steps)
+    pl = places()
+    if place not in pl:
+        return f'goto: unknown place {place!r}; known: {", ".join(sorted(pl))}'
+    goal = pl[place]
+    frame = grab()
+    if on_road(frame) < ON_ROAD:
+        first = to_road()
+        if not first.startswith('ON ROAD'):
+            return ask_vision('road', f'Tara ({current_scene()}) must stand on a road. Which cells show walkable '
+                              f'road/path near her?', grab(), key=road_key(frame))
+    last, stuck, spawned = None, 0, False
+    for hop in range(max_hops):
+        if spawned:  # just crossed into a new area: the spawn point is ON a road → free colour sample
+            calibrate_road()
+            spawned = False
+            steps = graph_route(place)  # the new scene may know the place (a finer layer): re-plan there
+            if steps:
+                return run_route(place, steps)
+        img = map_snapshot()
+        if img is None:  # graph first, map last: never retry a map that failed (retro 2026-10-29)
+            checkpoint(fill=False)
+            steps = graph_route(place)
+            if steps:
+                return run_route(place, steps)
+            return (f'goto {place}: map did not open and the world graph has no route: check state, then '
+                    f'`wf plan <node>` / `wf go-world X Z`; do not retry the map')
+        pin = map_pin(img)
+        left = math.dist(pin, goal)
+        if left <= NAV_ARRIVE:
+            run_log('nav', what='goto', place=place, result='arrived', hops=hop)
+            key('escape')  # close the map before the reading
+            p, _ = checkpoint('near', goal=place, pin=pin)  # a map pin pair (L4); coarse, so not 'arrived'
+            return (f'ARRIVED {place} in {hop} hops (map {pin[0]},{pin[1]}; world {p["x"]:.1f}, {p["z"]:.1f}): '
+                    f'`wf pos --learn {place}` at the exact spot makes the next trip exact')
+        if last and math.dist(pin, last) < 4:
+            stuck += 1
+        else:
+            stuck = 0
+        last = pin
+        path = map_route(img, pin, goal)
+        if not path:
+            return f'goto {place}: no road route from map {pin} (off-road?): use go: to reach a road'
+        tgt = path[min(len(path) - 1, 12)]  # look ~50 map px ahead along the road
+        ang = math.atan2(tgt[1] - pin[1], tgt[0] - pin[0])
+        hk = hop_key(pin, ang)
+        frame = grab()
+        if stuck >= 2:  # code can't make progress here: one model question, remembered for next time
+            return ask_vision('next', f'Tara must go {compass(ang)} towards {place} (map route). Which cell should '
+                              f'she walk to next (visible walkable ground that leads that way)?', frame, hop=hk)
+        mark = log_mark()
+        feet = tara_feet(frame)
+        avoid = []
+        remembered = hops().get(hk)
+        for attempt in range(3):
+            if remembered and attempt == 0:
+                pt, how = tuple(remembered), 'memory'
+                msg = go_to(*pt)
+                if not (msg and msg.startswith('NO MOVE')):
+                    break
+                avoid.append(pt)
+                continue
+            pt = road_target(frame, ang, feet, avoid=avoid)  # a road pixel we can SEE that way (never a tree)
+            how = 'road'
+            if pt is None:  # no visible road that way: blind point, shorter
+                pt = (int(min(1860, max(60, feet[0] + math.cos(ang) * NAV_STEP * 0.6))),
+                      int(min(1020, max(240, feet[1] + math.sin(ang) * NAV_STEP * 0.6))))
+                how = 'blind'
+            msg = go_to(*pt)
+            if not (msg and msg.startswith('NO MOVE')) or how == 'blind':
+                break
+            avoid.append(pt)
+        else:
+            if msg and msg.startswith('NO MOVE'):
+                return ask_vision('next', f'Tara must go {compass(ang)} towards {place}; 3 clicks were rejected. '
+                                  f'Which cell should she walk to next?', grab(), hop=hk)
+        sx, sy = pt
+        if re.search(r'ChangeScene|Spawning player', log_since(mark)):
+            spawned = True  # new area: learn its road colour at the spawn point; no corrective clicks near the link
+        run_log('nav', what='hop', place=place, pin=pin, left=round(left), click=(sx, sy), aim=how,
+                deg=round(math.degrees(ang)), msg=msg or 'ok', new_area=spawned)
+    run_log('nav', what='goto', place=place, result='not reached', hops=max_hops)
+    return f'NOT REACHED {place} after {max_hops} hops (map {pin[0]},{pin[1]}, {left:.0f} px left)'
+
+
+def is_paused(s=None):
+    s = s or state()
+    return s['mode'] == 'overlay' and any('Game Paused' in t for t in s['text'])
+
+
+def set_paused(want):
+    """Idempotent pause/resume: look first, press Escape only if needed (Escape toggles; blind presses un-pause)."""
+    for _ in range(3):
+        s = state()
+        if is_paused(s) == want:
+            return f'{"paused" if want else "running"}: {brief(s)}'
+        key('escape')
+        time.sleep(0.7)
+    return f'could not {"pause" if want else "resume"}: {brief(state())}'
+
+
 def run_action(spec):
     """Execute one action spec: go:<x>:<y> (click-to-move, game pathfinds; the ONLY way to move, L54) | key:<k> |
     click:<x>:<y> | text:<label> (click-text) | wait:<s> | still[:<max_s>] (until Tara's action/walk ends, L52) |
     act:<kind> (Space only if the highlighted bubble is <kind>: pickup/axe/pickaxe/talk/info/stairs, L55)"""
+    kind, _, arg = spec.partition(':')
+    if kind in ('act', 'click', 'text') or spec == 'key:space':  # may move Tara without a go: click (L62)
+        mark, est = log_mark(), seg_estimate()
+        msg = run_action_inner(spec)
+        time.sleep(0.5)
+        if not scene_change(mark, est):
+            seg_dirty()
+        return msg
+    return run_action_inner(spec)
+
+
+def run_action_inner(spec):
     kind, _, arg = spec.partition(':')
     if kind == 'key':
         if arg == 'space':
@@ -1187,6 +2482,12 @@ def run_action(spec):
         key(arg)
     elif kind == 'act':
         return act(arg)
+    elif kind in ('pause', 'resume'):
+        msg = set_paused(kind == 'pause')
+        return None if msg.startswith(('paused', 'running')) else msg
+    elif kind == 'goto':
+        msg = goto(arg)
+        return None if msg.startswith('ARRIVED') else msg
     elif kind == 'go':
         x, y = arg.split(':')
         return go_to(int(x), int(y))
@@ -1488,9 +2789,16 @@ def print_log(prefix='log: ', limit=40):
         print(f'{prefix}(+{len(lines) - limit} earlier lines; `wf log --tail N`)')
 
 
+def _mtime(path):
+    try:
+        return os.path.getmtime(path)
+    except OSError:  # the game rotates save files: an old one can vanish between listing and stat (L62)
+        return 0
+
+
 def latest_save():
     files = [os.path.join(d, f) for d, _, fs in os.walk(SAVE_DIR) for f in fs if f.endswith('.local')]
-    return max(files, key=os.path.getmtime) if files else None
+    return max(files, key=_mtime) if files else None
 
 
 def read_save(path=None):
@@ -1515,6 +2823,67 @@ def read_save(path=None):
             return '##' + names.get(int(o[2:]), o[2:])
         return o
     return path, dec(json.loads(data))
+
+
+# ---------------------------------------------------------------- routines (L61): daily chores before quests
+def farm_status():
+    """Garden crops from the save (actors with plant state). Crops = plants that track lastTimeRefreshed (beds);
+    trees/flowers don't. Returns dict(beds, wilted, ripe, growing, dry, positions)."""
+    _, d = read_save()
+    crops = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            a = o.get('actorState')
+            us = a.get('userState', {}).get('entries') if isinstance(a, dict) else None
+            if us and any(e.get('name') == 'isWatered' for e in us):
+                st = {e['name']: e['value'] for e in us}
+                if 'lastTimeRefreshed' in st:
+                    p = o.get('position', {})
+                    crops.append({'x': p.get('x'), 'z': p.get('z'), **st})
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+    walk(d)
+    return {'beds': len(crops),
+            'wilted': sum(c.get('isWilted') == 'true' for c in crops),
+            'ripe': sum(c.get('plantState') == '##produced' for c in crops),
+            'growing': sum(c.get('plantState') in ('##growing', '##producing') for c in crops),
+            'dry': sum(c.get('isWatered') != 'true' and c.get('plantState') != '##produced' for c in crops),
+            'crops': crops}
+
+
+def today_log():
+    """Today's engine-log lines (since the last OnDayStarted) and the day number."""
+    lines = game_log(tail=4000)
+    starts = [i for i, l in enumerate(lines) if 'OnDayStarted' in l]
+    day = re.match(r'\[D(\d+)', lines[starts[-1]]).group(1) if starts else None
+    return (lines[starts[-1]:] if starts else lines), day, lines
+
+
+def routines():
+    """Today's routines with status, from the save (what exists) and today's log (what was done). docs/routines.md"""
+    today, day, lines = today_log()
+    fc = next((l for l in reversed(lines) if f'[D{day} ' in l and 'Forecast is' in l), '')
+    rain = bool(re.search(r'Forecast is (Rain|Storm|Thunder)', fc))
+    fs = farm_status()
+    watered = sum(1 for l in today if re.search(r'> (water|hazel_waterplant) me=Player target=GardenBed', l))
+    harvested = sum(1 for l in today if re.search(r'> harvest\w* me=Player', l))
+    need = fs['beds'] - fs['ripe']
+    out = [f'day {day} · {fc.split("] ")[-1] if fc else "forecast ?"} · garden {fs["beds"]} beds: '
+           f'{fs["growing"]} growing, {fs["ripe"]} ripe, {fs["wilted"]} wilted (save)']
+    if rain:
+        out.append('R1 water garden: SKIP (rain waters everything)')
+    else:
+        out.append(f'R1 water garden: {"DONE" if watered >= need else "DUE"} {watered}/{need} beds watered today'
+                   + (f' · {fs["wilted"]} WILTED: water first' if fs['wilted'] else ''))
+    out.append(f'R2 harvest ripe crops: {"DONE" if fs["ripe"] == 0 or harvested >= fs["ripe"] else "DUE"} '
+               f'{fs["ripe"]} ripe per save, {harvested} harvested today')
+    out.append('R3 bee hives (8): ❓ not modelled yet')
+    run_log('routine', status=out[1:3])
+    return '\n'.join(out)
 
 
 def _hhmm(sec):
@@ -1636,7 +3005,43 @@ def main(argv=None):
                                    'decision|note <text…> | end <result> [text…] | report [file]')
     p.add_argument('sub')
     p.add_argument('args', nargs='*')
-    p = sub.add_parser('learn', help='self-improvement status: learned bubble kinds, accuracy, recent additions')
+    p = sub.add_parser('where', help='Tara on the map (pin) + nearest known place; --learn <name> stores it (L57)')
+    p.add_argument('--learn')
+    p = sub.add_parser('pos', help='EXACT world position now (checkpoint: game to background -> autosave -> read -> '
+                                   'focus back); --learn <name> = this spot is that place (L62)')
+    p.add_argument('--learn')
+    p = sub.add_parser('calib', help='8 short hops on open ground -> refit screen -> world mapping for this scene (L62); '
+                                     '--small = shorter hops for rooms (furniture clicks interact)')
+    p.add_argument('--small', action='store_true')
+    p = sub.add_parser('plan', help='world-graph plan to a place/anchor (no walking): steps walk/link/replay (L62)')
+    p.add_argument('place')
+    p = sub.add_parser('go-world', help='walk to world point X Z in this scene by calibrated clicks (L62)')
+    p.add_argument('x', type=float)
+    p.add_argument('z', type=float)
+    sub.add_parser('coverage', help='coverage matrix: which map/area cells have all 4 nav layers; gaps of Tara\'s cell '
+                                    '(no input, L67)')
+    p = sub.add_parser('improve', help='auto-improver: fill the gaps of Tara\'s cell, walk to the nearest road cell '
+                                       'without data, repeat N cells (L67)')
+    p.add_argument('n', type=int, nargs='?', default=3)
+    p = sub.add_parser('road', help='is Tara on a road? (screen road mask under her feet); --go = step onto the nearest '
+                                    'road; --calibrate = she IS on a road: learn this lighting period\'s colours')
+    p.add_argument('--go', action='store_true')
+    p.add_argument('--calibrate', action='store_true')
+    sub.add_parser('pause', help='pause the game if it is running (checks first; Escape toggles)')
+    sub.add_parser('resume', help='resume the game if it is paused (checks first)')
+    sub.add_parser('routines', help="today's daily chores and their status (save + today's log); docs/routines.md")
+    p = sub.add_parser('edge', help='anchored route edges: wf edge add <A> <B> x:y x:y … | replay <A> <B> | list')
+    p.add_argument('sub')
+    p.add_argument('args', nargs='*')
+    p = sub.add_parser('teach', help='answer the last NEED_VISION question: wf teach road C5 D5 | wf teach next D6')
+    p.add_argument('kind')
+    p.add_argument('cells', nargs='+')
+    p = sub.add_parser('goto', help='walk to a known place by map route (localise → road BFS → go: hops): wf goto farmhouse')
+    p.add_argument('place')
+    p.add_argument('--hops', type=int, default=30)
+    p = sub.add_parser('learn', help='self-improvement status: learned bubble kinds, accuracy, recent additions; '
+                                     '`learn nav` = navigation loop (calibration, places, edges, blocks, L62)')
+    p.add_argument('what', nargs='?')
     p = sub.add_parser('actions', help='action DB rows from docs/actions.md by tag (do/expect/verify): wf actions chop pickup [--all]')
     p.add_argument('tags', nargs='*')
     p.add_argument('--all', action='store_true')
@@ -1667,7 +3072,11 @@ def main(argv=None):
     if a.cmd == 'run':
         return run_cmd(a.sub, a.args)
     if a.cmd == 'learn':
-        return learn_report()
+        return print(learn_nav()) if a.what == 'nav' else learn_report()
+    if a.cmd == 'coverage':
+        return print(coverage_report())
+    if a.cmd == 'routines':
+        return print(routines())
     if a.cmd == 'wait':
         time.sleep(a.seconds)
         return
@@ -1774,6 +3183,44 @@ def main(argv=None):
 def _dispatch_input(a):
     if a.cmd == 'do':
         do(a.actions, a.look, a.crop)
+    elif a.cmd == 'where':
+        print(where(a.learn))
+    elif a.cmd == 'goto':
+        print(goto(a.place, a.hops))
+    elif a.cmd == 'teach':
+        print(teach(a.kind, a.cells))
+    elif a.cmd == 'edge':
+        if a.sub == 'add':
+            print(edge_add(a.args[0], a.args[1], a.args[2:]))
+        elif a.sub == 'replay':
+            print(edge_replay(a.args[0], a.args[1]))
+        else:
+            print('\n'.join(f'{k}: {len(v["clicks"])} clicks, {v["ok"]} ok / {v["fail"]} fail' for k, v in edges().items())
+                  or 'no edges')
+    elif a.cmd == 'pos':
+        import math
+        p, f = checkpoint('arrived' if a.learn else None, goal=a.learn)
+        print(f"POS {p['scene']} ({p['x']:.2f}, {p['y']:.2f}, {p['z']:.2f}) "
+              f"{'fresh' if p['fresh'] else 'NO NEW SAVE (unchanged since last save, ' + str(round(p['age'])) + ' s old)'}"
+              f" | D{p['day']} {p['hour']:.2f}h {p['weather']}" + (f" | pred error {math.dist(f['pred'], f['to']):.2f}"
+                                                                    if f['pred'] else '')
+              + (f" | learned place {a.learn}" if a.learn else ''))
+    elif a.cmd == 'plan':
+        st = graph_route(a.place)
+        print('\n'.join(f'{kind:6} {k} {_xz(n)} {n["src"]}' for kind, k, n in st) if st
+              else f'no world-graph route to {a.place}: goto falls back to the map route')
+    elif a.cmd == 'go-world':
+        print(go_world(a.x, a.z))
+    elif a.cmd == 'improve':
+        print(improve(a.n))
+    elif a.cmd == 'calib':
+        print(calibrate(CALIB_SMALL if a.small else CALIB_MOVES))
+    elif a.cmd == 'road':
+        img = grab()
+        print(calibrate_road(img) if a.calibrate else to_road() if a.go else
+              f'on road: {on_road(img):.0%} around her feet [{road_key(img)}]')
+    elif a.cmd in ('pause', 'resume'):
+        print(set_paused(a.cmd == 'pause'))
         return
     if a.cmd == 'click':
         click(a.x, a.y, 'right' if a.right else 'left', 2 if a.double else 1)

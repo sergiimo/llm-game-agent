@@ -23,6 +23,10 @@ docs, then re-test. Judge runs by gaps found and fixed.
   recent events (`docs/ui/game-files.md`). Then `./wf state`; add one `./wf look` only if the exact spot matters.
   Fix progress.md first if reality differs, and put the observed location in the brief.
 
+## 1b. Every morning: routines first
+`./wf routines` (docs/routines.md): DUE routines (watering, harvest) are dispatched before any quest goal; wilted
+beds first. A routine is done only when `./wf routines` says DONE.
+
 ## 2. Choose the current goal
 Before choosing, check the docs cover the goal's verbs and places (`mechanics/basic-actions.md`, `world/locations.md`).
 Missing how-to/location → either make the goal "scout/learn X" first, or brief the agent to fill the gap.

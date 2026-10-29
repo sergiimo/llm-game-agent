@@ -1,0 +1,598 @@
+{"t": 1793259778.2, "type": "start", "quest": "R1", "goal": "water the garden"}
+{"t": 1793259784.89, "type": "routine", "status": ["R1 water garden: DUE 0/11 beds watered today · 11 WILTED: water first", "R2 harvest ripe crops: DUE 1 ripe per save, 0 harvested today"]}
+{"t": 1793259788.35, "type": "call", "start": 1793259788.35, "end": 1793259792.72, "cmd": "resume"}
+{"t": 1793259792.96, "type": "call", "start": 1793259792.96, "end": 1793259793.18, "cmd": "look"}
+{"t": 1793259804.04, "type": "activity", "what": "go", "target": "go:75:625", "start": 1793259801.161098, "end": 1793259804.041368, "moved": true}
+{"t": 1793259799.15, "type": "call", "start": 1793259799.15, "end": 1793259808.31, "cmd": "do go:75:625 --look"}
+{"t": 1793259817.46, "type": "activity", "what": "go", "target": "go:50:750", "start": 1793259814.6675782, "end": 1793259817.463074, "moved": true}
+{"t": 1793259813.04, "type": "call", "start": 1793259813.04, "end": 1793259823.49, "cmd": "do go:50:750 --look"}
+{"t": 1793259841.33, "type": "activity", "what": "go", "target": "go:750:170", "start": 1793259836.474525, "end": 1793259841.328436, "moved": true}
+{"t": 1793259834.59, "type": "call", "start": 1793259834.59, "end": 1793259846.01, "cmd": "do go:750:170 --look"}
+{"t": 1793259850.31, "type": "call", "start": 1793259850.31, "end": 1793259857.96, "cmd": "do key:space --look"}
+{"t": 1793259865.31, "type": "activity", "what": "go", "target": "go:800:1000", "start": 1793259863.727459, "end": 1793259865.309111, "moved": true}
+{"t": 1793259861.88, "type": "call", "start": 1793259861.88, "end": 1793259870.02, "cmd": "do go:800:1000 --look"}
+{"t": 1793259875.45, "type": "call", "start": 1793259875.45, "end": 1793259879.4, "cmd": "do key:space --look"}
+{"t": 1793259887.56, "type": "issue", "text": "Space at D146 9:30 bed spot hit the beehive bubble (beehive_progress info overlay) not the bed bubble; two bubbles overlap near hive row"}
+{"t": 1793259888.22, "type": "call", "start": 1793259888.22, "end": 1793259888.48, "cmd": "look"}
+{"t": 1793259897.69, "type": "activity", "what": "go", "target": "go:1200:770", "start": 1793259896.817615, "end": 1793259897.689138, "moved": true}
+{"t": 1793259894.91, "type": "call", "start": 1793259894.91, "end": 1793259902.12, "cmd": "do go:1200:770 --look"}
+{"t": 1793259910.83, "type": "activity", "what": "go", "target": "go:1180:800", "start": 1793259909.969131, "end": 1793259910.832896, "moved": true}
+{"t": 1793259907.94, "type": "call", "start": 1793259907.94, "end": 1793259914.41, "cmd": "do go:1180:800 --look"}
+{"t": 1793259917.5, "type": "call", "start": 1793259917.5, "end": 1793259918.02, "cmd": "state"}
+{"t": 1793259918.42, "type": "call", "start": 1793259918.42, "end": 1793259918.59, "cmd": "look"}
+{"t": 1793259928.29, "type": "activity", "what": "go", "target": "go:1010:870", "start": 1793259926.764721, "end": 1793259928.2897081, "moved": false}
+{"t": 1793259925.82, "type": "call", "start": 1793259925.82, "end": 1793259932.3, "cmd": "do go:1010:870 --look"}
+{"t": 1793259940.92, "type": "activity", "what": "go", "target": "go:1000:1000", "start": 1793259938.2468228, "end": 1793259940.922739, "moved": true}
+{"t": 1793259936.53, "type": "call", "start": 1793259936.53, "end": 1793259947.08, "cmd": "do go:1000:1000 --look"}
+{"t": 1793263783.75, "type": "call", "start": 1793263783.75, "end": 1793263783.76, "cmd": "focus-mode"}
+{"t": 1793263783.85, "type": "call", "start": 1793263783.85, "end": 1793263784.07, "cmd": "state"}
+{"t": 1793263826.36, "type": "call", "start": 1793263826.36, "end": 1793263826.55, "cmd": "state"}
+{"t": 1793263826.58, "type": "call", "start": 1793263826.58, "end": 1793263826.61, "cmd": "look"}
+{"t": 1793263838.58, "type": "activity", "what": "go", "target": "go:500:825", "start": 1793263836.169699, "end": 1793263838.5799942, "moved": true}
+{"t": 1793263834.13, "type": "call", "start": 1793263834.13, "end": 1793263853.56, "cmd": "do go:500:825"}
+{"t": 1793263865.87, "type": "call", "start": 1793263865.87, "end": 1793263866.5, "cmd": "state"}
+{"t": 1793263879.83, "type": "activity", "what": "go", "target": "go:960:500", "start": 1793263878.559465, "end": 1793263879.8256261, "moved": true}
+{"t": 1793263876.23, "type": "call", "start": 1793263876.23, "end": 1793263883.34, "cmd": "do go:960:500"}
+{"t": 1793263902.91, "type": "call", "start": 1793263902.91, "end": 1793263902.94, "cmd": "look"}
+{"t": 1793263914.52, "type": "activity", "what": "go", "target": "go:710:665", "start": 1793263913.3341708, "end": 1793263914.521204, "moved": true}
+{"t": 1793263911.16, "type": "call", "start": 1793263911.16, "end": 1793263919.87, "cmd": "do go:710:665"}
+{"t": 1793263926.28, "type": "activity", "what": "go", "target": "go:960:865", "start": 1793263924.748107, "end": 1793263926.275122, "moved": true}
+{"t": 1793263922.85, "type": "call", "start": 1793263922.85, "end": 1793263929.7, "cmd": "do go:960:865"}
+{"t": 1793263935.95, "type": "activity", "what": "go", "target": "go:1160:665", "start": 1793263934.7077818, "end": 1793263935.952204, "moved": true}
+{"t": 1793263932.51, "type": "call", "start": 1793263932.51, "end": 1793263941.52, "cmd": "do go:1160:665"}
+{"t": 1793263948.82, "type": "activity", "what": "go", "target": "go:960:465", "start": 1793263946.386666, "end": 1793263948.8148859, "moved": true}
+{"t": 1793263944.37, "type": "call", "start": 1793263944.37, "end": 1793263953.55, "cmd": "do go:960:465"}
+{"t": 1793264171.07, "type": "nav", "what": "pos", "scene": "Farm", "x": -7.88, "z": -17.97, "fresh": false, "secs": 6.2}
+{"t": 1793264163.37, "type": "call", "start": 1793264163.37, "end": 1793264173.14, "cmd": "pos"}
+{"t": 1793264173.48, "type": "call", "start": 1793264173.48, "end": 1793264173.65, "cmd": "look"}
+{"t": 1793264195.67, "type": "activity", "what": "go", "target": "go:700:1000", "start": 1793264192.180557, "end": 1793264195.665438, "moved": true}
+{"t": 1793264186.6, "type": "call", "start": 1793264186.6, "end": 1793264199.8, "cmd": "do go:700:1000 --look"}
+{"t": 1793264218.35, "type": "nav", "what": "pos", "scene": "Farm", "x": -10.92, "z": -27.57, "fresh": true, "secs": 3.1}
+{"t": 1793264221.59, "type": "activity", "what": "go", "target": "go:1210:690", "start": 1793264219.939522, "end": 1793264221.5884311, "moved": true}
+{"t": 1793264223.13, "type": "nav", "what": "pos", "scene": "Farm", "x": -7.15, "z": -28.3, "fresh": true, "secs": 1.3}
+{"t": 1793264226.44, "type": "activity", "what": "go", "target": "go:710:690", "start": 1793264225.025516, "end": 1793264226.4420722, "moved": true}
+{"t": 1793264228.09, "type": "nav", "what": "pos", "scene": "Farm", "x": -10.92, "z": -29.03, "fresh": true, "secs": 1.5}
+{"t": 1793264231.38, "type": "activity", "what": "go", "target": "go:960:870", "start": 1793264229.741317, "end": 1793264231.383135, "moved": true}
+{"t": 1793264232.86, "type": "nav", "what": "pos", "scene": "Farm", "x": -10.92, "z": -35.46, "fresh": true, "secs": 1.3}
+{"t": 1793264236.16, "type": "activity", "what": "go", "target": "go:960:510", "start": 1793264234.395048, "end": 1793264236.161293, "moved": true}
+{"t": 1793264237.79, "type": "nav", "what": "pos", "scene": "Farm", "x": -10.92, "z": -28.17, "fresh": true, "secs": 1.5}
+{"t": 1793264241.17, "type": "activity", "what": "go", "target": "go:1160:840", "start": 1793264239.8277109, "end": 1793264241.170304, "moved": true}
+{"t": 1793264242.8, "type": "nav", "what": "pos", "scene": "Farm", "x": -8.27, "z": -33.76, "fresh": true, "secs": 1.5}
+{"t": 1793264245.86, "type": "activity", "what": "go", "target": "go:760:540", "start": 1793264244.2667599, "end": 1793264245.860745, "moved": true}
+{"t": 1793264247.29, "type": "nav", "what": "pos", "scene": "Farm", "x": -11.79, "z": -28.03, "fresh": true, "secs": 1.3}
+{"t": 1793264250.35, "type": "activity", "what": "go", "target": "go:760:840", "start": 1793264248.819217, "end": 1793264250.351253, "moved": true}
+{"t": 1793264251.83, "type": "nav", "what": "pos", "scene": "Farm", "x": -14.44, "z": -33.62, "fresh": true, "secs": 1.3}
+{"t": 1793264254.73, "type": "activity", "what": "go", "target": "go:1160:540", "start": 1793264253.550539, "end": 1793264254.72846, "moved": true}
+{"t": 1793264256.43, "type": "nav", "what": "pos", "scene": "Farm", "x": -10.92, "z": -27.89, "fresh": true, "secs": 1.5}
+{"t": 1793264256.45, "type": "nav", "what": "calib", "scene": "Farm", "hops": 8, "loo_err": 0.54}
+{"t": 1793264214.92, "type": "call", "start": 1793264214.92, "end": 1793264257.97, "cmd": "calib"}
+{"t": 1793264309.55, "type": "nav", "what": "pos", "scene": "Farm", "x": -10.92, "z": -27.89, "fresh": false, "secs": 5.0}
+{"t": 1793264313.18, "type": "activity", "what": "go", "target": "go:1210:690", "start": 1793264311.960001, "end": 1793264313.178307, "moved": true}
+{"t": 1793264314.89, "type": "nav", "what": "pos", "scene": "Farm", "x": -7.15, "z": -28.62, "fresh": true, "secs": 1.5}
+{"t": 1793264317.75, "type": "activity", "what": "go", "target": "go:710:690", "start": 1793264316.52093, "end": 1793264317.743392, "moved": true}
+{"t": 1793264319.41, "type": "nav", "what": "pos", "scene": "Farm", "x": -10.92, "z": -29.35, "fresh": true, "secs": 1.5}
+{"t": 1793264334.13, "type": "activity", "what": "go", "target": "go:960:870", "start": 1793264321.850281, "end": 1793264334.128273, "moved": true}
+{"t": 1793264300.27, "type": "call", "start": 1793264300.27, "end": 1793264334.8, "cmd": "calib"}
+{"t": 1793264349.01, "type": "nav", "what": "pos", "scene": "Farm", "x": -10.92, "z": -35.78, "fresh": false, "secs": 4.7}
+{"t": 1793264354.18, "type": "activity", "what": "go", "target": "go:1210:690", "start": 1793264350.860543, "end": 1793264354.177778, "moved": true}
+{"t": 1793264355.86, "type": "nav", "what": "pos", "scene": "Farm", "x": -7.74, "z": -36.32, "fresh": true, "secs": 1.4}
+{"t": 1793264359.87, "type": "activity", "what": "go", "target": "go:710:690", "start": 1793264358.092277, "end": 1793264359.873159, "moved": true}
+{"t": 1793264361.35, "type": "nav", "what": "pos", "scene": "Farm", "x": -11.5, "z": -37.05, "fresh": true, "secs": 1.3}
+{"t": 1793264366.02, "type": "activity", "what": "go", "target": "go:960:870", "start": 1793264362.942861, "end": 1793264366.018359, "moved": true}
+{"t": 1793264367.52, "type": "nav", "what": "pos", "scene": "Farm", "x": -11.5, "z": -43.48, "fresh": true, "secs": 1.3}
+{"t": 1793264370.63, "type": "activity", "what": "go", "target": "go:960:510", "start": 1793264369.114607, "end": 1793264370.62566, "moved": true}
+{"t": 1793264372.1, "type": "nav", "what": "pos", "scene": "Farm", "x": -11.5, "z": -36.19, "fresh": true, "secs": 1.3}
+{"t": 1793264375.25, "type": "activity", "what": "go", "target": "go:1160:840", "start": 1793264373.717717, "end": 1793264375.252248, "moved": true}
+{"t": 1793264376.68, "type": "nav", "what": "pos", "scene": "Farm", "x": -8.85, "z": -41.78, "fresh": true, "secs": 1.3}
+{"t": 1793264379.91, "type": "activity", "what": "go", "target": "go:760:540", "start": 1793264378.305364, "end": 1793264379.905819, "moved": true}
+{"t": 1793264381.36, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.38, "z": -36.05, "fresh": true, "secs": 1.2}
+{"t": 1793264386.8, "type": "activity", "what": "go", "target": "go:760:840", "start": 1793264382.9592268, "end": 1793264386.798613, "moved": true}
+{"t": 1793264388.71, "type": "nav", "what": "pos", "scene": "Farm", "x": -15.03, "z": -41.64, "fresh": true, "secs": 1.3}
+{"t": 1793264392.91, "type": "activity", "what": "go", "target": "go:1160:540", "start": 1793264391.792164, "end": 1793264392.9096398, "moved": true}
+{"t": 1793264394.45, "type": "nav", "what": "pos", "scene": "Farm", "x": -11.5, "z": -35.91, "fresh": true, "secs": 1.2}
+{"t": 1793264394.46, "type": "nav", "what": "calib", "scene": "Farm", "hops": 8, "loo_err": 0.136}
+{"t": 1793264342.82, "type": "call", "start": 1793264342.82, "end": 1793264396.22, "cmd": "calib"}
+{"t": 1793264413.05, "type": "nav", "what": "pos", "scene": "Farm", "x": -11.5, "z": -35.91, "fresh": false, "secs": 4.2}
+{"t": 1793264408.56, "type": "call", "start": 1793264408.56, "end": 1793264414.59, "cmd": "pos"}
+{"t": 1793264418.51, "type": "activity", "what": "go", "target": "go:1110:758", "start": 1793264417.222243, "end": 1793264418.504977, "moved": true}
+{"t": 1793264415.53, "type": "call", "start": 1793264415.53, "end": 1793264424.2, "cmd": "do go:1110:758"}
+{"t": 1793264426.22, "type": "nav", "what": "pos", "scene": "Farm", "x": -9.38, "z": -39.02, "fresh": true, "secs": 1.3}
+{"t": 1793264424.48, "type": "call", "start": 1793264424.48, "end": 1793264427.96, "cmd": "pos"}
+{"t": 1793264431.87, "type": "activity", "what": "go", "target": "go:780:577", "start": 1793264430.6888828, "end": 1793264431.8709729, "moved": true}
+{"t": 1793264428.84, "type": "call", "start": 1793264428.84, "end": 1793264436.79, "cmd": "do go:780:577"}
+{"t": 1793264438.7, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.42, "z": -35.08, "fresh": true, "secs": 1.3}
+{"t": 1793264437.03, "type": "call", "start": 1793264437.03, "end": 1793264440.47, "cmd": "pos"}
+{"t": 1793264459.51, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.42, "z": -35.08, "fresh": false, "secs": 4.2}
+{"t": 1793264454.93, "type": "call", "start": 1793264454.93, "end": 1793264461.26, "cmd": "pos"}
+{"t": 1793264465.63, "type": "activity", "what": "go", "target": "go:1110:758", "start": 1793264464.345676, "end": 1793264465.6313531, "moved": true}
+{"t": 1793264462.54, "type": "call", "start": 1793264462.54, "end": 1793264469.24, "cmd": "do go:1110:758"}
+{"t": 1793264471.33, "type": "nav", "what": "pos", "scene": "Farm", "x": -10.29, "z": -38.19, "fresh": true, "secs": 1.5}
+{"t": 1793264469.49, "type": "call", "start": 1793264469.49, "end": 1793264472.97, "cmd": "pos"}
+{"t": 1793264476.63, "type": "activity", "what": "go", "target": "go:780:577", "start": 1793264475.4196749, "end": 1793264476.632448, "moved": true}
+{"t": 1793264473.81, "type": "call", "start": 1793264473.81, "end": 1793264481.3, "cmd": "do go:780:577"}
+{"t": 1793264483.21, "type": "nav", "what": "pos", "scene": "Farm", "x": -13.33, "z": -34.25, "fresh": true, "secs": 1.3}
+{"t": 1793264481.54, "type": "call", "start": 1793264481.54, "end": 1793264484.93, "cmd": "pos"}
+{"t": 1793264487.93, "type": "activity", "what": "go", "target": "go:1028:623", "start": 1793264487.163486, "end": 1793264487.9269109, "moved": true}
+{"t": 1793264485.54, "type": "call", "start": 1793264485.54, "end": 1793264490.9, "cmd": "do go:1028:623"}
+{"t": 1793264492.89, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.23, "z": -32.33, "fresh": true, "secs": 1.5}
+{"t": 1793264491.11, "type": "call", "start": 1793264491.11, "end": 1793264494.4, "cmd": "pos"}
+{"t": 1793265369.08, "type": "call", "start": 1793265369.08, "end": 1793265369.87, "cmd": "look"}
+{"t": 1793265380.94, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.23, "z": -32.33, "fresh": false, "secs": 4.8}
+{"t": 1793265384.13, "type": "activity", "what": "go", "target": "go:1210:690", "start": 1793265383.002548, "end": 1793265384.133409, "moved": true}
+{"t": 1793265385.76, "type": "nav", "what": "pos", "scene": "Farm", "x": -8.46, "z": -33.06, "fresh": true, "secs": 1.5}
+{"t": 1793265388.58, "type": "activity", "what": "go", "target": "go:710:690", "start": 1793265387.343196, "end": 1793265388.574879, "moved": true}
+{"t": 1793265390.24, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.23, "z": -33.79, "fresh": true, "secs": 1.5}
+{"t": 1793265393.97, "type": "activity", "what": "go", "target": "go:960:870", "start": 1793265391.8296452, "end": 1793265393.9738529, "moved": true}
+{"t": 1793265395.43, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.23, "z": -40.22, "fresh": true, "secs": 1.2}
+{"t": 1793265398.73, "type": "activity", "what": "go", "target": "go:960:510", "start": 1793265396.891167, "end": 1793265398.731549, "moved": true}
+{"t": 1793265400.25, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.23, "z": -32.93, "fresh": true, "secs": 1.3}
+{"t": 1793265403.69, "type": "activity", "what": "go", "target": "go:1160:840", "start": 1793265401.916613, "end": 1793265403.687765, "moved": false}
+{"t": 1793265415.13, "type": "activity", "what": "go", "target": "go:760:540", "start": 1793265413.656624, "end": 1793265415.129791, "moved": true}
+{"t": 1793265416.8, "type": "nav", "what": "pos", "scene": "Farm", "x": -13.1, "z": -32.79, "fresh": true, "secs": 1.5}
+{"t": 1793265420.46, "type": "activity", "what": "go", "target": "go:760:840", "start": 1793265418.4318871, "end": 1793265420.458899, "moved": true}
+{"t": 1793265422.13, "type": "nav", "what": "pos", "scene": "Farm", "x": -15.75, "z": -38.38, "fresh": true, "secs": 1.5}
+{"t": 1793265425.42, "type": "activity", "what": "go", "target": "go:1160:540", "start": 1793265423.814192, "end": 1793265425.416706, "moved": true}
+{"t": 1793265427.02, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.23, "z": -32.65, "fresh": true, "secs": 1.5}
+{"t": 1793265375.23, "type": "call", "start": 1793265375.23, "end": 1793265428.57, "cmd": "calib"}
+{"t": 1793265445.52, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.23, "z": -32.65, "fresh": false, "secs": 4.2}
+{"t": 1793265440.99, "type": "call", "start": 1793265440.99, "end": 1793265447.23, "cmd": "pos --learn test-spot"}
+{"t": 1793265451.15, "type": "activity", "what": "go", "target": "go:700:900", "start": 1793265449.1890519, "end": 1793265451.1452758, "moved": true}
+{"t": 1793265447.45, "type": "call", "start": 1793265447.45, "end": 1793265457.06, "cmd": "do go:700:900"}
+{"t": 1793265460.56, "type": "activity", "what": "go", "target": "go:700:900", "start": 1793265458.907684, "end": 1793265460.559671, "moved": true}
+{"t": 1793265457.27, "type": "call", "start": 1793265457.27, "end": 1793265473.82, "cmd": "do go:700:900"}
+{"t": 1793265478.59, "type": "activity", "what": "go", "target": "go:1150:850", "start": 1793265476.3519769, "end": 1793265478.5857549, "moved": true}
+{"t": 1793265474.49, "type": "call", "start": 1793265474.49, "end": 1793265483.85, "cmd": "do go:1150:850"}
+{"t": 1793265490.44, "type": "activity", "what": "go", "target": "go:1135:320", "start": 1793265486.1689038, "end": 1793265490.4425988, "moved": true}
+{"t": 1793265492.0, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.24, "z": -32.69, "fresh": true, "secs": 1.4}
+{"t": 1793265484.54, "type": "call", "start": 1793265484.54, "end": 1793265493.77, "cmd": "goto test-spot"}
+{"t": 1793265504.59, "type": "activity", "what": "go", "target": "go:600:900", "start": 1793265502.1075761, "end": 1793265504.584818, "moved": true}
+{"t": 1793265500.53, "type": "call", "start": 1793265500.53, "end": 1793265509.46, "cmd": "do go:600:900"}
+{"t": 1793265513.34, "type": "activity", "what": "go", "target": "go:600:900", "start": 1793265511.311636, "end": 1793265513.334283, "moved": true}
+{"t": 1793265509.73, "type": "call", "start": 1793265509.73, "end": 1793265518.14, "cmd": "do go:600:900"}
+{"t": 1793265523.17, "type": "activity", "what": "go", "target": "go:650:850", "start": 1793265520.291669, "end": 1793265523.1664782, "moved": true}
+{"t": 1793265518.67, "type": "call", "start": 1793265518.67, "end": 1793265534.67, "cmd": "do go:650:850"}
+{"t": 1793265538.22, "type": "activity", "what": "go", "target": "go:700:600", "start": 1793265536.910836, "end": 1793265538.217761, "moved": true}
+{"t": 1793265534.9, "type": "call", "start": 1793265534.9, "end": 1793265542.07, "cmd": "do go:700:600"}
+{"t": 1793265547.41, "type": "activity", "what": "go", "target": "go:1632:401", "start": 1793265543.845373, "end": 1793265547.404725, "moved": true}
+{"t": 1793265550.21, "type": "activity", "what": "go", "target": "go:1169:587", "start": 1793265548.755977, "end": 1793265550.206552, "moved": true}
+{"t": 1793265551.97, "type": "nav", "what": "pos", "scene": "Farm", "x": -11.4, "z": -32.58, "fresh": true, "secs": 1.5}
+{"t": 1793265554.99, "type": "activity", "what": "go", "target": "go:906:673", "start": 1793265554.1799989, "end": 1793265554.990444, "moved": true}
+{"t": 1793265556.52, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.23, "z": -32.68, "fresh": true, "secs": 1.3}
+{"t": 1793265542.26, "type": "call", "start": 1793265542.26, "end": 1793265559.5, "cmd": "goto test-spot"}
+{"t": 1793268458.35, "type": "call", "start": 1793268458.35, "end": 1793268467.68, "cmd": "where"}
+{"t": 1793268471.51, "type": "call", "start": 1793268471.51, "end": 1793268473.33, "cmd": "look"}
+{"t": 1793268490.64, "type": "call", "start": 1793268490.64, "end": 1793268492.99, "cmd": "resume"}
+{"t": 1793268493.17, "type": "call", "start": 1793268493.17, "end": 1793268498.14, "cmd": "where"}
+{"t": 1793268502.22, "type": "call", "start": 1793268502.22, "end": 1793268502.42, "cmd": "look"}
+{"t": 1793268516.78, "type": "call", "start": 1793268516.78, "end": 1793268517.31, "cmd": "state"}
+{"t": 1793268530.71, "type": "call", "start": 1793268530.71, "end": 1793268535.88, "cmd": "click-text Confirm"}
+{"t": 1793268536.08, "type": "call", "start": 1793268536.08, "end": 1793268540.99, "cmd": "pause"}
+{"t": 1793268589.21, "type": "call", "start": 1793268589.21, "end": 1793268597.58, "cmd": "resume"}
+{"t": 1793268603.7, "type": "nav", "what": "pos", "scene": "Farm", "x": 10.8, "z": -24.08, "fresh": false, "secs": 5.1}
+{"t": 1793268597.79, "type": "call", "start": 1793268597.79, "end": 1793268605.41, "cmd": "pos"}
+{"t": 1793268621.63, "type": "activity", "what": "go", "target": "go:1400:925", "start": 1793268607.030111, "end": 1793268621.6268291, "moved": true, "note": "still moving at timeout"}
+{"t": 1793268626.38, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.16, "z": -25.23, "fresh": false, "secs": 4.2}
+{"t": 1793268629.89, "type": "activity", "what": "go", "target": "go:1000:1010", "start": 1793268627.783637, "end": 1793268629.8887098, "moved": true}
+{"t": 1793268633.34, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.45, "z": -28.52, "fresh": true, "secs": 1.3}
+{"t": 1793268634.85, "type": "nav", "what": "edge", "edge": "Bed>House-door", "ok": true, "clicks": 2, "msgs": ["STILL MOVING after 15s (long path?): check with look", "ok"]}
+{"t": 1793268639.56, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.45, "z": -28.52, "fresh": false, "secs": 4.3}
+{"t": 1793268640.95, "type": "game", "line": "[D147 11:45:20 AM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793268605.54, "type": "call", "start": 1793268605.54, "end": 1793268640.96, "cmd": "edge replay Bed House-door"}
+{"t": 1793268643.99, "type": "nav", "what": "where", "pin": [715, 501], "near": "farmhouse", "dist": 21}
+{"t": 1793268650.41, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.45, "z": -28.52, "fresh": false, "secs": 4.2}
+{"t": 1793268640.99, "type": "call", "start": 1793268640.99, "end": 1793268652.4, "cmd": "where"}
+{"t": 1793268652.79, "type": "call", "start": 1793268652.79, "end": 1793268658.66, "cmd": "pause"}
+{"t": 1793268778.68, "type": "call", "start": 1793268778.68, "end": 1793268783.31, "cmd": "resume"}
+{"t": 1793268789.09, "type": "activity", "what": "go", "target": "go:305:707", "start": 1793268785.789139, "end": 1793268789.088106, "moved": true}
+{"t": 1793268797.6, "type": "activity", "what": "go", "target": "go:271:709", "start": 1793268795.12682, "end": 1793268797.595532, "moved": true}
+{"t": 1793268802.53, "type": "activity", "what": "go", "target": "go:304:707", "start": 1793268799.083033, "end": 1793268802.530932, "moved": true}
+{"t": 1793268804.83, "type": "nav", "what": "pos", "scene": "Farm", "x": -4.43, "z": -25.52, "fresh": true, "secs": 1.6}
+{"t": 1793268809.53, "type": "activity", "what": "go", "target": "go:343:899", "start": 1793268806.327181, "end": 1793268809.528828, "moved": true}
+{"t": 1793268811.34, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.21, "z": -32.7, "fresh": true, "secs": 1.3}
+{"t": 1793268783.56, "type": "call", "start": 1793268783.56, "end": 1793268812.78, "cmd": "go-world -12.2 -32.7"}
+{"t": 1793268815.74, "type": "nav", "what": "where", "pin": [531, 533], "near": "farm-garden", "dist": 93}
+{"t": 1793268820.42, "type": "nav", "what": "pos", "scene": "Farm", "x": -12.21, "z": -32.7, "fresh": false, "secs": 4.2}
+{"t": 1793268812.85, "type": "call", "start": 1793268812.85, "end": 1793268821.95, "cmd": "where"}
+{"t": 1793268822.0, "type": "call", "start": 1793268822.0, "end": 1793268830.12, "cmd": "pause"}
+{"t": 1793268845.78, "type": "call", "start": 1793268845.78, "end": 1793268849.66, "cmd": "resume"}
+{"t": 1793268855.0, "type": "activity", "what": "go", "target": "go:1557:762", "start": 1793268851.655306, "end": 1793268855.003505, "moved": true}
+{"t": 1793268858.32, "type": "activity", "what": "go", "target": "go:1658:777", "start": 1793268856.525138, "end": 1793268858.3149161, "moved": true}
+{"t": 1793268861.79, "type": "activity", "what": "go", "target": "go:1599:768", "start": 1793268860.196907, "end": 1793268861.789939, "moved": true}
+{"t": 1793268864.97, "type": "activity", "what": "go", "target": "go:1305:723", "start": 1793268863.314456, "end": 1793268864.970752, "moved": true}
+{"t": 1793268866.86, "type": "nav", "what": "pos", "scene": "Farm", "x": 10.73, "z": -34.32, "fresh": true, "secs": 1.3}
+{"t": 1793268871.45, "type": "activity", "what": "go", "target": "go:1574:953", "start": 1793268868.184501, "end": 1793268871.449066, "moved": true}
+{"t": 1793268874.22, "type": "activity", "what": "go", "target": "go:1087:729", "start": 1793268873.4050481, "end": 1793268874.2221792, "moved": true}
+{"t": 1793268876.23, "type": "nav", "what": "pos", "scene": "Farm", "x": 20.02, "z": -44.95, "fresh": true, "secs": 1.5}
+{"t": 1793268849.91, "type": "call", "start": 1793268849.91, "end": 1793268877.73, "cmd": "go-world 20 -45"}
+{"t": 1793268880.81, "type": "nav", "what": "where", "pin": [645, 547], "near": "farm-gate", "dist": 69}
+{"t": 1793268886.93, "type": "nav", "what": "pos", "scene": "Farm", "x": 20.02, "z": -44.95, "fresh": false, "secs": 4.2}
+{"t": 1793268877.8, "type": "call", "start": 1793268877.8, "end": 1793268888.44, "cmd": "where"}
+{"t": 1793268888.48, "type": "call", "start": 1793268888.48, "end": 1793268891.18, "cmd": "plan barn"}
+{"t": 1793268891.83, "type": "call", "start": 1793268891.83, "end": 1793268898.78, "cmd": "pause"}
+{"t": 1793268913.46, "type": "call", "start": 1793268913.46, "end": 1793268917.87, "cmd": "resume"}
+{"t": 1793268918.12, "type": "call", "start": 1793268918.12, "end": 1793268920.61, "cmd": "plan House:out"}
+{"t": 1793268925.61, "type": "activity", "what": "go", "target": "go:841:367", "start": 1793268922.522676, "end": 1793268925.608544, "moved": true}
+{"t": 1793268927.78, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.48, "z": -29.35, "fresh": true, "secs": 1.6}
+{"t": 1793268930.15, "type": "activity", "what": "go", "target": "go:958:649", "start": 1793268929.349785, "end": 1793268930.151179, "moved": true}
+{"t": 1793268932.08, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.45, "z": -28.96, "fresh": true, "secs": 1.5}
+{"t": 1793268932.09, "type": "nav", "what": "route", "place": "House:out", "steps": 1}
+{"t": 1793268920.94, "type": "call", "start": 1793268920.94, "end": 1793268933.98, "cmd": "goto House:out"}
+{"t": 1793268934.59, "type": "call", "start": 1793268934.59, "end": 1793268939.91, "cmd": "pause"}
+{"t": 1793268940.24, "type": "call", "start": 1793268940.24, "end": 1793268940.5, "cmd": "look"}
+{"t": 1793268955.75, "type": "call", "start": 1793268955.75, "end": 1793268960.21, "cmd": "resume"}
+{"t": 1793268960.84, "type": "call", "start": 1793268960.84, "end": 1793268961.08, "cmd": "look"}
+{"t": 1793268961.37, "type": "call", "start": 1793268961.37, "end": 1793268965.25, "cmd": "pause"}
+{"t": 1793268972.3, "type": "call", "start": 1793268972.3, "end": 1793268976.73, "cmd": "resume"}
+{"t": 1793268982.54, "type": "activity", "what": "go", "target": "go:950:450", "start": 1793268978.861253, "end": 1793268982.5358982, "moved": true}
+{"t": 1793268986.2, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.27, "z": -20.06, "fresh": true, "secs": 1.5}
+{"t": 1793268990.26, "type": "game", "line": "[D147 12:46:42 PM] [TRIGGER] OnEnterBuilding House"}
+{"t": 1793268977.02, "type": "call", "start": 1793268977.02, "end": 1793268990.37, "cmd": "do go:950:450 --look"}
+{"t": 1793268990.45, "type": "call", "start": 1793268990.45, "end": 1793268994.77, "cmd": "pause"}
+{"t": 1793269015.65, "type": "call", "start": 1793269015.65, "end": 1793269024.45, "cmd": "resume"}
+{"t": 1793269027.79, "type": "activity", "what": "go", "target": "go:960:1040", "start": 1793269026.6579041, "end": 1793269027.7884538, "moved": true}
+{"t": 1793269024.59, "type": "call", "start": 1793269024.59, "end": 1793269035.67, "cmd": "do go:960:1040"}
+{"t": 1793269035.84, "type": "call", "start": 1793269035.84, "end": 1793269039.75, "cmd": "pause"}
+{"t": 1793269043.19, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.27, "z": -24.18, "fresh": true, "secs": 1.3}
+{"t": 1793269039.96, "type": "call", "start": 1793269039.96, "end": 1793269044.75, "cmd": "plan House:in"}
+{"t": 1793269050.77, "type": "call", "start": 1793269050.77, "end": 1793269054.57, "cmd": "resume"}
+{"t": 1793269054.78, "type": "call", "start": 1793269054.78, "end": 1793269054.95, "cmd": "look"}
+{"t": 1793269055.13, "type": "call", "start": 1793269055.13, "end": 1793269058.88, "cmd": "pause"}
+{"t": 1793269065.33, "type": "call", "start": 1793269065.33, "end": 1793269074.5, "cmd": "resume"}
+{"t": 1793269078.6, "type": "activity", "what": "go", "target": "go:962:930", "start": 1793269076.580162, "end": 1793269078.6012108, "moved": true}
+{"t": 1793269082.14, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.28, "z": -26.73, "fresh": true, "secs": 1.3}
+{"t": 1793269086.57, "type": "game", "line": "[D147 1:07:35 PM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793269074.74, "type": "call", "start": 1793269074.74, "end": 1793269086.58, "cmd": "do go:962:930"}
+{"t": 1793269086.77, "type": "call", "start": 1793269086.77, "end": 1793269090.36, "cmd": "pause"}
+{"t": 1793269090.55, "type": "call", "start": 1793269090.55, "end": 1793269092.05, "cmd": "plan House:in"}
+{"t": 1793269099.75, "type": "call", "start": 1793269099.75, "end": 1793269104.16, "cmd": "resume"}
+{"t": 1793269109.23, "type": "activity", "what": "go", "target": "go:958:490", "start": 1793269106.4537501, "end": 1793269109.228339, "moved": true}
+{"t": 1793269112.62, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.24, "z": -18.2, "fresh": true, "secs": 1.3}
+{"t": 1793269112.63, "type": "nav", "what": "route", "place": "House:in", "steps": 2}
+{"t": 1793269114.58, "type": "game", "line": "[D147 1:15:34 PM] [TRIGGER] OnEnterBuilding House"}
+{"t": 1793269104.71, "type": "call", "start": 1793269104.71, "end": 1793269114.58, "cmd": "goto House:in"}
+{"t": 1793269114.78, "type": "call", "start": 1793269114.78, "end": 1793269118.62, "cmd": "pause"}
+{"t": 1793270867.88, "type": "call", "start": 1793270867.88, "end": 1793270874.39, "cmd": "resume"}
+{"t": 1793270880.52, "type": "activity", "what": "go", "target": "go:962:930", "start": 1793270877.1121228, "end": 1793270880.517765, "moved": true}
+{"t": 1793270875.02, "type": "call", "start": 1793270875.02, "end": 1793270887.55, "cmd": "do go:962:930"}
+{"t": 1793270891.42, "type": "activity", "what": "go", "target": "go:796:996", "start": 1793270890.0968719, "end": 1793270891.4201732, "moved": true}
+{"t": 1793270891.43, "type": "nav", "what": "to_road", "try_": 1, "share": 0.0, "click": [796, 996], "msg": "ok"}
+{"t": 1793270896.79, "type": "activity", "what": "go", "target": "go:1636:764", "start": 1793270893.9485052, "end": 1793270896.7911522, "moved": true}
+{"t": 1793270896.8, "type": "nav", "what": "to_road", "try_": 2, "share": 0.0, "click": [1636, 764], "msg": "ok"}
+{"t": 1793270899.77, "type": "activity", "what": "go", "target": "go:988:788", "start": 1793270898.122315, "end": 1793270899.770182, "moved": false}
+{"t": 1793270899.9, "type": "nav", "what": "to_road", "try_": 3, "share": 0.0, "click": [988, 788], "msg": "ALREADY THERE (no walk needed; bubble@860,640)"}
+{"t": 1793270901.45, "type": "vision", "what": "ask", "kind": "road", "question": "Tara (House) must stand on a road. Which cells show walkable road/path near her?"}
+{"t": 1793270887.72, "type": "call", "start": 1793270887.72, "end": 1793270903.09, "cmd": "goto town-hall"}
+{"t": 1793270903.32, "type": "call", "start": 1793270903.32, "end": 1793270907.09, "cmd": "pause"}
+{"t": 1793270913.12, "type": "call", "start": 1793270913.12, "end": 1793270917.19, "cmd": "resume"}
+{"t": 1793270917.37, "type": "call", "start": 1793270917.37, "end": 1793270917.53, "cmd": "look"}
+{"t": 1793270917.75, "type": "call", "start": 1793270917.75, "end": 1793270923.55, "cmd": "pause"}
+{"t": 1793270935.28, "type": "call", "start": 1793270935.28, "end": 1793270940.4, "cmd": "resume"}
+{"t": 1793270944.52, "type": "activity", "what": "go", "target": "go:500:925", "start": 1793270942.263444, "end": 1793270944.5203462, "moved": true}
+{"t": 1793270948.16, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.53, "z": -26.73, "fresh": true, "secs": 1.3}
+{"t": 1793270951.71, "type": "game", "line": "[D147 1:43:16 PM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793270940.62, "type": "call", "start": 1793270940.62, "end": 1793270951.72, "cmd": "do go:500:925"}
+{"t": 1793270951.81, "type": "call", "start": 1793270951.81, "end": 1793270952.32, "cmd": "state"}
+{"t": 1793270959.65, "type": "activity", "what": "go", "target": "go:988:748", "start": 1793270958.085042, "end": 1793270959.65313, "moved": true}
+{"t": 1793270959.66, "type": "nav", "what": "to_road", "try_": 1, "share": 0.18, "click": [988, 748], "msg": "ok"}
+{"t": 1793270964.27, "type": "activity", "what": "go", "target": "go:1044:844", "start": 1793270962.340727, "end": 1793270964.270443, "moved": true}
+{"t": 1793270964.28, "type": "nav", "what": "to_road", "try_": 2, "share": 0.0, "click": [1044, 844], "msg": "ok"}
+{"t": 1793270972.95, "type": "activity", "what": "go", "target": "go:1260:748", "start": 1793270971.2190568, "end": 1793270972.951278, "moved": true}
+{"t": 1793270972.97, "type": "nav", "what": "hop", "place": "town-hall", "pin": [711, 506], "left": 329, "click": [1260, 748], "aim": "road", "deg": 46, "msg": "ok", "new_area": false}
+{"t": 1793270980.08, "type": "activity", "what": "go", "target": "go:1428:676", "start": 1793270977.821187, "end": 1793270980.082635, "moved": true}
+{"t": 1793270980.09, "type": "nav", "what": "hop", "place": "town-hall", "pin": [709, 514], "left": 328, "click": [1428, 676], "aim": "road", "deg": 39, "msg": "ok", "new_area": false}
+{"t": 1793270988.19, "type": "activity", "what": "go", "target": "go:1428:676", "start": 1793270986.4526532, "end": 1793270988.194162, "moved": true}
+{"t": 1793270988.21, "type": "nav", "what": "hop", "place": "town-hall", "pin": [705, 524], "left": 329, "click": [1428, 676], "aim": "road", "deg": 30, "msg": "ok", "new_area": false}
+{"t": 1793270996.69, "type": "activity", "what": "go", "target": "go:1396:676", "start": 1793270994.547076, "end": 1793270996.686115, "moved": true}
+{"t": 1793270996.7, "type": "nav", "what": "hop", "place": "town-hall", "pin": [702, 535], "left": 329, "click": [1396, 676], "aim": "road", "deg": 16, "msg": "ok", "new_area": false}
+{"t": 1793271003.25, "type": "activity", "what": "go", "target": "go:1428:684", "start": 1793271001.3652558, "end": 1793271003.245625, "moved": false}
+{"t": 1793271006.03, "type": "activity", "what": "go", "target": "go:1420:604", "start": 1793271004.316301, "end": 1793271006.0305421, "moved": false}
+{"t": 1793271008.5, "type": "activity", "what": "go", "target": "go:1380:492", "start": 1793271006.970328, "end": 1793271008.495658, "moved": false}
+{"t": 1793271009.71, "type": "vision", "what": "ask", "kind": "next", "question": "Tara must go east towards town-hall; 3 clicks were rejected. Which cell should she walk to next?"}
+{"t": 1793270955.57, "type": "call", "start": 1793270955.57, "end": 1793271011.76, "cmd": "goto town-hall"}
+{"t": 1793271011.98, "type": "call", "start": 1793271011.98, "end": 1793271015.75, "cmd": "pause"}
+{"t": 1793271024.11, "type": "call", "start": 1793271024.11, "end": 1793271030.85, "cmd": "resume"}
+{"t": 1793271035.0, "type": "activity", "what": "go", "target": "go:1360:877", "start": 1793271033.372606, "end": 1793271035.003077, "moved": true}
+{"t": 1793271035.01, "type": "vision", "what": "teach", "kind": "next", "cells": ["I7"], "hop": "680,540,0", "msg": "ok"}
+{"t": 1793271031.21, "type": "call", "start": 1793271031.21, "end": 1793271036.77, "cmd": "teach next I7"}
+{"t": 1793271047.2, "type": "activity", "what": "go", "target": "go:1360:877", "start": 1793271044.478273, "end": 1793271047.2027361, "moved": false}
+{"t": 1793271062.38, "type": "activity", "what": "go", "target": "go:1420:596", "start": 1793271057.208405, "end": 1793271062.3758762, "moved": true}
+{"t": 1793271065.93, "type": "nav", "what": "pos", "scene": "Town", "x": -78.76, "z": 51.32, "fresh": true, "secs": 1.7}
+{"t": 1793271065.94, "type": "nav", "what": "hop", "place": "town-hall", "pin": [696, 550], "left": 332, "click": [1420, 596], "aim": "road", "deg": -4, "msg": "ok", "new_area": true}
+{"t": 1793271066.21, "type": "nav", "what": "road_colors", "period": "Town:day", "set": {"s_max": 186, "v_min": 99, "v_max": 202, "samples": 1}}
+{"t": 1793271072.68, "type": "activity", "what": "go", "target": "go:1428:684", "start": 1793271071.177552, "end": 1793271072.682015, "moved": true}
+{"t": 1793271072.68, "type": "nav", "what": "hop", "place": "town-hall", "pin": [863, 643], "left": 162, "click": [1428, 684], "aim": "road", "deg": -1, "msg": "ok", "new_area": false}
+{"t": 1793271075.5, "type": "game", "line": "[D147 2:28:52 PM] [GAME] ChangeScene Town/LinkFarm"}
+{"t": 1793271075.5, "type": "game", "line": "[D147 2:28:52 PM] [MODE] Spawning player at Town/LinkFarm"}
+{"t": 1793271100.48, "type": "call", "start": 1793271100.48, "end": 1793271100.75, "cmd": "state"}
+{"t": 1793290469.08, "type": "call", "start": 1793290469.08, "end": 1793290474.11, "cmd": "pause"}
+{"t": 1793290474.33, "type": "call", "start": 1793290474.33, "end": 1793290474.57, "cmd": "state"}
+{"t": 1793290668.79, "type": "nav", "what": "pos", "scene": "Town", "x": -71.66, "z": 50.83, "fresh": false, "secs": 4.8}
+{"t": 1793290659.59, "type": "call", "start": 1793290659.59, "end": 1793290670.39, "cmd": "plan farmhouse"}
+{"t": 1793292337.74, "type": "call", "start": 1793292337.74, "end": 1793292348.42, "cmd": "resume"}
+{"t": 1793292351.45, "type": "call", "start": 1793292351.45, "end": 1793292351.98, "cmd": "look"}
+{"t": 1793292373.69, "type": "activity", "what": "go", "target": "go:1300:640", "start": 1793292372.411732, "end": 1793292373.6849148, "moved": true}
+{"t": 1793292370.34, "type": "call", "start": 1793292370.34, "end": 1793292379.43, "cmd": "do go:1300:640"}
+{"t": 1793292385.35, "type": "nav", "what": "pos", "scene": "Town", "x": -63.27, "z": 51.0, "fresh": false, "secs": 4.3}
+{"t": 1793292388.5, "type": "activity", "what": "go", "target": "go:1210:690", "start": 1793292386.844003, "end": 1793292388.4970229, "moved": true}
+{"t": 1793292390.36, "type": "nav", "what": "pos", "scene": "Town", "x": -59.51, "z": 50.27, "fresh": true, "secs": 1.3}
+{"t": 1793292394.33, "type": "activity", "what": "go", "target": "go:710:690", "start": 1793292392.454103, "end": 1793292394.324085, "moved": true}
+{"t": 1793292396.2, "type": "nav", "what": "pos", "scene": "Town", "x": -63.27, "z": 49.54, "fresh": true, "secs": 1.3}
+{"t": 1793292398.74, "type": "activity", "what": "go", "target": "go:960:870", "start": 1793292397.1248581, "end": 1793292398.7360198, "moved": false}
+{"t": 1793292404.56, "type": "activity", "what": "go", "target": "go:960:510", "start": 1793292400.7290502, "end": 1793292404.5620108, "moved": true}
+{"t": 1793292407.02, "type": "nav", "what": "pos", "scene": "Town", "x": -63.27, "z": 56.83, "fresh": true, "secs": 1.3}
+{"t": 1793292410.33, "type": "activity", "what": "go", "target": "go:1160:840", "start": 1793292408.7425358, "end": 1793292410.33049, "moved": true}
+{"t": 1793292411.99, "type": "nav", "what": "pos", "scene": "Town", "x": -60.62, "z": 51.24, "fresh": true, "secs": 1.3}
+{"t": 1793292416.07, "type": "activity", "what": "go", "target": "go:760:540", "start": 1793292414.4553971, "end": 1793292416.0668101, "moved": true}
+{"t": 1793292418.09, "type": "nav", "what": "pos", "scene": "Town", "x": -64.15, "z": 56.97, "fresh": true, "secs": 1.5}
+{"t": 1793292421.04, "type": "activity", "what": "go", "target": "go:760:840", "start": 1793292419.566816, "end": 1793292421.0347588, "moved": true}
+{"t": 1793292422.95, "type": "nav", "what": "pos", "scene": "Town", "x": -66.79, "z": 51.36, "fresh": true, "secs": 1.5}
+{"t": 1793292426.86, "type": "activity", "what": "go", "target": "go:1160:540", "start": 1793292424.740303, "end": 1793292426.8579562, "moved": true}
+{"t": 1793292430.92, "type": "nav", "what": "pos", "scene": "Town", "x": -63.27, "z": 57.12, "fresh": true, "secs": 1.3}
+{"t": 1793292379.63, "type": "call", "start": 1793292379.63, "end": 1793292433.28, "cmd": "calib"}
+{"t": 1793292441.29, "type": "nav", "what": "where", "pin": [866, 643], "near": "town-farm-exit", "dist": 70}
+{"t": 1793292445.93, "type": "nav", "what": "pos", "scene": "Town", "x": -63.27, "z": 57.12, "fresh": false, "secs": 4.2}
+{"t": 1793292438.45, "type": "call", "start": 1793292438.45, "end": 1793292447.61, "cmd": "where"}
+{"t": 1793292451.58, "type": "activity", "what": "go", "target": "go:1099:962", "start": 1793292449.337145, "end": 1793292451.577227, "moved": true}
+{"t": 1793292454.05, "type": "activity", "what": "go", "target": "go:1091:945", "start": 1793292452.315437, "end": 1793292454.0446432, "moved": false}
+{"t": 1793292458.81, "type": "activity", "what": "go", "target": "go:1018:792", "start": 1793292456.054999, "end": 1793292458.808104, "moved": true}
+{"t": 1793292461.02, "type": "activity", "what": "go", "target": "go:1018:792", "start": 1793292459.500778, "end": 1793292461.019458, "moved": false}
+{"t": 1793292464.54, "type": "activity", "what": "go", "target": "go:987:728", "start": 1793292462.549149, "end": 1793292464.539412, "moved": false}
+{"t": 1793292470.1, "type": "activity", "what": "go", "target": "go:973:698", "start": 1793292468.074328, "end": 1793292470.098901, "moved": true}
+{"t": 1793292472.53, "type": "activity", "what": "go", "target": "go:1002:759", "start": 1793292470.858658, "end": 1793292472.531168, "moved": false}
+{"t": 1793292476.82, "type": "activity", "what": "go", "target": "go:980:713", "start": 1793292476.27449, "end": 1793292476.8188381, "moved": true}
+{"t": 1793292479.65, "type": "activity", "what": "go", "target": "go:980:713", "start": 1793292479.2949, "end": 1793292479.6536021, "moved": true}
+{"t": 1793292481.71, "type": "nav", "what": "pos", "scene": "Town", "x": -60.6, "z": 43.22, "fresh": true, "secs": 1.4}
+{"t": 1793292484.19, "type": "activity", "what": "go", "target": "go:1121:734", "start": 1793292482.5366242, "end": 1793292484.18826, "moved": false}
+{"t": 1793292486.7, "type": "activity", "what": "go", "target": "go:1038:701", "start": 1793292485.155095, "end": 1793292486.703637, "moved": false}
+{"t": 1793292490.21, "type": "activity", "what": "go", "target": "go:999:686", "start": 1793292488.478336, "end": 1793292490.210937, "moved": false}
+{"t": 1793292495.35, "type": "nav", "what": "pos", "scene": "Town", "x": -60.6, "z": 43.22, "fresh": false, "secs": 4.3}
+{"t": 1793292447.69, "type": "call", "start": 1793292447.69, "end": 1793292496.63, "cmd": "go-world -60 40"}
+{"t": 1793292499.57, "type": "nav", "what": "where", "pin": [875, 643], "near": "town-farm-exit", "dist": 65}
+{"t": 1793292504.41, "type": "nav", "what": "pos", "scene": "Town", "x": -60.6, "z": 43.22, "fresh": false, "secs": 4.3}
+{"t": 1793292496.71, "type": "call", "start": 1793292496.71, "end": 1793292506.05, "cmd": "where"}
+{"t": 1793292522.54, "type": "activity", "what": "go", "target": "go:1420:596", "start": 1793292520.157718, "end": 1793292522.539238, "moved": true}
+{"t": 1793292522.58, "type": "nav", "what": "hop", "place": "town-hall", "pin": [875, 643], "left": 150, "click": [1420, 596], "aim": "road", "deg": -1, "msg": "ok", "new_area": false}
+{"t": 1793292530.01, "type": "activity", "what": "go", "target": "go:1428:684", "start": 1793292528.394315, "end": 1793292530.00911, "moved": true}
+{"t": 1793292530.01, "type": "nav", "what": "hop", "place": "town-hall", "pin": [882, 643], "left": 143, "click": [1428, 684], "aim": "road", "deg": -1, "msg": "ok", "new_area": false}
+{"t": 1793292539.75, "type": "activity", "what": "go", "target": "go:1428:668", "start": 1793292538.009633, "end": 1793292539.746433, "moved": true}
+{"t": 1793292539.76, "type": "nav", "what": "hop", "place": "town-hall", "pin": [890, 644], "left": 136, "click": [1428, 668], "aim": "road", "deg": -2, "msg": "ok", "new_area": false}
+{"t": 1793292547.44, "type": "activity", "what": "go", "target": "go:1428:732", "start": 1793292545.1406431, "end": 1793292547.434453, "moved": true}
+{"t": 1793292547.48, "type": "nav", "what": "hop", "place": "town-hall", "pin": [900, 638], "left": 125, "click": [1428, 732], "aim": "road", "deg": 4, "msg": "ok", "new_area": false}
+{"t": 1793292556.83, "type": "activity", "what": "go", "target": "go:1428:716", "start": 1793292554.7140422, "end": 1793292556.828875, "moved": true}
+{"t": 1793292556.84, "type": "nav", "what": "hop", "place": "town-hall", "pin": [925, 644], "left": 102, "click": [1428, 716], "aim": "road", "deg": 2, "msg": "ok", "new_area": false}
+{"t": 1793292564.14, "type": "activity", "what": "go", "target": "go:1420:628", "start": 1793292562.418742, "end": 1793292564.134828, "moved": true}
+{"t": 1793292564.14, "type": "nav", "what": "hop", "place": "town-hall", "pin": [947, 645], "left": 82, "click": [1420, 628], "aim": "road", "deg": -8, "msg": "ok", "new_area": false}
+{"t": 1793292572.1, "type": "activity", "what": "go", "target": "go:1316:388", "start": 1793292569.510029, "end": 1793292572.099586, "moved": true}
+{"t": 1793292572.1, "type": "nav", "what": "hop", "place": "town-hall", "pin": [971, 645], "left": 61, "click": [1316, 388], "aim": "road", "deg": -31, "msg": "ok", "new_area": false}
+{"t": 1793292580.09, "type": "activity", "what": "go", "target": "go:1252:324", "start": 1793292576.755681, "end": 1793292580.093549, "moved": true}
+{"t": 1793292580.1, "type": "nav", "what": "hop", "place": "town-hall", "pin": [994, 648], "left": 46, "click": [1252, 324], "aim": "road", "deg": -51, "msg": "ok", "new_area": false}
+{"t": 1793292592.76, "type": "activity", "what": "go", "target": "go:1140:292", "start": 1793292591.002197, "end": 1793292592.7611132, "moved": false}
+{"t": 1793292601.09, "type": "activity", "what": "go", "target": "go:1220:300", "start": 1793292599.867661, "end": 1793292601.090275, "moved": true}
+{"t": 1793292601.1, "type": "nav", "what": "hop", "place": "town-hall", "pin": [1019, 654], "left": 42, "click": [1220, 300], "aim": "road", "deg": -80, "msg": "ok", "new_area": false}
+{"t": 1793292606.78, "type": "activity", "what": "go", "target": "go:1140:292", "start": 1793292606.070463, "end": 1793292606.775195, "moved": true}
+{"t": 1793292606.78, "type": "nav", "what": "hop", "place": "town-hall", "pin": [1019, 654], "left": 42, "click": [1140, 292], "aim": "road", "deg": -80, "msg": "ok", "new_area": false}
+{"t": 1793292610.12, "type": "vision", "what": "ask", "kind": "next", "question": "Tara must go north towards town-hall (map route). Which cell should she walk to next (visible walkable ground that leads that way)?"}
+{"t": 1793292513.39, "type": "call", "start": 1793292513.39, "end": 1793292611.63, "cmd": "goto town-hall"}
+{"t": 1793292625.67, "type": "nav", "what": "where", "pin": [1019, 654], "near": "town-hall", "dist": 42}
+{"t": 1793292627.67, "type": "nav", "what": "pos", "scene": "Town", "x": -0.82, "z": 46.77, "fresh": true, "secs": 1.3}
+{"t": 1793292622.73, "type": "call", "start": 1793292622.73, "end": 1793292628.96, "cmd": "where"}
+{"t": 1793292633.85, "type": "nav", "what": "pos", "scene": "Town", "x": -0.82, "z": 46.77, "fresh": false, "secs": 4.3}
+{"t": 1793292629.03, "type": "call", "start": 1793292629.03, "end": 1793292635.15, "cmd": "pos --learn town-hall"}
+{"t": 1793292655.68, "type": "activity", "what": "go", "target": "go:1035:911", "start": 1793292654.040711, "end": 1793292655.67512, "moved": true}
+{"t": 1793292658.54, "type": "activity", "what": "go", "target": "go:1034:907", "start": 1793292656.633675, "end": 1793292658.5326521, "moved": false}
+{"t": 1793292661.97, "type": "activity", "what": "go", "target": "go:993:777", "start": 1793292660.16993, "end": 1793292661.963201, "moved": false}
+{"t": 1793292664.85, "type": "activity", "what": "go", "target": "go:976:721", "start": 1793292663.023241, "end": 1793292664.853353, "moved": false}
+{"t": 1793292667.15, "type": "nav", "what": "pos", "scene": "Town", "x": 0.18, "z": 40.87, "fresh": true, "secs": 1.3}
+{"t": 1793292669.45, "type": "activity", "what": "go", "target": "go:1034:924", "start": 1793292667.81851, "end": 1793292669.447173, "moved": false}
+{"t": 1793292672.27, "type": "activity", "what": "go", "target": "go:993:784", "start": 1793292670.349644, "end": 1793292672.269553, "moved": false}
+{"t": 1793292674.99, "type": "activity", "what": "go", "target": "go:976:724", "start": 1793292673.351331, "end": 1793292674.985106, "moved": false}
+{"t": 1793292681.62, "type": "nav", "what": "pos", "scene": "Town", "x": 0.18, "z": 40.87, "fresh": false, "secs": 4.2}
+{"t": 1793292651.01, "type": "call", "start": 1793292651.01, "end": 1793292683.37, "cmd": "goto fountain-square"}
+{"t": 1793292688.77, "type": "call", "start": 1793292688.77, "end": 1793292688.99, "cmd": "look"}
+{"t": 1793292703.12, "type": "activity", "what": "go", "target": "go:960:985", "start": 1793292700.915573, "end": 1793292703.106158, "moved": false}
+{"t": 1793292699.92, "type": "call", "start": 1793292699.92, "end": 1793292721.46, "cmd": "do go:960:985"}
+{"t": 1793292730.12, "type": "activity", "what": "go", "target": "go:1483:906", "start": 1793292725.711806, "end": 1793292730.113819, "moved": true}
+{"t": 1793292732.48, "type": "activity", "what": "go", "target": "go:880:906", "start": 1793292730.9563332, "end": 1793292732.474926, "moved": false}
+{"t": 1793292735.52, "type": "activity", "what": "go", "target": "go:924:776", "start": 1793292734.6108558, "end": 1793292735.51517, "moved": true}
+{"t": 1793292738.01, "type": "activity", "what": "go", "target": "go:875:919", "start": 1793292736.194185, "end": 1793292738.008419, "moved": false}
+{"t": 1793292741.39, "type": "activity", "what": "go", "target": "go:922:782", "start": 1793292739.601665, "end": 1793292741.3848598, "moved": false}
+{"t": 1793292744.53, "type": "activity", "what": "go", "target": "go:942:723", "start": 1793292743.620787, "end": 1793292744.527869, "moved": true}
+{"t": 1793292746.67, "type": "activity", "what": "go", "target": "go:862:958", "start": 1793292745.129154, "end": 1793292746.669157, "moved": false}
+{"t": 1793292750.07, "type": "activity", "what": "go", "target": "go:917:797", "start": 1793292749.201372, "end": 1793292750.065343, "moved": true}
+{"t": 1793292752.48, "type": "activity", "what": "go", "target": "go:871:933", "start": 1793292750.791695, "end": 1793292752.478822, "moved": false}
+{"t": 1793292755.2, "type": "activity", "what": "go", "target": "go:920:787", "start": 1793292753.51317, "end": 1793292755.1986449, "moved": false}
+{"t": 1793292757.79, "type": "activity", "what": "go", "target": "go:941:726", "start": 1793292756.1389482, "end": 1793292757.792618, "moved": false}
+{"t": 1793292761.2, "type": "nav", "what": "pos", "scene": "Town", "x": 6.41, "z": 30.99, "fresh": true, "secs": 1.5}
+{"t": 1793292764.24, "type": "activity", "what": "go", "target": "go:1262:906", "start": 1793292763.449973, "end": 1793292764.234514, "moved": true}
+{"t": 1793292777.89, "type": "activity", "what": "go", "target": "go:619:935", "start": 1793292765.732416, "end": 1793292777.894026, "moved": true}
+{"t": 1793292780.94, "type": "activity", "what": "go", "target": "go:787:804", "start": 1793292779.7491891, "end": 1793292780.944032, "moved": true}
+{"t": 1793292782.67, "type": "nav", "what": "pos", "scene": "Town", "x": -0.85, "z": 23.46, "fresh": true, "secs": 1.3}
+{"t": 1793292782.68, "type": "nav", "what": "route", "place": "fountain-square", "steps": 1}
+{"t": 1793292721.91, "type": "call", "start": 1793292721.91, "end": 1793292784.13, "cmd": "goto fountain-square"}
+{"t": 1793292789.12, "type": "call", "start": 1793292789.12, "end": 1793292789.55, "cmd": "look"}
+{"t": 1793292796.74, "type": "call", "start": 1793292796.74, "end": 1793292801.2, "cmd": "pause"}
+{"t": 1793293427.69, "type": "call", "start": 1793293427.69, "end": 1793293428.38, "cmd": "coverage"}
+{"t": 1793293437.06, "type": "call", "start": 1793293437.06, "end": 1793293440.12, "cmd": "resume"}
+{"t": 1793293446.03, "type": "nav", "what": "pos", "scene": "Town", "x": 9.84, "z": 34.01, "fresh": false, "secs": 4.8}
+{"t": 1793293449.64, "type": "activity", "what": "go", "target": "go:1110:671", "start": 1793293448.421789, "end": 1793293449.6415029, "moved": true}
+{"t": 1793293451.61, "type": "nav", "what": "pos", "scene": "Town", "x": 12.14, "z": 34.06, "fresh": true, "secs": 1.5}
+{"t": 1793293440.33, "type": "call", "start": 1793293440.33, "end": 1793293453.57, "cmd": "improve 3"}
+{"t": 1793293463.72, "type": "call", "start": 1793293463.72, "end": 1793293466.03, "cmd": "road"}
+{"t": 1793293466.29, "type": "call", "start": 1793293466.29, "end": 1793293466.69, "cmd": "look"}
+{"t": 1793293479.65, "type": "call", "start": 1793293479.65, "end": 1793293487.44, "cmd": "pause"}
+{"t": 1793293492.07, "type": "call", "start": 1793293492.07, "end": 1793293505.06, "cmd": "resume"}
+{"t": 1793293512.23, "type": "nav", "what": "road_colors", "period": "Town:dusk", "set": {"s_max": 160, "v_min": 102, "v_max": 213, "samples": 1}}
+{"t": 1793293505.25, "type": "call", "start": 1793293505.25, "end": 1793293513.88, "cmd": "road --calibrate"}
+{"t": 1793293514.09, "type": "call", "start": 1793293514.09, "end": 1793293517.01, "cmd": "road"}
+{"t": 1793293522.03, "type": "nav", "what": "pos", "scene": "Town", "x": 12.14, "z": 34.06, "fresh": false, "secs": 4.3}
+{"t": 1793293525.94, "type": "nav", "what": "fill-pin", "scene": "Town", "cell": ["map", 26, 17], "pin": [1050, 647]}
+{"t": 1793293530.58, "type": "activity", "what": "go", "target": "go:1133:314", "start": 1793293528.047658, "end": 1793293530.577796, "moved": true}
+{"t": 1793293530.59, "type": "nav", "what": "log-reading", "scene": "Town", "x": 12.04, "z": 48.04}
+{"t": 1793293533.42, "type": "activity", "what": "go", "target": "go:845:613", "start": 1793293532.119703, "end": 1793293533.415819, "moved": true}
+{"t": 1793293533.42, "type": "nav", "what": "log-reading", "scene": "Town", "x": 12.2, "z": 48.04}
+{"t": 1793293536.8, "type": "activity", "what": "go", "target": "go:1154:687", "start": 1793293534.980104, "end": 1793293536.799017, "moved": true}
+{"t": 1793293539.8, "type": "nav", "what": "pos", "scene": "Town", "x": 15.48, "z": 47.22, "fresh": true, "secs": 1.6}
+{"t": 1793293539.87, "type": "nav", "what": "detour", "rot": -70, "x": 15.48, "z": 47.22}
+{"t": 1793293546.09, "type": "activity", "what": "go", "target": "go:997:505", "start": 1793293541.414635, "end": 1793293546.089052, "moved": true}
+{"t": 1793293546.1, "type": "nav", "what": "log-reading", "scene": "Town", "x": 12.42, "z": 48.03}
+{"t": 1793293548.92, "type": "activity", "what": "go", "target": "go:839:615", "start": 1793293548.037035, "end": 1793293548.9199512, "moved": true}
+{"t": 1793293548.92, "type": "nav", "what": "log-reading", "scene": "Town", "x": 12.57, "z": 48.04}
+{"t": 1793293552.09, "type": "activity", "what": "go", "target": "go:1155:684", "start": 1793293550.498376, "end": 1793293552.086661, "moved": true}
+{"t": 1793293554.48, "type": "nav", "what": "pos", "scene": "Town", "x": 15.6, "z": 47.4, "fresh": true, "secs": 1.3}
+{"t": 1793293554.49, "type": "nav", "what": "detour", "rot": -70, "x": 15.6, "z": 47.4}
+{"t": 1793293558.08, "type": "activity", "what": "go", "target": "go:991:509", "start": 1793293556.141721, "end": 1793293558.079558, "moved": true}
+{"t": 1793293560.03, "type": "nav", "what": "pos", "scene": "Town", "x": 12.33, "z": 48.03, "fresh": true, "secs": 1.5}
+{"t": 1793293563.83, "type": "nav", "what": "fill-pin", "scene": "Town", "cell": ["map", 26, 15], "pin": [1052, 647]}
+{"t": 1793293568.77, "type": "nav", "what": "pos", "scene": "Town", "x": 12.33, "z": 48.03, "fresh": false, "secs": 4.3}
+{"t": 1793293571.4, "type": "activity", "what": "go", "target": "go:1110:671", "start": 1793293569.66125, "end": 1793293571.403237, "moved": false}
+{"t": 1793293574.37, "type": "activity", "what": "go", "target": "go:810:671", "start": 1793293572.511081, "end": 1793293574.37295, "moved": false}
+{"t": 1793293577.21, "type": "activity", "what": "go", "target": "go:960:791", "start": 1793293576.0421681, "end": 1793293577.207157, "moved": true}
+{"t": 1793293578.99, "type": "nav", "what": "pos", "scene": "Town", "x": 12.43, "z": 43.9, "fresh": true, "secs": 1.3}
+{"t": 1793293581.89, "type": "activity", "what": "go", "target": "go:1140:441", "start": 1793293580.2900531, "end": 1793293581.888015, "moved": false}
+{"t": 1793293584.4, "type": "activity", "what": "go", "target": "go:1060:542", "start": 1793293582.860555, "end": 1793293584.401027, "moved": false}
+{"t": 1793293586.98, "type": "activity", "what": "go", "target": "go:1013:603", "start": 1793293585.307198, "end": 1793293586.975141, "moved": false}
+{"t": 1793293592.13, "type": "nav", "what": "pos", "scene": "Town", "x": 12.43, "z": 43.9, "fresh": false, "secs": 4.3}
+{"t": 1793293594.72, "type": "activity", "what": "go", "target": "go:1140:441", "start": 1793293592.998765, "end": 1793293594.71487, "moved": false}
+{"t": 1793293597.89, "type": "activity", "what": "go", "target": "go:1060:542", "start": 1793293595.783714, "end": 1793293597.8907578, "moved": false}
+{"t": 1793293601.03, "type": "activity", "what": "go", "target": "go:1013:603", "start": 1793293599.341525, "end": 1793293601.031287, "moved": false}
+{"t": 1793293606.92, "type": "nav", "what": "pos", "scene": "Town", "x": 12.43, "z": 43.9, "fresh": false, "secs": 4.4}
+{"t": 1793293517.1, "type": "call", "start": 1793293517.1, "end": 1793293615.11, "cmd": "improve 3"}
+{"t": 1793293628.15, "type": "call", "start": 1793293628.15, "end": 1793293632.99, "cmd": "pause"}
+{"t": 1793293658.35, "type": "call", "start": 1793293658.35, "end": 1793293664.95, "cmd": "coverage"}
+{"t": 1793293689.68, "type": "call", "start": 1793293689.68, "end": 1793293690.67, "cmd": "state"}
+{"t": 1793294371.92, "type": "call", "start": 1793294371.92, "end": 1793294376.08, "cmd": "resume"}
+{"t": 1793294403.81, "type": "activity", "what": "go", "target": "go:492:708", "start": 1793294402.0619678, "end": 1793294403.811609, "moved": true}
+{"t": 1793294403.82, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [1052, 648], "left": 379, "click": [492, 708], "aim": "road", "deg": 178, "msg": "ok", "new_area": false}
+{"t": 1793294411.79, "type": "activity", "what": "go", "target": "go:492:708", "start": 1793294409.997681, "end": 1793294411.784513, "moved": true}
+{"t": 1793294411.79, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [1036, 652], "left": 367, "click": [492, 708], "aim": "road", "deg": 178, "msg": "ok", "new_area": false}
+{"t": 1793294419.64, "type": "activity", "what": "go", "target": "go:500:620", "start": 1793294417.798423, "end": 1793294419.6342652, "moved": true}
+{"t": 1793294419.64, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [1019, 654], "left": 353, "click": [500, 620], "aim": "road", "deg": -171, "msg": "ok", "new_area": false}
+{"t": 1793294427.45, "type": "activity", "what": "go", "target": "go:492:660", "start": 1793294425.171786, "end": 1793294427.4518342, "moved": true}
+{"t": 1793294427.46, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [998, 649], "left": 332, "click": [492, 660], "aim": "road", "deg": -177, "msg": "ok", "new_area": false}
+{"t": 1793294435.1, "type": "activity", "what": "go", "target": "go:492:652", "start": 1793294433.4571788, "end": 1793294435.100524, "moved": true}
+{"t": 1793294435.11, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [976, 646], "left": 312, "click": [492, 652], "aim": "road", "deg": -175, "msg": "ok", "new_area": false}
+{"t": 1793294445.26, "type": "activity", "what": "go", "target": "go:492:660", "start": 1793294440.479462, "end": 1793294445.238553, "moved": true}
+{"t": 1793294445.3, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [952, 645], "left": 291, "click": [492, 660], "aim": "road", "deg": -177, "msg": "ok", "new_area": false}
+{"t": 1793294459.36, "type": "activity", "what": "go", "target": "go:492:708", "start": 1793294456.0783548, "end": 1793294459.3620899, "moved": true}
+{"t": 1793294459.37, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [928, 644], "left": 271, "click": [492, 708], "aim": "road", "deg": 178, "msg": "ok", "new_area": false}
+{"t": 1793294466.44, "type": "activity", "what": "go", "target": "go:492:708", "start": 1793294464.73823, "end": 1793294466.439341, "moved": true}
+{"t": 1793294466.45, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [905, 644], "left": 253, "click": [492, 708], "aim": "road", "deg": 178, "msg": "ok", "new_area": false}
+{"t": 1793294473.99, "type": "activity", "what": "go", "target": "go:508:580", "start": 1793294472.3080719, "end": 1793294473.9894881, "moved": true}
+{"t": 1793294474.0, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [893, 644], "left": 244, "click": [508, 580], "aim": "road", "deg": -173, "msg": "ok", "new_area": false}
+{"t": 1793294482.55, "type": "activity", "what": "go", "target": "go:516:540", "start": 1793294480.229884, "end": 1793294482.547898, "moved": true}
+{"t": 1793294482.56, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [883, 643], "left": 236, "click": [516, 540], "aim": "road", "deg": -162, "msg": "ok", "new_area": false}
+{"t": 1793294492.22, "type": "activity", "what": "go", "target": "go:540:484", "start": 1793294488.8895738, "end": 1793294492.2158022, "moved": true}
+{"t": 1793294492.22, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [872, 643], "left": 228, "click": [540, 484], "aim": "road", "deg": -153, "msg": "ok", "new_area": false}
+{"t": 1793294500.94, "type": "activity", "what": "go", "target": "go:540:900", "start": 1793294499.160792, "end": 1793294500.942194, "moved": true}
+{"t": 1793294500.95, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [863, 643], "left": 222, "click": [540, 900], "aim": "road", "deg": -145, "msg": "ok", "new_area": false}
+{"t": 1793294511.64, "type": "activity", "what": "go", "target": "go:500:604", "start": 1793294510.049771, "end": 1793294511.643853, "moved": false}
+{"t": 1793294517.92, "type": "activity", "what": "go", "target": "go:580:620", "start": 1793294516.611003, "end": 1793294517.9161978, "moved": true}
+{"t": 1793294517.94, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [863, 643], "left": 222, "click": [580, 620], "aim": "road", "deg": -145, "msg": "ok", "new_area": true}
+{"t": 1793294518.61, "type": "nav", "what": "road_colors", "period": "Farm:night", "set": {"s_max": 51, "v_min": 53, "v_max": 163, "samples": 2}}
+{"t": 1793294526.49, "type": "activity", "what": "go", "target": "go:240:742", "start": 1793294524.354671, "end": 1793294526.484119, "moved": true}
+{"t": 1793294526.49, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [696, 550], "left": 72, "click": [240, 742], "aim": "memory", "deg": -105, "msg": "ok", "new_area": false}
+{"t": 1793294533.94, "type": "activity", "what": "go", "target": "go:240:742", "start": 1793294531.797308, "end": 1793294533.939025, "moved": true}
+{"t": 1793294533.95, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [695, 550], "left": 72, "click": [240, 742], "aim": "memory", "deg": -79, "msg": "ok", "new_area": false}
+{"t": 1793294541.45, "type": "activity", "what": "go", "target": "go:1300:532", "start": 1793294539.317151, "end": 1793294541.451725, "moved": true}
+{"t": 1793294541.46, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [673, 547], "left": 78, "click": [1300, 532], "aim": "road", "deg": -59, "msg": "ok", "new_area": false}
+{"t": 1793294548.8, "type": "activity", "what": "go", "target": "go:1380:652", "start": 1793294547.5270479, "end": 1793294548.7965472, "moved": true}
+{"t": 1793294548.81, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [700, 540], "left": 61, "click": [1380, 652], "aim": "road", "deg": -70, "msg": "ok", "new_area": false}
+{"t": 1793294556.4, "type": "activity", "what": "go", "target": "go:240:742", "start": 1793294554.277329, "end": 1793294556.395593, "moved": true}
+{"t": 1793294556.4, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [696, 549], "left": 71, "click": [240, 742], "aim": "memory", "deg": -105, "msg": "ok", "new_area": false}
+{"t": 1793294563.22, "type": "activity", "what": "go", "target": "go:1420:620", "start": 1793294561.641133, "end": 1793294563.223049, "moved": true}
+{"t": 1793294563.23, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [678, 549], "left": 77, "click": [1420, 620], "aim": "road", "deg": -69, "msg": "ok", "new_area": false}
+{"t": 1793294565.44, "type": "game", "line": "[D147 8:20:27 PM] [GAME] ChangeScene Farm/LinkTown"}
+{"t": 1793294565.44, "type": "game", "line": "[D147 8:20:27 PM] [MODE] Spawning player at Farm/LinkTown"}
+{"t": 1793294376.61, "type": "call", "start": 1793294376.61, "end": 1793294565.44, "cmd": "goto farmhouse"}
+{"t": 1793294568.86, "type": "call", "start": 1793294568.86, "end": 1793294568.94, "cmd": "look"}
+{"t": 1793294582.95, "type": "activity", "what": "go", "target": "go:1324:668", "start": 1793294581.491915, "end": 1793294582.939839, "moved": true}
+{"t": 1793294582.99, "type": "nav", "what": "hop", "place": "farmhouse", "pin": [698, 546], "left": 67, "click": [1324, 668], "aim": "road", "deg": -63, "msg": "ok", "new_area": false}
+{"t": 1793294574.53, "type": "call", "start": 1793294574.53, "end": 1793294585.16, "cmd": "goto farmhouse"}
+{"t": 1793294590.91, "type": "call", "start": 1793294590.91, "end": 1793294592.8, "cmd": "plan House:in"}
+{"t": 1793294592.95, "type": "call", "start": 1793294592.95, "end": 1793294594.65, "cmd": "goto House:in"}
+{"t": 1793294615.36, "type": "call", "start": 1793294615.36, "end": 1793294619.84, "cmd": "pause"}
+{"t": 1793294620.69, "type": "call", "start": 1793294620.69, "end": 1793294636.81, "cmd": "resume"}
+{"t": 1793294643.48, "type": "nav", "what": "pos", "scene": "Farm", "x": 48.74, "z": -39.43, "fresh": false, "secs": 4.9}
+{"t": 1793294647.37, "type": "nav", "what": "fill-pin", "scene": "Farm", "cell": ["map", 21, 13], "pin": [696, 550]}
+{"t": 1793294637.17, "type": "call", "start": 1793294637.17, "end": 1793294649.52, "cmd": "pos"}
+{"t": 1793294649.76, "type": "call", "start": 1793294649.76, "end": 1793294652.09, "cmd": "plan House:in"}
+{"t": 1793294663.08, "type": "activity", "what": "go", "target": "go:241:476", "start": 1793294659.9032478, "end": 1793294663.0752661, "moved": true}
+{"t": 1793294665.27, "type": "activity", "what": "go", "target": "go:290:490", "start": 1793294663.7193038, "end": 1793294665.270741, "moved": false}
+{"t": 1793294668.76, "type": "activity", "what": "go", "target": "go:601:574", "start": 1793294667.031977, "end": 1793294668.757181, "moved": true}
+{"t": 1793294674.84, "type": "activity", "what": "go", "target": "go:254:480", "start": 1793294670.2578518, "end": 1793294674.841557, "moved": true}
+{"t": 1793294678.29, "type": "nav", "what": "pos", "scene": "Farm", "x": 16.72, "z": -20.24, "fresh": true, "secs": 1.3}
+{"t": 1793294678.31, "type": "nav", "what": "route", "place": "House:in", "steps": 2}
+{"t": 1793294679.91, "type": "game", "line": "[D147 9:11:17 PM] [TRIGGER] OnEnterBuilding House"}
+{"t": 1793294657.88, "type": "call", "start": 1793294657.88, "end": 1793294679.91, "cmd": "goto House:in"}
+{"t": 1793294693.63, "type": "nav", "what": "pos", "scene": "Farm", "x": 16.72, "z": -20.24, "fresh": false, "secs": 4.2}
+{"t": 1793294687.03, "type": "call", "start": 1793294687.03, "end": 1793294696.73, "cmd": "goto House:out"}
+{"t": 1793294702.21, "type": "nav", "what": "pos", "scene": "Farm", "x": 16.72, "z": -20.24, "fresh": false, "secs": 4.3}
+{"t": 1793294696.95, "type": "call", "start": 1793294696.95, "end": 1793294704.06, "cmd": "improve 4"}
+{"t": 1793294710.66, "type": "call", "start": 1793294710.66, "end": 1793294710.84, "cmd": "look"}
+{"t": 1793294732.73, "type": "nav", "what": "pos", "scene": "Farm", "x": 16.72, "z": -20.24, "fresh": false, "secs": 5.4}
+{"t": 1793294771.47, "type": "call", "start": 1793294771.47, "end": 1793294775.48, "cmd": "pause"}
+{"t": 1793294776.18, "type": "call", "start": 1793294776.18, "end": 1793294784.5, "cmd": "resume"}
+{"t": 1793294790.26, "type": "nav", "what": "pos", "scene": "Farm", "x": 16.72, "z": -20.24, "fresh": false, "secs": 4.9}
+{"t": 1793294793.47, "type": "activity", "what": "go", "target": "go:1110:790", "start": 1793294792.307858, "end": 1793294793.468582, "moved": true}
+{"t": 1793294795.3, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.98, "z": -20.48, "fresh": true, "secs": 1.3}
+{"t": 1793294800.04, "type": "activity", "what": "go", "target": "go:810:590", "start": 1793294796.861398, "end": 1793294800.037778, "moved": true}
+{"t": 1793294802.0, "type": "nav", "what": "pos", "scene": "Farm", "x": 16.27, "z": -16.03, "fresh": true, "secs": 1.5}
+{"t": 1793294806.4, "type": "activity", "what": "go", "target": "go:960:850", "start": 1793294803.814425, "end": 1793294806.396043, "moved": true}
+{"t": 1793294808.37, "type": "nav", "what": "pos", "scene": "Farm", "x": 16.27, "z": -17.35, "fresh": true, "secs": 1.5}
+{"t": 1793294811.03, "type": "activity", "what": "go", "target": "go:960:530", "start": 1793294809.2693079, "end": 1793294811.034153, "moved": false}
+{"t": 1793294816.02, "type": "activity", "what": "go", "target": "go:860:810", "start": 1793294813.237798, "end": 1793294816.014854, "moved": true}
+{"t": 1793294817.85, "type": "nav", "what": "pos", "scene": "Farm", "x": 15.45, "z": -17.97, "fresh": true, "secs": 1.3}
+{"t": 1793294821.14, "type": "activity", "what": "go", "target": "go:1060:570", "start": 1793294820.0669398, "end": 1793294821.139765, "moved": true}
+{"t": 1793294825.94, "type": "nav", "what": "pos", "scene": "Farm", "x": 15.45, "z": -17.97, "fresh": false, "secs": 4.3}
+{"t": 1793294829.02, "type": "activity", "what": "go", "target": "go:1160:730", "start": 1793294827.355745, "end": 1793294829.0149992, "moved": true}
+{"t": 1793294830.99, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.22, "z": -17.02, "fresh": true, "secs": 1.5}
+{"t": 1793294835.31, "type": "activity", "what": "go", "target": "go:760:650", "start": 1793294832.628064, "end": 1793294835.30674, "moved": true}
+{"t": 1793294837.27, "type": "nav", "what": "pos", "scene": "Farm", "x": 15.31, "z": -14.92, "fresh": true, "secs": 1.5}
+{"t": 1793294784.68, "type": "call", "start": 1793294784.68, "end": 1793294838.84, "cmd": "calib --small"}
+{"t": 1793294849.4, "type": "activity", "what": "go", "target": "go:1226:972", "start": 1793294846.620746, "end": 1793294849.401897, "moved": true}
+{"t": 1793294851.24, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.24, "z": -18.13, "fresh": true, "secs": 1.3}
+{"t": 1793294853.79, "type": "activity", "what": "go", "target": "go:1059:844", "start": 1793294852.585949, "end": 1793294853.785237, "moved": true}
+{"t": 1793294856.1, "type": "activity", "what": "go", "target": "go:1059:844", "start": 1793294855.308328, "end": 1793294856.0997171, "moved": true}
+{"t": 1793294845.02, "type": "call", "start": 1793294845.02, "end": 1793294858.91, "cmd": "goto House:out"}
+{"t": 1793294861.28, "type": "nav", "what": "pos", "scene": "Farm", "x": 18.61, "z": -20.46, "fresh": true, "secs": 1.3}
+{"t": 1793294859.34, "type": "call", "start": 1793294859.34, "end": 1793294865.52, "cmd": "improve 4"}
+{"t": 1793294879.28, "type": "call", "start": 1793294879.28, "end": 1793294883.86, "cmd": "pause"}
+{"t": 1793294884.47, "type": "call", "start": 1793294884.47, "end": 1793294892.8, "cmd": "resume"}
+{"t": 1793294896.06, "type": "activity", "what": "go", "target": "go:823:662", "start": 1793294894.899161, "end": 1793294896.055074, "moved": true}
+{"t": 1793294903.17, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.31, "z": -17.86, "fresh": true, "secs": 1.5}
+{"t": 1793294905.85, "type": "activity", "what": "go", "target": "go:965:860", "start": 1793294904.718645, "end": 1793294905.850699, "moved": true}
+{"t": 1793294908.23, "type": "activity", "what": "go", "target": "go:965:860", "start": 1793294907.374908, "end": 1793294908.2245739, "moved": true}
+{"t": 1793294892.97, "type": "call", "start": 1793294892.97, "end": 1793294909.85, "cmd": "goto House:out"}
+{"t": 1793294915.19, "type": "call", "start": 1793294915.19, "end": 1793294915.36, "cmd": "look"}
+{"t": 1793294933.16, "type": "activity", "what": "go", "target": "go:950:1040", "start": 1793294930.930561, "end": 1793294933.1514702, "moved": true}
+{"t": 1793294926.91, "type": "call", "start": 1793294926.91, "end": 1793294939.74, "cmd": "do go:950:1040"}
+{"t": 1793294943.76, "type": "call", "start": 1793294943.76, "end": 1793294943.93, "cmd": "look"}
+{"t": 1793294953.44, "type": "activity", "what": "go", "target": "go:960:930", "start": 1793294951.7287302, "end": 1793294953.43913, "moved": true}
+{"t": 1793294957.18, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.32, "z": -27.66, "fresh": true, "secs": 1.5}
+{"t": 1793294961.74, "type": "game", "line": "[D147 11:01:45 PM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793294949.92, "type": "call", "start": 1793294949.92, "end": 1793294961.76, "cmd": "do go:960:930"}
+{"t": 1793294975.85, "type": "nav", "what": "pos", "scene": "Farm", "x": 17.32, "z": -27.66, "fresh": false, "secs": 4.3}
+{"t": 1793294981.64, "type": "activity", "what": "go", "target": "go:1589:652", "start": 1793294978.2462552, "end": 1793294981.633506, "moved": true}
+{"t": 1793294985.78, "type": "nav", "what": "pos", "scene": "Farm", "x": 27.84, "z": -24.52, "fresh": true, "secs": 1.4}
+{"t": 1793294990.84, "type": "nav", "what": "fill-pin", "scene": "Farm", "cell": ["map", 18, 12], "pin": [763, 499]}
+{"t": 1793294996.56, "type": "nav", "what": "pos", "scene": "Farm", "x": 27.84, "z": -24.52, "fresh": false, "secs": 4.3}
+{"t": 1793295001.27, "type": "nav", "what": "fill-pin", "scene": "Farm", "cell": ["map", 18, 12], "pin": [763, 499]}
+{"t": 1793295004.21, "type": "activity", "what": "go", "target": "go:1111:671", "start": 1793295002.920591, "end": 1793295004.212409, "moved": true}
+{"t": 1793295006.25, "type": "nav", "what": "pos", "scene": "Farm", "x": 30.16, "z": -24.53, "fresh": true, "secs": 1.5}
+{"t": 1793295008.93, "type": "activity", "what": "go", "target": "go:708:405", "start": 1793295006.757355, "end": 1793295008.929881, "moved": false}
+{"t": 1793295011.68, "type": "activity", "what": "go", "target": "go:818:521", "start": 1793295010.148295, "end": 1793295011.675738, "moved": false}
+{"t": 1793295014.53, "type": "activity", "what": "go", "target": "go:885:591", "start": 1793295013.3199291, "end": 1793295014.531127, "moved": true}
+{"t": 1793295016.8, "type": "activity", "what": "go", "target": "go:760:460", "start": 1793295015.1947021, "end": 1793295016.7984, "moved": false}
+{"t": 1793295019.21, "type": "activity", "what": "go", "target": "go:851:555", "start": 1793295017.634946, "end": 1793295019.2051551, "moved": false}
+{"t": 1793295021.72, "type": "activity", "what": "go", "target": "go:903:610", "start": 1793295019.9984791, "end": 1793295021.7231302, "moved": false}
+{"t": 1793295024.15, "type": "nav", "what": "pos", "scene": "Farm", "x": 28.92, "z": -21.19, "fresh": true, "secs": 1.5}
+{"t": 1793295026.36, "type": "activity", "what": "go", "target": "go:455:534", "start": 1793295024.7748559, "end": 1793295026.356752, "moved": false}
+{"t": 1793295028.76, "type": "activity", "what": "go", "target": "go:694:599", "start": 1793295027.245766, "end": 1793295028.7602592, "moved": false}
+{"t": 1793295031.37, "type": "activity", "what": "go", "target": "go:824:634", "start": 1793295029.636251, "end": 1793295031.36898, "moved": false}
+{"t": 1793295033.48, "type": "nav", "what": "pos", "scene": "Farm", "x": 28.92, "z": -21.19, "fresh": true, "secs": 1.1}
+{"t": 1793294970.8, "type": "call", "start": 1793294970.8, "end": 1793295034.97, "cmd": "improve 4"}
+{"t": 1793295040.32, "type": "call", "start": 1793295040.32, "end": 1793295045.54, "cmd": "road"}
+{"t": 1793295045.99, "type": "call", "start": 1793295045.99, "end": 1793295046.48, "cmd": "look"}
+{"t": 1793295059.03, "type": "call", "start": 1793295059.03, "end": 1793295062.95, "cmd": "pause"}
+{"t": 1793295071.97, "type": "call", "start": 1793295071.97, "end": 1793295074.91, "cmd": "resume"}
+{"t": 1793295075.04, "type": "end", "result": "abandoned", "text": "a new run started"}

@@ -43,6 +43,15 @@ notice-board quests, letters, recipes…).
 - ⚠️ **Only as fresh as the last autosave.** The game saves when it goes to the background, but not every time
   (seen: 6–9 game-minute gaps, then none for 25 game-minutes). The first line says `(N min ago)`. For "did my
   action work", use the log; use the save for the totals (money, inventory, goal counters).
+- 📍 **Exact position on demand (L62): `./wf pos`.** After Tara moves, sending the game to the background writes a fresh
+  save within ~2.5 s (every time, D146). The save's `currentPlayerPosition` = engine world coords (y = height, ground =
+  x/z). With nothing changed there's no save (`NO NEW SAVE`); the last one still holds. The game deletes old save
+  files while writing, so readers must tolerate a file vanishing.
+- **Screen ↔ ground: `./wf calib`** (per area → `tools/nav/<area>/calib.json`): a homography from clicked screen points to the
+  world offset from Tara. Farm: Tara's ground point = screen (964, 672); 100 px = 1.48 units along x, 4.2 up / 3.5 down
+  along z (camera tilt). Clicks computed for world offsets landed within 0.07–0.17 units (3/3).
+- **Every scene has its own world coordinates** (Farm x ≈ −30…+25; Town spawn at (−71.7, 6.3, 50.8), L65); buildings
+  keep their scene's (House = Farm at y ≈ 1, L64). Never compare positions across scenes.
 - Ids are signed CRC32 of internal names; `wf` decodes them with a name list built from the app's asset strings
   (`.shots/hashnames.tsv`, built once in ~25 s). A few stay `#123` (unknown).
 

@@ -52,22 +52,45 @@ The child should finish the quest from the manifest alone. Before dispatching, c
   `reference/wiki/Rice and Shine.md`. If you can't list a source for something the step needs, it's a docs gap: fill it
   first, or make the goal "scout/learn it".
 
-Dispatch message (short; the quest file carries the content):
+**Every task starts with a plan (user, 2026-10-30, L76):**
+1. `./wf run start <task-id> <goal…>` → `runs/<YYYYMMDD-HHMM>-<task>/` with a `plan.md` template. You open the run,
+   not the agent.
+2. Write `plan.md` for the agent: header (Goal · Done when · Brief = quest file · Review) and one `## Step N: <title>`
+   per concrete step with **Do** (exact `./wf` commands, docs/ sections), **Signal**, **Done when**, **Budget**
+   (`<N> calls, <M> min` of game time, from `docs/actions.md` Expect / earlier runs) and **If stuck**. Small steps:
+   one place or one action kind each; sleeping/waiting gets its own step.
+3. **Review it**: `./wf run plan` (fields complete) + your check: every step's key action is ✅ verified in
+   docs/actions.md / routines (an unverified one becomes its own small scout step: try once on one target, report;
+   retro S6), every place documented (else a scout step),
+   feasible now (shop hours, energy, clock), budgets realistic. Write the result in **Review**.
+4. **Show the plan to the user** (paste plan.md in your reply), then dispatch right away (they see it, no approval
+   needed).
+
+Dispatch message (short; the plan carries the content):
 ```
+PLAN: runs/<…>/plan.md (follow it step by step; `./wf run step N start|done`; escalate per your §0)
 MANIFEST: docs/quests/<line>/<quest>.md + every item in its `Read:` field
-GOAL: its ▶️ step(s) up to <stop point>
 START STATE: <state line + location from your look>
-CONSTRAINTS: <approved decisions; forbidden; time limit; call budget = HARD stop>
+CONSTRAINTS: <approved decisions; forbidden; total call budget = HARD stop>
 ON GAPS: stop safely and return RESULT: need-help with NEED/TRIED/WOULD HELP/STATE. I'll fix the docs and resume you.
 REPORT: standard report with COST + GAPS (incl. every user message you received).
 ```
 Before dispatching a "get/use X here" goal, **check the target yourself with one `./wf look`** and put its on-screen
 direction from Tara in START STATE (e.g. "mushroom ~190 px left of Tara, a rock in between"). Don't pass on target
 positions from old attempt notes without checking them (run #11 chased a wrong position for 25 calls).
-One quest agent at a time. **Never send game input (keys, look-with-escape, pause) while an agent runs**, even after
+**"Record" = video** (user, 2026-10-29): `./wf record start` (sandbox off) right before dispatching,
+`./wf record stop` after the agent's notification (prints path + size; `FAILED` = no frames) and give its path in the
+report. It runs inside the daemon (L71), so agents must not `./wf stop` during a recorded run. One quest agent at a time. **Never send game input (keys, look-with-escape, pause) while an agent runs**, even after
 its `run end`: wait for its task notification (retro 2026-10-28: my Escapes fought the agent's inputs).
 **Hand-in mechanics:** read the wiki quest page's completion text; if how the hand-in works isn't verified in
 `docs/actions.md`, mark that step ❓ in the brief instead of guessing (retro 2026-10-28: "!" topic vs Build button).
+
+## 3a. When the child escalates (`RESULT: escalate step N`)
+1. `./wf run status` (progress.md: step timestamps, budget use) + `./wf run report`.
+2. **Stuck retro** (AGENTS.md rule 7): read `retros/stuck-ledger.md` first, score earlier fixes, add the row, write
+   `runs/<task>/retro-<k>.md`, apply the fix (tool/doc).
+3. Fix `plan.md` from step N (rewrite the steps, keep the done ones), `./wf run plan`, show the user the changed
+   steps, then resume the same child: "Plan revised from step N: re-read plan.md, `./wf run step N start`".
 
 ## 3b. When the child pings (`RESULT: need-help`)
 1. Fix the source **for now and the future**: the shared doc (basic-actions / locations / ui / mechanics), `docs/tips.md`,
@@ -77,12 +100,14 @@ its `run end`: wait for its task notification (retro 2026-10-28: my Escapes foug
 3. Log the ping in `docs/agent-runs.md` (Gap → fix). Many pings on one quest means the manifest template needs a new field.
 
 ## 4. Review
-- `./wf run report [runs/<file>]`: timeline (attempts, issues, walks, game events) + time split (in calls / agent
+- `./wf run status` (progress per step) and `./wf run report [runs/<task>/]`: timeline (attempts, issues, walks, game events) + time split (in calls / agent
   thinking / Tara active). Retros start from run logs, not from video.
 - Read the report; verify with `./wf state`. Spot-check that the quest file's Verified steps were written.
 - RESULT=done → mark the goal done in progress.md and pick the next one.
 - partial/blocked → decide: re-brief with a narrower goal, fix a tool/doc (log in learnings), or ask the user.
 - decision-needed → **ask the user** (purchases, choices, sleeping/ending the day, romance), then re-dispatch.
+  Exception (user, 2026-10-30): **"pass quest X" pre-approves sleeping** as many nights as the quest needs (waiting for
+  honey, crops); put "sleeping approved" in CONSTRAINTS. Due routines still come first each morning; spending still asks.
 
 ## 5. Debrief: you own the shared docs (mandatory, before the next goal)
 Agents only write raw attempt notes in the quest file and report GAPS. **You** turn them into docs.
@@ -95,6 +120,8 @@ copy observed hits/pickups into `docs/actions.md` Expect where they differ.
 | `[tool]` | `docs/learnings.md` row + `tools/TODO.md`; fix now if cheap and blocking |
 | `[agent]` | edit `.claude/agents/wylde-quest.md` / `wylde-runner.md` |
 | `[user]` | each user correction is a gap in brief/docs/agent → apply the matching fix above |
+**Stuck retro (AGENTS.md rule 7):** any `[stuck]` gap or stuck episode you saw → `/retro` scoped to it: read
+`retros/stuck-ledger.md` first, score the earlier fixes (held or not), add the row, apply the fix.
 Also clean the quest file's attempt log if it has stale/wrong values. Log the run in `docs/agent-runs.md`.
 Every ~5 goals, or when costs trend up, run `/retro` over `docs/agent-runs.md`.
 

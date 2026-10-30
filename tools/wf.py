@@ -879,9 +879,9 @@ def learn_report():
         print(f'unlabelled samples (Space with no logged interaction): {len(os.listdir(pend))} in {pend}')
     # action outcomes observed in run logs -> compare with docs/actions.md Expect
     obs = {}
-    for f in sorted(os.listdir(RUNS_DIR)) if os.path.isdir(RUNS_DIR) else []:
+    for f in run_logs():
         cur = None
-        for l in open(os.path.join(RUNS_DIR, f)):
+        for l in open(f):
             e = json.loads(l)
             line = e.get('line', '')
             m = re.search(r'Damage (\d+) to (\w+).*\(damage = (\d+)\).*destroying', line)
@@ -896,13 +896,14 @@ def learn_report():
     print('road colour sets (area:light): ' + ', '.join(f'{k} ({v.get("samples", 0)} samples)' for k, v in road_sets().items()))
     print(f'remembered hops (taught by the model): {len(hops())}')
     asks = {}
-    for f in sorted(os.listdir(RUNS_DIR)) if os.path.isdir(RUNS_DIR) else []:
-        for l in open(os.path.join(RUNS_DIR, f)):
+    for f in run_logs():
+        for l in open(f):
             e = json.loads(l)
             if e.get('type') == 'vision' and e.get('what') == 'ask':
-                asks[f] = asks.get(f, 0) + 1
+                k = os.path.relpath(f, RUNS_DIR).replace('/log.jsonl', '').replace('.jsonl', '')
+                asks[k] = asks.get(k, 0) + 1
     if asks:
-        print('model questions per run: ' + ', '.join(f'{f[:-6]} {n}' for f, n in asks.items()))
+        print('model questions per run: ' + ', '.join(f'{f} {n}' for f, n in asks.items()))
     if obs:
         print('observed in run logs (target: destroyed · hits each · pickups after each) → compare docs/actions.md Expect:')
         for k, o in sorted(obs.items()):
@@ -948,14 +949,16 @@ def _diff(a, b):
     return ImageStat.Stat(ImageChops.difference(a, b)).mean[0]
 
 
-# ---------------------------------------------------------------- run log (one file per quest/task, L53)
-# runs/<YYYYMMDD-HHMM>-<quest>.jsonl, one JSON event per line {"t": unix, "type": ...}. The agent writes the meaning
-# (`wf run start/attempt/issue/end`); tools write timings automatically: every ./wf call (wfc.py), Tara's activity
-# segments (go:/still), key game events. `wf run report` = timeline + summary.
+# ---------------------------------------------------------------- run log (one dir per task, L53, L76)
+# runs/<YYYYMMDD-HHMM>-<task>/: plan.md (the supervisor's step-by-step plan for the agent, tools/plan.py), log.jsonl
+# (one JSON event per line {"t": unix, "type": ...}), progress.md (written by the tool: step timestamps + budget use),
+# retro-<n>.md (escalations). The agent writes the meaning (`wf run step/attempt/issue/escalate/end`); tools write
+# timings automatically: every ./wf call (wfc.py), Tara's activity segments (go:/still), key game events.
+# Older runs are flat runs/<…>.jsonl files. `wf run report` = timeline + summary.
 RUNS_DIR = os.path.join(ROOT, 'runs')
 RUN_CUR = os.path.join(SHOT_DIR, 'run.current')
-RUN_NOTES = ('attempt', 'step', 'issue', 'gap', 'decision', 'note')
-RUN_GAME = re.compile(r'destroying|grab_item|\[QUEST\] (?!Posting)|\[STATS\]|\[REL\]|ChangeScene|OnEnterBuilding|'
+RUN_NOTES = ('attempt', 'issue', 'gap', 'decision', 'note')
+RUN_GAME = re.compile(r'\] > \w+ me=Player|totalPlanted|destroying|grab_item|\[QUEST\] (?!Posting)|\[STATS\]|\[REL\]|ChangeScene|OnEnterBuilding|'
                       r'OnExitBuilding|giveloot|out of strength|no strength|Spawning player')
 
 
@@ -964,6 +967,113 @@ def run_path():
         return open(RUN_CUR).read().strip() or None
     except OSError:
         return None
+
+
+def run_dir():
+    p = run_path()
+    return os.path.dirname(p) if p and os.path.basename(p) == 'log.jsonl' else None
+
+
+def run_logs():
+    """Every run log, old (runs/*.jsonl) and new (runs/*/log.jsonl), oldest first."""
+    if not os.path.isdir(RUNS_DIR):
+        return []
+    out = []
+    for f in sorted(os.listdir(RUNS_DIR)):
+        p = os.path.join(RUNS_DIR, f)
+        if f.endswith('.jsonl'):
+            out.append(p)
+        elif os.path.isfile(os.path.join(p, 'log.jsonl')):
+            out.append(os.path.join(p, 'log.jsonl'))
+    return out
+
+
+def run_events(path=None):
+    path = path or run_path()
+    try:
+        return [json.loads(l) for l in open(path) if l.strip()]
+    except (OSError, ValueError, TypeError):
+        return []
+
+
+def plan_state(d=None, hour_now=None):
+    """(steps, states) of the open run's plan (tools/plan.py), or ([], [])."""
+    import plan
+    d = d or run_dir()
+    try:
+        steps = plan.parse(open(os.path.join(d, 'plan.md')).read())[1]
+    except (OSError, TypeError):
+        return [], []
+    return steps, plan.steps_state(steps, run_events(os.path.join(d, 'log.jsonl')), time.time(), hour_now)
+
+
+def write_progress(d=None, hour_now=None):
+    """runs/<task>/progress.md from plan.md + log.jsonl: status table and the timestamped step log."""
+    import plan
+    d = d or run_dir()
+    if not d:
+        return None
+    steps, states = plan_state(d, hour_now)
+    lines = []
+    for e in run_events(os.path.join(d, 'log.jsonl')):
+        if e.get('type') == 'plan_step':
+            h = e.get('hour')
+            game = f' (game {int(h):02d}:{int(h % 1 * 60):02d})' if h is not None else ''
+            lines.append(f'{time.strftime("%m-%d %H:%M", time.localtime(e["t"]))}{game} step {e["n"]} '
+                         f'{plan.MARK[e["state"]]} {e["state"]}' + (f': {e["text"]}' if e.get('text') else ''))
+    task = os.path.basename(d)
+    path = os.path.join(d, 'progress.md')
+    open(path, 'w').write(plan.progress_md(task, steps, states, lines))
+    return path
+
+
+MOVES = [0]       # go: clicks in this daemon (every move attempt)
+TRACK = os.path.join(SHOT_DIR, 'track.json')   # her position after each command that tried to move her (L80)
+
+
+class Stuck(Exception):
+    """The stuck rule fired (L75, L80): aborts the running command or game function."""
+
+
+_TRACK_AT = [0]   # MOVES when the last track point was added: a point needs at least one click since
+
+
+def track_point(scene, x, z):
+    """Her position after a move (a reading, a refused attempt, or the end of a command that clicked). Raises Stuck
+    when the last nav.STUCK_MOVES moves stayed within nav.STUCK_SPREAD (user rule L75), checked inside long
+    commands too (L80)."""
+    import nav
+    if MOVES[0] == _TRACK_AT[0]:
+        return
+    _TRACK_AT[0] = MOVES[0]
+    try:
+        tr = json.load(open(TRACK))
+    except (OSError, ValueError):
+        tr = []
+    tr = (tr + [[scene, round(x, 2), round(z, 2), round(time.time(), 1)]])[-20:]
+    json.dump(tr, open(TRACK, 'w'))
+    pts = [tuple(p[:3]) for p in tr]
+    if not nav.no_progress(pts) or tr[-1][3] - tr[-(nav.STUCK_MOVES + 1)][3] > 3600:
+        return
+    json.dump([], open(TRACK, 'w'))  # one episode = one alarm; the next 3 moves are counted afresh
+    n = next((st['n'] for st in plan_state()[1] if st['state'] == 'start'), None)
+    run_log('stuck', at=pts[-1], moves=nav.STUCK_MOVES)
+    raise Stuck(f'STUCK (L75): position within {nav.STUCK_SPREAD:.0f} units over the last {nav.STUCK_MOVES} moves at '
+                f'{scene} ({x:.1f}, {z:.1f}). Stop moving that way; ' +
+                (f'`./wf run escalate {n} stuck` and return RESULT: escalate step {n}' if n else
+                 'ask for the next step (`./wf ask-step <place>`) or report'))
+
+
+def step_warning():
+    """A line for every ./wf output while the current plan step is over its call budget (L76), else ''."""
+    if not run_dir():
+        return ''
+    _, states = plan_state()
+    cur = next((st for st in states if st['state'] == 'start'), None)
+    if cur and any('calls' in o for o in cur['over']):
+        return (f'STEP {cur["n"]} OVER BUDGET ({", ".join(cur["over"])}): stop, `./wf run escalate {cur["n"]} <why>` '
+                f'and return RESULT: escalate step {cur["n"]}')
+    return ''
 
 
 def run_log(type_, **kw):
@@ -979,34 +1089,124 @@ def run_log(type_, **kw):
 
 
 def run_cmd(sub_, args):
-    """wf run start <quest> <goal…> | attempt|step|issue|gap|decision|note <text…> | end <done|partial|blocked|stopped> [text…] | report [file]"""
+    """wf run start <task> <goal…> | plan | step <n> start|done|fail|skip [note…] | escalate <n> <why…> | status |
+    attempt|issue|gap|decision|note <text…> | end <done|partial|blocked|stopped> [text…] | report [path]"""
+    import plan
     if sub_ == 'start':
         if not args:
-            sys.exit('usage: wf run start <quest-id> <goal…>')
+            sys.exit('usage: wf run start <task-id> <goal…>')
         if run_path():
             run_log('end', result='abandoned', text='a new run started')
-        os.makedirs(RUNS_DIR, exist_ok=True)
-        path = os.path.join(RUNS_DIR, time.strftime('%Y%m%d-%H%M-') + re.sub(r'[^\w-]', '', args[0]) + '.jsonl')
+        d = os.path.join(RUNS_DIR, time.strftime('%Y%m%d-%H%M-') + re.sub(r'[^\w-]', '', args[0]))
+        os.makedirs(d, exist_ok=True)
+        path = os.path.join(d, 'log.jsonl')
         open(RUN_CUR, 'w').write(path)
         run_log('start', quest=args[0], goal=' '.join(args[1:]))
-        print('run:', os.path.relpath(path, ROOT))
+        pm = os.path.join(d, 'plan.md')
+        if not os.path.exists(pm):
+            open(pm, 'w').write(plan.template(args[0], ' '.join(args[1:])))
+        print(f'run: {os.path.relpath(d, ROOT)}/  (plan.md to write, then `wf run plan` to review)')
+    elif sub_ == 'plan':
+        d = run_dir()
+        if not d:
+            sys.exit('no open run with a plan: wf run start <task> <goal…>')
+        md = open(os.path.join(d, 'plan.md')).read()
+        probs = plan.review(md)
+        print(f'{os.path.relpath(d, ROOT)}/plan.md: {len(plan.parse(md)[1])} steps; ' +
+              ('review OK' if not probs else 'review problems:\n  ' + '\n  '.join(probs)))
+    elif sub_ in ('step', 'escalate'):
+        d = run_dir()
+        if not d:
+            sys.exit('no open run with a plan')
+        if sub_ == 'step' and (len(args) < 2 or args[1] not in plan.MARK or args[1] == 'todo'):
+            sys.exit('usage: wf run step <n> start|done|fail|skip [note…]')
+        if not args:
+            sys.exit('usage: wf run escalate <n> <why…>')
+        n, state = args[0], ('escalate' if sub_ == 'escalate' else args[1])
+        note = ' '.join(args[1:] if sub_ == 'escalate' else args[2:])
+        steps, _ = plan_state(d)
+        if n not in [s['n'] for s in steps]:
+            sys.exit(f'no step {n} in plan.md')
+        try:
+            hour = game_hour(_frame()) if is_frontmost() else None
+        except Exception:
+            hour = None
+        run_log('plan_step', n=n, state=state, text=note, hour=hour)
+        write_progress(d, hour)
+        _, states = plan_state(d, hour)
+        st = next(x for x in states if x['n'] == n)
+        msg = f'step {n} {plan.MARK[state]} {state} · {st["calls"]} calls, {st["real_min"]} real min' + (
+            f', {st["game_min"]} game min' if st['game_min'] is not None else '')
+        if sub_ == 'escalate':
+            k = 1 + sum(1 for f in os.listdir(d) if f.startswith('retro-'))
+            msg += (f'\nESCALATED: return RESULT: escalate step {n}. Supervisor: stuck retro (read '
+                    f'retros/stuck-ledger.md first) → {os.path.relpath(d, ROOT)}/retro-{k}.md → fix plan.md from step {n}')
+        print(msg)
+    elif sub_ == 'waits':
+        from game import track
+        w = track.waits(run_events())
+        print('actions (top level and nested): n · seconds · failed')
+        for k, (n, sec, bad) in sorted(w['actions'].items(), key=lambda kv: -kv[1][1]):
+            print(f'  {k}: {n} · {sec:.0f}s · {bad}')
+        th = w['thinking']
+        print(f'thinking between ./wf calls: {sum(g for g, _ in th):.0f}s over {len(th)} gaps; longest:')
+        for g, scr in sorted(th, reverse=True)[:8]:
+            print(f'  {g:5.1f}s after: {scr}')
+    elif sub_ == 'status':
+        p = write_progress()
+        if not p:
+            sys.exit('no open run with a plan')
+        print(open(p).read())
     elif sub_ in RUN_NOTES:
         if not run_path():
-            sys.exit('no open run: wf run start <quest-id> <goal…>')
+            sys.exit('no open run: wf run start <task-id> <goal…>')
         run_log(sub_, text=' '.join(args))
     elif sub_ == 'end':
         p = run_path()
         if not p:
             sys.exit('no open run')
         run_log('end', result=(args or ['done'])[0], text=' '.join(args[1:]))
+        if run_dir():
+            write_progress()
         os.remove(RUN_CUR)
         run_report(p)
     elif sub_ == 'report':
-        p = args[0] if args else run_path() or max((os.path.join(RUNS_DIR, f) for f in os.listdir(RUNS_DIR)),
-                                                  key=os.path.getmtime)
+        p = args[0] if args else run_path() or max(run_logs(), key=os.path.getmtime)
+        if os.path.isdir(p):
+            p = os.path.join(p, 'log.jsonl')
         run_report(p)
     else:
         sys.exit(run_cmd.__doc__)
+
+
+def game_cmd(kind, args):
+    """`wf py "<code>"` / `wf call <module.fn> [args…]`: game functions (tools/game, L77), each proven by the game log
+    and tracked as an action tree in the run log."""
+    import game
+    game.bind(sys.modules[__name__])
+    game.track.LINES.clear()
+    ns = game.namespace()
+    res, err = None, None
+    try:
+        if kind == 'py':
+            code = ' '.join(args)
+            try:
+                res = eval(compile(code, '<wf py>', 'eval'), ns)
+            except SyntaxError:
+                exec(compile(code, '<wf py>', 'exec'), ns)
+        else:
+            mod, _, fn = args[0].rpartition('.')
+            f = getattr(getattr(game, mod), fn) if mod else ns[fn]
+            res = f(*[int(a) if re.fullmatch(r'-?\d+', a) else a for a in args[1:]])
+    except game.Failed as e:
+        err = str(e)
+    for line in game.track.LINES:
+        print(line)
+    if err:
+        print(f'FAILED: {err}')
+    elif res is not None:
+        print('\n'.join(map(str, res)) if isinstance(res, list) else res)
+    return 1 if err else 0
 
 
 def run_report(path):
@@ -1388,6 +1588,11 @@ def checkpoint(result=None, goal=None, edge=None, target=None, refocus=True, pin
     inside = current_scene()  # buildings share the outdoor scene's world coords (D147: House = Farm at y 1.1)
     if inside and inside != p['scene']:
         p['scene'] = f"{p['scene']}/{inside}"
+    stuck = None
+    try:
+        track_point(p['scene'], p['x'], p['z'])
+    except Stuck as e:
+        stuck = e  # record this reading's fact first, then abort
     s = _seg()
     fr = s['from']
     same = bool(fr) and fr['scene'] == p['scene']
@@ -1424,6 +1629,8 @@ def checkpoint(result=None, goal=None, edge=None, target=None, refocus=True, pin
     _seg_save({'from': {k: p[k] for k in ('scene', 'x', 'z', 'day', 'hour')}, 'clicks': [], 'dirty': False})
     if len(fact['clicks']) == 1 and fact['from'] and not fact['dirty'] and not fact.get('stale'):
         refit(p['scene'])
+    if stuck:
+        raise stuck
     return p, fact
 
 
@@ -1431,6 +1638,12 @@ def note_click(x, y, moved, mark):
     """Called by go_to after every click: grow the segment, record NO MOVE targets (no reading: she didn't move),
     checkpoint when the click changed scene (spawn/door point = a free anchor) or the walk got stuck."""
     import nav
+    MOVES[0] += 1
+    try:  # objects the log names with a position = obstacles for the planner (L79)
+        fr0 = _seg()['from'] or {}
+        nav.objects_learn(fr0.get('scene'), nav.objects_from_log(_unhash(log_since(mark))))
+    except Exception:  # noqa: BLE001
+        pass
     if moved is None:  # STILL MOVING at timeout
         _seg_add(x, y)
         checkpoint('still')
@@ -1440,13 +1653,18 @@ def note_click(x, y, moved, mark):
         fr = _seg()['from']
         if fr:
             target = None
-            if est:
+            pf = nav.log_pathfail(_unhash(log_since(mark)))
+            if pf:  # the game says exactly where the refused click landed (L73)
+                target = [round(v, 3) for v in pf[1]]
+            elif est:
                 c = calib_load(est[0])
                 dx, dz = nav.screen_to_ground(c['H'], x, y)
                 target = [round(est[1] + dx, 3), round(est[2] + dz, 3)]
             hour = game_hour(_frame())
             nav.append({'t': round(time.time(), 1), 'day': fr['day'], 'hour': round(hour, 2) if hour else fr['hour'],
                         'scene': fr['scene'], 'clicks': [[x, y]], 'target': target, 'result': 'no_move'})
+            if est:  # a refused click is a move without progress (S12: 52 of 60 clicks hit hives, unnoticed)
+                track_point(*est)
         return
     _seg_add(x, y)
     if not scene_change(mark, seg_estimate()):  # an exit is stored only when traced, never guessed
@@ -1513,10 +1731,11 @@ def _seg_add(x, y):
     _seg_save(s)
 
 
-def go_world(gx, gz, goal=None, max_rounds=2, radius=None):
+def go_world(gx, gz, goal=None, max_rounds=2, radius=None, read=True):
     """Walk to a world point (x, z) in the current scene by calibrated clicks: dead-reckon hops (clamped to the
     screen box, around blocked spots), then one reading; a corrective round if still off. ≤ max_rounds readings.
-    radius = a coarse target (map node): within it = NEAR, done."""
+    radius = a coarse target (map node): within it = NEAR, done. read=False: no reading (a proven trail point on
+    the way, L73): PASSED. Every click refused before she moved = BLOCKED at once, no reading."""
     import math
     import nav
     est = seg_estimate() or start_estimate()
@@ -1526,6 +1745,7 @@ def go_world(gx, gz, goal=None, max_rounds=2, radius=None):
         return f'go-world: no calibration for {scene}: run `wf calib` on open ground there first'
     for rnd in range(max_rounds):
         blocked = nav.blocks(nav.load(), scene, _seg()['from'] or {})
+        moved_any = False
         for _ in range(12):
             dx, dz = gx - x, gz - z
             if math.hypot(dx, dz) < ARRIVE_UNITS / 2:
@@ -1553,7 +1773,11 @@ def go_world(gx, gz, goal=None, max_rounds=2, radius=None):
                 sx, sy = nav.ground_to_screen(c['H'], hx, hz)
                 msg = go_to(sx, sy)
             if msg and msg.startswith('NO MOVE'):
+                if not moved_any:  # she didn't move at all: no reading needed to know it (L73)
+                    track_point(scene, x, z)
+                    return f'BLOCKED toward ({gx:.1f}, {gz:.1f}) at ({x:.1f}, {z:.1f}) in {scene}: every click refused'
                 break
+            moved_any = True
             if _seg()['clicks'] == [] and _seg()['from'] and _seg()['from']['scene'] != scene:
                 return f'go-world: changed scene to {_seg()["from"]["scene"]} on the way'
             if _stuck():  # stopped against a wall: exact position from the log; step around it
@@ -1564,6 +1788,8 @@ def go_world(gx, gz, goal=None, max_rounds=2, radius=None):
                 x, z = d
                 continue
             x, z = x + hx, z + hz
+        if not read:
+            return f'PASSED ({gx:.1f}, {gz:.1f}) in {scene} (estimate, no reading)'
         p, f = checkpoint(goal=goal, target=(gx, gz), radius=radius)
         if p['scene'] != scene:
             return f'go-world: now in {p["scene"]}, not {scene}'
@@ -1620,6 +1846,47 @@ def start_estimate():
     return p['scene'], p['x'], p['z']
 
 
+SIDESTEP = 3.0   # world units: candidate first steps around her when the way is blocked right beside her
+
+
+def goto_point(scene, x, z, r=None):
+    """Walk to a world point in `scene` through the world graph (doors, proven trail, back links; L79): a temporary
+    node at the point, planned like a place. A short straight hop in the same area goes directly. r = arrival
+    radius (an object only needs to be within reach)."""
+    import math
+    import nav
+    start = seg_estimate() or start_estimate()
+    c = calib_load(scene) if start and start[0] == scene else None
+    if c:  # on screen: click the target itself, the game pathfinds around everything (L49, L81)
+        sx, sy = nav.ground_to_screen(c['H'], x - start[1], z - start[2])
+        if HOP_BOX[0] <= sx <= HOP_BOX[2] and HOP_BOX[1] <= sy <= HOP_BOX[3]:
+            msg = go_to(sx, sy)
+            if not (msg and msg.startswith('NO MOVE')):
+                p, f = checkpoint(target=(x, z), radius=r)
+                left = math.dist((p['x'], p['z']), (x, z))
+                if f['result'] in ('arrived', 'near') or (r and left <= r):
+                    return f'NEAR ({x:.1f}, {z:.1f}) in {scene}: {left:.2f} units off (clicked on screen, game pathfinding)'
+                start = (p['scene'], p['x'], p['z'])
+    facts = nav.load()
+    ws = nav.walls(facts)
+    d = math.dist(start[1:], (x, z)) if start and start[0] == scene else None
+    if d is not None and d <= nav.STRAIGHT_OK and nav.walk_cost(start[1:], (x, z), ws.get(scene, ())) < d + 1:
+        return go_world(x, z, max_rounds=2, radius=r)  # a short, clear hop
+    ns = nav.nodes(facts, places())
+    key = f'{scene}:@point'
+    ns[key] = {'scene': scene, 'name': '@point', 'x': x, 'z': z, 'src': 'point', 'r': r}
+    if start:  # side-steps around her: the way round an object right beside her (L79)
+        for i in range(8):
+            a = math.radians(45 * i)
+            sx, sz = start[1] + SIDESTEP * math.cos(a), start[2] + SIDESTEP * math.sin(a)
+            if nav.walk_cost(start[1:], (sx, sz), ws.get(start[0], ())) < SIDESTEP + 1:
+                ns[f'{start[0]}:@side{i}'] = {'scene': start[0], 'name': f'@side{i}', 'x': sx, 'z': sz, 'src': 'point'}
+    steps = nav.plan(ns, nav.edges_graph(facts, ns, list(edges()), _seg()['from']), start, key, ws)
+    if not steps or any(kind == 'walk' and not calib_load(ns[k]['scene']) for kind, k in steps):
+        return go_world(x, z, max_rounds=2, radius=r)  # no graph way: the straight line is all we have
+    return run_route(f'({x:.1f}, {z:.1f}) in {scene}', [(kind, k, ns[k]) for kind, k in steps])
+
+
 def graph_route(place):
     """World-graph plan to a place/anchor name (phase 2): [(kind, node_key, node)] or None when the graph can't
     get there (unknown name, or a walk through a scene without calibration)."""
@@ -1641,6 +1908,8 @@ def run_route(place, steps):
     import math
     import nav
     starts = []  # where each step began (the push past an exit keeps the walk's direction)
+    unread = 0   # proven trail points passed without a reading
+    track = [seg_estimate()]  # her position after each move: 3 moves without progress = stuck (L75)
     for i, (kind, k, n) in enumerate(steps):
         fr0 = _seg()['from'] or {}
         starts.append((fr0.get('x', 0), fr0.get('z', 0)))
@@ -1653,10 +1922,25 @@ def run_route(place, steps):
             if not tgt:  # an exit we crossed once but couldn't trace: no position, no direction
                 return (f'ROUTE {place}: step {i + 1}/{len(steps)} needs exploring: the way to {n["to"]} from '
                         f'{n["scene"]} has no known position; find it by looking, the crossing then records it')
-            msg = go_world(*tgt, goal=goal, radius=n.get('r'))
+            nxt = steps[i + 1] if i + 1 < len(steps) else None
+            read = not (n['src'] == 'trail' and unread < TRAIL_UNREAD and nxt and nxt[0] == 'walk'
+                        and nxt[2]['scene'] == n['scene'])
+            r = n.get('r') or (WAYPOINT_NEAR if n['src'] in ('trail', 'via') else None)  # waypoints: near is enough
+            msg = go_world(*tgt, goal=goal, radius=r, read=read)
+            unread = 0 if read else unread + 1
             crossed = (_seg()['from'] or {}).get('scene') != n['scene']
-            if not msg.startswith(('ARRIVED', 'NEAR')) and not (crossed and n['src'] == 'exit'):
-                return f'ROUTE {place}: step {i + 1}/{len(steps)} walk to {k}: {msg}'
+            d = (tgt[0] - starts[i][0], tgt[1] - starts[i][1])
+            why = f'step {i + 1}/{len(steps)} walk to {k}: {msg}'
+            if msg.startswith('BLOCKED'):
+                mark_blocked(place, d, why)  # a wall that way; one failed step alone isn't "stuck" (L75)
+            track.append(seg_estimate())
+            if nav.no_progress(track) or (i + 1 == len(steps) and not msg.startswith(('ARRIVED', 'NEAR'))
+                                          and not crossed):
+                ahead = [nav.target_of(m) for kd, _, m in steps[i:] if kd == 'walk' and m['scene'] == n['scene']
+                         and nav.target_of(m)]
+                if nav.no_progress(track):
+                    why = f'{nav.STUCK_MOVES} moves without progress; last: {why}'
+                return stuck_vision(place, d, why, ahead)
         elif kind == 'link':
             if here != n['scene']:  # still before the exit: push on in the same direction
                 c = calib_load(here)
@@ -1683,6 +1967,141 @@ def run_route(place, steps):
         return (f'NEAR {place} (map point ±{steps[-1][2]["r"]:.1f} units) via world graph ({via}): look, click the '
                 f'last bit, then `wf pos --learn {place}` so the next trip is exact')
     return f'ARRIVED {place} via world graph ({via})'
+
+
+TRAIL_UNREAD = 2  # proven trail points walked through on dead reckoning before the next reading
+WAYPOINT_NEAR = 3.0  # world units: a trail/detour point on the way counts as reached this close
+
+
+def stuck_vision(place, d, why, ahead=()):
+    """Stuck (L73): mark the way she couldn't go as a wall (the next plan avoids it), then ask the model for the
+    next step toward the goal (ask_step); `wf teach step X:Y` walks there and stores the walk as proven."""
+    mark_blocked(place, d, why)
+    run_log('nav', what='stuck', place=place, why=why)
+    return ask_step(place, d, why, ahead)
+
+
+def mark_blocked(place, d, why):
+    """She couldn't go direction d (world) from her last reading: a 'blocked' fact = a wall the planner avoids."""
+    import math
+    import nav
+    fr = _seg()['from'] or {}
+    L = math.hypot(*d) or 1.0
+    if fr.get('x') is not None and math.hypot(*d) > 0:
+        nav.append({'t': round(time.time(), 1), 'day': fr.get('day'), 'hour': fr.get('hour'), 'scene': fr['scene'],
+                    'from': [round(fr['x'], 3), round(fr['z'], 3)],
+                    'to': [round(fr['x'] + d[0] / L, 3), round(fr['z'] + d[1] / L, 3)], 'result': 'blocked',
+                    'goal': place, 'why': why})
+
+
+ASK_SCALE = 0.5  # the question image is the frame at half size: game coords = image px x 2
+
+
+def task_text():
+    """The current task for a vision question: the open run's name and its last attempt/step note."""
+    p = run_path()
+    if not p:
+        return None
+    last = None
+    for e in run_events(p):
+        if e.get('type') == 'attempt':
+            last = e.get('text')
+    steps, states = plan_state()
+    cur = next((f'step {st["n"]}: {st["title"]}' for st in states if st['state'] == 'start'), None)
+    name = os.path.basename(run_dir()) if run_dir() else os.path.splitext(os.path.basename(p))[0]
+    last = cur or last
+    return f'{name}' + (f' (current step: {last})' if last else '')
+
+
+def ask_step(place, d, why, ahead=()):
+    """The vision question when code can't make the next step toward a goal (L74): the goal, the route ahead and
+    what the 4 layers know, drawn on the screenshot (blue roads, green proven walks, red walls/refused clicks,
+    yellow planned direction and numbered route points, coordinate ticks). The model answers the next click:
+    `wf teach step X:Y`. ahead = [(x, z)] next route points in this area (world)."""
+    import math
+    import nav
+    from PIL import Image, ImageDraw
+    img = grab()
+    img.save(ASK_FRAME)
+    est = seg_estimate() or start_estimate()
+    scene, ex, ez = est if est else (None, 0.0, 0.0)
+    c = calib_load(scene) if scene else None
+    fx, fy = tara_feet(img)
+    base = img.convert('RGBA')
+    over = Image.new('RGBA', base.size, (0, 0, 0, 0))
+    o = ImageDraw.Draw(over)
+    g = screen_road(img)  # L2 screen: road cells
+    for y, x in zip(*g.nonzero()):
+        o.rectangle((x * ROAD_CELL, y * ROAD_CELL, (x + 1) * ROAD_CELL - 1, (y + 1) * ROAD_CELL - 1),
+                    fill=(40, 120, 255, 70))
+    shown = {'trail': 0, 'walls': 0}
+    if c:
+        def scr(x, z):
+            return nav.ground_to_screen(c['H'], x - ex, z - ez)
+
+        def on(p):
+            return 0 <= p[0] < img.width and 0 <= p[1] < img.height
+        facts = nav.load()
+        for (s0, x, z), ends in nav.trail(facts).items():  # L3: proven walks
+            if s0 != scene or math.dist((x, z), (ex, ez)) > 30:
+                continue
+            a = scr(x, z)
+            for bx, bz in ends:
+                o.line((a, scr(bx, bz)), fill=(40, 220, 80, 200), width=4)
+            if on(a):
+                o.ellipse((a[0] - 9, a[1] - 9, a[0] + 9, a[1] + 9), fill=(40, 220, 80, 230))
+                shown['trail'] += 1
+        bad = [w[:2] for w in nav.walls(facts).get(scene, [])] + nav.blocks(facts, scene, _seg()['from'] or {})
+        for x, z in bad:  # walls and refused clicks
+            a = scr(x, z)
+            if on(a) and math.dist((x, z), (ex, ez)) < 30:
+                o.line((a[0] - 14, a[1] - 14, a[0] + 14, a[1] + 14), fill=(255, 40, 40, 255), width=6)
+                o.line((a[0] - 14, a[1] + 14, a[0] + 14, a[1] - 14), fill=(255, 40, 40, 255), width=6)
+                shown['walls'] += 1
+        tip = nav.ground_to_screen(c['H'], d[0] / (math.hypot(*d) or 1) * 4, d[1] / (math.hypot(*d) or 1) * 4)
+        for i, (x, z) in enumerate(ahead[:5]):  # the route ahead, numbered (may be off screen)
+            a = scr(x, z)
+            if on(a):
+                o.ellipse((a[0] - 16, a[1] - 16, a[0] + 16, a[1] + 16), fill=(255, 220, 0, 230))
+                o.text((a[0] - 4, a[1] - 7), str(i + 1), fill=(0, 0, 0, 255))
+    else:
+        ang = math.atan2(-d[1], d[0])
+        tip = (fx + 300 * math.cos(ang), fy - 300 * math.sin(ang))
+    o.line(((fx, fy), tip), fill=(255, 220, 0, 255), width=8)  # planned direction
+    o.ellipse((tip[0] - 12, tip[1] - 12, tip[0] + 12, tip[1] + 12), fill=(255, 220, 0, 255))
+    o.ellipse((fx - 30, fy - 30, fx + 30, fy + 30), outline=(255, 0, 255, 255), width=6)  # Tara
+    for gx in range(240, img.width, 240):  # coordinate ticks in game coords
+        o.line((gx, 0, gx, img.height), fill=(255, 255, 255, 60), width=2)
+        o.text((gx + 4, 4), str(gx), fill=(255, 255, 255, 255))
+    for gy in range(180, img.height, 180):
+        o.line((0, gy, img.width, gy), fill=(255, 255, 255, 60), width=2)
+        o.text((4, gy + 4), str(gy), fill=(255, 255, 255, 255))
+    small = Image.alpha_composite(base, over).convert('RGB').resize(
+        (round(img.width * ASK_SCALE), round(img.height * ASK_SCALE)))
+    small.save(ASK_IMG, quality=85)
+    ang = math.atan2(-d[1], d[0])
+    ns = nav.nodes(nav.load(), places())
+    gn = next((n for k, n in ns.items() if k == place or n['name'] == place), None)
+    if gn and gn['scene'] == scene and gn.get('x') is not None:
+        where = (f'{math.dist((gn["x"], gn["z"]), (ex, ez)):.0f} world units '
+                 f'{compass(math.atan2(-(gn["z"] - ez), gn["x"] - ex))} of her here in {scene}')
+    elif gn:
+        where = f'in {gn["scene"]}; the route leaves {scene} {compass(ang)}'
+    else:
+        where = f'{compass(ang)} (map direction)'
+    task = task_text()
+    q = (f'GOAL: walk Tara to {place} ({where})' + (f', for the task {task}' if task else '') + '. '
+         f'She is at ({ex:.1f}, {ez:.1f}) in {scene}, magenta ring, feet at {fx}:{fy}; code cannot make the next step '
+         f'({why}). Drawn from what we know: yellow arrow = planned direction, yellow numbered dots = next route points '
+         f'(1 = next), blue = road, green dots/lines = where she has walked before ({shown["trail"]} points), '
+         f'red X = walls / refused clicks ({shown["walls"]}). What is the NEXT CLICK toward the goal? Open walkable '
+         f'ground she can reach from where she stands, within ~400 px of her; follow roads and green where they lead '
+         f'toward the goal; if she is enclosed, the way out toward a road that leads there. Never fences, rails, '
+         f'hedges, rocks, water, a fenced plot, or a red X. Estimate game coordinates from the white tick labels '
+         f'(image px x 2).')
+    json.dump({'kind': 'step', 'question': q, 'place': place, 'feet': [fx, fy]}, open(ASK_CTX, 'w'))
+    run_log('vision', what='ask', kind='step', question=q)
+    return f'NEED_VISION step: {q}\n  look: {ASK_IMG}\n  answer: ./wf teach step X:Y   e.g. ./wf teach step {fx - 300}:{fy + 120}'
 
 
 def calibrate(moves=CALIB_MOVES):
@@ -2103,6 +2522,8 @@ def teach(kind, cells):
         img = Image.open(ASK_FRAME).convert('RGB')
     except (OSError, ValueError):
         return 'teach: no open question'
+    if kind == 'exit':
+        kind = 'step'
     if kind != ctx['kind']:
         return f'teach: the open question is {ctx["kind"]!r}, not {kind!r}'
     if kind == 'road':
@@ -2131,6 +2552,24 @@ def teach(kind, cells):
         run_log('vision', what='teach', kind=kind, cells=cells, hop=ctx['hop'], msg=msg or 'ok')
         os.remove(ASK_CTX)
         return f'taught hop {ctx["hop"]} → {pt}: {msg or "moved"}. Re-run your command.'
+    if kind == 'step':  # the model's next click toward the goal: walk there; a real move = a proven walk (L74)
+        import math
+        if ':' in cells[0]:  # X:Y game coords (L74)
+            pt = tuple(int(v) for v in cells[0].split(':'))
+        else:
+            x0, y0, x1, y1 = cell_box(cells[0])
+            pt = ((x0 + x1) // 2, (y0 + y1) // 2)
+        fr = dict(_seg()['from'] or {})
+        msg = go_to(*pt)
+        if msg and msg.startswith('NO MOVE'):
+            return f'teach step {cells[0]}: {msg} (not walkable): pick another cell'
+        p, _ = checkpoint('via')
+        moved = fr.get('x') is not None and math.dist((fr['x'], fr['z']), (p['x'], p['z']))
+        run_log('vision', what='teach', kind=kind, cells=cells, moved=moved)
+        if not moved or moved < 1.0:
+            return f'teach step {cells[0]}: she did not move: pick another cell'
+        os.remove(ASK_CTX)
+        return f'taught step {cells[0]}: walked {moved:.1f} units to ({p["x"]:.1f}, {p["z"]:.1f}). Re-run your command.'
     return f'teach: unknown kind {kind!r}'
 
 
@@ -2279,6 +2718,36 @@ def coverage_report():
     return '\n'.join(out)
 
 
+REC = None  # (thread, stop event, out path) of the running video recording
+
+
+def record(cmd, fps=8, width=1280):
+    """Video of the game window, recorded by a daemon thread (only the daemon may capture, L71); tools/record.py."""
+    global REC
+    import threading
+    import record as rec
+    if cmd == 'start':
+        if REC and REC[0].is_alive():
+            return f'already recording: {REC[2]}'
+        os.makedirs(rec.OUT_DIR, exist_ok=True)
+        out = os.path.join(rec.OUT_DIR, time.strftime('play-%Y%m%d-%H%M%S.mp4'))
+        stop = threading.Event()
+        th = threading.Thread(target=rec.run, args=(fps, width, out, stop, sys.modules[__name__]), daemon=True)
+        th.start()
+        REC = (th, stop, out)
+        return out
+    if not REC:
+        return 'not recording'
+    th, stop, out = REC
+    if cmd == 'status':
+        return f'{"recording" if th.is_alive() else "ended"}: {out}'
+    stop.set()
+    th.join(20)
+    REC = None
+    size = os.path.getsize(out) if os.path.exists(out) else 0
+    return f'{out} {size / 1e6:.1f} MB' + ('' if size > 10000 else '  FAILED (no frames captured)')
+
+
 def improve(n=3):
     """Auto-improver (L67): fill the gaps of Tara's cell (L4 map pin, L2 one short checked hop; L3/L1 come with
     every reading), then walk to the nearest road cell with no data and repeat, n cells. Outdoors only."""
@@ -2350,9 +2819,8 @@ def where(learn=None):
 
 
 def goto(place, max_hops=30):
-    """Walk to a known place by map route: localise (map) → route on roads → one go: hop toward the next waypoint →
-    repeat. Returns ARRIVED / NOT REACHED messages. The world graph (phase 2) goes first when it knows the place."""
-    import math
+    """Walk to a known place: the world graph when it knows the place, else the coarse map walk (map_walk, L72),
+    else (map won't open) a reading + the graph. Returns ARRIVED / NEAR / NOT REACHED messages."""
     steps = graph_route(place)
     if steps:  # world graph (phase 2): walk / link / replay steps
         return run_route(place, steps)
@@ -2360,84 +2828,96 @@ def goto(place, max_hops=30):
     if place not in pl:
         return f'goto: unknown place {place!r}; known: {", ".join(sorted(pl))}'
     goal = pl[place]
-    frame = grab()
-    if on_road(frame) < ON_ROAD:
-        first = to_road()
-        if not first.startswith('ON ROAD'):
-            return ask_vision('road', f'Tara ({current_scene()}) must stand on a road. Which cells show walkable '
-                              f'road/path near her?', grab(), key=road_key(frame))
-    last, stuck, spawned = None, 0, False
+    r = map_walk(place, goal, max_hops)
+    if r is not None:
+        return r
+    # graph first, map last: never retry a map that failed (retro 2026-10-29)
+    checkpoint(fill=False)
+    steps = graph_route(place)
+    if steps:
+        return run_route(place, steps)
+    return (f'goto {place}: map did not open and the world graph has no route: check state, then '
+            f'`wf plan <node>` / `wf go-world X Z`; do not retry the map')
+
+
+MAP_REANCHOR = 3   # coarse hops between map looks (dead reckoning drifts with the ±50 % map scale)
+MAP_HOP_NEAR = 3.0  # world units: a coarse hop is done this close to its point
+MAP_SIDESTEP = (90, -90, 180)  # degrees off the route: half hops tried when a hop didn't move her
+
+
+def map_walk(place, goal, max_hops=30):
+    """Coarse map route (L72): the map gives direction and distance, readings give the truth. Open the map → road
+    route → hop MAP_HOP units toward the route point ahead (go_world ends in a reading) → dead-reckon the map position
+    from the measured move → look at the map again every MAP_REANCHOR hops, when stuck, or after a scene change. A
+    scene border is walked through: the hop keeps its direction and the crossing is traced. None = map didn't open."""
+    import math
+    import nav
+    p, _ = checkpoint(fill=False)
+    m = path = None
+    since = MAP_REANCHOR
+    track = [(p['scene'], p['x'], p['z'])]  # 3 moves without progress = stuck (L75)
     for hop in range(max_hops):
-        if spawned:  # just crossed into a new area: the spawn point is ON a road → free colour sample
-            calibrate_road()
-            spawned = False
-            steps = graph_route(place)  # the new scene may know the place (a finer layer): re-plan there
-            if steps:
-                return run_route(place, steps)
-        img = map_snapshot()
-        if img is None:  # graph first, map last: never retry a map that failed (retro 2026-10-29)
-            checkpoint(fill=False)
-            steps = graph_route(place)
-            if steps:
-                return run_route(place, steps)
-            return (f'goto {place}: map did not open and the world graph has no route: check state, then '
-                    f'`wf plan <node>` / `wf go-world X Z`; do not retry the map')
-        pin = map_pin(img)
-        left = math.dist(pin, goal)
+        if since >= MAP_REANCHOR:
+            img = map_snapshot()
+            if img is None:
+                return None
+            m = map_pin(img)
+            path, since = map_route(img, m, goal), 0
+            if not path:
+                return f'goto {place}: no road route from map {m}: use go: to reach a road'
+        left = math.dist(m, goal)
         if left <= NAV_ARRIVE:
-            run_log('nav', what='goto', place=place, result='arrived', hops=hop)
-            key('escape')  # close the map before the reading
-            p, _ = checkpoint('near', goal=place, pin=pin)  # a map pin pair (L4); coarse, so not 'arrived'
-            return (f'ARRIVED {place} in {hop} hops (map {pin[0]},{pin[1]}; world {p["x"]:.1f}, {p["z"]:.1f}): '
-                    f'`wf pos --learn {place}` at the exact spot makes the next trip exact')
-        if last and math.dist(pin, last) < 4:
-            stuck += 1
-        else:
-            stuck = 0
-        last = pin
-        path = map_route(img, pin, goal)
-        if not path:
-            return f'goto {place}: no road route from map {pin} (off-road?): use go: to reach a road'
-        tgt = path[min(len(path) - 1, 12)]  # look ~50 map px ahead along the road
-        ang = math.atan2(tgt[1] - pin[1], tgt[0] - pin[0])
-        hk = hop_key(pin, ang)
-        frame = grab()
-        if stuck >= 2:  # code can't make progress here: one model question, remembered for next time
-            return ask_vision('next', f'Tara must go {compass(ang)} towards {place} (map route). Which cell should '
-                              f'she walk to next (visible walkable ground that leads that way)?', frame, hop=hk)
-        mark = log_mark()
-        feet = tara_feet(frame)
-        avoid = []
-        remembered = hops().get(hk)
-        for attempt in range(3):
-            if remembered and attempt == 0:
-                pt, how = tuple(remembered), 'memory'
-                msg = go_to(*pt)
-                if not (msg and msg.startswith('NO MOVE')):
-                    break
-                avoid.append(pt)
+            if since:  # only dead-reckoned: confirm on the map
+                since = MAP_REANCHOR
                 continue
-            pt = road_target(frame, ang, feet, avoid=avoid)  # a road pixel we can SEE that way (never a tree)
-            how = 'road'
-            if pt is None:  # no visible road that way: blind point, shorter
-                pt = (int(min(1860, max(60, feet[0] + math.cos(ang) * NAV_STEP * 0.6))),
-                      int(min(1020, max(240, feet[1] + math.sin(ang) * NAV_STEP * 0.6))))
-                how = 'blind'
-            msg = go_to(*pt)
-            if not (msg and msg.startswith('NO MOVE')) or how == 'blind':
+            run_log('nav', what='goto', place=place, result='arrived', hops=hop)
+            p, _ = checkpoint('near', goal=place, pin=m)  # a map pin pair (L4); coarse, so not 'arrived'
+            return (f'NEAR {place} in {hop} hops (map {m[0]},{m[1]}; world {p["x"]:.1f}, {p["z"]:.1f}): look, '
+                    f'click the last bit, then `wf pos --learn {place}`')
+        h = nav.map_heading(m, nav.path_ahead(path, m, nav.MAP_HOP / nav.MAP_SCALE)) or nav.map_heading(m, goal)
+        if not calib_load(p['scene']):  # e.g. a porch the game counts as a building: no clicks to plan here
+            return stuck_vision(place, h, f'in {p["scene"]}, which has no calibration')
+        msg = go_world(p['x'] + h[0], p['z'] + h[1], max_rounds=1, radius=MAP_HOP_NEAR)
+        q = _seg()['from']
+        if q['scene'] != p['scene'] or 'changed scene' in msg:
+            q, _ = checkpoint(fill=False)  # exact spawn point in the new area
+            calibrate_road()  # the spawn point is ON a road: free colour sample
+            run_log('nav', what='map-hop', place=place, new_area=q['scene'], msg=msg)
+            steps = graph_route(place)  # the new scene may know the place (a finer layer)
+            if steps:
+                return run_route(place, steps)
+            p, since = q, MAP_REANCHOR
+            continue
+        dx, dz = q['x'] - p['x'], q['z'] - p['z']
+        track.append((q['scene'], q['x'], q['z']))
+        if math.hypot(dx, dz) < 1.0:
+            mark_blocked(place, h, msg)
+        for rot in MAP_SIDESTEP if math.hypot(dx, dz) < 1.0 else ():  # blocked (porch rail, fence): step aside
+            if nav.no_progress(track):
                 break
-            avoid.append(pt)
-        else:
-            if msg and msg.startswith('NO MOVE'):
-                return ask_vision('next', f'Tara must go {compass(ang)} towards {place}; 3 clicks were rejected. '
-                                  f'Which cell should she walk to next?', grab(), hop=hk)
-        sx, sy = pt
-        if re.search(r'ChangeScene|Spawning player', log_since(mark)):
-            spawned = True  # new area: learn its road colour at the spawn point; no corrective clicks near the link
-        run_log('nav', what='hop', place=place, pin=pin, left=round(left), click=(sx, sy), aim=how,
-                deg=round(math.degrees(ang)), msg=msg or 'ok', new_area=spawned)
+            a = math.radians(rot)
+            sx, sz = (h[0] * math.cos(a) - h[1] * math.sin(a)) / 2, (h[0] * math.sin(a) + h[1] * math.cos(a)) / 2
+            msg = go_world(q['x'] + sx, q['z'] + sz, max_rounds=1, radius=MAP_HOP_NEAR)
+            q = _seg()['from']
+            track.append((q['scene'], q['x'], q['z']))
+            dx, dz = q['x'] - p['x'], q['z'] - p['z']
+            if q['scene'] != p['scene'] or math.hypot(dx, dz) >= 1.0:
+                break
+        if q['scene'] != p['scene']:  # the sidestep crossed a border: look at the map in the new area
+            p, since = q, MAP_REANCHOR
+            continue
+        run_log('nav', what='map-hop', place=place, map=[round(v) for v in m], left=round(left),
+                hop=[round(h[0], 1), round(h[1], 1)], moved=[round(dx, 1), round(dz, 1)], msg=msg)
+        if nav.no_progress(track):  # 3 moves without progress: one model look, not more blind hops
+            return stuck_vision(place, h, f'{nav.STUCK_MOVES} moves without progress; last: {msg}')
+        if math.hypot(dx, dz) < 1.0:
+            since = MAP_REANCHOR  # no move but not stuck yet: look at the map again
+            p = q
+            continue
+        m, since = nav.map_dead_reckon(m, dx, dz), since + 1
+        p = q
     run_log('nav', what='goto', place=place, result='not reached', hops=max_hops)
-    return f'NOT REACHED {place} after {max_hops} hops (map {pin[0]},{pin[1]}, {left:.0f} px left)'
+    return f'NOT REACHED {place} after {max_hops} hops (map {m[0]:.0f},{m[1]:.0f}, {math.dist(m, goal):.0f} px left)'
 
 
 def is_paused(s=None):
@@ -3001,8 +3481,9 @@ def main(argv=None):
     p.add_argument('query')
     p.add_argument('--show', action='store_true', help='print best title match in full')
     p.add_argument('--limit', type=int, default=15)
-    p = sub.add_parser('run', help='run log per quest/task: wf run start <quest> <goal…> | attempt|step|issue|gap|'
-                                   'decision|note <text…> | end <result> [text…] | report [file]')
+    p = sub.add_parser('run', help='one dir per task (L76): wf run start <task> <goal…> | plan | step <n> start|done|'
+                                   'fail|skip [note…] | escalate <n> <why…> | status | waits | attempt|issue|gap|decision|'
+                                   'note <text…> | end <result> [text…] | report [path]')
     p.add_argument('sub')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('where', help='Tara on the map (pin) + nearest known place; --learn <name> stores it (L57)')
@@ -3027,13 +3508,23 @@ def main(argv=None):
                                     'road; --calibrate = she IS on a road: learn this lighting period\'s colours')
     p.add_argument('--go', action='store_true')
     p.add_argument('--calibrate', action='store_true')
+    p = sub.add_parser('py', help='run game functions (tools/game, L77): wf py "for b in beds(wilted=True): replant(b)"')
+    p.add_argument('args', nargs='+')
+    p = sub.add_parser('call', help='run one game function: wf call garden.water 3')
+    p.add_argument('args', nargs='+')
+    p = sub.add_parser('ask-step', help='vision question with the goal and the 4 layers drawn on it: next click toward <place>')
+    p.add_argument('place')
+    p = sub.add_parser('record', help='video of the game window (daemon thread): record start|stop|status')
+    p.add_argument('sub', choices=['start', 'stop', 'status'])
+    p.add_argument('--fps', type=int, default=8)
+    p.add_argument('--width', type=int, default=1280)
     sub.add_parser('pause', help='pause the game if it is running (checks first; Escape toggles)')
     sub.add_parser('resume', help='resume the game if it is paused (checks first)')
     sub.add_parser('routines', help="today's daily chores and their status (save + today's log); docs/routines.md")
     p = sub.add_parser('edge', help='anchored route edges: wf edge add <A> <B> x:y x:y … | replay <A> <B> | list')
     p.add_argument('sub')
     p.add_argument('args', nargs='*')
-    p = sub.add_parser('teach', help='answer the last NEED_VISION question: wf teach road C5 D5 | wf teach next D6')
+    p = sub.add_parser('teach', help='answer the last NEED_VISION question: wf teach road C5 D5 | wf teach next D6 | wf teach step X:Y')
     p.add_argument('kind')
     p.add_argument('cells', nargs='+')
     p = sub.add_parser('goto', help='walk to a known place by map route (localise → road BFS → go: hops): wf goto farmhouse')
@@ -3219,6 +3710,23 @@ def _dispatch_input(a):
         img = grab()
         print(calibrate_road(img) if a.calibrate else to_road() if a.go else
               f'on road: {on_road(img):.0%} around her feet [{road_key(img)}]')
+    elif a.cmd in ('py', 'call'):
+        if game_cmd(a.cmd, a.args):
+            sys.exit(1)
+        return
+    elif a.cmd == 'ask-step':
+        import math
+        import nav
+        steps = graph_route(a.place) or []
+        est = seg_estimate() or start_estimate()
+        ahead = [nav.target_of(n) for kind, _, n in steps if kind == 'walk' and n['scene'] == est[0]
+                 and nav.target_of(n) and math.dist(nav.target_of(n), est[1:]) > 1]
+        d = (ahead[0][0] - est[1], ahead[0][1] - est[2]) if ahead else (0.0, -1.0)
+        print(ask_step(a.place, d, 'asked on purpose', ahead))
+        return
+    elif a.cmd == 'record':
+        print(record(a.sub, a.fps, a.width))
+        return
     elif a.cmd in ('pause', 'resume'):
         print(set_paused(a.cmd == 'pause'))
         return
@@ -3299,6 +3807,7 @@ def serve():
                 continue
             buf = io.StringIO()
             code = 0
+            moves0 = MOVES[0]
             with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
                 try:
                     main(argv)
@@ -3308,9 +3817,25 @@ def serve():
                         code = 1
                     else:
                         code = e.code or 0
+                except Stuck as e:
+                    print(e)
+                    code = 1
                 except Exception as e:  # keep serving
                     print(f'ERROR: {type(e).__name__}: {e}')
                     code = 1
+                if argv and argv[0] not in ('run', 'stop', 'status'):
+                    try:
+                        w = step_warning()
+                        if w:
+                            print(w)
+                        if MOVES[0] > _TRACK_AT[0]:  # clicks without a reading (e.g. `do go:`)
+                            est = seg_estimate() or start_estimate()
+                            if est:
+                                track_point(*est)
+                    except Stuck as e:
+                        print(e)
+                    except Exception:
+                        pass
             try:
                 conn.sendall(json.dumps({'out': buf.getvalue(), 'code': code}).encode() + b'\n')
             except OSError:

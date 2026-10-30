@@ -1,0 +1,37 @@
+{"t": 1793377556.76, "type": "start", "quest": "VioletBeehives", "goal": "Meant To Bee: hand honey to Violet"}
+{"t": 1793377566.48, "type": "call", "start": 1793377566.48, "end": 1793377570.14, "cmd": "resume"}
+{"t": 1793377576.3, "type": "routine", "status": ["R1 water garden: DUE 0/11 beds watered today · 11 WILTED: water first", "R2 harvest ripe crops: DUE 1 ripe per save, 0 harvested today"]}
+{"t": 1793377579.21, "type": "call", "start": 1793377579.21, "end": 1793377579.35, "cmd": "look"}
+{"t": 1793377592.67, "type": "activity", "what": "go", "target": "go:600:880", "start": 1793377591.260003, "end": 1793377592.669662, "moved": true}
+{"t": 1793377589.66, "type": "call", "start": 1793377589.66, "end": 1793377595.58, "cmd": "do go:600:880 --look"}
+{"t": 1793377603.09, "type": "activity", "what": "go", "target": "go:880:1000", "start": 1793377601.2810361, "end": 1793377603.088323, "moved": true}
+{"t": 1793377606.64, "type": "nav", "what": "pos", "scene": "Farm", "x": 16.35, "z": -27.86, "fresh": true, "secs": 1.5}
+{"t": 1793377609.85, "type": "game", "line": "[D148 6:22:35 PM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793377599.74, "type": "call", "start": 1793377599.74, "end": 1793377609.97, "cmd": "do go:880:1000 --look"}
+{"t": 1793377617.72, "type": "activity", "what": "go", "target": "go:1050:850", "start": 1793377616.2409222, "end": 1793377617.72106, "moved": true}
+{"t": 1793377614.59, "type": "call", "start": 1793377614.59, "end": 1793377621.13, "cmd": "do go:1050:850 go:500:850 --look"}
+{"t": 1793377626.65, "type": "activity", "what": "go", "target": "go:1050:850", "start": 1793377624.9565482, "end": 1793377626.6529531, "moved": true}
+{"t": 1793377623.35, "type": "call", "start": 1793377623.35, "end": 1793377629.72, "cmd": "do go:1050:850 --look"}
+{"t": 1793377638.59, "type": "activity", "what": "go", "target": "go:875:480", "start": 1793377636.657964, "end": 1793377638.589671, "moved": true}
+{"t": 1793377635.0, "type": "call", "start": 1793377635.0, "end": 1793377642.09, "cmd": "do go:875:480 --look"}
+{"t": 1793377650.46, "type": "activity", "what": "go", "target": "go:560:520", "start": 1793377646.69089, "end": 1793377650.461867, "moved": true}
+{"t": 1793377654.04, "type": "nav", "what": "pos", "scene": "Farm", "x": 10.38, "z": -24.65, "fresh": true, "secs": 1.5}
+{"t": 1793377657.15, "type": "game", "line": "[D148 6:44:56 PM] [TRIGGER] OnEnterBuilding House"}
+{"t": 1793377645.12, "type": "call", "start": 1793377645.12, "end": 1793377657.27, "cmd": "do go:560:520 --look"}
+{"t": 1793377665.8, "type": "activity", "what": "go", "target": "go:400:800", "start": 1793377663.998833, "end": 1793377665.801295, "moved": false}
+{"t": 1793377663.23, "type": "call", "start": 1793377663.23, "end": 1793377668.85, "cmd": "do go:400:800 --look"}
+{"t": 1793377673.9, "type": "activity", "what": "go", "target": "go:1000:860", "start": 1793377672.368865, "end": 1793377673.895273, "moved": false}
+{"t": 1793377671.49, "type": "call", "start": 1793377671.49, "end": 1793377676.59, "cmd": "do go:1000:860 --look"}
+{"t": 1793377683.35, "type": "activity", "what": "go", "target": "go:1300:700", "start": 1793377681.48887, "end": 1793377683.350535, "moved": true}
+{"t": 1793377679.9, "type": "call", "start": 1793377679.9, "end": 1793377686.38, "cmd": "do go:1300:700 --look"}
+{"t": 1793377694.62, "type": "activity", "what": "go", "target": "go:1320:880", "start": 1793377693.136259, "end": 1793377694.613974, "moved": true}
+{"t": 1793377691.4, "type": "call", "start": 1793377691.4, "end": 1793377697.36, "cmd": "do go:1320:880 --look"}
+{"t": 1793377702.98, "type": "activity", "what": "go", "target": "go:1320:1000", "start": 1793377701.123042, "end": 1793377702.978952, "moved": true}
+{"t": 1793377706.23, "type": "nav", "what": "pos", "scene": "Farm", "x": 18.82, "z": -28.28, "fresh": true, "secs": 1.5}
+{"t": 1793377709.09, "type": "game", "line": "[D148 7:11:34 PM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793377699.5, "type": "call", "start": 1793377699.5, "end": 1793377709.13, "cmd": "do go:1320:1000 --look"}
+{"t": 1793377712.21, "type": "call", "start": 1793377712.21, "end": 1793377714.59, "cmd": "do go:700:800 --look"}
+{"t": 1793377947.43, "type": "game", "line": "[D148 7:10:00 PM] [MODE] Spawning player at last known position"}
+{"t": 1793377943.33, "type": "call", "start": 1793377943.33, "end": 1793377947.43, "cmd": "pause"}
+{"t": 1793378206.41, "type": "routine", "status": ["R1 water garden: DUE 0/11 beds watered today · 11 WILTED: water first", "R2 harvest ripe crops: DUE 1 ripe per save, 0 harvested today"]}
+{"t": 1793378223.59, "type": "end", "result": "abandoned", "text": "a new run started"}

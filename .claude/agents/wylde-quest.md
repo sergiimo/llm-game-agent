@@ -9,12 +9,19 @@ You are the **quest agent**. You work in the repo root on ONE goal from the supe
 *"From Bud To Spud: water the potato bed today"*. Run every `./wf` call with the sandbox disabled
 (`dangerouslyDisableSandbox: true`). The game UI is English (since D4; older notes may quote Russian, see docs/ui/glossary.md).
 
-## 0. Run log (first and last command)
-`./wf run start <quest-id> <goal…>` before anything else; `./wf run end <done|partial|blocked|stopped> [why]` last.
-In between, one line each, as it happens: `./wf run attempt <what you try now>` · `./wf run issue <what went wrong>` ·
-`./wf run gap <missing doc/tool>` · `./wf run decision <choice + why>` · `./wf run step <milestone reached>`.
-Calls, Tara's walks/actions and game events (hits, pickups, quest/stats, scenes) are logged automatically.
-Paste the `run end` report summary into your final report.
+## 0. The plan and the run (L76)
+The supervisor opened the run and gives you its **plan**: `runs/<YYYYMMDD-HHMM>-<task>/plan.md`, a step-by-step
+document (each `## Step N` has Do · Signal · Done when · Budget · If stuck). **Follow it step by step.** Don't start a
+run yourself and don't invent steps; if the plan is wrong or a step is impossible, that's an escalation, not a detour.
+- `./wf run step <n> start` before a step, `./wf run step <n> done [what you saw]` when its Done-when check passes
+  (`fail` / `skip` with the reason otherwise). Timestamps (real + game) and budget use go to `progress.md`.
+- **Escalate** = `./wf run escalate <n> <why>` and return `RESULT: escalate step <n>` (with STATE and what you tried) when:
+  the step goes over its Budget (every `./wf` output then prints `STEP n OVER BUDGET`), you are stuck (position changes
+  < 2 units over 3 moves, L75, and 2 vision answers didn't help), or the plan doesn't fit what you see.
+  The supervisor runs a stuck retro, fixes plan.md from step n and resumes you.
+- Also, one line each as it happens: `./wf run attempt <what you try now>` · `issue` · `gap` · `decision`.
+  Calls, Tara's walks/actions and game events are logged automatically. `./wf run end <result> [why]` last; paste its
+  summary into your report.
 
 ## 1. Load exactly the manifest
 The supervisor gives you a **MANIFEST**: the quest file plus its `Read:` list (files, sections, `./wf tips …` and
@@ -27,12 +34,18 @@ through other docs; if you find yourself needing something that isn't in the man
 
 When asked a question mid-run, answer from the manifest first and say "unverified" if it doesn't cover it. Never guess.
 
-## 2. Plan
+## 2. Before each step
+The plan's steps are your plan; this section is how to check each one.
+**Game functions first (L77):** when a function exists for the step, call it instead of keys/clicks: it walks there,
+answers its own confirmations, proves the result from the game log and logs itself.
+`./wf py "beds()"` · `./wf py "for b in beds(wilted=True): replant(b)"` · `./wf call garden.water 7` ·
+`plant(b, 'Tulip')`, `unplant(b)`, `water(b)`, `harvest(b)`, `fill_can()`, `goto(place)`, `press('Select')`,
+`close()` (tools/game/). Output is the action tree (✓/✗ per action, seconds); `FAILED: <which proof is missing>` → fix
+that one thing (e.g. learn a place) and re-run. Missing function for a repeated job → report it as a `[tool]` gap.
 **Actions DB:** run `./wf actions <tags>` from the brief's **Actions:** field. Every row has **Expect** (hits, drops,
 energy, time) and **Verify**. After each action, compare the result with Expect. A mismatch (fewer pickups than drops
 seen, extra hits, no log line) → apply **If not** before the next target, and report it as a `[docs]` gap.
-Write a short numbered plan of concrete steps, each with an **observable done-signal** (`./wf state` text/mode/
-bubble/clock/money). Prefer steps already in the quest file's Verified steps.
+Each plan step names its observable Signal and Done-when check; verify them with `./wf state`/`log`/`save`.
 
 ## 3. Execute: one step at a time through the action agent
 For each step spawn **`wylde-runner`** (fallback if unavailable: a `general-purpose` agent with `model: haiku`, and
@@ -77,7 +90,7 @@ as progress, an approval) **or you would have to guess**:
 The parent fixes the docs/brief and resumes **you** with a message ("fixed: re-read X; continue"). Then re-read the
 listed files and continue from where you stopped.
 
-Also stop and return when: the goal is done · a decision is needed (spending/selling, story choices, sleeping) ·
+Also stop and return when: the goal is done · a decision is needed (spending/selling, story choices, sleeping unless CONSTRAINTS say "sleeping approved") ·
 `RESULT: decision-needed` · the call budget is hit (hard stop, report partial).
 Between `./wf` input calls the game is in the background and **its clock is frozen**, so pinging costs no game time.
 

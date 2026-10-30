@@ -35,5 +35,11 @@
   "v_min": 102,
   "v_max": 213,
   "samples": 1
+ },
+ "RuralBeach:day": {
+  "s_max": 165,
+  "v_min": 153,
+  "v_max": 241,
+  "samples": 1
  }
 }

@@ -18,7 +18,8 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 | `docs/ui/INDEX.md` → `controls.md`, `hud.md`, `screens/<screen>.md`, `glossary.md` | What's on screen, how to recognise it (`wf state` mode), actions, exit; RU↔EN |
 | `docs/world/INDEX.md` → `overview.md`, `characters.md`, `businesses.md`, `items/*.md` | Reference knowledge (generated from the wiki) |
 | `docs/actions.md` | **Actions DB:** each action → recipe, **expected** hits/drops/energy, verify signal, fix. `./wf actions <tags>` prints a job's rows |
-| `runs/*.jsonl` | **Run log per quest/task** (`./wf run start/attempt/issue/end`, auto: calls, Tara walks/actions, game events). `./wf run report` |
+| `runs/<YYYYMMDD-HHMM>-<task>/` | **One dir per task (L76):** `plan.md` (supervisor's step plan for the agent), `log.jsonl` (auto: calls, walks, game events; `./wf run step/attempt/issue/escalate/end`), `progress.md` (step timestamps + budget use), `retro-N.md`. `./wf run status` / `report`. Older runs: `runs/*.jsonl` |
+| `tools/game/` | **Game functions (L77)**: `garden.replant/plant/unplant/water/harvest`, `well.fill_can`, `move.goto`, `ui.press/close`; each walks, confirms, proves itself from the game log, logs an action tree. `./wf py "<code>"`, `./wf call <module.fn> args`, `./wf run waits` |
 | `docs/self-improvement.md` | **Self-improvement loop**: act → capture → label from the game log → store disagreements → verify (`./wf learn`) → use. Bubble kinds learn automatically |
 | `docs/routines.md` | **Daily chores** (water garden, harvest…): `./wf routines` = today's status from save + log; do DUE ones before quests |
 | `docs/learnings.md` | Surprises: expected vs actual → what changed |
@@ -65,9 +66,17 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
 2. **Small steps, no blind loops.** Never spam keys through cutscenes, dialogue or menus. `./wf advance` stops at
    anything unexpected.
 3. **Don't change the user's settings** (language, game speed) or spend/sell/sleep through big decisions without
-   asking, unless the user said so.
+   asking, unless the user said so ("pass quest X" = sleeping as many nights as it needs is approved).
 4. After each milestone, write the **verified steps** into that quest's file (`docs/quests/<line>/<quest>.md`), set its
    front-matter `status`/`ru`, re-run `python3 -I tools/gen_quests.py`, and update `docs/progress.md`.
 5. When something differs from expectations, **log it in `docs/learnings.md`** and fix the affected doc/tool/skill
    in the same pass.
 6. Prefer the hint button in the journal (**Show Hint**) for the actionable next step (L12).
+7. **Every task runs from a plan (L76):** `./wf run start` → `runs/<YYYYMMDD-HHMM>-<task>/plan.md`, written and reviewed
+   by the supervisor, shown to the user, followed by the agent step by step (`./wf run step N start|done`, timestamps in
+   `progress.md`). A step over its budget or stuck → `./wf run escalate N` → stuck retro → plan fixed from step N.
+   **Stuck = Tara's position changes < 2 units over 3 moves while not at the goal (L75).** Every stuck episode gets a
+   **stuck retro**: read `retros/stuck-ledger.md` first (did earlier fixes hold?), add a row, save the retro in
+   `retros/`; a cause that repeats gets a tool fix. Aim: fewer stuck episodes per trip.
+8. **One game command per tool call** (never `wf stop; wf resume; wf goto` in one call): a rejected call may already
+   have run its first commands. After any rejection: `tail -3 .shots/actions.log`, then `./wf pause` if needed.

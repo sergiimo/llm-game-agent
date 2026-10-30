@@ -3,7 +3,10 @@
 > **Summary:** Spring Y1, **Monday 10:10 am (day 148)**, Tara at the ranch in RuralBeach (10:10, after Marty's welcome), 5 coins, ⚡200/200. Docs below this line were last updated on day 4; the save (`./wf save`) is the truth. Active (save): MartyChickens (All Cooped Up, new), AngusRecipe, BuildVegetablePatch, GrandmaGifting, IntroIncantation, MayorMeetEveryone, SpringKimMeatAlt, ThomasBeans, VioletBeehives. Routine R1: 11 garden beds WILTED, not watered.
 
 ## Current goal (supervisor-owned; one at a time)
-- ✅ **Done D148 10:10 (run #13):** welcome Marty at the rebuilt ranch (Beach exit, bottom-left of the farm) → quest BuildRanch done. Quest file `docs/quests/building/give-a-ranch-hand.md`. Done-signal: `./wf save` lists BuildRanch under done. Record the run (`./wf run start BuildRanch`) and verified steps.
+- ▶️ **Meant To Bee (VioletBeehives)** from D148 10:10, run #14 (stopped: stuck at the ranch, L72–L75), run #15 from 5:57 pm at home. Quest file
+  `docs/quests/town/meant-to-bee.md`. Water + inspect hives → sleep until a hive gives honey → hand it to Violet
+  (Tue–Sat 9–17). Done-signal: `./wf save` lists VioletBeehives under done. Sleeping approved (user: pass the quest).
+- ✅ D148 10:10 (run #13): Give a Ranch Hand (BuildRanch).
 
 ## Goal queue
 1. Rice and Shine: 2 mushrooms (farm meadow) → cook risotto at the stove (first cooking test) → give to Gramma.

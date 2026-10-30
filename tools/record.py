@@ -7,8 +7,10 @@ Next to the video it writes two tracks for tools/idle.py (visible non-doing time
                       NPCs and camera pans don't count; first line `# t0 <unix>`)
   <video>.events.tsv  video-seconds \t game-log line, stamped when it appeared (hits, pickups, dialogue, scenes)
 
-  .venv/bin/python tools/record.py start [--fps 8] [--width 1280]   # background; prints the output path
-  .venv/bin/python tools/record.py stop
+  ./wf record start [--fps 8] [--width 1280]   # runs inside the ./wf daemon; prints the output path
+  ./wf record stop                             # prints path + size
+Use ./wf record: only the daemon may capture the screen (a freshly started process gets no image). `./wf stop` ends a
+recording. The standalone `tools/record.py start|stop` below is kept for when capture works for new processes.
 Needs: imageio-ffmpeg in .venv (bundled ffmpeg binary). Run outside the sandbox.
 """
 import argparse
@@ -39,10 +41,13 @@ def last_action(t0):
     return None, ''
 
 
-def run(fps, width, out):
+def run(fps, width, out, stop=None, wf=None):
+    """Record until `stop` (a threading.Event) is set; without one, until SIGTERM. `wf` = the caller's wf module."""
+    import threading
     import imageio_ffmpeg
     from PIL import ImageDraw, ImageFont
-    import wf
+    if wf is None:
+        import wf
     win = wf.require_window()  # whole window: the game draws under the title bar, the 16:9 frame would clip it
     height = round(width * win['h'] / win['w'] / 2) * 2
     ff = subprocess.Popen([imageio_ffmpeg.get_ffmpeg_exe(), '-loglevel', 'error', '-y', '-f', 'rawvideo',
@@ -53,8 +58,9 @@ def run(fps, width, out):
         font = ImageFont.truetype('/System/Library/Fonts/Menlo.ttc', max(14, width // 60))
     except OSError:
         font = ImageFont.load_default()
-    stop = []
-    signal.signal(signal.SIGTERM, lambda *_: stop.append(1))
+    if stop is None:
+        stop = threading.Event()
+        signal.signal(signal.SIGTERM, lambda *_: stop.set())
     base = os.path.splitext(out)[0]
     mo, ev = open(base + '.tara.tsv', 'w', buffering=1), open(base + '.events.tsv', 'w', buffering=1)
     try:
@@ -63,7 +69,7 @@ def run(fps, width, out):
         logpos = None
     t0, n, frame, tara, reseed = time.time(), 0, None, None, True
     mo.write(f'# t0 {t0:.2f}\n')  # tools/idle.py aligns video time with actions.log by this
-    while not stop:
+    while not stop.is_set():
         try:
             raw = wf.grab(crop=False)
             frame = raw.resize((width, height))

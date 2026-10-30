@@ -9,7 +9,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOCK = os.path.join(os.environ.get('WF_SHOT_DIR', os.path.join(ROOT, '.shots')), 'wf.sock')
 PY = os.path.join(ROOT, '.venv', 'bin', 'python')
 WF = os.path.join(ROOT, 'tools', 'wf.py')
-LOCAL_ONLY = {'serve', 'wiki', 'wait', 'tips', 'actions', 'run', 'learn', 'routines'}
+LOCAL_ONLY = {'serve', 'wiki', 'wait', 'tips', 'actions', 'learn', 'routines'}  # run: in the daemon (game clock for step stamps, L76)
 
 
 def via_daemon(argv):

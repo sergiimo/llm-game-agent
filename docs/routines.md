@@ -11,7 +11,13 @@
 | R3 | Bee hives (8) | ❓ (log shows pollen levels per hive overnight) | ❓ | ❓ | ❓ |
 
 ## Rules
-- **Morning order:** routines (R1 wilted beds first) → quests. Wilted crops don't grow; 2+ dry days = wilted.
+- **Morning order:** routines (R1 wilted beds first) → quests.
+- **Wilted (save, D148):** a bed with `daysNotWatered` ≥ 2 gets `isWilted: true`; `plantState` stays `##growing`
+  (not dead, not growing). ❌ **It can't be watered** (D148 run #15): its bubble is a tulip with a water drop; Space
+  shows a card "This plant has wilted. You should remember to water plants every day" and logs `> unplant
+  me=Player target=GardenBed(Clone)`, no `> water`, plant unchanged. ❓ A second Space on the card probably digs it up
+  (unplant; destructive: ask first). Wilted flowers likely don't feed the bee hives. Wiki: the **Reverse Time Spell** (Westley,
+  130 coins) restores wilted plants (spending → ask the user). ❓ How many dry days until a crop dies.
 - New bubble kinds on the way (`fill_can`, `water`) are learned by one deliberate Space (docs/self-improvement.md).
 - Trips are the same every day: record them as anchored edges (`./wf edge add`), replay them (`./wf edge replay`).
 - Status is exact, not remembered: always re-run `./wf routines` instead of counting by hand.

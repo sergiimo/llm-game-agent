@@ -16,13 +16,13 @@
    1.0
   ]
  ],
- "n": 21,
+ "n": 25,
  "kept": 18,
  "err": 0.039,
  "tara": [
   960,
   671
  ],
- "day": "2026-10-29",
+ "day": "2026-10-30",
  "_doc": "Cache derived from tools/nav/facts.jsonl (every clean one-click checkpoint, L62): H maps normalised screen ((x-960)/500, (y-540)/500) to the world offset (dx, dz) from Tara; tara = her ground point on screen; err = median residual in world units."
 }

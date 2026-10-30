@@ -36,3 +36,240 @@
 {"t": 1793298204.0, "what": "fill-pin", "skip": "not on a road", "cell": null}
 {"t": 1793298235.6, "what": "pos", "scene": "RuralBeach", "x": 2.89, "z": 7.19, "fresh": true, "secs": 1.5}
 {"t": 1793298236.0, "what": "fill-pin", "skip": "not on a road", "cell": null}
+{"t": 1793374769.7, "what": "to_road", "try_": 1, "share": 0.0, "click": [964, 908], "msg": "ok"}
+{"t": 1793374782.0, "what": "hop", "place": "farm-garden", "pin": [745, 754], "left": 319, "click": [764, 636], "aim": "road", "deg": -110, "msg": "ok", "new_area": false}
+{"t": 1793374793.0, "what": "hop", "place": "farm-garden", "pin": [744, 748], "left": 313, "click": [796, 684], "aim": "road", "deg": -106, "msg": "ok", "new_area": false}
+{"t": 1793374801.7, "what": "hop", "place": "farm-garden", "pin": [744, 748], "left": 313, "click": [804, 660], "aim": "road", "deg": -110, "msg": "ALREADY THERE (no walk needed; bubble@1312,548)", "new_area": false}
+{"t": 1793374837.2, "what": "pos", "scene": "RuralBeach", "x": 26.22, "z": -7.72, "fresh": true, "secs": 1.5}
+{"t": 1793374840.8, "what": "fill-pin", "scene": "RuralBeach", "cell": null, "pin": [744, 746]}
+{"t": 1793374877.5, "what": "hop", "place": "farm-garden", "pin": [743, 746], "left": 311, "click": [852, 236], "aim": "road", "deg": -108, "msg": "ok", "new_area": false}
+{"t": 1793374881.5, "what": "hop", "place": "farm-garden", "pin": [744, 746], "left": 311, "click": [844, 236], "aim": "road", "deg": -109, "msg": "ok", "new_area": false}
+{"t": 1793374970.7, "what": "to_road", "try_": 1, "share": 0.0, "click": [1220, 580], "msg": "NO MOVE go:1220:580: not walkable (wall, furniture, water, off-map, or a menu is open). Click a ground point nearer to Tara, or the doorway/floor edge to leave a building"}
+{"t": 1793374974.1, "what": "to_road", "try_": 2, "share": 0.0, "click": [1220, 580], "msg": "NO MOVE go:1220:580: not walkable (wall, furniture, water, off-map, or a menu is open). Click a ground point nearer to Tara, or the doorway/floor edge to leave a building"}
+{"t": 1793374977.7, "what": "to_road", "try_": 3, "share": 0.0, "click": [1220, 580], "msg": "NO MOVE go:1220:580: not walkable (wall, furniture, water, off-map, or a menu is open). Click a ground point nearer to Tara, or the doorway/floor edge to leave a building"}
+{"t": 1793375021.9, "what": "hop", "place": "farm-garden", "pin": [745, 768], "left": 331, "click": [492, 716], "aim": "road", "deg": 178, "msg": "ok", "new_area": false}
+{"t": 1793375033.2, "what": "hop", "place": "farm-garden", "pin": [732, 778], "left": 335, "click": [492, 692], "aim": "road", "deg": 180, "msg": "ok", "new_area": false}
+{"t": 1793375056.4, "what": "hop", "place": "farm-garden", "pin": [716, 779], "left": 330, "click": [500, 764], "aim": "road", "deg": -179, "msg": "ok", "new_area": false}
+{"t": 1793375067.8, "what": "hop", "place": "farm-garden", "pin": [685, 780], "left": 321, "click": [1140, 388], "aim": "road", "deg": -71, "msg": "ok", "new_area": false}
+{"t": 1793375078.3, "what": "hop", "place": "farm-garden", "pin": [693, 780], "left": 324, "click": [500, 772], "aim": "road", "deg": 178, "msg": "ok", "new_area": false}
+{"t": 1793375090.2, "what": "hop", "place": "farm-garden", "pin": [679, 780], "left": 320, "click": [804, 252], "aim": "road", "deg": -73, "msg": "ok", "new_area": false}
+{"t": 1793375099.5, "what": "hop", "place": "farm-garden", "pin": [673, 702], "left": 243, "click": [540, 900], "aim": "road", "deg": 160, "msg": "ok", "new_area": false}
+{"t": 1793375129.9, "what": "log-reading", "scene": "RuralBeach", "x": 16.09, "z": 33.88}
+{"t": 1793375129.9, "what": "hop", "place": "farm-garden", "pin": [664, 702], "left": 241, "click": [1332, 404], "aim": "road", "deg": -60, "msg": "ok", "new_area": false}
+{"t": 1793375148.3, "what": "pos", "scene": "RuralBeach", "x": 16.09, "z": 33.88, "fresh": true, "secs": 1.5}
+{"t": 1793375148.4, "what": "fill-pin", "skip": "not on a road", "cell": null}
+{"t": 1793375164.2, "what": "to_road", "try_": 1, "share": 0.0, "click": [1020, 612], "msg": "NO MOVE go:1020:612: not walkable (wall, furniture, water, off-map, or a menu is open). Click a ground point nearer to Tara, or the doorway/floor edge to leave a building"}
+{"t": 1793375166.5, "what": "to_road", "try_": 2, "share": 0.0, "click": [1020, 612], "msg": "NO MOVE go:1020:612: not walkable (wall, furniture, water, off-map, or a menu is open). Click a ground point nearer to Tara, or the doorway/floor edge to leave a building"}
+{"t": 1793375168.6, "what": "to_road", "try_": 3, "share": 0.0, "click": [1020, 612], "msg": "NO MOVE go:1020:612: not walkable (wall, furniture, water, off-map, or a menu is open). Click a ground point nearer to Tara, or the doorway/floor edge to leave a building"}
+{"t": 1793375180.9, "what": "pos", "scene": "RuralBeach", "x": 16.09, "z": 33.88, "fresh": false, "secs": 4.4}
+{"t": 1793375184.6, "what": "fill-pin", "scene": "RuralBeach", "cell": null, "pin": [698, 702]}
+{"t": 1793375531.4, "what": "pos", "scene": "RuralBeach", "x": 16.09, "z": 33.88, "fresh": false, "secs": 4.7}
+{"t": 1793375542.3, "what": "pos", "scene": "RuralBeach", "x": 8.01, "z": 33.96, "fresh": true, "secs": 1.4}
+{"t": 1793375545.7, "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 16, 17], "pin": [685, 702]}
+{"t": 1793375545.7, "what": "map-hop", "place": "farmhouse", "map": [698, 702], "left": 222, "hop": [-8.0, 0.0], "moved": [-8.1, 0.1], "msg": "NEAR (8.1, 33.9) in RuralBeach: 0.12 units off (coarse \u00b13.0), 1 reading(s)"}
+{"t": 1793375558.4, "what": "pos", "scene": "RuralBeach", "x": 8.01, "z": 33.96, "fresh": false, "secs": 4.2}
+{"t": 1793375562.3, "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 16, 17], "pin": [685, 702]}
+{"t": 1793375562.3, "what": "map-hop", "place": "farmhouse", "map": [671, 702], "left": 225, "hop": [-8.0, -0.1], "moved": [0.0, 0.0], "msg": "SHORT of (0.0, 33.9): 8.00 units off at (8.0, 34.0) after 1 readings"}
+{"t": 1793375578.9, "what": "pos", "scene": "RuralBeach", "x": 8.01, "z": 33.96, "fresh": false, "secs": 4.2}
+{"t": 1793375578.9, "what": "map-hop", "place": "farmhouse", "map": [685, 702], "left": 224, "hop": [-8.0, 0.0], "moved": [0.0, 0.0], "msg": "SHORT of (0.0, 34.0): 8.00 units off at (8.0, 34.0) after 1 readings"}
+{"t": 1793375630.3, "what": "pos", "scene": "RuralBeach", "x": 8.01, "z": 33.96, "fresh": false, "secs": 4.6}
+{"t": 1793375648.4, "what": "pos", "scene": "RuralBeach", "x": 8.01, "z": 33.96, "fresh": false, "secs": 4.2}
+{"t": 1793375664.0, "what": "pos", "scene": "RuralBeach", "x": 8.01, "z": 33.0, "fresh": true, "secs": 1.4}
+{"t": 1793375675.4, "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": true, "secs": 1.4}
+{"t": 1793375683.5, "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375687.9, "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375692.2, "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375696.6, "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375696.6, "what": "map-hop", "place": "farmhouse", "map": [686, 702], "left": 224, "hop": [-8.0, 0.0], "moved": [0.0, 0.0], "msg": "go-world: no calibration for RuralBeach/Ranch: run `wf calib` on open ground there first"}
+{"t": 1793375705.4, "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375709.8, "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375714.2, "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375718.6, "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375718.6, "what": "map-hop", "place": "farmhouse", "map": [686, 702], "left": 224, "hop": [-8.0, 0.0], "moved": [0.0, 0.0], "msg": "go-world: no calibration for RuralBeach/Ranch: run `wf calib` on open ground there first"}
+{"t": 1793375739.2, "what": "pos", "scene": "RuralBeach", "x": 15.26, "z": 28.37, "fresh": true, "secs": 1.5}
+{"t": 1793375749.9, "what": "pos", "scene": "RuralBeach", "x": 15.26, "z": 28.37, "fresh": false, "secs": 4.2}
+{"t": 1793375758.3, "what": "pos", "scene": "RuralBeach", "x": 8.09, "z": 26.4, "fresh": true, "secs": 1.5}
+{"t": 1793375758.4, "what": "map-hop", "place": "farmhouse", "map": [698, 702], "left": 222, "hop": [-8.0, 0.0], "moved": [-7.2, -2.0], "msg": "NEAR (7.3, 28.4) in RuralBeach: 2.14 units off (coarse \u00b13.0), 1 reading(s)"}
+{"t": 1793375764.0, "what": "pos", "scene": "RuralBeach", "x": 1.13, "z": 26.11, "fresh": true, "secs": 1.5}
+{"t": 1793375767.6, "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 16, 17], "pin": [663, 702]}
+{"t": 1793375767.6, "what": "map-hop", "place": "farmhouse", "map": [674, 709], "left": 232, "hop": [-7.8, 1.8], "moved": [-7.0, -0.3], "msg": "NEAR (0.3, 28.2) in RuralBeach: 2.27 units off (coarse \u00b13.0), 1 reading(s)"}
+{"t": 1793375779.1, "what": "pos", "scene": "RuralBeach", "x": -4.48, "z": 20.9, "fresh": true, "secs": 1.5}
+{"t": 1793375779.1, "what": "map-hop", "place": "farmhouse", "map": [651, 710], "left": 238, "hop": [-6.3, -1.3], "moved": [-5.6, -5.2], "msg": "SHORT of (-5.1, 24.8): 3.93 units off at (-4.5, 20.9) after 1 readings"}
+{"t": 1793375788.3, "what": "pos", "scene": "RuralBeach", "x": -10.0, "z": 14.74, "fresh": true, "secs": 1.5}
+{"t": 1793375791.3, "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 15, 18], "pin": [620, 721]}
+{"t": 1793375791.3, "what": "map-hop", "place": "farmhouse", "map": [649, 702], "left": 231, "hop": [-5.7, -4.8], "moved": [-5.5, -6.2], "msg": "NEAR (-10.2, 16.1) in RuralBeach: 1.38 units off (coarse \u00b13.0), 1 reading(s)"}
+{"t": 1793375797.9, "what": "pos", "scene": "RuralBeach", "x": -10.85, "z": 6.75, "fresh": true, "secs": 1.5}
+{"t": 1793375797.9, "what": "map-hop", "place": "farmhouse", "map": [631, 723], "left": 256, "hop": [-1.4, -7.0], "moved": [-0.8, -8.0], "msg": "NEAR (-11.4, 7.7) in RuralBeach: 1.09 units off (coarse \u00b13.0), 1 reading(s)"}
+{"t": 1793375805.9, "what": "pos", "scene": "RuralBeach", "x": -16.2, "z": -0.12, "fresh": true, "secs": 1.5}
+{"t": 1793375805.9, "what": "map-hop", "place": "farmhouse", "map": [628, 749], "left": 282, "hop": [-5.8, -5.5], "moved": [-5.3, -6.9], "msg": "NEAR (-16.6, 1.2) in RuralBeach: 1.41 units off (coarse \u00b13.0), 1 reading(s)"}
+{"t": 1793375815.2, "what": "pos", "scene": "RuralBeach", "x": -20.93, "z": -7.53, "fresh": true, "secs": 1.5}
+{"t": 1793375815.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375815.3, "what": "map-hop", "place": "farmhouse", "map": [619, 749], "left": 285, "hop": [-5.0, -6.2], "moved": [-4.7, -7.4], "msg": "NEAR (-21.2, -6.3) in RuralBeach: 1.23 units off (coarse \u00b13.0), 1 reading(s)"}
+{"t": 1793375821.6, "what": "pos", "scene": "RuralBeach", "x": -27.39, "z": -7.1, "fresh": true, "secs": 1.5}
+{"t": 1793375821.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375821.7, "what": "map-hop", "place": "farmhouse", "map": [603, 774], "left": 313, "hop": [-7.3, 3.4], "moved": [-6.5, 0.4], "msg": "SHORT of (-28.2, -4.2): 3.04 units off at (-27.4, -7.1) after 1 readings"}
+{"t": 1793375828.7, "what": "pos", "scene": "RuralBeach", "x": -29.04, "z": 1.42, "fresh": true, "secs": 1.5}
+{"t": 1793375828.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 18]}
+{"t": 1793375828.7, "what": "map-hop", "place": "farmhouse", "map": [582, 772], "left": 320, "hop": [-2.2, 7.7], "moved": [-1.7, 8.5], "msg": "NEAR (-29.6, 0.6) in RuralBeach: 1.03 units off (coarse \u00b13.0), 1 reading(s)"}
+{"t": 1793375843.9, "what": "pos", "scene": "RuralBeach", "x": -29.04, "z": 1.42, "fresh": true, "secs": 1.5}
+{"t": 1793375844.0, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 18]}
+{"t": 1793375849.2, "what": "pos", "scene": "RuralBeach", "x": -25.55, "z": 0.01, "fresh": true, "secs": 1.5}
+{"t": 1793375852.1, "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 14, 18], "pin": [619, 749]}
+{"t": 1793375852.1, "what": "map-hop", "place": "farmhouse", "map": [619, 746], "left": 282, "hop": [-3.8, -7.0], "moved": [3.5, -1.4], "msg": "NEAR (-25.5, -0.5) in RuralBeach: 0.50 units off (coarse \u00b13.0), 1 reading(s)"}
+{"t": 1793375868.3, "what": "pos", "scene": "RuralBeach", "x": -29.03, "z": -1.85, "fresh": true, "secs": 1.5}
+{"t": 1793375868.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375868.7, "what": "map-hop", "place": "farmhouse", "map": [631, 751], "left": 283, "hop": [-6.3, -4.9], "moved": [-3.5, -1.9], "msg": "SHORT of (-31.8, -4.9): 4.17 units off at (-29.0, -1.8) after 1 readings"}
+{"t": 1793375878.9, "what": "pos", "scene": "RuralBeach", "x": -29.03, "z": -1.85, "fresh": true, "secs": 1.5}
+{"t": 1793375879.0, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375888.9, "what": "pos", "scene": "RuralBeach", "x": -29.03, "z": -1.85, "fresh": false, "secs": 4.3}
+{"t": 1793375889.0, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375899.1, "what": "pos", "scene": "RuralBeach", "x": -29.03, "z": -1.85, "fresh": false, "secs": 4.3}
+{"t": 1793375899.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375909.9, "what": "pos", "scene": "RuralBeach", "x": -29.03, "z": -1.85, "fresh": false, "secs": 4.3}
+{"t": 1793375910.0, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375910.0, "what": "map-hop", "place": "farmhouse", "map": [619, 757], "left": 292, "hop": [-6.3, -3.9], "moved": [0.0, 0.0], "msg": "SHORT of (-25.9, 0.1): 3.72 units off at (-29.0, -1.8) after 1 readings"}
+{"t": 1793375922.6, "what": "pos", "scene": "RuralBeach", "x": -29.03, "z": -1.85, "fresh": false, "secs": 4.4}
+{"t": 1793375922.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375934.3, "what": "pos", "scene": "RuralBeach", "x": -28.36, "z": -3.96, "fresh": false, "secs": 4.3}
+{"t": 1793375934.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375934.3, "what": "map-hop", "place": "farmhouse", "map": [619, 752], "left": 287, "hop": [-6.8, -4.2], "moved": [0.7, -2.1], "msg": "NEAR (-26.9, -5.2) in RuralBeach: 1.93 units off (coarse \u00b13.0), 1 reading(s)"}
+{"t": 1793375940.1, "what": "pos", "scene": "RuralBeach", "x": -25.69, "z": -3.36, "fresh": false, "secs": 4.2}
+{"t": 1793375942.4, "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 14, 18], "pin": [669, 755]}
+{"t": 1793375942.4, "what": "map-hop", "place": "farmhouse", "map": [621, 759], "left": 293, "hop": [-7.5, -2.7], "moved": [2.7, 0.6], "msg": "SHORT of (-35.9, -6.6): 10.72 units off at (-25.7, -3.4) after 1 readings"}
+{"t": 1793375952.3, "what": "pos", "scene": "RuralBeach", "x": -25.69, "z": -3.68, "fresh": false, "secs": 4.2}
+{"t": 1793375955.0, "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 14, 18], "pin": [619, 757]}
+{"t": 1793375960.3, "what": "pos", "scene": "RuralBeach", "x": -25.69, "z": -3.68, "fresh": false, "secs": 4.2}
+{"t": 1793375965.9, "what": "pos", "scene": "RuralBeach", "x": -25.69, "z": -3.68, "fresh": false, "secs": 4.2}
+{"t": 1793375972.0, "what": "pos", "scene": "RuralBeach", "x": -25.69, "z": -3.68, "fresh": false, "secs": 4.2}
+{"t": 1793375972.1, "what": "map-hop", "place": "farmhouse", "map": [630, 757], "left": 289, "hop": [-7.6, -2.5], "moved": [0.0, -0.3], "msg": "SHORT of (-21.9, -2.4): 4.00 units off at (-25.7, -3.7) after 1 readings"}
+{"t": 1793375978.8, "what": "pos", "scene": "RuralBeach", "x": -25.69, "z": -3.68, "fresh": false, "secs": 4.2}
+{"t": 1793376512.8, "what": "pos", "scene": "RuralBeach", "x": -28.2, "z": -3.27, "fresh": true, "secs": 1.5}
+{"t": 1793376513.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793376520.8, "what": "stuck", "place": "farmhouse", "why": "step 1/12 walk to RuralBeach:exit>Farm:back<RuralBeach: BLOCKED toward (-47.6, -0.6) at (-28.2, -3.3) in RuralBeach: every click refused"}
+{"t": 1793376581.7, "what": "pos", "scene": "RuralBeach", "x": -22.78, "z": 15.56, "fresh": true, "secs": 1.5}
+{"t": 1793376602.3, "what": "pos", "scene": "RuralBeach", "x": -26.71, "z": 12.93, "fresh": true, "secs": 1.5}
+{"t": 1793376609.9, "what": "stuck", "place": "farmhouse", "why": "step 1/12 walk to RuralBeach:exit>Farm:back<RuralBeach: BLOCKED toward (-47.6, -0.6) at (-26.7, 12.9) in RuralBeach: every click refused"}
+{"t": 1793376994.6, "what": "pos", "scene": "RuralBeach", "x": -24.99, "z": 7.33, "fresh": true, "secs": 1.5}
+{"t": 1793377009.9, "what": "pos", "scene": "RuralBeach", "x": -27.25, "z": -7.1, "fresh": true, "secs": 1.5}
+{"t": 1793377010.4, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793377017.7, "what": "stuck", "place": "farmhouse", "why": "step 3/16 walk to RuralBeach:trail(-36,-12): BLOCKED toward (-36.3, -12.4) at (-27.2, -7.1) in RuralBeach: every click refused"}
+{"t": 1793377098.7, "what": "pos", "scene": "RuralBeach", "x": -34.54, "z": -13.4, "fresh": true, "secs": 1.5}
+{"t": 1793377099.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 19]}
+{"t": 1793377122.3, "what": "pos", "scene": "RuralBeach", "x": -34.9, "z": -13.13, "fresh": false, "secs": 4.2}
+{"t": 1793377122.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 19]}
+{"t": 1793377122.7, "what": "stuck", "place": "farmhouse", "why": "step 3/16 walk to RuralBeach:trail(-36,-12): SHORT of (-36.3, -12.4): 1.61 units off at (-34.9, -13.1) after 2 readings"}
+{"t": 1793377386.7, "what": "pos", "scene": "RuralBeach", "x": -45.37, "z": -2.94, "fresh": true, "secs": 1.5}
+{"t": 1793377387.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 18]}
+{"t": 1793377395.5, "what": "pos", "scene": "Farm", "x": -2.33, "z": -102.45, "fresh": true, "secs": 1.5}
+{"t": 1793377408.3, "what": "pos", "scene": "Farm", "x": -7.78, "z": -78.66, "fresh": true, "secs": 1.5}
+{"t": 1793377421.5, "what": "pos", "scene": "Farm", "x": -4.46, "z": -46.04, "fresh": true, "secs": 1.5}
+{"t": 1793377434.1, "what": "pos", "scene": "Farm", "x": 18.82, "z": -28.28, "fresh": true, "secs": 1.5}
+{"t": 1793377444.0, "what": "pos", "scene": "Farm", "x": 19.72, "z": -22.53, "fresh": true, "secs": 1.5}
+{"t": 1793377444.0, "what": "route", "place": "farmhouse", "steps": 13}
+{"t": 1793377606.6, "what": "pos", "scene": "Farm", "x": 16.35, "z": -27.86, "fresh": true, "secs": 1.5}
+{"t": 1793377654.0, "what": "pos", "scene": "Farm", "x": 10.38, "z": -24.65, "fresh": true, "secs": 1.5}
+{"t": 1793377706.2, "what": "pos", "scene": "Farm", "x": 18.82, "z": -28.28, "fresh": true, "secs": 1.5}
+{"t": 1793378315.2, "what": "pos", "scene": "Farm", "x": 18.82, "z": -28.28, "fresh": true, "secs": 1.5}
+{"t": 1793378327.2, "what": "pos", "scene": "Farm", "x": 18.82, "z": -28.28, "fresh": false, "secs": 4.5}
+{"t": 1793378327.3, "what": "stuck", "place": "farm-garden", "why": "step 3/3 walk to Farm:farm-garden: SHORT of (2.4, -11.6): 23.43 units off at (18.8, -28.3) after 2 readings"}
+{"t": 1793378340.1, "what": "pos", "scene": "Farm", "x": 7.84, "z": -25.34, "fresh": true, "secs": 1.5}
+{"t": 1793378340.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793378378.6, "what": "pos", "scene": "Farm", "x": 7.52, "z": -23.44, "fresh": true, "secs": 1.5}
+{"t": 1793378382.1, "what": "fill-pin", "scene": "Farm", "cell": ["map", 15, 12], "pin": [997, 581]}
+{"t": 1793378417.1, "what": "pos", "scene": "Farm", "x": 7.52, "z": -23.44, "fresh": false, "secs": 4.3}
+{"t": 1793378420.6, "what": "fill-pin", "scene": "Farm", "cell": ["map", 16, 12], "pin": [997, 583]}
+{"t": 1793378420.6, "what": "stuck", "place": "farm-garden", "why": "step 1/1 walk to Farm:farm-garden: SHORT of (2.4, -11.6): 12.92 units off at (7.5, -23.4) after 2 readings"}
+{"t": 1793378534.2, "what": "pos", "scene": "Farm", "x": -3.66, "z": -25.34, "fresh": false, "secs": 4.2}
+{"t": 1793378534.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793378541.8, "what": "pos", "scene": "Farm", "x": -3.66, "z": -25.34, "fresh": false, "secs": 4.2}
+{"t": 1793378542.2, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793380034.7, "what": "pos", "scene": "Farm", "x": 3.34, "z": -33.59, "fresh": false, "secs": 4.2}
+{"t": 1793380035.2, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 13]}
+{"t": 1793380042.3, "what": "pos", "scene": "Farm", "x": 3.34, "z": -33.59, "fresh": false, "secs": 4.2}
+{"t": 1793380042.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 13]}
+{"t": 1793380049.7, "what": "pos", "scene": "Farm", "x": 3.34, "z": -33.59, "fresh": false, "secs": 4.2}
+{"t": 1793380050.0, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 13]}
+{"t": 1793380101.4, "what": "pos", "scene": "Farm", "x": 3.34, "z": -33.59, "fresh": false, "secs": 4.3}
+{"t": 1793380101.8, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 13]}
+{"t": 1793380235.0, "what": "pos", "scene": "Farm", "x": 3.34, "z": -33.66, "fresh": false, "secs": 4.2}
+{"t": 1793380235.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 13]}
+{"t": 1793380242.6, "what": "pos", "scene": "Farm", "x": 3.34, "z": -33.66, "fresh": false, "secs": 4.2}
+{"t": 1793380243.0, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 13]}
+{"t": 1793380304.1, "what": "pos", "scene": "Farm", "x": 3.34, "z": -33.66, "fresh": false, "secs": 4.2}
+{"t": 1793380304.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 13]}
+{"t": 1793380311.7, "what": "pos", "scene": "Farm", "x": 3.34, "z": -33.66, "fresh": false, "secs": 4.2}
+{"t": 1793380312.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 13]}
+{"t": 1793380337.7, "what": "pos", "scene": "Farm", "x": 3.34, "z": -33.66, "fresh": false, "secs": 4.2}
+{"t": 1793380338.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 13]}
+{"t": 1793380345.7, "what": "pos", "scene": "Farm", "x": 3.34, "z": -33.66, "fresh": false, "secs": 4.2}
+{"t": 1793380346.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 13]}
+{"t": 1793380384.0, "what": "pos", "scene": "Farm", "x": -1.09, "z": -21.05, "fresh": true, "secs": 1.5}
+{"t": 1793380384.4, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793380404.9, "what": "pos", "scene": "Farm", "x": -1.09, "z": -21.05, "fresh": false, "secs": 4.2}
+{"t": 1793380405.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793380414.9, "what": "pos", "scene": "Farm", "x": -1.09, "z": -21.05, "fresh": false, "secs": 4.3}
+{"t": 1793380415.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793380415.5, "what": "stuck", "place": "House:in", "why": "3 moves without progress; last: step 3/4 walk to Farm:exit>House:in: SHORT of (17.2, -18.5): 18.49 units off at (-1.1, -21.0) after 2 readings"}
+{"t": 1793380431.9, "what": "pos", "scene": "Farm", "x": 2.19, "z": -16.47, "fresh": true, "secs": 1.5}
+{"t": 1793380432.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 12]}
+{"t": 1793380488.6, "what": "pos", "scene": "Farm", "x": 2.19, "z": -16.47, "fresh": false, "secs": 4.3}
+{"t": 1793380492.1, "what": "fill-pin", "scene": "Farm", "cell": ["map", 14, 12], "pin": null}
+{"t": 1793380526.4, "what": "stuck", "place": "farmhouse", "why": "step 5/5 walk to Farm:farmhouse: BLOCKED toward (10.6, -13.5) at (6.4, -23.1) in Farm: every click refused"}
+{"t": 1793380620.0, "what": "pos", "scene": "Farm", "x": 8.08, "z": -21.42, "fresh": true, "secs": 1.5}
+{"t": 1793380620.4, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 16, 12]}
+{"t": 1793380627.7, "what": "pos", "scene": "Farm", "x": 8.08, "z": -21.42, "fresh": false, "secs": 4.2}
+{"t": 1793380628.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 16, 12]}
+{"t": 1793381054.4, "what": "pos", "scene": "Farm", "x": 10.8, "z": -24.08, "fresh": false, "secs": 4.3}
+{"t": 1793381080.3, "what": "pos", "scene": "Farm", "x": 10.3, "z": -24.37, "fresh": true, "secs": 1.5}
+{"t": 1793381119.7, "what": "pos", "scene": "Farm", "x": 12.17, "z": -24.03, "fresh": true, "secs": 1.5}
+{"t": 1793381136.1, "what": "pos", "scene": "Farm", "x": 18.66, "z": -26.05, "fresh": true, "secs": 1.5}
+{"t": 1793381136.1, "what": "route", "place": "House:out", "steps": 2}
+{"t": 1793381149.7, "what": "pos", "scene": "Farm", "x": 4.16, "z": -22.51, "fresh": true, "secs": 1.5}
+{"t": 1793381150.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 12]}
+{"t": 1793381179.3, "what": "pos", "scene": "Farm", "x": -0.84, "z": -22.51, "fresh": true, "secs": 1.5}
+{"t": 1793381179.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793381231.9, "what": "pos", "scene": "Farm", "x": -0.84, "z": -22.51, "fresh": false, "secs": 4.2}
+{"t": 1793381232.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793381256.1, "what": "pos", "scene": "Farm", "x": -0.84, "z": -22.51, "fresh": false, "secs": 4.3}
+{"t": 1793381259.8, "what": "fill-pin", "scene": "Farm", "cell": ["map", 12, 12], "pin": [529, 496]}
+{"t": 1793381556.9, "what": "pos", "scene": "Farm", "x": -0.84, "z": -22.51, "fresh": true, "secs": 1.5}
+{"t": 1793381557.2, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793381607.3, "what": "pos", "scene": "Farm", "x": -0.84, "z": -22.51, "fresh": true, "secs": 1.5}
+{"t": 1793381607.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793381691.3, "what": "pos", "scene": "Farm", "x": -1.27, "z": -21.67, "fresh": false, "secs": 4.2}
+{"t": 1793381691.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793381722.2, "what": "pos", "scene": "Farm", "x": -1.27, "z": -21.67, "fresh": false, "secs": 4.2}
+{"t": 1793381722.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793381728.9, "what": "stuck", "place": "(-1.7, -25.3) in Farm", "why": "step 2/2 walk to Farm:@point: BLOCKED toward (-1.7, -25.3) at (-1.3, -21.7) in Farm: every click refused"}
+{"t": 1793381872.1, "what": "pos", "scene": "Farm", "x": -1.27, "z": -21.67, "fresh": false, "secs": 4.2}
+{"t": 1793381872.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793381907.2, "what": "pos", "scene": "Farm", "x": -1.27, "z": -21.67, "fresh": false, "secs": 4.2}
+{"t": 1793381907.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793382059.2, "what": "pos", "scene": "Farm", "x": -1.27, "z": -21.67, "fresh": true, "secs": 1.5}
+{"t": 1793382059.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793382108.4, "what": "pos", "scene": "Farm", "x": -1.27, "z": -21.67, "fresh": true, "secs": 1.5}
+{"t": 1793382108.8, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793382159.1, "what": "pos", "scene": "Farm", "x": -2.28, "z": -21.71, "fresh": true, "secs": 1.3}
+{"t": 1793382159.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793382175.1, "what": "pos", "scene": "Farm", "x": -2.28, "z": -21.71, "fresh": true, "secs": 1.5}
+{"t": 1793382175.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793382305.8, "what": "pos", "scene": "Farm", "x": -2.28, "z": -21.71, "fresh": false, "secs": 4.2}
+{"t": 1793382306.2, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793382314.1, "what": "stuck", "place": "bed 1 (-1.7, -25.3) growing wilted", "why": "STUCK (L75): no progress over 3 moves"}
+{"t": 1793382324.6, "what": "pos", "scene": "Farm", "x": -3.62, "z": -24.45, "fresh": true, "secs": 1.5}
+{"t": 1793382325.0, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793382380.6, "what": "pos", "scene": "Farm", "x": -3.66, "z": -25.34, "fresh": true, "secs": 1.5}
+{"t": 1793382381.0, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793382388.5, "what": "pos", "scene": "Farm", "x": -3.66, "z": -25.34, "fresh": false, "secs": 4.3}
+{"t": 1793382389.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793382416.2, "what": "pos", "scene": "Farm", "x": -3.66, "z": -25.34, "fresh": false, "secs": 4.3}
+{"t": 1793382416.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793382421.9, "what": "pos", "scene": "Farm", "x": -3.66, "z": -25.34, "fresh": true, "secs": 1.5}
+{"t": 1793382422.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793382422.3, "what": "stuck", "place": "bed 3 (3.3, -25.3) growing wilted", "why": "STUCK (L75): no progress over 3 moves"}
+{"t": 1793382438.9, "what": "pos", "scene": "Farm", "x": -3.66, "z": -25.34, "fresh": false, "secs": 4.3}
+{"t": 1793382439.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793382448.9, "what": "pos", "scene": "Farm", "x": -3.66, "z": -25.34, "fresh": false, "secs": 4.3}
+{"t": 1793382449.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793382462.7, "what": "pos", "scene": "Farm", "x": 5.77, "z": -27.09, "fresh": true, "secs": 1.4}
+{"t": 1793382463.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}

@@ -7,6 +7,8 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import nav  # noqa: E402
 
+nav.OBJECTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'nav', '_no_objects_in_tests.json')
+
 # The Farm fit from `wf calib` on D146 (tools/calib.json): a realistic ground homography to generate data with.
 TRUE_H = None
 
@@ -213,7 +215,7 @@ class Graph(unittest.TestCase):
         self.assertIn('Farm:exit>Town/LinkFarm', ns)
         es = nav.edges_graph(self.facts(), ns)
         steps = nav.plan(ns, es, ('Farm', 0, 0), 'hall')
-        self.assertEqual([k for k, _ in steps], ['walk', 'link', 'walk'])
+        self.assertEqual([k for k, _ in steps][-3:], ['walk', 'link', 'walk'])  # may stop at a known place first
         self.assertEqual(steps[-1][1], 'Town:hall')
 
     def test_failures_raise_cost(self):
@@ -224,6 +226,93 @@ class Graph(unittest.TestCase):
     def test_unknown_goal(self):
         ns = nav.nodes(self.facts())
         self.assertIsNone(nav.plan(ns, nav.edges_graph(self.facts(), ns), ('Farm', 0, 0), 'moon'))
+
+
+class Trail(unittest.TestCase):
+    """L73: proven walks, the way back across a border, fast stuck signals."""
+    def facts(self):
+        return [
+            {'scene': 'Farm', 'goal': 'home', 'result': 'arrived', 'to': [0, 0]},
+            {'scene': 'Farm', 'result': 'moved', 'from': [0, 0], 'to': [0, -20]},
+            {'scene': 'Beach', 'goal': 'Beach/LinkFarm', 'result': 'scene', 'to': [-40, 0], 'from_scene': 'Farm',
+             'exit': [0, -25]},
+            {'scene': 'Beach', 'result': 'moved', 'from': [-40, 0], 'to': [-30, -10]},
+            {'scene': 'Beach', 'result': 'moved', 'from': [-30, -10], 'to': [-30, 10]},   # around the porch
+            {'scene': 'Beach', 'result': 'moved', 'from': [-30, 10], 'to': [-20, 10]},
+            {'scene': 'Beach', 'result': 'stuck', 'src': 'log', 'from': [-25, 12], 'to': [-31, 6]},  # porch rail
+        ]
+
+    def test_back_link_and_trail(self):
+        f = self.facts()
+        ns = nav.nodes(f)
+        back = ns['Beach:exit>Farm:back<Beach']
+        self.assertLess(back['x'], -40)                  # past the arrival point, against the first move
+        self.assertGreater(back['z'], 0)
+        self.assertEqual(ns['Farm:back<Beach']['x'], 0)  # arrives at the Farm's traced exit
+        steps = nav.plan(ns, nav.edges_graph(f, ns), ('Beach', -31, 6), 'home', nav.walls(f))
+        keys = [k for _, k in steps]
+        self.assertIn('Beach:trail(-30,10)', keys)       # back the way she came, not on into the rail
+        self.assertEqual(keys[-1], 'Farm:home')
+        self.assertIn('link', [kind for kind, _ in steps])
+
+    def test_no_back_link_once_traced(self):
+        f = self.facts() + [{'scene': 'Farm', 'goal': 'Farm/LinkBeach', 'result': 'scene', 'to': [0, -24],
+                             'from_scene': 'Beach', 'exit': [-42, 2]}]
+        self.assertNotIn('Beach:exit>Farm:back<Beach', nav.nodes(f))
+
+    def test_no_progress_rule(self):
+        moving = [('Beach', 0, 0), ('Beach', 3, 0), ('Beach', 6, 0), ('Beach', 9, 0)]
+        self.assertFalse(nav.no_progress(moving))
+        self.assertFalse(nav.no_progress(moving[:3] + [('Beach', 6.5, 0)]))       # only 1 move without progress
+        stuck = [('Beach', 0, 0), ('Beach', 5, 0), ('Beach', 5.5, 0.5), ('Beach', 4.8, -0.3), ('Beach', 5.2, 0.4)]
+        self.assertTrue(nav.no_progress(stuck))                                  # 3 moves within 2 units
+        self.assertFalse(nav.no_progress(stuck[:-1] + [('Farm', 5.2, 0.4)]))     # crossed into a new area
+
+    def test_objects_from_log_are_walls(self):
+        log = ('[D149 7:55:25 AM] > beehive_progress me=Player target=BeeHive(Clone) at (2.72, 0.10, -23.46)\n'
+               '[D148 11:01:15 PM]  Player failed to pathfind from  (-1.09, 0.10, -21.05) to BeeHive(Clone) at '
+               '(1.47, 0.10, -23.46)  at \n'
+               '[D148 9:40:16 PM] > water me=Player target=GardenBed (4) at (5.84, 0.10, -31.59)')
+        objs = nav.objects_from_log(log)
+        self.assertEqual(objs, [('BeeHive', 2.72, -23.46), ('BeeHive', 1.47, -23.46)])  # beds are walkable
+        ws = nav.walls([], {'Farm': [[n, x, z] for n, x, z in objs]})
+        self.assertGreater(nav.walk_cost((2.0, -21.0), (2.0, -26.0), ws['Farm']), 50)   # through the hive row
+        self.assertLess(nav.walk_cost((2.0, -21.0), (6.0, -21.0), ws['Farm']), 5)      # along it
+        self.assertGreater(nav.walk_cost((1.5, -22.6), (1.0, -25.0), ws['Farm']), 50)  # from right beside a hive
+        import tempfile
+        self.assertEqual(nav.objects_learn('Farm', objs * 3, os.path.join(tempfile.mkdtemp(), 'o.json')), 2)
+
+    def test_pathfail_line(self):
+        line = ('[D148 1:36:34 PM]  Player failed to pathfind from  (8.01, 6.16, 33.00) to   at (8.70, 6.10, 35.83)')
+        self.assertEqual(nav.log_pathfail(line), ((8.01, 33.0), (8.7, 35.83)))
+        self.assertIsNone(nav.log_pathfail('[D148] nothing'))
+
+    def test_real_facts_ranch_to_farmhouse(self):
+        f = nav.load()
+        if not any(g.get('scene') == 'RuralBeach' for g in f):
+            self.skipTest('no RuralBeach facts')
+        ns = nav.nodes(f, nav.map_load()['places'])
+        steps = nav.plan(ns, nav.edges_graph(f, ns), ('RuralBeach', 8.0, 34.0), 'farmhouse', nav.walls(f))
+        self.assertIsNotNone(steps)
+        self.assertEqual(steps[-1][1], 'Farm:farmhouse')
+
+
+class MapCompass(unittest.TestCase):
+    def test_heading_and_dead_reckoning(self):
+        path = [(100 + i, 100) for i in range(0, 60, 4)] + [(156, 100 + i) for i in range(4, 60, 4)]
+        self.assertEqual(nav.path_ahead(path, (101, 102), 20), (120, 100))
+        self.assertEqual(nav.path_ahead(path, (101, 102), 999), path[-1])   # short route: its end
+        dx, dz = nav.map_heading((100, 100), (200, 100))                 # map right = world +x
+        self.assertAlmostEqual(dx, nav.MAP_HOP)
+        self.assertAlmostEqual(dz, 0)
+        dx, dz = nav.map_heading((100, 100), (100, 50))                  # map up = world +z
+        self.assertAlmostEqual(dz, nav.MAP_HOP)
+        dx, dz = nav.map_heading((100, 100), (100, 110))                 # close: hop no longer than the rest
+        self.assertAlmostEqual(dz, -10 * nav.MAP_SCALE)
+        self.assertIsNone(nav.map_heading((100, 100), (100.5, 100)))
+        m = nav.map_dead_reckon((100, 100), 3.0, -3.0)
+        self.assertAlmostEqual(m[0], 110)
+        self.assertAlmostEqual(m[1], 110)
 
 
 class Vectors(unittest.TestCase):

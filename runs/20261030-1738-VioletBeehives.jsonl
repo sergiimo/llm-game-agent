@@ -1,0 +1,303 @@
+{"t": 1793374715.32, "type": "start", "quest": "VioletBeehives", "goal": "pass quest Meant To Bee"}
+{"t": 1793374725.08, "type": "call", "start": 1793374725.08, "end": 1793374725.76, "cmd": "state"}
+{"t": 1793374733.96, "type": "routine", "status": ["R1 water garden: DUE 0/11 beds watered today · 11 WILTED: water first", "R2 harvest ripe crops: DUE 1 ripe per save, 0 harvested today"]}
+{"t": 1793374759.57, "type": "call", "start": 1793374759.57, "end": 1793374763.31, "cmd": "do key:escape --look"}
+{"t": 1793374769.67, "type": "activity", "what": "go", "target": "go:964:908", "start": 1793374766.8237162, "end": 1793374769.668073, "moved": true}
+{"t": 1793374769.69, "type": "nav", "what": "to_road", "try_": 1, "share": 0.0, "click": [964, 908], "msg": "ok"}
+{"t": 1793374782.01, "type": "activity", "what": "go", "target": "go:764:636", "start": 1793374780.124331, "end": 1793374782.0085828, "moved": true}
+{"t": 1793374782.03, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [745, 754], "left": 319, "click": [764, 636], "aim": "road", "deg": -110, "msg": "ok", "new_area": false}
+{"t": 1793374792.95, "type": "activity", "what": "go", "target": "go:796:684", "start": 1793374790.292083, "end": 1793374792.945825, "moved": true}
+{"t": 1793374792.97, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [744, 748], "left": 313, "click": [796, 684], "aim": "road", "deg": -106, "msg": "ok", "new_area": false}
+{"t": 1793374801.33, "type": "activity", "what": "go", "target": "go:804:660", "start": 1793374799.565902, "end": 1793374801.3282719, "moved": false}
+{"t": 1793374801.71, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [744, 748], "left": 313, "click": [804, 660], "aim": "road", "deg": -110, "msg": "ALREADY THERE (no walk needed; bubble@1312,548)", "new_area": false}
+{"t": 1793374807.56, "type": "vision", "what": "ask", "kind": "next", "question": "Tara must go south-west towards farm-garden (map route). Which cell should she walk to next (visible walkable ground that leads that way)?"}
+{"t": 1793374763.85, "type": "call", "start": 1793374763.85, "end": 1793374809.55, "cmd": "goto farm-garden"}
+{"t": 1793374819.89, "type": "call", "start": 1793374819.89, "end": 1793374821.59, "cmd": "state"}
+{"t": 1793374822.13, "type": "call", "start": 1793374822.13, "end": 1793374822.61, "cmd": "look"}
+{"t": 1793374837.19, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 26.22, "z": -7.72, "fresh": true, "secs": 1.5}
+{"t": 1793374840.81, "type": "nav", "what": "fill-pin", "scene": "RuralBeach", "cell": null, "pin": [744, 746]}
+{"t": 1793374832.49, "type": "call", "start": 1793374832.49, "end": 1793374843.25, "cmd": "pos"}
+{"t": 1793374843.55, "type": "call", "start": 1793374843.55, "end": 1793374845.84, "cmd": "plan farm-garden"}
+{"t": 1793374852.69, "type": "call", "start": 1793374852.69, "end": 1793374857.68, "cmd": "do key:m --look"}
+{"t": 1793374869.77, "type": "call", "start": 1793374869.77, "end": 1793374872.7, "cmd": "do key:escape"}
+{"t": 1793374877.48, "type": "activity", "what": "go", "target": "go:852:236", "start": 1793374877.009376, "end": 1793374877.480685, "moved": true}
+{"t": 1793374877.49, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [743, 746], "left": 311, "click": [852, 236], "aim": "road", "deg": -108, "msg": "ok", "new_area": false}
+{"t": 1793374881.48, "type": "activity", "what": "go", "target": "go:844:236", "start": 1793374881.007615, "end": 1793374881.4807959, "moved": true}
+{"t": 1793374881.48, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [744, 746], "left": 311, "click": [844, 236], "aim": "road", "deg": -109, "msg": "ok", "new_area": false}
+{"t": 1793374884.88, "type": "vision", "what": "ask", "kind": "next", "question": "Tara must go north towards farm-garden (map route). Which cell should she walk to next (visible walkable ground that leads that way)?"}
+{"t": 1793374872.76, "type": "call", "start": 1793374872.76, "end": 1793374886.87, "cmd": "goto farm-garden"}
+{"t": 1793374891.76, "type": "call", "start": 1793374891.76, "end": 1793374898.44, "cmd": "do key:escape --look"}
+{"t": 1793374908.91, "type": "activity", "what": "go", "target": "go:1600:640", "start": 1793374906.1860092, "end": 1793374908.9058602, "moved": true}
+{"t": 1793374904.05, "type": "call", "start": 1793374904.05, "end": 1793374914.09, "cmd": "do go:1600:640 go:1800:700 --look"}
+{"t": 1793374922.45, "type": "activity", "what": "go", "target": "go:1750:700", "start": 1793374920.2086122, "end": 1793374922.43843, "moved": false}
+{"t": 1793374918.15, "type": "call", "start": 1793374918.15, "end": 1793374937.84, "cmd": "do go:1750:700 --look"}
+{"t": 1793374957.07, "type": "activity", "what": "go", "target": "go:325:850", "start": 1793374952.865128, "end": 1793374957.06471, "moved": true}
+{"t": 1793374950.47, "type": "call", "start": 1793374950.47, "end": 1793374962.06, "cmd": "do go:325:850 --look"}
+{"t": 1793374970.02, "type": "activity", "what": "go", "target": "go:1220:580", "start": 1793374968.517132, "end": 1793374970.019762, "moved": false}
+{"t": 1793374970.74, "type": "nav", "what": "to_road", "try_": 1, "share": 0.0, "click": [1220, 580], "msg": "NO MOVE go:1220:580: not walkable (wall, furniture, water, off-map, or a menu is open). Click a ground point nearer to Tara, or the doorway/floor edge to leave a building"}
+{"t": 1793374973.78, "type": "activity", "what": "go", "target": "go:1220:580", "start": 1793374972.240876, "end": 1793374973.777653, "moved": false}
+{"t": 1793374974.13, "type": "nav", "what": "to_road", "try_": 2, "share": 0.0, "click": [1220, 580], "msg": "NO MOVE go:1220:580: not walkable (wall, furniture, water, off-map, or a menu is open). Click a ground point nearer to Tara, or the doorway/floor edge to leave a building"}
+{"t": 1793374977.09, "type": "activity", "what": "go", "target": "go:1220:580", "start": 1793374975.432039, "end": 1793374977.0865338, "moved": false}
+{"t": 1793374977.74, "type": "nav", "what": "to_road", "try_": 3, "share": 0.0, "click": [1220, 580], "msg": "NO MOVE go:1220:580: not walkable (wall, furniture, water, off-map, or a menu is open). Click a ground point nearer to Tara, or the doorway/floor edge to leave a building"}
+{"t": 1793374985.98, "type": "vision", "what": "ask", "kind": "road", "question": "Tara (RuralBeach) must stand on a road. Which cells show walkable road/path near her?"}
+{"t": 1793374966.45, "type": "call", "start": 1793374966.45, "end": 1793374991.51, "cmd": "goto farm-garden"}
+{"t": 1793375008.2, "type": "vision", "what": "teach", "kind": "road", "cells": ["F5", "G5", "F6", "G6", "C6", "D6", "H6", "I6", "J6", "F7", "G7"], "key": "RuralBeach:day"}
+{"t": 1793375007.74, "type": "call", "start": 1793375007.74, "end": 1793375011.42, "cmd": "teach road F5 G5 F6 G6 C6 D6 H6 I6 J6 F7 G7"}
+{"t": 1793375021.85, "type": "activity", "what": "go", "target": "go:492:716", "start": 1793375019.584096, "end": 1793375021.84938, "moved": true}
+{"t": 1793375021.87, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [745, 768], "left": 331, "click": [492, 716], "aim": "road", "deg": 178, "msg": "ok", "new_area": false}
+{"t": 1793375033.2, "type": "activity", "what": "go", "target": "go:492:692", "start": 1793375030.094501, "end": 1793375033.194829, "moved": true}
+{"t": 1793375033.21, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [732, 778], "left": 335, "click": [492, 692], "aim": "road", "deg": 180, "msg": "ok", "new_area": false}
+{"t": 1793375041.63, "type": "activity", "what": "go", "target": "go:492:684", "start": 1793375039.799956, "end": 1793375041.632548, "moved": false}
+{"t": 1793375056.38, "type": "activity", "what": "go", "target": "go:500:764", "start": 1793375049.704745, "end": 1793375056.34052, "moved": true}
+{"t": 1793375056.4, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [716, 779], "left": 330, "click": [500, 764], "aim": "road", "deg": -179, "msg": "ok", "new_area": false}
+{"t": 1793375067.75, "type": "activity", "what": "go", "target": "go:1140:388", "start": 1793375064.636083, "end": 1793375067.7467132, "moved": true}
+{"t": 1793375067.77, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [685, 780], "left": 321, "click": [1140, 388], "aim": "road", "deg": -71, "msg": "ok", "new_area": false}
+{"t": 1793375078.33, "type": "activity", "what": "go", "target": "go:500:772", "start": 1793375074.932721, "end": 1793375078.328844, "moved": true}
+{"t": 1793375078.35, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [693, 780], "left": 324, "click": [500, 772], "aim": "road", "deg": 178, "msg": "ok", "new_area": false}
+{"t": 1793375090.17, "type": "activity", "what": "go", "target": "go:804:252", "start": 1793375085.911232, "end": 1793375090.1745322, "moved": true}
+{"t": 1793375090.18, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [679, 780], "left": 320, "click": [804, 252], "aim": "road", "deg": -73, "msg": "ok", "new_area": false}
+{"t": 1793375099.24, "type": "activity", "what": "go", "target": "go:540:900", "start": 1793375096.779642, "end": 1793375099.137701, "moved": true}
+{"t": 1793375099.53, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [673, 702], "left": 243, "click": [540, 900], "aim": "road", "deg": 160, "msg": "ok", "new_area": false}
+{"t": 1793375115.57, "type": "activity", "what": "go", "target": "go:1268:340", "start": 1793375113.659589, "end": 1793375115.573678, "moved": false}
+{"t": 1793375122.96, "type": "activity", "what": "go", "target": "go:1164:340", "start": 1793375120.800565, "end": 1793375122.9555142, "moved": false}
+{"t": 1793375129.84, "type": "activity", "what": "go", "target": "go:1332:404", "start": 1793375126.47262, "end": 1793375129.841423, "moved": true}
+{"t": 1793375129.85, "type": "nav", "what": "log-reading", "scene": "RuralBeach", "x": 16.09, "z": 33.88}
+{"t": 1793375129.86, "type": "nav", "what": "hop", "place": "farm-garden", "pin": [664, 702], "left": 241, "click": [1332, 404], "aim": "road", "deg": -60, "msg": "ok", "new_area": false}
+{"t": 1793375138.34, "type": "activity", "what": "go", "target": "go:492:692", "start": 1793375136.682419, "end": 1793375138.338938, "moved": false}
+{"t": 1793375140.3, "type": "activity", "what": "go", "target": "go:500:612", "start": 1793375138.780231, "end": 1793375140.303801, "moved": false}
+{"t": 1793375142.26, "type": "activity", "what": "go", "target": "go:516:844", "start": 1793375140.756147, "end": 1793375142.2573981, "moved": false}
+{"t": 1793375142.64, "type": "vision", "what": "ask", "kind": "next", "question": "Tara must go west towards farm-garden; 3 clicks were rejected. Which cell should she walk to next?"}
+{"t": 1793375011.9, "type": "call", "start": 1793375011.9, "end": 1793375143.49, "cmd": "goto farm-garden"}
+{"t": 1793375136.46, "type": "call", "start": 1793375136.46, "end": 1793375143.77, "cmd": "state"}
+{"t": 1793375148.26, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 16.09, "z": 33.88, "fresh": true, "secs": 1.5}
+{"t": 1793375148.42, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": null}
+{"t": 1793375145.77, "type": "call", "start": 1793375145.77, "end": 1793375149.43, "cmd": "pos"}
+{"t": 1793375149.51, "type": "call", "start": 1793375149.51, "end": 1793375151.99, "cmd": "do key:escape --look"}
+{"t": 1793375154.61, "type": "call", "start": 1793375154.61, "end": 1793375157.97, "cmd": "do key:escape --look"}
+{"t": 1793375160.5, "type": "step", "text": "reached farm house"}
+{"t": 1793375164.02, "type": "activity", "what": "go", "target": "go:1020:612", "start": 1793375162.472043, "end": 1793375164.0153, "moved": false}
+{"t": 1793375164.16, "type": "nav", "what": "to_road", "try_": 1, "share": 0.0, "click": [1020, 612], "msg": "NO MOVE go:1020:612: not walkable (wall, furniture, water, off-map, or a menu is open). Click a ground point nearer to Tara, or the doorway/floor edge to leave a building"}
+{"t": 1793375166.34, "type": "activity", "what": "go", "target": "go:1020:612", "start": 1793375164.756236, "end": 1793375166.343755, "moved": false}
+{"t": 1793375166.46, "type": "nav", "what": "to_road", "try_": 2, "share": 0.0, "click": [1020, 612], "msg": "NO MOVE go:1020:612: not walkable (wall, furniture, water, off-map, or a menu is open). Click a ground point nearer to Tara, or the doorway/floor edge to leave a building"}
+{"t": 1793375168.48, "type": "activity", "what": "go", "target": "go:1020:612", "start": 1793375166.957033, "end": 1793375168.471483, "moved": false}
+{"t": 1793375168.63, "type": "nav", "what": "to_road", "try_": 3, "share": 0.0, "click": [1020, 612], "msg": "NO MOVE go:1020:612: not walkable (wall, furniture, water, off-map, or a menu is open). Click a ground point nearer to Tara, or the doorway/floor edge to leave a building"}
+{"t": 1793375169.09, "type": "vision", "what": "ask", "kind": "road", "question": "Tara (RuralBeach) must stand on a road. Which cells show walkable road/path near her?"}
+{"t": 1793375160.59, "type": "call", "start": 1793375160.59, "end": 1793375169.99, "cmd": "goto farm-garden"}
+{"t": 1793375173.12, "type": "call", "start": 1793375173.12, "end": 1793375175.81, "cmd": "pause"}
+{"t": 1793375180.85, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 16.09, "z": 33.88, "fresh": false, "secs": 4.4}
+{"t": 1793375184.55, "type": "nav", "what": "fill-pin", "scene": "RuralBeach", "cell": null, "pin": [698, 702]}
+{"t": 1793375505.02, "type": "call", "start": 1793375505.02, "end": 1793375507.94, "cmd": "record start"}
+{"t": 1793375508.06, "type": "call", "start": 1793375508.06, "end": 1793375508.43, "cmd": "state"}
+{"t": 1793375513.35, "type": "call", "start": 1793375513.35, "end": 1793375513.48, "cmd": "look"}
+{"t": 1793375522.36, "type": "call", "start": 1793375522.36, "end": 1793375525.06, "cmd": "do key:escape"}
+{"t": 1793375525.16, "type": "call", "start": 1793375525.16, "end": 1793375525.86, "cmd": "state"}
+{"t": 1793375531.44, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 16.09, "z": 33.88, "fresh": false, "secs": 4.7}
+{"t": 1793375540.27, "type": "activity", "what": "go", "target": "go:435:669", "start": 1793375536.246188, "end": 1793375540.2658, "moved": true}
+{"t": 1793375542.3, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.01, "z": 33.96, "fresh": true, "secs": 1.4}
+{"t": 1793375545.71, "type": "nav", "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 16, 17], "pin": [685, 702]}
+{"t": 1793375545.74, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [698, 702], "left": 222, "hop": [-8.0, 0.0], "moved": [-8.1, 0.1], "msg": "NEAR (8.1, 33.9) in RuralBeach: 0.12 units off (coarse ±3.0), 1 reading(s)"}
+{"t": 1793375548.02, "type": "activity", "what": "go", "target": "go:434:671", "start": 1793375546.4734652, "end": 1793375548.015177, "moved": false}
+{"t": 1793375550.76, "type": "activity", "what": "go", "target": "go:698:671", "start": 1793375549.145824, "end": 1793375550.7633128, "moved": false}
+{"t": 1793375553.32, "type": "activity", "what": "go", "target": "go:829:671", "start": 1793375551.753502, "end": 1793375553.3166459, "moved": false}
+{"t": 1793375558.43, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.01, "z": 33.96, "fresh": false, "secs": 4.2}
+{"t": 1793375562.31, "type": "nav", "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 16, 17], "pin": [685, 702]}
+{"t": 1793375562.34, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [671, 702], "left": 225, "hop": [-8.0, -0.1], "moved": [0.0, 0.0], "msg": "SHORT of (0.0, 33.9): 8.00 units off at (8.0, 34.0) after 1 readings"}
+{"t": 1793375567.91, "type": "activity", "what": "go", "target": "go:435:669", "start": 1793375566.310165, "end": 1793375567.906338, "moved": false}
+{"t": 1793375570.89, "type": "activity", "what": "go", "target": "go:698:670", "start": 1793375568.9351392, "end": 1793375570.885354, "moved": false}
+{"t": 1793375573.81, "type": "activity", "what": "go", "target": "go:829:671", "start": 1793375572.102301, "end": 1793375573.807414, "moved": false}
+{"t": 1793375578.89, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.01, "z": 33.96, "fresh": false, "secs": 4.2}
+{"t": 1793375578.9, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [685, 702], "left": 224, "hop": [-8.0, 0.0], "moved": [0.0, 0.0], "msg": "SHORT of (0.0, 34.0): 8.00 units off at (8.0, 34.0) after 1 readings"}
+{"t": 1793375526.02, "type": "call", "start": 1793375526.02, "end": 1793375579.56, "cmd": "goto farmhouse"}
+{"t": 1793375583.8, "type": "call", "start": 1793375583.8, "end": 1793375583.95, "cmd": "look"}
+{"t": 1793375600.58, "type": "call", "start": 1793375600.58, "end": 1793375604.48, "cmd": "pause"}
+{"t": 1793375614.19, "type": "call", "start": 1793375614.19, "end": 1793375615.96, "cmd": "record stop"}
+{"t": 1793375617.37, "type": "call", "start": 1793375617.37, "end": 1793375620.77, "cmd": "record start"}
+{"t": 1793375620.91, "type": "call", "start": 1793375620.91, "end": 1793375624.9, "cmd": "resume"}
+{"t": 1793375630.35, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.01, "z": 33.96, "fresh": false, "secs": 4.6}
+{"t": 1793375636.36, "type": "activity", "what": "go", "target": "go:435:669", "start": 1793375634.719142, "end": 1793375636.359963, "moved": false}
+{"t": 1793375639.84, "type": "activity", "what": "go", "target": "go:698:670", "start": 1793375637.528178, "end": 1793375639.8336031, "moved": false}
+{"t": 1793375643.34, "type": "activity", "what": "go", "target": "go:829:671", "start": 1793375641.5477471, "end": 1793375643.338675, "moved": false}
+{"t": 1793375648.42, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.01, "z": 33.96, "fresh": false, "secs": 4.2}
+{"t": 1793375650.51, "type": "activity", "what": "go", "target": "go:960:788", "start": 1793375648.6645892, "end": 1793375650.504574, "moved": false}
+{"t": 1793375653.99, "type": "activity", "what": "go", "target": "go:960:727", "start": 1793375653.2450922, "end": 1793375653.9901628, "moved": true}
+{"t": 1793375656.26, "type": "activity", "what": "go", "target": "go:960:727", "start": 1793375654.651158, "end": 1793375656.255751, "moved": false}
+{"t": 1793375658.83, "type": "activity", "what": "go", "target": "go:960:698", "start": 1793375657.2168288, "end": 1793375658.829537, "moved": false}
+{"t": 1793375661.68, "type": "activity", "what": "go", "target": "go:960:685", "start": 1793375659.991912, "end": 1793375661.680906, "moved": false}
+{"t": 1793375663.97, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.01, "z": 33.0, "fresh": true, "secs": 1.4}
+{"t": 1793375665.88, "type": "activity", "what": "go", "target": "go:965:606", "start": 1793375664.2205892, "end": 1793375665.87965, "moved": false}
+{"t": 1793375669.26, "type": "activity", "what": "go", "target": "go:964:651", "start": 1793375667.5786738, "end": 1793375669.264281, "moved": true}
+{"t": 1793375671.86, "type": "activity", "what": "go", "target": "go:964:651", "start": 1793375670.702154, "end": 1793375671.8584461, "moved": true}
+{"t": 1793375675.4, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": true, "secs": 1.4}
+{"t": 1793375683.47, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375687.86, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375692.23, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375696.64, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375696.64, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [686, 702], "left": 224, "hop": [-8.0, 0.0], "moved": [0.0, 0.0], "msg": "go-world: no calibration for RuralBeach/Ranch: run `wf calib` on open ground there first"}
+{"t": 1793375705.38, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375709.76, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375714.17, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375718.57, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.12, "z": 34.4, "fresh": false, "secs": 4.2}
+{"t": 1793375718.57, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [686, 702], "left": 224, "hop": [-8.0, 0.0], "moved": [0.0, 0.0], "msg": "go-world: no calibration for RuralBeach/Ranch: run `wf calib` on open ground there first"}
+{"t": 1793375720.19, "type": "game", "line": "[D148 1:39:25 PM] [TRIGGER] OnEnterBuilding Ranch at (0.00, 0.00, 0.00)"}
+{"t": 1793375625.04, "type": "call", "start": 1793375625.04, "end": 1793375720.19, "cmd": "goto farmhouse"}
+{"t": 1793375725.03, "type": "call", "start": 1793375725.03, "end": 1793375725.16, "cmd": "look"}
+{"t": 1793375735.67, "type": "activity", "what": "go", "target": "go:1500:930", "start": 1793375732.798568, "end": 1793375735.668021, "moved": true}
+{"t": 1793375739.23, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 15.26, "z": 28.37, "fresh": true, "secs": 1.5}
+{"t": 1793375741.34, "type": "game", "line": "[D148 1:52:34 PM] [TRIGGER] OnExitBuilding Ranch at (0.00, 0.00, 0.00)"}
+{"t": 1793375731.14, "type": "call", "start": 1793375731.14, "end": 1793375741.35, "cmd": "do go:1500:930"}
+{"t": 1793375749.91, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 15.26, "z": 28.37, "fresh": false, "secs": 4.2}
+{"t": 1793375756.29, "type": "activity", "what": "go", "target": "go:469:725", "start": 1793375754.570444, "end": 1793375756.287643, "moved": true}
+{"t": 1793375758.34, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 8.09, "z": 26.4, "fresh": true, "secs": 1.5}
+{"t": 1793375758.35, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [698, 702], "left": 222, "hop": [-8.0, 0.0], "moved": [-7.2, -2.0], "msg": "NEAR (7.3, 28.4) in RuralBeach: 2.14 units off (coarse ±3.0), 1 reading(s)"}
+{"t": 1793375761.84, "type": "activity", "what": "go", "target": "go:504:678", "start": 1793375760.0221062, "end": 1793375761.837771, "moved": true}
+{"t": 1793375763.96, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": 1.13, "z": 26.11, "fresh": true, "secs": 1.5}
+{"t": 1793375767.6, "type": "nav", "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 16, 17], "pin": [663, 702]}
+{"t": 1793375767.61, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [674, 709], "left": 232, "hop": [-7.8, 1.8], "moved": [-7.0, -0.3], "msg": "NEAR (0.3, 28.2) in RuralBeach: 2.27 units off (coarse ±3.0), 1 reading(s)"}
+{"t": 1793375769.87, "type": "activity", "what": "go", "target": "go:560:756", "start": 1793375768.292178, "end": 1793375769.872946, "moved": false}
+{"t": 1793375774.11, "type": "activity", "what": "go", "target": "go:763:728", "start": 1793375771.8466098, "end": 1793375774.112499, "moved": true}
+{"t": 1793375777.03, "type": "activity", "what": "go", "target": "go:763:728", "start": 1793375775.875371, "end": 1793375777.02383, "moved": true}
+{"t": 1793375779.13, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -4.48, "z": 20.9, "fresh": true, "secs": 1.5}
+{"t": 1793375779.14, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [651, 710], "left": 238, "hop": [-6.3, -1.3], "moved": [-5.6, -5.2], "msg": "SHORT of (-5.1, 24.8): 3.93 units off at (-4.5, 20.9) after 1 readings"}
+{"t": 1793375786.19, "type": "activity", "what": "go", "target": "go:555:861", "start": 1793375783.779739, "end": 1793375786.190712, "moved": true}
+{"t": 1793375788.3, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -10.0, "z": 14.74, "fresh": true, "secs": 1.5}
+{"t": 1793375791.33, "type": "nav", "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 15, 18], "pin": [620, 721]}
+{"t": 1793375791.35, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [649, 702], "left": 231, "hop": [-5.7, -4.8], "moved": [-5.5, -6.2], "msg": "NEAR (-10.2, 16.1) in RuralBeach: 1.38 units off (coarse ±3.0), 1 reading(s)"}
+{"t": 1793375795.73, "type": "activity", "what": "go", "target": "go:851:929", "start": 1793375792.8214989, "end": 1793375795.7305138, "moved": true}
+{"t": 1793375797.88, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -10.85, "z": 6.75, "fresh": true, "secs": 1.5}
+{"t": 1793375797.89, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [631, 723], "left": 256, "hop": [-1.4, -7.0], "moved": [-0.8, -8.0], "msg": "NEAR (-11.4, 7.7) in RuralBeach: 1.09 units off (coarse ±3.0), 1 reading(s)"}
+{"t": 1793375803.76, "type": "activity", "what": "go", "target": "go:540:887", "start": 1793375799.410086, "end": 1793375803.7538261, "moved": true}
+{"t": 1793375805.86, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -16.2, "z": -0.12, "fresh": true, "secs": 1.5}
+{"t": 1793375805.87, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [628, 749], "left": 282, "hop": [-5.8, -5.5], "moved": [-5.3, -6.9], "msg": "NEAR (-16.6, 1.2) in RuralBeach: 1.41 units off (coarse ±3.0), 1 reading(s)"}
+{"t": 1793375813.05, "type": "activity", "what": "go", "target": "go:585:910", "start": 1793375810.565911, "end": 1793375813.047895, "moved": true}
+{"t": 1793375815.19, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -20.93, "z": -7.53, "fresh": true, "secs": 1.5}
+{"t": 1793375815.29, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375815.3, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [619, 749], "left": 285, "hop": [-5.0, -6.2], "moved": [-4.7, -7.4], "msg": "NEAR (-21.2, -6.3) in RuralBeach: 1.23 units off (coarse ±3.0), 1 reading(s)"}
+{"t": 1793375818.56, "type": "activity", "what": "go", "target": "go:552:641", "start": 1793375816.60389, "end": 1793375818.557112, "moved": true}
+{"t": 1793375821.57, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -27.39, "z": -7.1, "fresh": true, "secs": 1.5}
+{"t": 1793375821.65, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375821.65, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [603, 774], "left": 313, "hop": [-7.3, 3.4], "moved": [-6.5, 0.4], "msg": "SHORT of (-28.2, -4.2): 3.04 units off at (-27.4, -7.1) after 1 readings"}
+{"t": 1793375826.31, "type": "activity", "what": "go", "target": "go:853:489", "start": 1793375823.18957, "end": 1793375826.310514, "moved": true}
+{"t": 1793375828.66, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -29.04, "z": 1.42, "fresh": true, "secs": 1.5}
+{"t": 1793375828.74, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 18]}
+{"t": 1793375828.74, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [582, 772], "left": 320, "hop": [-2.2, 7.7], "moved": [-1.7, 8.5], "msg": "NEAR (-29.6, 0.6) in RuralBeach: 1.03 units off (coarse ±3.0), 1 reading(s)"}
+{"t": 1793375835.69, "type": "activity", "what": "go", "target": "go:641:880", "start": 1793375833.947384, "end": 1793375835.687299, "moved": false}
+{"t": 1793375838.52, "type": "activity", "what": "go", "target": "go:818:755", "start": 1793375836.8317912, "end": 1793375838.5163982, "moved": false}
+{"t": 1793375841.45, "type": "activity", "what": "go", "target": "go:892:702", "start": 1793375839.724683, "end": 1793375841.44694, "moved": false}
+{"t": 1793375843.95, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -29.04, "z": 1.42, "fresh": true, "secs": 1.5}
+{"t": 1793375844.02, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 18]}
+{"t": 1793375846.99, "type": "activity", "what": "go", "target": "go:1195:708", "start": 1793375845.362711, "end": 1793375846.985348, "moved": true}
+{"t": 1793375849.18, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -25.55, "z": 0.01, "fresh": true, "secs": 1.5}
+{"t": 1793375852.08, "type": "nav", "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 14, 18], "pin": [619, 749]}
+{"t": 1793375852.12, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [619, 746], "left": 282, "hop": [-3.8, -7.0], "moved": [3.5, -1.4], "msg": "NEAR (-25.5, -0.5) in RuralBeach: 0.50 units off (coarse ±3.0), 1 reading(s)"}
+{"t": 1793375854.6, "type": "activity", "what": "go", "target": "go:484:800", "start": 1793375852.867011, "end": 1793375854.597236, "moved": false}
+{"t": 1793375857.93, "type": "activity", "what": "go", "target": "go:739:722", "start": 1793375856.360515, "end": 1793375857.9255118, "moved": true}
+{"t": 1793375860.24, "type": "activity", "what": "go", "target": "go:739:722", "start": 1793375858.591518, "end": 1793375860.239559, "moved": false}
+{"t": 1793375863.03, "type": "activity", "what": "go", "target": "go:853:687", "start": 1793375861.197151, "end": 1793375863.028865, "moved": false}
+{"t": 1793375865.65, "type": "activity", "what": "go", "target": "go:908:670", "start": 1793375863.9243782, "end": 1793375865.648306, "moved": false}
+{"t": 1793375868.26, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -29.03, "z": -1.85, "fresh": true, "secs": 1.5}
+{"t": 1793375868.64, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375868.65, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [631, 751], "left": 283, "hop": [-6.3, -4.9], "moved": [-3.5, -1.9], "msg": "SHORT of (-31.8, -4.9): 4.17 units off at (-29.0, -1.8) after 1 readings"}
+{"t": 1793375871.07, "type": "activity", "what": "go", "target": "go:526:786", "start": 1793375869.403907, "end": 1793375871.071758, "moved": false}
+{"t": 1793375873.71, "type": "activity", "what": "go", "target": "go:760:724", "start": 1793375872.040648, "end": 1793375873.704201, "moved": false}
+{"t": 1793375876.36, "type": "activity", "what": "go", "target": "go:868:696", "start": 1793375874.788065, "end": 1793375876.354539, "moved": false}
+{"t": 1793375878.88, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -29.03, "z": -1.85, "fresh": true, "secs": 1.5}
+{"t": 1793375878.97, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375880.77, "type": "activity", "what": "go", "target": "go:1101:757", "start": 1793375879.2134311, "end": 1793375880.765837, "moved": false}
+{"t": 1793375882.61, "type": "activity", "what": "go", "target": "go:1033:711", "start": 1793375881.103534, "end": 1793375882.60773, "moved": false}
+{"t": 1793375884.46, "type": "activity", "what": "go", "target": "go:1001:689", "start": 1793375882.930676, "end": 1793375884.461677, "moved": false}
+{"t": 1793375888.92, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -29.03, "z": -1.85, "fresh": false, "secs": 4.3}
+{"t": 1793375888.99, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375890.8, "type": "activity", "what": "go", "target": "go:862:594", "start": 1793375889.22864, "end": 1793375890.802722, "moved": false}
+{"t": 1793375892.67, "type": "activity", "what": "go", "target": "go:914:630", "start": 1793375891.138782, "end": 1793375892.665083, "moved": false}
+{"t": 1793375894.61, "type": "activity", "what": "go", "target": "go:942:649", "start": 1793375893.012529, "end": 1793375894.612702, "moved": false}
+{"t": 1793375899.09, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -29.03, "z": -1.85, "fresh": false, "secs": 4.3}
+{"t": 1793375899.6, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375901.63, "type": "activity", "what": "go", "target": "go:1162:618", "start": 1793375900.066019, "end": 1793375901.631569, "moved": false}
+{"t": 1793375903.58, "type": "activity", "what": "go", "target": "go:1068:642", "start": 1793375901.992828, "end": 1793375903.576024, "moved": false}
+{"t": 1793375905.45, "type": "activity", "what": "go", "target": "go:1020:655", "start": 1793375903.921702, "end": 1793375905.445923, "moved": false}
+{"t": 1793375909.93, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -29.03, "z": -1.85, "fresh": false, "secs": 4.3}
+{"t": 1793375910.0, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375910.0, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [619, 757], "left": 292, "hop": [-6.3, -3.9], "moved": [0.0, 0.0], "msg": "SHORT of (-25.9, 0.1): 3.72 units off at (-29.0, -1.8) after 1 readings"}
+{"t": 1793375914.21, "type": "activity", "what": "go", "target": "go:713:909", "start": 1793375912.6669598, "end": 1793375914.20963, "moved": false}
+{"t": 1793375916.1, "type": "activity", "what": "go", "target": "go:856:775", "start": 1793375914.530926, "end": 1793375916.101394, "moved": false}
+{"t": 1793375918.02, "type": "activity", "what": "go", "target": "go:916:719", "start": 1793375916.4279912, "end": 1793375918.02093, "moved": false}
+{"t": 1793375922.57, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -29.03, "z": -1.85, "fresh": false, "secs": 4.4}
+{"t": 1793375922.65, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375924.28, "type": "activity", "what": "go", "target": "go:1210:709", "start": 1793375923.702044, "end": 1793375924.27505, "moved": true}
+{"t": 1793375926.07, "type": "activity", "what": "go", "target": "go:951:735", "start": 1793375924.526458, "end": 1793375926.068823, "moved": false}
+{"t": 1793375927.94, "type": "activity", "what": "go", "target": "go:961:701", "start": 1793375926.375256, "end": 1793375927.936914, "moved": false}
+{"t": 1793375929.83, "type": "activity", "what": "go", "target": "go:966:684", "start": 1793375928.267798, "end": 1793375929.8329952, "moved": false}
+{"t": 1793375934.26, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -28.36, "z": -3.96, "fresh": false, "secs": 4.3}
+{"t": 1793375934.34, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793375934.35, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [619, 752], "left": 287, "hop": [-6.8, -4.2], "moved": [0.7, -2.1], "msg": "NEAR (-26.9, -5.2) in RuralBeach: 1.93 units off (coarse ±3.0), 1 reading(s)"}
+{"t": 1793375935.8, "type": "activity", "what": "go", "target": "go:463:747", "start": 1793375935.218841, "end": 1793375935.7950988, "moved": true}
+{"t": 1793375940.13, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -25.69, "z": -3.36, "fresh": false, "secs": 4.2}
+{"t": 1793375942.39, "type": "nav", "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 14, 18], "pin": [669, 755]}
+{"t": 1793375942.39, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [621, 759], "left": 293, "hop": [-7.5, -2.7], "moved": [2.7, 0.6], "msg": "SHORT of (-35.9, -6.6): 10.72 units off at (-25.7, -3.4) after 1 readings"}
+{"t": 1793375944.19, "type": "activity", "what": "go", "target": "go:597:871", "start": 1793375942.636194, "end": 1793375944.18978, "moved": false}
+{"t": 1793375946.04, "type": "activity", "what": "go", "target": "go:801:761", "start": 1793375944.4977338, "end": 1793375946.03653, "moved": false}
+{"t": 1793375947.93, "type": "activity", "what": "go", "target": "go:890:712", "start": 1793375946.35987, "end": 1793375947.926844, "moved": false}
+{"t": 1793375952.32, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -25.69, "z": -3.68, "fresh": false, "secs": 4.2}
+{"t": 1793375955.01, "type": "nav", "what": "fill-pin", "scene": "RuralBeach", "cell": ["map", 14, 18], "pin": [619, 757]}
+{"t": 1793375956.02, "type": "activity", "what": "go", "target": "go:1051:778", "start": 1793375955.633091, "end": 1793375956.024331, "moved": true}
+{"t": 1793375960.33, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -25.69, "z": -3.68, "fresh": false, "secs": 4.2}
+{"t": 1793375961.56, "type": "activity", "what": "go", "target": "go:906:580", "start": 1793375960.977552, "end": 1793375961.560113, "moved": true}
+{"t": 1793375965.86, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -25.69, "z": -3.68, "fresh": false, "secs": 4.2}
+{"t": 1793375967.3, "type": "activity", "what": "go", "target": "go:1204:635", "start": 1793375966.506637, "end": 1793375967.2945018, "moved": true}
+{"t": 1793375972.05, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -25.69, "z": -3.68, "fresh": false, "secs": 4.2}
+{"t": 1793375972.06, "type": "nav", "what": "map-hop", "place": "farmhouse", "map": [630, 757], "left": 289, "hop": [-7.6, -2.5], "moved": [0.0, -0.3], "msg": "SHORT of (-21.9, -2.4): 4.00 units off at (-25.7, -3.7) after 1 readings"}
+{"t": 1793375978.78, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -25.69, "z": -3.68, "fresh": false, "secs": 4.2}
+{"t": 1793375963.02, "type": "call", "start": 1793375963.02, "end": 1793375982.93, "cmd": "record stop"}
+{"t": 1793376206.33, "type": "call", "start": 1793376206.33, "end": 1793376210.27, "cmd": "pause"}
+{"t": 1793376477.22, "type": "call", "start": 1793376477.22, "end": 1793376481.99, "cmd": "state"}
+{"t": 1793376485.84, "type": "call", "start": 1793376485.84, "end": 1793376489.51, "cmd": "resume"}
+{"t": 1793376489.64, "type": "call", "start": 1793376489.64, "end": 1793376491.24, "cmd": "plan farmhouse"}
+{"t": 1793376494.1, "type": "activity", "what": "go", "target": "go:307:637", "start": 1793376492.459303, "end": 1793376494.096834, "moved": false}
+{"t": 1793376500.28, "type": "activity", "what": "go", "target": "go:630:652", "start": 1793376498.7349, "end": 1793376500.276482, "moved": false}
+{"t": 1793376503.48, "type": "activity", "what": "go", "target": "go:798:660", "start": 1793376501.974763, "end": 1793376503.483999, "moved": true}
+{"t": 1793376505.66, "type": "activity", "what": "go", "target": "go:251:635", "start": 1793376504.1278021, "end": 1793376505.6543849, "moved": false}
+{"t": 1793376508.07, "type": "activity", "what": "go", "target": "go:600:651", "start": 1793376506.524122, "end": 1793376508.0692768, "moved": false}
+{"t": 1793376510.51, "type": "activity", "what": "go", "target": "go:782:659", "start": 1793376508.98528, "end": 1793376510.5123332, "moved": false}
+{"t": 1793376512.76, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -28.2, "z": -3.27, "fresh": true, "secs": 1.5}
+{"t": 1793376513.15, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 18]}
+{"t": 1793376515.37, "type": "activity", "what": "go", "target": "go:333:810", "start": 1793376513.789087, "end": 1793376515.370212, "moved": false}
+{"t": 1793376518.17, "type": "activity", "what": "go", "target": "go:671:735", "start": 1793376516.302028, "end": 1793376518.170432, "moved": false}
+{"t": 1793376520.57, "type": "activity", "what": "go", "target": "go:825:701", "start": 1793376519.0710452, "end": 1793376520.571266, "moved": false}
+{"t": 1793376520.82, "type": "nav", "what": "stuck", "place": "farmhouse", "why": "step 1/12 walk to RuralBeach:exit>Farm:back<RuralBeach: BLOCKED toward (-47.6, -0.6) at (-28.2, -3.3) in RuralBeach: every click refused"}
+{"t": 1793376521.49, "type": "vision", "what": "ask", "kind": "exit", "question": "Tara is stuck (step 1/12 walk to RuralBeach:exit>Farm:back<RuralBeach: BLOCKED toward (-47.6, -0.6) at (-28.2, -3.3) in RuralBeach: every click refused) and must go west toward farmhouse. Which cell shows walkable ground that leads out that way (steps, a gap, a gate, a road)? Not a wall, rail or fence."}
+{"t": 1793376491.39, "type": "call", "start": 1793376491.39, "end": 1793376522.99, "cmd": "goto farmhouse"}
+{"t": 1793376542.95, "type": "activity", "what": "go", "target": "go:720:337", "start": 1793376541.0542421, "end": 1793376542.948946, "moved": false}
+{"t": 1793376540.08, "type": "call", "start": 1793376540.08, "end": 1793376544.71, "cmd": "teach exit E3"}
+{"t": 1793376552.85, "type": "activity", "what": "go", "target": "go:240:742", "start": 1793376550.8629692, "end": 1793376552.8446238, "moved": false}
+{"t": 1793376550.04, "type": "call", "start": 1793376550.04, "end": 1793376554.82, "cmd": "teach exit B6"}
+{"t": 1793376560.96, "type": "call", "start": 1793376560.96, "end": 1793376561.1, "cmd": "look"}
+{"t": 1793376579.75, "type": "activity", "what": "go", "target": "go:1200:337", "start": 1793376575.6086028, "end": 1793376579.753623, "moved": true}
+{"t": 1793376581.65, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -22.78, "z": 15.56, "fresh": true, "secs": 1.5}
+{"t": 1793376581.77, "type": "vision", "what": "teach", "kind": "exit", "cells": ["H3"], "moved": 19.595407241279}
+{"t": 1793376573.84, "type": "call", "start": 1793376573.84, "end": 1793376583.3, "cmd": "teach exit H3"}
+{"t": 1793376588.87, "type": "activity", "what": "go", "target": "go:372:831", "start": 1793376587.310452, "end": 1793376588.8680599, "moved": false}
+{"t": 1793376591.97, "type": "activity", "what": "go", "target": "go:686:744", "start": 1793376590.4980679, "end": 1793376591.9734871, "moved": true}
+{"t": 1793376594.5, "type": "activity", "what": "go", "target": "go:342:839", "start": 1793376592.6415622, "end": 1793376594.4987898, "moved": false}
+{"t": 1793376597.22, "type": "activity", "what": "go", "target": "go:673:748", "start": 1793376595.4231539, "end": 1793376597.2161212, "moved": false}
+{"t": 1793376599.67, "type": "activity", "what": "go", "target": "go:822:707", "start": 1793376598.0945349, "end": 1793376599.669261, "moved": false}
+{"t": 1793376602.31, "type": "nav", "what": "pos", "scene": "RuralBeach", "x": -26.71, "z": 12.93, "fresh": true, "secs": 1.5}
+{"t": 1793376604.6, "type": "activity", "what": "go", "target": "go:710:914", "start": 1793376603.033658, "end": 1793376604.596937, "moved": false}
+{"t": 1793376607.13, "type": "activity", "what": "go", "target": "go:849:778", "start": 1793376605.487062, "end": 1793376607.1338098, "moved": false}
+{"t": 1793376609.63, "type": "activity", "what": "go", "target": "go:908:721", "start": 1793376608.1192079, "end": 1793376609.630768, "moved": false}
+{"t": 1793376609.86, "type": "nav", "what": "stuck", "place": "farmhouse", "why": "step 1/12 walk to RuralBeach:exit>Farm:back<RuralBeach: BLOCKED toward (-47.6, -0.6) at (-26.7, 12.9) in RuralBeach: every click refused"}
+{"t": 1793376610.43, "type": "vision", "what": "ask", "kind": "exit", "question": "Tara is stuck (step 1/12 walk to RuralBeach:exit>Farm:back<RuralBeach: BLOCKED toward (-47.6, -0.6) at (-26.7, 12.9) in RuralBeach: every click refused) and must go south-west toward farmhouse. Which cell shows walkable ground that leads out that way (steps, a gap, a gate, a road)? Not a wall, rail or fence."}
+{"t": 1793376586.5, "type": "call", "start": 1793376586.5, "end": 1793376612.28, "cmd": "goto farmhouse"}
+{"t": 1793376627.16, "type": "activity", "what": "go", "target": "go:1520:607", "start": 1793376625.656564, "end": 1793376627.159073, "moved": false}
+{"t": 1793376624.87, "type": "call", "start": 1793376624.87, "end": 1793376628.8, "cmd": "teach exit J5"}
+{"t": 1793376628.93, "type": "call", "start": 1793376628.93, "end": 1793376630.48, "cmd": "plan farmhouse"}
+{"t": 1793376654.47, "type": "call", "start": 1793376654.47, "end": 1793376657.93, "cmd": "pause"}
+{"t": 1793376874.64, "type": "vision", "what": "ask", "kind": "exit", "question": "Tara (magenta ring, feet at 960:690) is stuck (asked) and must go north-east toward farmhouse (yellow arrow = planned direction). Drawn from what we know: blue = road, green dots/lines = where she has walked before (2 points), red X = walls / refused clicks (9). Pick ONE next click: open walkable ground she can reach from where she stands, preferably road or green, within ~400 px of her, toward the arrow, or out of an enclosure toward a road that leads that way. Never fences, rails, hedges, rocks, water, a fenced plot, or a red X. Give game coordinates (white tick labels; image px x 2)."}
+{"t": 1793376870.99, "type": "call", "start": 1793376870.99, "end": 1793376875.51, "cmd": "ask-exit farmhouse"}
+{"t": 1793376879.17, "type": "call", "start": 1793376879.17, "end": 1793376880.61, "cmd": "resume"}
+{"t": 1793376880.83, "type": "vision", "what": "ask", "kind": "exit", "question": "Tara (magenta ring, feet at 960:690) is stuck (asked) and must go north-east toward farmhouse (yellow arrow = planned direction). Drawn from what we know: blue = road, green dots/lines = where she has walked before (2 points), red X = walls / refused clicks (9). Pick ONE next click: open walkable ground she can reach from where she stands, preferably road or green, within ~400 px of her, toward the arrow, or out of an enclosure toward a road that leads that way. Never fences, rails, hedges, rocks, water, a fenced plot, or a red X. Give game coordinates (white tick labels; image px x 2)."}
+{"t": 1793376880.64, "type": "call", "start": 1793376880.64, "end": 1793376881.51, "cmd": "ask-exit farmhouse"}
+{"t": 1793376953.18, "type": "call", "start": 1793376953.18, "end": 1793376956.09, "cmd": "resume"}
+{"t": 1793376960.79, "type": "vision", "what": "ask", "kind": "step", "question": "GOAL: walk Tara to farmhouse (in Farm; the route leaves RuralBeach north-east), for the task 20261030-1738-VioletBeehives (current step: reached farm house). She is at (-26.7, 12.9) in RuralBeach, magenta ring, feet at 960:690; code cannot make the next step (asked on purpose). Drawn from what we know: yellow arrow = planned direction, yellow numbered dots = next route points (1 = next), blue = road, green dots/lines = where she has walked before (2 points), red X = walls / refused clicks (9). What is the NEXT CLICK toward the goal? Open walkable ground she can reach from where she stands, within ~400 px of her; follow roads and green where they lead toward the goal; if she is enclosed, the way out toward a road that leads there. Never fences, rails, hedges, rocks, water, a fenced plot, or a red X. Estimate game coordinates from the white tick labels (image px x 2)."}
+{"t": 1793376956.21, "type": "call", "start": 1793376956.21, "end": 1793376962.2, "cmd": "ask-step farmhouse"}
+{"t": 1793376962.29, "type": "call", "start": 1793376962.29, "end": 1793376965.9, "cmd": "pause"}
+{"t": 1793376985.61, "type": "end", "result": "stopped", "text": "agent stopped by supervisor; Tara stuck at the ranch (nav rework L72-L74)"}

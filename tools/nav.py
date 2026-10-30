@@ -13,6 +13,7 @@ Storage (L65: every scene has its own world coordinates; buildings share their s
 import json
 import math
 import os
+import re
 import statistics
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'nav')
@@ -308,6 +309,42 @@ MAP_NEAR = 150             # map px: a map place belongs to the scene with pin p
 MAP_RADIUS = 2.0           # world units: least arrival radius of a coarse map node (pins snap to roads, L64)
 
 
+# Map pixels as a compass (L72): the map is stylised, so a per-scene fit from a few road-snapped pins is unreliable
+# (D148: 0.16-0.67 world units per map px between pin pairs), but its directions agree with the world (x right,
+# map y down = world -z; ±20°). So the map gives direction and distance only; every hop ends in a reading.
+MAP_SCALE = 0.3            # world units per map px: median over pin pairs (±50 %)
+MAP_HOP = 8.0              # world units per coarse map hop
+
+
+def path_ahead(path, m, px):
+    """The point on a map route `px` map px along it past the route point nearest map position `m`."""
+    if not path:
+        return None
+    i = min(range(len(path)), key=lambda k: math.dist(path[k], m))
+    done, prev = 0.0, path[i]
+    for q in path[i + 1:]:
+        done += math.dist(prev, q)
+        prev = q
+        if done >= px:
+            break
+    return prev
+
+
+def map_heading(m, tgt, units=MAP_HOP):
+    """World (dx, dz) of a hop `units` long toward map point `tgt` from map position `m`; None if already there."""
+    dx, dy = tgt[0] - m[0], tgt[1] - m[1]
+    d = math.hypot(dx, dy)
+    if d < 1:
+        return None
+    k = min(units, d * MAP_SCALE) / d
+    return dx * k, -dy * k
+
+
+def map_dead_reckon(m, dx, dz):
+    """New map position after a measured world move (dx, dz)."""
+    return m[0] + dx / MAP_SCALE, m[1] - dz / MAP_SCALE
+
+
 def map_pairs(facts, scene):
     if not outdoor(scene):
         return []
@@ -396,6 +433,89 @@ def nodes(facts, map_places=None):
         if e['x'] is None and t and t['scene'].split('/')[0] == e['scene'].split('/')[0]:
             e['aim'] = (t['x'], t['z'])  # a building door: walk toward the other side (same coordinates, L64)
         out[k] = e
+    out.update(back_links(facts, out))
+    for (s, x, z), _ in trail(facts).items():
+        out.setdefault(trail_key(s, x, z), {'scene': s, 'name': trail_key(s, x, z).split(':', 1)[1],
+                                            'x': x, 'z': z, 'src': 'trail'})
+    return out
+
+
+# ---------------------------------------------------------------- trail: where she has really walked (L73)
+# Two readings in a row in one area with a real move between them = a proven walk (the game's pathfinding found a
+# way), usable both ways. The graph prefers proven walks over straight lines, so a plan back out of a dead end
+# (a porch, someone's yard) follows the way in.
+TRAIL_GRID = 2.0           # world units: trail points this close are one node
+TRAIL_MIN = 1.0            # world units: a shorter move proves nothing
+STEP_COST = 5.0            # a never-walked straight line costs its length + this (its own reading; unknown ground)
+STRAIGHT_OK = 8.0          # world units: about one screen hop; a never-walked line beyond this crosses ground we
+LONG_FACTOR = 2.0          # haven't seen (fences, hedges): each unit beyond costs this much more (L73)
+TRAIL_FACTOR = 0.5         # a proven walk costs this x its length (she got through there; readings can be skipped)
+
+
+def trail_key(scene, x, z):
+    g = TRAIL_GRID
+    return f'{scene}:trail({round(x / g) * g:.0f},{round(z / g) * g:.0f})'
+
+
+def trail(facts):
+    """{(scene, x, z): [(x, z) of the other end]} of proven walks (both directions; first point per grid cell)."""
+    pts, out = {}, {}
+
+    def node(s, p):
+        return pts.setdefault(trail_key(s, *p), (s, float(p[0]), float(p[1])))
+    for f in facts:
+        a, b = f.get('from'), f.get('to')
+        if (not a or not b or f.get('stale') or f.get('result') in ('scene', 'no_move', 'blocked')
+                or math.dist(a, b) < TRAIL_MIN):
+            continue
+        na, nb = node(f['scene'], a), node(f['scene'], b)
+        if na != nb:
+            out.setdefault(na, []).append(nb[1:])
+            out.setdefault(nb, []).append(na[1:])
+    return out
+
+
+STUCK_MOVES = 3            # moves: her position barely changing over this many moves = stuck (user rule, L75)
+STUCK_SPREAD = 2.0         # world units: "barely changing"
+
+
+def no_progress(track):
+    """track = [(area, x, z)] her position after each move (reading or estimate) of one trip. True when the last
+    STUCK_MOVES moves stayed within STUCK_SPREAD of each other in one area (the trip isn't at its goal yet)."""
+    last = track[-(STUCK_MOVES + 1):]
+    if len(last) < STUCK_MOVES + 1 or len({a for a, _, _ in last}) > 1:
+        return False
+    return max(math.dist(p[1:], q[1:]) for p in last for q in last) < STUCK_SPREAD
+
+
+BACK_PUSH = 3.0            # world units past the arrival point, against the first move after arriving
+BACK_COST = 15.0           # an untraced way back across a border (the next crossing traces it)
+
+
+def back_links(facts, ns):
+    """Reverse of each traced scene crossing F -> S that has no exit S -> F yet: walk from S's arrival point against
+    the first move she made after arriving (that's where the border is), arriving at F's traced exit point."""
+    out = {}
+    have = {(n['scene'], n['to'].split(':')[0].split('/')[0]) for n in ns.values() if n['src'] == 'exit'}
+    for k, a in ns.items():
+        if a['src'] != 'exit' or a.get('x') is None or a.get('to') not in ns:
+            continue
+        anc = ns[a['to']]
+        s, f = anc['scene'], a['scene']
+        if '/' in s or '/' in f or (s, f) in have:  # buildings have their doors; only scene borders
+            continue
+        first = next((g['to'] for g in facts if g.get('scene') == s and g.get('from') and g.get('to')
+                      and math.dist(g['from'], (anc['x'], anc['z'])) < TRAIL_GRID
+                      and math.dist(g['to'], g['from']) >= TRAIL_MIN), None)
+        if not first:
+            continue
+        dx, dz = anc['x'] - first[0], anc['z'] - first[1]
+        L = math.hypot(dx, dz)
+        back = f'{f}:back<{s}'
+        out[back] = {'scene': f, 'name': f'back<{s}', 'x': a['x'], 'z': a['z'], 'src': 'anchor'}
+        out[f'{s}:exit>{back}'] = {'scene': s, 'name': f'exit>{back}', 'src': 'exit', 'to': back, 'back': True,
+                                   'x': anc['x'] + dx / L * BACK_PUSH, 'z': anc['z'] + dz / L * BACK_PUSH,
+                                   'cost': BACK_COST}
     return out
 
 
@@ -440,13 +560,73 @@ def log_position(txt):
     return None, float(m.group(5)), float(m.group(7))
 
 
-def walls(facts):
-    """{area: [(x, z)]}: where walks stopped against a barrier (exact, from the game log, L67)."""
+PATH_FAIL = (r'Player failed to pathfind from\s+\((-?[\d.]+), (-?[\d.]+), (-?[\d.]+)\) to\s+at '
+             r'\((-?[\d.]+), (-?[\d.]+), (-?[\d.]+)\)')
+
+
+def log_pathfail(txt):
+    """Last 'failed to pathfind' line (a click on ground she can't reach): ((x, z) where she is, (x, z) clicked)."""
+    import re
+    m = None
+    for m in re.finditer(PATH_FAIL, txt):
+        pass
+    if not m:
+        return None
+    v = [float(g) for g in m.groups()]
+    return (v[0], v[2]), (v[3], v[5])
+
+
+OBJECTS = os.path.join(ROOT, 'objects.json')
+OBJ_AT = re.compile(r'(?:target=|to )([A-Za-z]\w*?)(?:\(Clone\))?(?: \(\d+\))? at \((-?[\d.]+), (-?[\d.]+), (-?[\d.]+)\)')
+WALKABLE = {'GardenBed'}   # objects she stands on to use (not obstacles)
+OBJ_NEAR = 0.7             # world units: a line this close to an object's centre hits it (hives 1.25 apart, D149)
+
+
+def objects_from_log(txt):
+    """[(name, x, z)] of objects the game log names with a position (`target=BeeHive(Clone) at (2.72, 0.10, -23.46)`,
+    `failed to pathfind … to BeeHive(Clone) at …`), walkable ones excluded (L79)."""
+    return [(m.group(1), float(m.group(2)), float(m.group(4))) for m in OBJ_AT.finditer(txt)
+            if m.group(1) not in WALKABLE]
+
+
+def objects_load(path=None):
+    return _read_json(path or OBJECTS, {})
+
+
+def objects_learn(area, objs, path=None):
+    """Add objects seen in `area` (deduped to 0.1 units). Returns how many were new."""
+    if not area or not objs:
+        return 0
+    data = objects_load(path)
+    have = {(o[0], round(o[1], 1), round(o[2], 1)) for o in data.get(area, [])}
+    new = []
+    for n, x, z in objs:
+        k = (n, round(x, 1), round(z, 1))
+        if k not in have:
+            have.add(k)
+            new.append([n, round(x, 2), round(z, 2)])
+    if new:
+        data.setdefault(area, []).extend(new)
+        _write_json(path or OBJECTS, data)
+    return len(new)
+
+
+def walls(facts, objects=None):
+    """{area: [(x, z, dx, dz)]}: where walks stopped against a barrier (exact, from the game log, L67), with the
+    direction she was walking (from -> to; 0, 0 unknown): the barrier lies that way (L73); plus objects the log named
+    with a position (hives, the well…: obstacles, no direction, L79)."""
     out = {}
     for f in facts:
-        if f.get('result') == 'stuck' and f.get('to'):
-            out.setdefault(f['scene'], []).append(tuple(f['to']))
+        if f.get('result') in ('stuck', 'blocked') and f.get('to'):
+            d = (f['to'][0] - f['from'][0], f['to'][1] - f['from'][1]) if f.get('from') else (0.0, 0.0)
+            out.setdefault(f['scene'], []).append((*f['to'], *d))
+    for area, objs in (objects_load() if objects is None else objects).items():
+        for _, x, z in objs:
+            out.setdefault(area, []).append((x, z, None, None))  # None = a solid object (blocks from any side)
     return out
+
+
+WALL_ANGLE = 60            # degrees: a walk starting at a wall point this close to the stuck direction is blocked
 
 
 def _seg_dist(p, a, b):
@@ -460,8 +640,24 @@ def walk_cost(a, b, ws=()):
     """Straight-walk cost a -> b: distance, + WALL_COST if the line passes a wall stop (not at its very start: a
     walk away from a wall is fine)."""
     d = math.hypot(b[0] - a[0], b[1] - a[1])
-    blocked = any(_seg_dist(w, a, b) < WALL_NEAR and math.dist(w, a) > WALL_NEAR for w in ws)
+
+    def hit(w):
+        wx, wz, *wd = w
+        if wd and wd[0] is None:  # a solid object: blocks any line passing within reach, even from right beside it
+            return _seg_dist((wx, wz), a, b) < OBJ_NEAR
+        if math.dist((wx, wz), a) > WALL_NEAR:
+            return _seg_dist((wx, wz), a, b) < WALL_NEAR
+        if not wd or not any(wd) or not d:  # starting at the wall: blocked only straight into it again
+            return False
+        cos = ((b[0] - a[0]) * wd[0] + (b[1] - a[1]) * wd[1]) / (d * math.hypot(*wd))
+        return cos > math.cos(math.radians(WALL_ANGLE))
+    blocked = any(hit(w) for w in ws)
     return d + (WALL_COST if blocked else 0)
+
+
+def straight_cost(a, b, ws=()):
+    """Cost of a never-walked straight line a -> b: length, walls, one reading, and unseen ground beyond one hop."""
+    return walk_cost(a, b, ws) + STEP_COST + max(0.0, math.dist(a, b) - STRAIGHT_OK) * LONG_FACTOR
 
 
 def edges_graph(facts, ns, recipes=None, now=None):
@@ -472,16 +668,24 @@ def edges_graph(facts, ns, recipes=None, now=None):
             fails[f'{f.get("scene")}:{f["goal"]}'] = fails.get(f'{f.get("scene")}:{f["goal"]}', 0) + 1
     ws = walls(facts)
     out = []
-    keys = list(ns)
-    for a in keys:
-        for b in keys:
-            if a != b and ns[a]['scene'] == ns[b]['scene'] and ns[a].get('x') is not None:
-                tb = target_of(ns[b])
-                c = walk_cost((ns[a]['x'], ns[a]['z']), tb, ws.get(ns[a]['scene'], ())) if tb else NO_COORDS_COST
-                out.append((a, b, c + 5 * fails.get(b, 0), 'walk'))
+    by_scene = {}
+    for k, n in ns.items():
+        by_scene.setdefault(n['scene'], []).append(k)
+    for keys in by_scene.values():
+        for a in keys:
+            if ns[a].get('x') is None:
+                continue
+            for b in keys:
+                if a != b:
+                    tb = target_of(ns[b])
+                    c = straight_cost((ns[a]['x'], ns[a]['z']), tb, ws.get(ns[a]['scene'], ())) if tb else NO_COORDS_COST
+                    out.append((a, b, c + 5 * fails.get(b, 0), 'walk'))
+    for (s, x, z), ends in trail(facts).items():  # proven walks: their length, walls don't count (she got through)
+        for ex, ez in ends:
+            out.append((trail_key(s, x, z), trail_key(s, ex, ez), math.dist((x, z), (ex, ez)) * TRAIL_FACTOR, 'walk'))
     for k, n in ns.items():
         if n['src'] == 'exit' and n.get('to') in ns:
-            out.append((k, n['to'], 5.0, 'link'))
+            out.append((k, n['to'], n.get('cost', 5.0), 'link'))
     status = edge_status(facts, now or {})
     by_name = {}
     for k, n in ns.items():
@@ -504,7 +708,7 @@ def plan(ns, es, start, goal, ws=None):
     for a, b, c, kind in es:
         adj.setdefault(a, []).append((b, c, kind))
     s, x, z = start
-    adj['@start'] = [(k, walk_cost((x, z), target_of(n), (ws or {}).get(s, ())) if target_of(n) else NO_COORDS_COST,
+    adj['@start'] = [(k, straight_cost((x, z), target_of(n), (ws or {}).get(s, ())) if target_of(n) else NO_COORDS_COST,
                       'walk') for k, n in ns.items() if n['scene'] == s]
     dist, prev = {'@start': 0.0}, {}
     q = [(0.0, '@start')]

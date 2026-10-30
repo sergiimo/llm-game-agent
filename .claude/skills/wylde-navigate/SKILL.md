@@ -35,6 +35,23 @@ scene change, stuck, `./wf pos`) measure where Tara really is and append a fact 
   the map route, re-planned by the graph after each scene change.
 - **Each scene has its own coordinates** (L65): data lives in `tools/nav/<Scene>/` and `tools/nav/<Scene>/<Building>/`;
   scenes connect only through learned exits → anchors.
+- **Far places by map = map compass (L72):** `./wf goto <map place>` opens the map once, routes on its roads, then
+  walks 8-unit hops in the route's direction, each ending in an exact reading, and looks at the map again every 3 hops
+  or after a scene change (borders are walked through). Map px are direction + distance only, never exact positions.
+- **Trail + way back (L73):** every walk between two readings is a proven path (both ways), so plans follow where
+  she has really been instead of straight lines into dead ends; a scene she entered can be left the same way back.
+- **Stuck = her position changes < 2 units over 3 moves while not at the goal (user rule, L75)**; the daemon checks it
+  across all calls (L80): a `STUCK …` line in any output = stop and escalate. Applies to
+  manual clicking too: after 3 such moves stop clicking the same way and ask for the next step (`./wf ask-step`).
+  Every stuck episode: report it (agents: in GAPS as `[stuck]` with where/signal/what you tried); the supervisor runs a
+  stuck retro against `retros/stuck-ledger.md` (AGENTS.md rule 7).
+- **Code can't make the next step → `NEED_VISION step` (L74):** the question names the GOAL (place, distance and
+  direction, the task from the open run) and its image shows what the layers know: blue = road, green = where she has
+  walked, red X = walls/refused clicks, yellow arrow + numbered dots = planned direction and next route points,
+  magenta = Tara, white ticks = game coords. Answer the next click toward the goal near her (≤ ~400 px) on open
+  ground, following roads/green that lead there (out of an enclosure first if needed; never fences/hedges/rocks/fenced
+  plots/red X): `./wf teach step X:Y`, then re-run the `goto`. A real move is stored as a proven walk, the blocked way
+  as a wall. `./wf ask-step <place>` asks on purpose.
 - `./wf go-world X Z` = walk to a world point in this scene.
 - **World graph:** nodes = learned places, map places (coarse), scene/building **anchors** (`Farm/LinkTown`, `House:in`,
   `House:out`) and the **exits** that lead to them; `./wf plan <name>` shows the route (walk / link / replay), `./wf goto

@@ -1,0 +1,25 @@
+# Stuck ledger
+
+> **Summary:** one row per stuck episode (user rule 2026-10-30: every stuck run gets a retro that includes the results
+> of previous retros). Stuck = her position changes < 2 units over 3 moves while not at the goal (L75). Each stuck retro
+> reads this file first: did earlier fixes hold? A cause that repeats gets a tool fix, not a doc note.
+
+| # | When | Where | Signal | Cause | Fix (learning) | Earlier fix that should have caught it | Held? |
+|---|---|---|---|---|---|---|---|
+| S1 | D148 10:30–12:50 | RuralBeach, ranch porch | quest agent: "Outside the gate. Try goto again"; user "stuck" | map route: the per-scene map fit from 2 pins is wrong; blind hops into the porch rail | map compass: direction only, reading per hop (L72) | 10-29 graph first, map last | ⚠️ no graph way back existed |
+| S2 | 12:50–1:50 | ranch porch | 2 hops no move; porch counted as building `Ranch` | heading west into the rail; no calibration in the porch area | sidestep; then manual click down the steps | — | — |
+| S3 | 1:50–2:50 | ranch orchard | (rejected call ran unseen) | old map walk into a fenced orchard; walks stored as trail | trail / back links / fast BLOCKED / vision (L73) | 10-29 one debug cycle | ❌ |
+| S4 | 2:50–4:20 | orchard → behind the water tanks | BLOCKED, vision ×4 (3 refused) | plan: long never-walked lines across fences; bare grid vision | long lines cost 2×; vision with goal + layers drawn, answer X:Y (L74) | — | — |
+| S5 | 4:20–5:20 | orchard again, then road | BLOCKED at the fence; then SHORT 1.6 units | orchard trail points + 9-unit line through the fence; waypoint miss = fail | no-progress rule (3 moves), waypoints within 3 units (L75) | L74 long-line cost | ⚠️ 9 units is just over the limit |
+| S6 | D148 7:20–8:30 pm | Farm garden, wilted bed | plan step 2 escalated (30 calls); Space logs `unplant`, no water | plan step built on an unverified doc line ("water wilted first") | review rule: unverified key action = its own scout step; wilted facts documented (runs/20261030-1837-VioletBeehives/retro-1.md) | L76 plan review | ❌ review passed it; ✅ escalation caught it at 30 calls |
+
+| S7 | D148 10:50–11:30 pm | Farm, the nook between the well and the hives | stuck rule (3 moves); clicks east landed on hives (`failed to pathfind … to BeeHive`) | `goto House:in` planned straight lines through the hive row; the nook's only exits are its ends | vision step east (walked 5.6 units); then the door push failed ("did not change scene") | L74 long-line cost, L75 rule | ✅ rule fired at once; ⚠️ plan still crossed the hive row |
+| S8 | D148 11:30 pm–0:10 am | Farm, strip behind the hives | BLOCKED, vision; my answer refused; I misread the image (ring at default feet, Tara hidden behind hives) | `tara_feet` falls back to a fixed point when she's hidden; hives are a wall the graph didn't know | clicked a known trail point, then grass east of the hives | L74 vision image | ❌ the image put the ring in the wrong place |
+| S9 | D149 7:00–8:20 am | Farm: house → garden bed 1 (by the hive row) | `./wf py replant` FAILED ×3 (SHORT 13.9 from inside the house; BLOCKED / SHORT 2.95 from the strip behind the hives); user "stuck" | `move.goto(object)` walked a straight line in the current area: no graph (no door, no trail around the hives) | `goto(object)` plans through the graph to the object's position (L79) | L73 trail/graph | ❌ the new functions bypassed the graph |
+| S10 | D149 8:50–9:07 am | Farm, strip behind the hives (supervisor live test) | user "stuck not detected?"; `replant(1)` re-read her at (-1.3, -21.7) for minutes | the stuck tracker only counted whole commands; a long game-function call never ended; the 3-unit straight shortcut skipped walls; object radius 1.0 > hive half-width | stuck check per reading inside calls, raising `Stuck` (L80); shortcut only on a clear line; 8 side-steps; object radius 0.7 (L79); supervisor stops driving (memory supervise-dont-drive) | L80 v1 | ❌ v1 missed it |
+| S11 | D149 9:07–9:22 am | Farm, strip behind the hives (agent, plan step 4 test) | STUCK (L80) after 47 s; escalated in 2 calls | straight-segment plan over a partial obstacle map (hive at -2.28 unseen) | click on-screen targets and let the game pathfind (L81); runs/20261030-1837-VioletBeehives/retro-2.md | L79, L80 | ✅ L80 caught it fast; ❌ L79 routing |
+| S12 | D149 9:22–10:10 am | Farm, strip behind the hives (agent, step 4 retest) | STUCK at 159 s (60 clicks, 52 refused, ~28 `beehive_progress`) | clicks occluded by hive sprites; refused clicks not counted; functions/plan skipped vision | refused click = a move (fast STUCK); STUCK in a function asks NEED_VISION step; plan: answer vision before escalating (L82, retro-3) | L80, L81, L74 | ❌ repeated cause → tool fix |
+## Trips after fixes (stuck count per trip)
+| When | Trip | Stuck | Notes |
+|---|---|---|---|
+| D148 5:20–5:57 pm | RuralBeach road below the ranch → farmhouse (1 `goto`) | 0 | L72–L75 live: road → back link across the border (traced now) → Farm trail → in the House |

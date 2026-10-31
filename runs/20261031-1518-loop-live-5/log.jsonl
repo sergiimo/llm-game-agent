@@ -1,0 +1,26 @@
+{"t": 1793452724.12, "type": "start", "quest": "loop-live-5", "goal": "goto_bed() from the well (inside) and from the house front"}
+{"t": 1793452740.28, "type": "plan_step", "n": "1", "state": "start", "text": "", "hour": null}
+{"t": 1793452743.04, "type": "call", "start": 1793452743.04, "end": 1793452747.06, "cmd": "resume"}
+{"t": 1793452770.44, "type": "action", "name": "garden.goto_bed", "args": "", "start": 1793452749.72, "end": 1793452770.44, "depth": 0, "ok": true, "why": null, "before": "?", "after": "gameplay"}
+{"t": 1793452749.54, "type": "call", "start": 1793452749.54, "end": 1793452771.92, "cmd": "py goto_bed()"}
+{"t": 1793452774.29, "type": "call", "start": 1793452774.29, "end": 1793452774.43, "cmd": "look"}
+{"t": 1793452781.36, "type": "plan_step", "n": "1", "state": "done", "text": "at bed row, water bubbles around her", "hour": 7.833333333333333}
+{"t": 1793452782.51, "type": "plan_step", "n": "2", "state": "start", "text": "", "hour": 7.833333333333333}
+{"t": 1793452795.43, "type": "activity", "what": "go", "target": "go:500:260", "start": 1793452792.918423, "end": 1793452795.431534, "moved": true}
+{"t": 1793452796.02, "type": "nav", "what": "log-reading", "scene": "Farm", "x": -4.42, "z": -21.69}
+{"t": 1793452789.94, "type": "call", "start": 1793452789.94, "end": 1793452797.36, "cmd": "do go:500:260 --look"}
+{"t": 1793452811.52, "type": "activity", "what": "go", "target": "go:560:900", "start": 1793452809.518888, "end": 1793452811.523513, "moved": true}
+{"t": 1793452806.38, "type": "call", "start": 1793452806.38, "end": 1793452817.87, "cmd": "do go:560:900 --look"}
+{"t": 1793452828.83, "type": "activity", "what": "go", "target": "go:820:1020", "start": 1793452825.965424, "end": 1793452828.828737, "moved": true}
+{"t": 1793452822.8, "type": "call", "start": 1793452822.8, "end": 1793452830.26, "cmd": "do go:820:1020 --look"}
+{"t": 1793452840.98, "type": "activity", "what": "go", "target": "go:1700:900", "start": 1793452838.626933, "end": 1793452840.978314, "moved": true}
+{"t": 1793452835.24, "type": "call", "start": 1793452835.24, "end": 1793452846.22, "cmd": "do go:1700:900 --look"}
+{"t": 1793452852.72, "type": "plan_step", "n": "3", "state": "start", "text": "", "hour": 8.333333333333334}
+{"t": 1793452884.68, "type": "action", "name": "garden.goto_bed", "args": "", "start": 1793452855.06, "end": 1793452884.68, "depth": 0, "ok": false, "why": "NeedVision: NEED_VISION: look at /Users/serg/w/llm-game-agent/runs/20261031-1518-loop-live-5/ask-1.png, answer with answer(n, x, y), then call goto again", "before": "gameplay", "after": "gameplay"}
+{"t": 1793452854.94, "type": "call", "start": 1793452854.94, "end": 1793452884.68, "cmd": "py goto_bed()"}
+{"t": 1793452890.02, "type": "call", "start": 1793452890.02, "end": 1793452893.51, "cmd": "py label(1, 'GardenBed', 1310, 910, 1510, 1045); label(1, 'Fence', 1100, 460, 1180, 500); label(1, 'Fence', 1320, 460, 1480, 560)"}
+{"t": 1793452907.24, "type": "action", "name": "garden.goto_bed", "args": "", "start": 1793452896.24, "end": 1793452907.24, "depth": 0, "ok": true, "why": null, "before": "gameplay", "after": "gameplay"}
+{"t": 1793452896.12, "type": "call", "start": 1793452896.12, "end": 1793452908.81, "cmd": "py goto_bed()"}
+{"t": 1793452910.87, "type": "call", "start": 1793452910.87, "end": 1793452911.01, "cmd": "look"}
+{"t": 1793452916.04, "type": "call", "start": 1793452916.04, "end": 1793452918.72, "cmd": "pause"}
+{"t": 1793452920.5, "type": "end", "result": "partial", "text": "A ok-ish; B arrived at a pickup bubble (wrong), not a bed"}

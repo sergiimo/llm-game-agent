@@ -273,3 +273,209 @@
 {"t": 1793382449.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
 {"t": 1793382462.7, "what": "pos", "scene": "Farm", "x": 5.77, "z": -27.09, "fresh": true, "secs": 1.4}
 {"t": 1793382463.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793384134.1, "what": "pos", "scene": "Farm", "x": 5.67, "z": -27.09, "fresh": false, "secs": 4.3}
+{"t": 1793384134.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793384141.9, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.34, "fresh": false, "secs": 4.2}
+{"t": 1793384142.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 12]}
+{"t": 1793384157.0, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.34, "fresh": true, "secs": 1.5}
+{"t": 1793384157.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 12]}
+{"t": 1793384198.2, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.09, "fresh": true, "secs": 1.5}
+{"t": 1793384198.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 12]}
+{"t": 1793384219.8, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.09, "fresh": true, "secs": 1.4}
+{"t": 1793384222.4, "what": "fill-pin", "scene": "Farm", "cell": ["map", 14, 12], "pin": null}
+{"t": 1793384230.3, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.09, "fresh": false, "secs": 4.2}
+{"t": 1793384234.5, "what": "fill-pin", "scene": "Farm", "cell": ["map", 14, 12], "pin": null}
+{"t": 1793384234.5, "what": "stuck", "place": "bed 4 (5.8, -25.3) growing wilted", "why": "[eval p1793384230345-19] STUCK (L75): no progress over 3 moves"}
+{"t": 1793384268.3, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.09, "fresh": false, "secs": 4.2}
+{"t": 1793384268.8, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 12]}
+{"t": 1793384276.3, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.09, "fresh": false, "secs": 4.2}
+{"t": 1793384276.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 12]}
+{"t": 1793384281.7, "what": "pos", "scene": "Farm", "x": 5.84, "z": -27.34, "fresh": true, "secs": 1.5}
+{"t": 1793384282.2, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793384291.4, "what": "pos", "scene": "Farm", "x": 5.84, "z": -27.09, "fresh": true, "secs": 1.5}
+{"t": 1793384292.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793384300.1, "what": "pos", "scene": "Farm", "x": 5.84, "z": -27.09, "fresh": false, "secs": 4.3}
+{"t": 1793384300.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793384300.6, "what": "route", "place": "(5.8, -25.3) in Farm", "steps": 2}
+{"t": 1793384310.8, "what": "pos", "scene": "Farm", "x": 5.84, "z": -27.34, "fresh": true, "secs": 1.5}
+{"t": 1793384311.2, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793384314.0, "what": "stuck", "place": "bed 4 (5.8, -25.3) growing wilted", "why": "[eval p1793384313975-31] STUCK (L75): no progress over 3 moves"}
+{"t": 1793384326.2, "what": "pos", "scene": "Farm", "x": 5.84, "z": -27.34, "fresh": true, "secs": 1.5}
+{"t": 1793384326.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793384349.2, "what": "pos", "scene": "Farm", "x": 5.84, "z": -27.34, "fresh": true, "secs": 1.5}
+{"t": 1793384349.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793384355.2, "what": "pos", "scene": "Farm", "x": 5.84, "z": -27.34, "fresh": true, "secs": 1.5}
+{"t": 1793384355.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793384365.1, "what": "img-start", "scene": "Farm", "pred": [5.844, -27.337], "d": 0.0659}
+{"t": 1793384372.9, "what": "pos", "scene": "Farm", "x": 5.84, "z": -27.34, "fresh": true, "secs": 1.5}
+{"t": 1793384373.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793384376.2, "what": "stuck", "place": "well", "why": "[eval p1793384376190-41] STUCK (L75): no progress over 3 moves"}
+{"t": 1793384399.0, "what": "pos", "scene": "Farm", "x": -1.66, "z": -27.34, "fresh": true, "secs": 1.5}
+{"t": 1793384400.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793384415.7, "what": "pos", "scene": "Farm", "x": -1.66, "z": -27.09, "fresh": true, "secs": 1.6}
+{"t": 1793384416.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793384423.7, "what": "pos", "scene": "Farm", "x": -1.66, "z": -27.09, "fresh": false, "secs": 4.3}
+{"t": 1793384424.2, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793384438.8, "what": "pos", "scene": "Farm", "x": -1.66, "z": -27.09, "fresh": true, "secs": 1.5}
+{"t": 1793384439.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793384443.7, "what": "pos", "scene": "Farm", "x": -1.66, "z": -27.09, "fresh": true, "secs": 1.5}
+{"t": 1793384444.2, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793384453.5, "what": "img-start", "scene": "Farm", "pred": [-1.656, -27.087], "d": 0.076}
+{"t": 1793384498.6, "what": "stuck", "place": "well", "why": "[eval p1793384498643-60] STUCK (L75): no progress over 3 moves"}
+{"t": 1793384517.2, "what": "pos", "scene": "Farm", "x": -1.03, "z": -21.71, "fresh": false, "secs": 4.3}
+{"t": 1793384517.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793384535.4, "what": "pos", "scene": "Farm", "x": -1.03, "z": -21.71, "fresh": true, "secs": 1.6}
+{"t": 1793384536.0, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793384544.3, "what": "pos", "scene": "Farm", "x": -3.73, "z": -24.32, "fresh": true, "secs": 1.5}
+{"t": 1793384544.8, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793384544.8, "what": "stuck", "place": "(-1.7, -31.6) in Farm", "why": "step 3/3 walk to Farm:@point: SHORT of (-1.7, -31.6): 7.56 units off at (-3.7, -24.3) after 2 readings"}
+{"t": 1793384557.9, "what": "pos", "scene": "Farm", "x": -3.89, "z": -26.45, "fresh": true, "secs": 1.5}
+{"t": 1793384558.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793384746.2, "what": "pos", "scene": "Farm", "x": -3.72, "z": -23.38, "fresh": true, "secs": 1.5}
+{"t": 1793384746.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793384755.4, "what": "stuck", "place": "farm-garden", "why": "3 moves without progress; last: step 6/9 walk to Farm:trail(2,-16): BLOCKED toward (2.2, -16.5) at (-3.6, -24.4) in Farm: every click refused"}
+{"t": 1793384790.7, "what": "pos", "scene": "Farm", "x": -3.65, "z": -21.79, "fresh": false, "secs": 4.2}
+{"t": 1793384791.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793384791.1, "what": "route", "place": "farm-garden", "steps": 1}
+{"t": 1793384890.7, "what": "pos", "scene": "Farm", "x": -3.65, "z": -21.79, "fresh": false, "secs": 4.2}
+{"t": 1793384891.2, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793384891.2, "what": "route", "place": "farm-garden", "steps": 1}
+{"t": 1793384992.6, "what": "pos", "scene": "Farm", "x": -1.03, "z": -21.71, "fresh": true, "secs": 1.3}
+{"t": 1793384993.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793384993.1, "what": "route", "place": "well", "steps": 1}
+{"t": 1793385007.6, "what": "pos", "scene": "Farm", "x": -1.03, "z": -21.71, "fresh": true, "secs": 1.5}
+{"t": 1793385008.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793385013.0, "what": "pos", "scene": "Farm", "x": -1.03, "z": -21.71, "fresh": true, "secs": 1.5}
+{"t": 1793385013.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 12, 12]}
+{"t": 1793385013.6, "what": "stuck", "place": "ruined-ranch", "why": "3 moves without progress; last: step 3/6 walk to Farm:trail(-4,-26): SHORT of (-4.4, -25.5): 5.10 units off at (-1.0, -21.7) after 2 readings"}
+{"t": 1793385042.0, "what": "pos", "scene": "Farm", "x": -3.24, "z": -23.52, "fresh": true, "secs": 1.5}
+{"t": 1793385042.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 12]}
+{"t": 1793385058.0, "what": "pos", "scene": "Farm", "x": -8.7, "z": -22.15, "fresh": true, "secs": 1.5}
+{"t": 1793385058.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 9, 12]}
+{"t": 1793385068.2, "what": "pos", "scene": "Farm", "x": -12.21, "z": -32.44, "fresh": true, "secs": 1.5}
+{"t": 1793385072.0, "what": "fill-pin", "scene": "Farm", "cell": ["map", 7, 13], "pin": [531, 532]}
+{"t": 1793385094.1, "what": "pos", "scene": "Farm", "x": -7.05, "z": -35.43, "fresh": true, "secs": 1.5}
+{"t": 1793385094.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 13]}
+{"t": 1793385094.6, "what": "route", "place": "ruined-ranch", "steps": 5}
+{"t": 1793385104.1, "what": "pos", "scene": "Farm", "x": -7.05, "z": -35.43, "fresh": false, "secs": 4.3}
+{"t": 1793385104.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 13]}
+{"t": 1793385115.1, "what": "pos", "scene": "Farm", "x": -9.13, "z": -37.49, "fresh": true, "secs": 1.5}
+{"t": 1793385115.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 10, 13]}
+{"t": 1793385115.7, "what": "route", "place": "ruined-ranch", "steps": 1}
+{"t": 1793385172.8, "what": "pos", "scene": "Farm", "x": -4.49, "z": -5.19, "fresh": true, "secs": 1.5}
+{"t": 1793385176.5, "what": "fill-pin", "scene": "Farm", "cell": ["map", 12, 11], "pin": [545, 468]}
+{"t": 1793387011.4, "what": "stuck", "place": "well", "why": "step 1/1 walk to Farm:well: BLOCKED toward (-1.1, -21.4) at (-4.5, -5.2) in Farm: every click refused"}
+{"t": 1793387030.2, "what": "pos", "scene": "Farm", "x": -7.23, "z": -9.98, "fresh": true, "secs": 1.5}
+{"t": 1793387030.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 11]}
+{"t": 1793387047.3, "what": "pos", "scene": "Farm", "x": -7.23, "z": -9.98, "fresh": false, "secs": 4.2}
+{"t": 1793387047.8, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 11]}
+{"t": 1793388338.0, "what": "stuck", "place": "well", "why": "step 1/1 walk to Farm:well: BLOCKED toward (-1.1, -21.4) at (-1.5, -20.5) in Farm: every click refused"}
+{"t": 1793388355.4, "what": "pos", "scene": "Farm", "x": -6.41, "z": -29.39, "fresh": true, "secs": 1.5}
+{"t": 1793388355.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 11, 13]}
+{"t": 1793388400.6, "what": "pos", "scene": "Farm", "x": -1.03, "z": -21.71, "fresh": false, "secs": 4.2}
+{"t": 1793388401.1, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 12]}
+{"t": 1793388405.5, "what": "pos", "scene": "Farm", "x": -1.03, "z": -21.71, "fresh": false, "secs": 4.2}
+{"t": 1793388405.8, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 12]}
+{"t": 1793388405.9, "what": "route", "place": "well", "steps": 4}
+{"t": 1793388417.0, "what": "pos", "scene": "Farm", "x": -0.98, "z": -21.71, "fresh": false, "secs": 4.7}
+{"t": 1793388417.4, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 12]}
+{"t": 1793388438.8, "what": "pos", "scene": "Farm", "x": -0.98, "z": -21.71, "fresh": false, "secs": 4.2}
+{"t": 1793388444.1, "what": "pos", "scene": "Farm", "x": -0.98, "z": -21.71, "fresh": false, "secs": 4.2}
+{"t": 1793388444.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 12]}
+{"t": 1793388450.1, "what": "pos", "scene": "Farm", "x": 7.46, "z": -29.61, "fresh": true, "secs": 1.5}
+{"t": 1793388450.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 17, 13]}
+{"t": 1793388450.6, "what": "route", "place": "(5.8, -29.1) in Farm", "steps": 1}
+{"t": 1793388468.5, "what": "stuck", "place": "well", "why": "step 3/3 walk to Farm:well: MENU OPEN (overlay: Inventory): close it first, never click through menus"}
+{"t": 1793388482.9, "what": "stuck", "place": "well", "why": "step 1/1 walk to Farm:well: MENU OPEN (overlay: Inventory): close it first, never click through menus"}
+{"t": 1793388501.5, "what": "stuck", "place": "well", "why": "step 1/1 walk to Farm:well: MENU OPEN (overlay: Inventory): close it first, never click through menus"}
+{"t": 1793388519.1, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.34, "fresh": false, "secs": 4.2}
+{"t": 1793388519.5, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793389118.8, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.34, "fresh": false, "secs": 4.2}
+{"t": 1793389262.9, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.34, "fresh": false, "secs": 4.2}
+{"t": 1793389282.1, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.34, "fresh": false, "secs": 4.3}
+{"t": 1793390023.2, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.34, "fresh": false, "secs": 4.3}
+{"t": 1793390023.5, "what": "stuck", "place": "well", "why": "no clickable point toward it from (3.3, -27.3) \u00b10.0"}
+{"t": 1793390039.7, "what": "pos", "scene": "Farm", "x": 3.34, "z": -27.34, "fresh": false, "secs": 4.2}
+{"t": 1793390040.2, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793391062.5, "what": "pos", "scene": "Farm", "x": -8.79, "z": -30.33, "fresh": true, "secs": 1.5}
+{"t": 1793391073.9, "what": "pos", "scene": "Farm", "x": -8.79, "z": -30.33, "fresh": false, "secs": 4.2}
+{"t": 1793391090.5, "what": "stuck", "place": "bed 8 (5.8, -29.1) seed watered", "why": "no progress: 2 clicks without moving at (-6.6, -29.6)"}
+{"t": 1793391125.8, "what": "stuck", "place": "well", "why": "[eval p1793391125836-16] STUCK (L75): no progress over 3 moves"}
+{"t": 1793426456.3, "what": "pos", "scene": "Farm", "x": 8.3, "z": -23.68, "fresh": true, "secs": 1.3}
+{"t": 1793426464.5, "what": "stuck", "place": "well", "why": "no clickable point toward it from (5.0, -22.6) \u00b11.6"}
+{"t": 1793426486.3, "what": "pos", "scene": "Farm", "x": 8.3, "z": -23.68, "fresh": false, "secs": 4.3}
+{"t": 1793426504.2, "what": "pos", "scene": "Farm", "x": 0.19, "z": -15.9, "fresh": true, "secs": 1.5}
+{"t": 1793426505.4, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 14, 12]}
+{"t": 1793426523.8, "what": "stuck", "place": "well", "why": "no clickable point toward it from (0.5, -18.6) \u00b11.3"}
+{"t": 1793426573.2, "what": "stuck", "place": "bed 8 (5.8, -29.1) seed watered", "why": "no progress: 2 clicks without moving at (-1.1, -21.0)"}
+{"t": 1793426575.8, "what": "pos", "scene": "Farm", "x": 8.34, "z": -30.13, "fresh": true, "secs": 1.5}
+{"t": 1793426577.0, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 17, 13]}
+{"t": 1793426608.3, "what": "pos", "scene": "Farm", "x": 6.77, "z": -17.62, "fresh": true, "secs": 1.5}
+{"t": 1793426609.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 16, 12]}
+{"t": 1793426620.2, "what": "pos", "scene": "Farm", "x": 6.77, "z": -17.62, "fresh": false, "secs": 4.3}
+{"t": 1793426621.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 16, 12]}
+{"t": 1793426643.4, "what": "pos", "scene": "Farm", "x": 6.77, "z": -17.0, "fresh": true, "secs": 1.3}
+{"t": 1793426644.6, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 16, 12]}
+{"t": 1793426655.6, "what": "pos", "scene": "Farm", "x": 6.77, "z": -17.0, "fresh": false, "secs": 4.3}
+{"t": 1793426656.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 16, 12]}
+{"t": 1793427062.2, "what": "pos", "scene": "Farm", "x": 10.8, "z": -24.08, "fresh": false, "secs": 4.2}
+{"t": 1793427076.6, "what": "pos", "scene": "Farm", "x": 18.92, "z": -26.01, "fresh": true, "secs": 1.5}
+{"t": 1793427136.5, "what": "stuck", "place": "Well (-1.0, -21.7)", "why": "[eval p1793427135851-10] STUCK (L75): no progress over 3 moves"}
+{"t": 1793427159.7, "what": "pos", "scene": "Farm", "x": 4.16, "z": -22.51, "fresh": true, "secs": 1.5}
+{"t": 1793427160.8, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793427170.4, "what": "stuck", "place": "Well (-1.0, -21.7)", "why": "no clickable point toward it from (4.2, -22.5) \u00b10.0"}
+{"t": 1793427184.6, "what": "pos", "scene": "Farm", "x": 4.16, "z": -22.51, "fresh": true, "secs": 1.5}
+{"t": 1793427185.7, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793427413.9, "what": "img-start", "scene": "Farm", "pred": [2.6, -22.385], "d": 0.0899}
+{"t": 1793427744.6, "what": "pos", "scene": "Farm", "x": 4.16, "z": -22.51, "fresh": false, "secs": 4.6}
+{"t": 1793427748.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793427766.8, "what": "stuck", "place": "Well (-1.0, -21.7)", "why": "no progress: 2 clicks without moving at (4.2, -22.5)"}
+{"t": 1793427784.2, "what": "pos", "scene": "Farm", "x": 4.16, "z": -22.51, "fresh": false, "secs": 4.3}
+{"t": 1793427785.3, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793427919.1, "what": "pos", "scene": "Farm", "x": 4.16, "z": -22.51, "fresh": false, "secs": 4.2}
+{"t": 1793427935.9, "what": "pos", "scene": "Farm", "x": 4.16, "z": -22.51, "fresh": false, "secs": 4.3}
+{"t": 1793427949.4, "what": "pos", "scene": "Farm", "x": -5.53, "z": -19.33, "fresh": true, "secs": 1.5}
+{"t": 1793427964.8, "what": "pos", "scene": "Farm", "x": -5.53, "z": -19.33, "fresh": false, "secs": 4.3}
+{"t": 1793427980.9, "what": "pos", "scene": "Farm", "x": -5.53, "z": -19.33, "fresh": false, "secs": 4.3}
+{"t": 1793428012.3, "what": "pos", "scene": "Farm", "x": -5.53, "z": -19.33, "fresh": false, "secs": 4.3}
+{"t": 1793428013.9, "what": "stuck", "place": "Well (-1.0, -21.7)", "why": "[eval p1793428012287-16] STUCK (L75): no progress over 3 moves"}
+{"t": 1793428818.1, "what": "pos", "scene": "Farm", "x": -1.09, "z": -21.05, "fresh": false, "secs": 4.2}
+{"t": 1793428819.4, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 12]}
+{"t": 1793428830.2, "what": "stuck", "place": "bed 8 (5.8, -29.1) growing watered", "why": "no clickable point toward it from (-1.1, -21.0) \u00b10.0"}
+{"t": 1793428835.6, "what": "pos", "scene": "Farm", "x": -1.09, "z": -21.05, "fresh": false, "secs": 4.2}
+{"t": 1793428836.8, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 12]}
+{"t": 1793428850.2, "what": "pos", "scene": "Farm", "x": -3.5, "z": -22.2, "fresh": true, "secs": 1.5}
+{"t": 1793428851.4, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 13, 12]}
+{"t": 1793428870.0, "what": "pos", "scene": "Farm", "x": -3.5, "z": -22.2, "fresh": false, "secs": 4.2}
+{"t": 1793428872.1, "what": "stuck", "place": "bed 8 (5.8, -29.1) growing watered", "why": "no clickable point toward it from (1.5, -27.1) \u00b13.0"}
+{"t": 1793428888.8, "what": "pos", "scene": "Farm", "x": 4.81, "z": -26.95, "fresh": true, "secs": 1.5}
+{"t": 1793428889.9, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 16, 12]}
+{"t": 1793428956.0, "what": "pos", "scene": "Farm", "x": 4.81, "z": -26.95, "fresh": false, "secs": 3.9}
+{"t": 1793429101.0, "what": "pos", "scene": "Farm", "x": 3.95, "z": -22.5, "fresh": false, "secs": 3.9}
+{"t": 1793429111.1, "what": "pos", "scene": "Farm", "x": 3.95, "z": -22.5, "fresh": false, "secs": 3.9}
+{"t": 1793429196.8, "what": "pos", "scene": "Farm", "x": 3.95, "z": -22.5, "fresh": false, "secs": 3.9}
+{"t": 1793429206.3, "what": "pos", "scene": "Farm", "x": 3.95, "z": -22.5, "fresh": false, "secs": 3.9}
+{"t": 1793429215.3, "what": "pos", "scene": "Farm", "x": 3.95, "z": -22.5, "fresh": false, "secs": 3.9}
+{"t": 1793429224.5, "what": "pos", "scene": "Farm", "x": 3.95, "z": -22.5, "fresh": false, "secs": 3.9}
+{"t": 1793429233.4, "what": "pos", "scene": "Farm", "x": 3.95, "z": -22.5, "fresh": false, "secs": 3.9}
+{"t": 1793429233.7, "what": "stuck", "place": "Well#13 Farm (-1.09, -21.05)", "why": "[eval p1793429233358-13] STUCK (L75): no progress over 3 moves"}
+{"t": 1793429247.9, "what": "pos", "scene": "Farm", "x": 3.95, "z": -22.5, "fresh": false, "secs": 3.9}
+{"t": 1793429248.2, "what": "fill-pin", "skip": "not on a road", "cell": ["map", 15, 12]}
+{"t": 1793430016.8, "what": "pos", "scene": "Farm", "x": 3.95, "z": -22.5, "fresh": false, "secs": 3.9}
+{"t": 1793430025.4, "what": "pos", "scene": "Farm", "x": 3.95, "z": -22.5, "fresh": false, "secs": 3.9}
+{"t": 1793430034.0, "what": "pos", "scene": "Farm", "x": 3.95, "z": -22.5, "fresh": false, "secs": 3.9}
+{"t": 1793430050.8, "what": "pos", "scene": "Farm", "x": 3.95, "z": -22.5, "fresh": false, "secs": 3.9}
+{"t": 1793430051.2, "what": "stuck", "place": "Well#13 Farm (-1.09, -21.05)", "why": "[eval p1793430050775-9] STUCK (L75): no progress over 3 moves"}
+{"t": 1793430119.6, "what": "pos", "scene": "Farm", "x": 2.78, "z": -22.51, "fresh": true, "secs": 1.1}
+{"t": 1793430127.0, "what": "pos", "scene": "Farm", "x": -9.8, "z": -8.2, "fresh": true, "secs": 1.1}
+{"t": 1793430132.7, "what": "pos", "scene": "Farm", "x": -5.59, "z": -11.44, "fresh": true, "secs": 1.1}
+{"t": 1793430136.6, "what": "pos", "scene": "Farm", "x": -8.18, "z": -9.78, "fresh": true, "secs": 1.1}
+{"t": 1793430141.0, "what": "pos", "scene": "Farm", "x": -7.05, "z": -10.23, "fresh": true, "secs": 1.1}
+{"t": 1793430146.8, "what": "pos", "scene": "Farm", "x": -7.09, "z": -9.97, "fresh": true, "secs": 1.2}
+{"t": 1793430150.1, "what": "stuck", "place": "Well#13 Farm (-1.09, -21.05)", "why": "no progress: 2 clicks without moving at (-7.1, -10.4)"}
+{"t": 1793430169.5, "what": "stuck", "place": "Well#13 Farm (-1.09, -21.05)", "why": "no progress: 2 clicks without moving at (-7.1, -10.4)"}
+{"t": 1793450079.2, "what": "pos", "scene": "Farm", "x": -1.09, "z": -21.05, "fresh": false, "secs": 4.2}
+{"t": 1793450082.5, "what": "fill-pin", "scene": "Farm", "cell": ["map", 13, 12], "pin": [531, 493]}
+{"t": 1793450901.2, "what": "log-reading", "scene": "Farm", "x": -4.41, "z": -24.17}
+{"t": 1793452475.7, "what": "pos", "scene": "Farm", "x": -1.66, "z": -33.59, "fresh": true, "secs": 1.3}
+{"t": 1793452796.0, "what": "log-reading", "scene": "Farm", "x": -4.42, "z": -21.69}

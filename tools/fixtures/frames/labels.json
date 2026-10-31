@@ -1,0 +1,339 @@
+{
+ "_doc": "Ground truth for tools/fixtures/frames/*.jpg (D150 ~1-2 pm, rain), game coords 1920x1080. Boxes are loose regions (a row of hives = one region); a detection is a hit when its point lies inside a box of its kind. 'absent' kinds must not be detected. Read by the supervisor from the frames, 2026-10-31. region = the region Tara is in (zoom frames: inside the Garden).",
+ "normal-1": {
+  "Tara": [
+   [
+    920,
+    500,
+    990,
+    640
+   ]
+  ],
+  "BeeHive": [
+   [
+    760,
+    190,
+    1220,
+    270
+   ]
+  ],
+  "GardenBed": [
+   [
+    740,
+    270,
+    1200,
+    420
+   ]
+  ],
+  "Well": [
+   [
+    790,
+    110,
+    900,
+    210
+   ]
+  ],
+  "HouseDoor": [
+   [
+    1620,
+    180,
+    1700,
+    300
+   ]
+  ],
+  "Gate": [
+   [
+    1760,
+    270,
+    1910,
+    450
+   ]
+  ],
+  "Mailbox": [
+   [
+    1700,
+    420,
+    1750,
+    480
+   ]
+  ],
+  "absent": [],
+  "region": "Farm",
+  "Garden": [
+   [
+    740,
+    110,
+    1220,
+    420
+   ]
+  ]
+ },
+ "normal-2": {
+  "Tara": [
+   [
+    930,
+    500,
+    1010,
+    680
+   ]
+  ],
+  "BeeHive": [
+   [
+    320,
+    270,
+    720,
+    350
+   ]
+  ],
+  "GardenBed": [
+   [
+    180,
+    350,
+    760,
+    500
+   ]
+  ],
+  "Well": [
+   [
+    300,
+    120,
+    380,
+    200
+   ]
+  ],
+  "HouseDoor": [
+   [
+    1240,
+    210,
+    1310,
+    330
+   ]
+  ],
+  "Gate": [
+   [
+    1270,
+    350,
+    1480,
+    520
+   ]
+  ],
+  "Mailbox": [
+   [
+    1200,
+    520,
+    1260,
+    600
+   ]
+  ],
+  "absent": [],
+  "region": "Farm",
+  "Garden": [
+   [
+    180,
+    120,
+    760,
+    500
+   ]
+  ]
+ },
+ "zoom-1": {
+  "Tara": [
+   [
+    900,
+    480,
+    1000,
+    720
+   ]
+  ],
+  "BeeHive": [
+   [
+    60,
+    220,
+    860,
+    370
+   ]
+  ],
+  "GardenBed": [
+   [
+    0,
+    360,
+    890,
+    720
+   ]
+  ],
+  "HouseDoor": [
+   [
+    1760,
+    120,
+    1920,
+    330
+   ]
+  ],
+  "absent": [
+   "Garden",
+   "Gate",
+   "Mailbox",
+   "Well"
+  ],
+  "region": "Garden"
+ },
+ "zoom-2": {
+  "Tara": [
+   [
+    900,
+    480,
+    1010,
+    700
+   ]
+  ],
+  "BeeHive": [
+   [
+    220,
+    200,
+    1010,
+    350
+   ]
+  ],
+  "GardenBed": [
+   [
+    170,
+    360,
+    1020,
+    640
+   ]
+  ],
+  "Well": [
+   [
+    330,
+    0,
+    450,
+    110
+   ]
+  ],
+  "HouseDoor": [
+   [
+    1780,
+    60,
+    1920,
+    280
+   ]
+  ],
+  "absent": [
+   "Garden",
+   "Gate",
+   "Mailbox"
+  ],
+  "region": "Garden"
+ },
+ "zoom-3": {
+  "Well": [
+   [
+    800,
+    220,
+    1090,
+    460
+   ]
+  ],
+  "BeeHive": [
+   [
+    700,
+    570,
+    1920,
+    820
+   ]
+  ],
+  "GardenBed": [
+   [
+    680,
+    820,
+    1920,
+    1080
+   ]
+  ],
+  "absent": [
+   "Garden",
+   "Gate",
+   "HouseDoor",
+   "Mailbox",
+   "Tara"
+  ],
+  "region": "Garden"
+ },
+ "live3-garden": {
+  "GardenBed": [
+   [
+    535,
+    600,
+    820,
+    740
+   ],
+   [
+    820,
+    600,
+    1100,
+    740
+   ],
+   [
+    1100,
+    600,
+    1385,
+    740
+   ],
+   [
+    1385,
+    600,
+    1672,
+    740
+   ],
+   [
+    450,
+    770,
+    800,
+    910
+   ],
+   [
+    800,
+    770,
+    1110,
+    910
+   ],
+   [
+    1110,
+    770,
+    1420,
+    910
+   ],
+   [
+    1420,
+    770,
+    1810,
+    910
+   ],
+   [
+    390,
+    915,
+    780,
+    1080
+   ],
+   [
+    780,
+    915,
+    1130,
+    1080
+   ],
+   [
+    1130,
+    915,
+    1480,
+    1080
+   ],
+   [
+    1480,
+    915,
+    1840,
+    1080
+   ]
+  ],
+  "region": "Garden"
+ }
+}

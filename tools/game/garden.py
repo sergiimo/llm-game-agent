@@ -6,7 +6,10 @@ when the planting panel closes (also when cancelled), `[STATS] totalPlanted.<See
 Carrot 10, Tulip 22 on D148); clicking one opens its detail card (title + Select)."""
 from dataclasses import dataclass
 
-from . import core, ui, well
+from objects import loop
+from objects.query import Q
+
+from . import affordances, core, ui, well
 from .core import Failed, action, prove
 from .move import goto
 
@@ -53,6 +56,14 @@ def _bed(b):
 
 
 @action
+def goto_bed(**state):
+    """Walk to a bed with the given graph state (`goto_bed(crop=None)` = an unplanted one) on the object loop: clicks the
+    bed as soon as it is visible. Returns the loop's Arrival (the bed's bubble is up); doesn't plant. NeedVision
+    propagates (answer with `loop.answer(n, X, Y)` and call again)."""
+    return loop.goto(Q(kind='GardenBed').where(**state), core.WF)
+
+
+@action
 def unplant(b):
     """Dig up a wilted plant: bubble → wilted card → confirm "Remove" (all inside). Refuses a healthy plant."""
     b = _bed(b)
@@ -72,34 +83,36 @@ def unplant(b):
 
 @action
 def plant(b, seed='Tulip'):
-    """Plant `seed` in an empty bed: bubble → planting panel → the seed's card → Select; then water it."""
+    """Plant `seed` in an empty bed: bubble → planting panel → the seed's card → Select. Doesn't water (M3: one job
+    per skill; `water(b)` is its own call)."""
     b = _bed(b)
-    goto(b)
     mark = core.WF.log_mark()
-    ui.press_bubble()
+    affordances.press('plant', b)
     if not ui.shows('Seeds', wait=2.0):  # `> plant` is logged only when the panel closes, so check the screen
         raise Failed(f'plant {b}: the planting panel did not open (screen: {core.screen()})')
     ui.pick_card(seed)
     ui.press('Select')
     prove(f'plant {seed} in {b}', rf'totalPlanted\.{seed}', mark)
-    water(b)
     return b
 
 
 @action
 def water(b):
-    """Water a bed; refills the can at the well when the pour doesn't happen, then tries once more."""
+    """Water a bed. Only when the game says the can is empty (`> out_of_water` at this bed) does it fill the can at the
+    well and come back (M3: no hidden trips without cause)."""
     b = _bed(b)
-    for attempt in range(2):
-        goto(b)
-        mark = core.WF.log_mark()
-        ui.press_bubble()
-        if core.seen(r'> water ', mark, at=(b.x, b.z)):
-            return b
-        if attempt == 0:
-            ui.close()
-            well.fill_can()
-    prove(f'water {b}', r'> water ', mark, at=(b.x, b.z), wait=0)
+    mark = core.WF.log_mark()
+    affordances.press('water', b)  # its bubble if showing (no walk), else walk there first
+    if core.seen(r'> water ', mark, at=(b.x, b.z)):
+        return b
+    if not core.seen(r'> out_of_water ', mark, wait=0, at=(b.x, b.z)):
+        raise Failed(f'water {b}: no `> water` and no `> out_of_water` at this bed (screen: {core.screen()})')
+    ui.close()
+    well.fill_can()
+    mark = core.WF.log_mark()
+    affordances.press('water', b)
+    prove(f'water {b} (after filling the can)', r'> water ', mark, at=(b.x, b.z))
+    return b
 
 
 @action
@@ -115,7 +128,7 @@ def harvest(b):
 
 @action
 def replant(b, seed='Tulip'):
-    """A wilted bed → dig up → plant `seed` → water."""
+    """A wilted bed → dig up → plant `seed` (water is its own call)."""
     b = _bed(b)
     unplant(b)
     plant(b, seed)

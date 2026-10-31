@@ -72,8 +72,8 @@ The Gloaming is a location that can be reached by magic.
 - **House doorway → kitchen stove** ✅ (run #12): the table, chairs and bed rail make a maze. `up:0.5 left:0.8` (lane right of the bed foot; a bed zzz bubble shows, don't press Space) → `down:0.8 right:0.5 up:0.9` (lane by the partition/fridge) → `up:0.3 left:0.5` (in front of the sink; the chair blocks left) → `up:0.4 nw:0.5` → beside the stove, orange "?" bubble.
 - **Right room (by Gramma's bed / rocking chair) ↔ stove** ✅ (run #12b): to the stove `down:0.9 left:0.5 up:0.9` (fridge lane) → `left:0.4 up:0.4 nw:0.5`. Back: `se:0.5 right:0.6 down:0.9 right:0.6 up:0.7` → `right:0.4 up:0.6` → Gramma's bubble when she sits on her bed (left side, below the nightstand lamp). Gramma is on her bed, awake with "!", from ~22:00.
 - **Meadow → farmhouse** ✅ `./wf route farm-meadow-to-farmhouse`.
-- **Pine meadow south of the farmhouse → house:** `walk right 0.8`, then up in short steps (`look` after each) until
-  aligned with the garden gate arch, then `walk up 2.5`: Tara walks through the gate and porch into the house.
+- **Pine meadow south of the farmhouse → house:** click the house's red front door (`go:` on it); the gate arch is not
+  needed — she jumps the fence (basic-actions, L90). (Old keyboard version via the arch: disabled, L54.)
 - **Farmhouse → Town Hall** ✅ `./wf route farmhouse-rocking-chair-to-town-hall` (from beside the rocking chair; ~1 game-hour).
   Exit the house: from the rocking chair `down 0.4, left 1.0, down 1.5` (the left room above the porch rail) → `right 0.6,
   down 2.0` (through the rail gap and the gate arch, mailbox on the left) → the dirt road runs **east** past the tool shed →

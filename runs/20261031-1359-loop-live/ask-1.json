@@ -1,0 +1,1 @@
+{"goal": "('Well', None, [])", "step": "stuck: the frame does not change", "n": 1, "detections": [{"kind": "Garden", "point": [560, 190], "z": 3.59}, {"kind": "Garden", "point": [474, 198], "z": 3.56}, {"kind": "Garden", "point": [350, 190], "z": 3.5}, {"kind": "Garden", "point": [231, 180], "z": 3.32}, {"kind": "Garden", "point": [1550, 190], "z": 3.15}]}

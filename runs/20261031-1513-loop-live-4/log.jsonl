@@ -1,0 +1,606 @@
+{"t": 1793452410.89, "type": "start", "quest": "loop-live-4", "goal": "rerun goto_bed() with raw thresholds and any-bubble arrival"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 10:57:31 AM] > scene_change me=Player target=LinkTown"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 10:57:40 AM] [GAME] ChangeScene Town/LinkFarm"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 10:57:40 AM] [MODE] Spawning player at Town/LinkFarm"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 10:57:40 AM] > enter_scene me=Player target=null"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:09:56 AM] [TRIGGER] OnEnterBuilding Carpenter"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:10:56 AM] > parker_trade me=Player target=Parker"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:11:05 AM] [GAME] ChangeScene Farm/DefaultSpawnPoint"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:11:05 AM] [MODE] Spawning player at Farm/DefaultSpawnPoint"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:11:05 AM] > construction_show_vegetablepatch me=Player target=null"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:11:05 AM] [QUEST] Restarting BuildVegetablePatch which was already started"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:11:05 AM] [QUEST] Reset quest BuildVegetablePatch"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:11:05 AM] [QUEST] Start quest BuildVegetablePatch day 151"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:11:05 AM] [GAME] ChangeScene Town/CarpenterCustomer1"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:11:05 AM] [MODE] Spawning player at Town/CarpenterCustomer1"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:11:14 AM] > goal_notification me=Player target=QuestState"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:12:22 AM] [TRIGGER] OnExitBuilding Carpenter"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:24:18 AM] > scene_change me=Player target=LinkFarm"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:24:27 AM] [GAME] ChangeScene Farm/LinkTown"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:24:27 AM] [MODE] Spawning player at Farm/LinkTown"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:24:27 AM] > enter_scene me=Player target=null"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:25:58 AM] > grab_item me=Player target=Stone(Clone) at (50.24, 0.12, -47.15)"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:29:30 AM] > grab_item me=Player target=Stone(Clone) at (35.94, 0.12, -52.29)"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:29:38 AM] > grab_item me=Player target=Stone(Clone) at (35.94, 0.12, -52.06)"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:30:21 AM] > grab_item me=Player target=Stone(Clone) at (34.53, 0.12, -50.96)"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:31:06 AM] > grab_item me=Player target=Weed(Clone) at (33.31, 0.12, -48.45)"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:31:16 AM] > grab_item me=Player target=Stone(Clone) at (32.22, 0.12, -49.78)"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:31:25 AM] > grab_item me=Player target=Stone(Clone) at (33.22, 0.12, -49.93)"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:31:33 AM] > grab_item me=Player target=Stone(Clone) at (32.97, 0.12, -50.74)"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:32:10 AM] > grab_item me=Player target=Stone(Clone) at (35.43, 0.12, -52.31)"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:36:27 AM] > grab_item me=Player target=Weed(Clone) at (18.26, 0.12, -69.45)"}
+{"t": 1793452429.06, "type": "game", "line": "[D151 11:37:21 AM] > PlayerGardening_35_1 me=Player target=WoodBranch(Clone) at (16.21, 0.12, -59.97)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:38:24 AM] [DAMAGE] Damage 30 to WoodBranch(Clone) (Damageable) (damage = 30), transitioning to final state 1 and destroying"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:38:24 AM] [STATS] totalDestroyed.WoodBranch = 62"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:38:24 AM] > Mining_1_4 me=Player target=WoodBranch(Clone) at (16.21, 0.12, -59.97)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:39:01 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:39:11 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:39:28 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:40:32 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (12.55, 0.12, -69.46)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:41:55 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (12.55, 0.12, -69.46)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:42:12 AM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 40), transitioning to final state 1 and destroying"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:42:12 AM] [STATS] totalDestroyed.TreePine = 29"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:42:12 AM] > Mining_1_4 me=Player target=TreePine(Clone) at (12.55, 0.12, -69.46)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:42:58 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:43:15 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:43:54 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:44:37 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:46:19 AM] > grab_item me=Player target=Weed(Clone) at (2.72, 0.12, -59.71)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:47:19 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:48:22 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (3.46, 0.12, -58.11)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:49:28 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (3.46, 0.12, -58.11)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:49:45 AM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 40), transitioning to final state 1 and destroying"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:49:45 AM] [STATS] totalDestroyed.TreePine = 30"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:49:45 AM] > Mining_1_4 me=Player target=TreePine(Clone) at (3.46, 0.12, -58.11)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:50:27 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:50:36 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:51:05 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:51:40 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:52:11 AM] > PlayerGardening_35_1 me=Player target=TreeMaple(Clone) at (5.60, 0.12, -66.42)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:52:54 AM] [DAMAGE] Damage 30 to TreeMaple(Clone) (Damageable) (damage = 30), transitioning to final state 1 and destroying"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:52:54 AM] [STATS] totalDestroyed.TreeMaple = 6"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:52:54 AM] > Mining_1_4 me=Player target=TreeMaple(Clone) at (5.60, 0.12, -66.42)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:54:11 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:54:41 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:55:26 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:56:13 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (18.55, 0.12, -63.63)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:57:16 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (18.55, 0.12, -63.63)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:57:33 AM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 40), transitioning to final state 1 and destroying"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:57:33 AM] [STATS] totalDestroyed.TreePine = 31"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:57:33 AM] > Mining_1_4 me=Player target=TreePine(Clone) at (18.55, 0.12, -63.63)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:58:19 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:58:43 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 11:59:07 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 12:00:41 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 12:01:06 PM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (23.48, 0.12, -63.25)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 12:03:40 PM] > grab_item me=Player target=Weed(Clone) at (21.65, 0.12, -63.58)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 12:04:48 PM] > grab_item me=Player target=Weed(Clone) at (20.94, 0.12, -61.43)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 12:05:44 PM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (18.92, 0.12, -57.32)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 12:06:27 PM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 30), transitioning to final state 1 and destroying"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 12:06:27 PM] [STATS] totalDestroyed.TreePine = 32"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 12:06:27 PM] > Mining_1_4 me=Player target=TreePine(Clone) at (18.92, 0.12, -57.32)"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 12:07:14 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.07, "type": "game", "line": "[D151 12:07:28 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:08:21 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:09:12 PM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (18.40, 0.12, -52.45)"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:09:50 PM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 30), transitioning to final state 1 and destroying"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:09:50 PM] [STATS] totalDestroyed.TreePine = 33"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:09:50 PM] > Mining_1_4 me=Player target=TreePine(Clone) at (18.40, 0.12, -52.45)"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:10:53 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:11:24 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:11:33 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:13:19 PM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (-1.97, 0.12, -57.70)"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:14:19 PM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (-1.97, 0.12, -57.70)"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:15:02 PM] > stamina_fail me=Player target=null"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:15:02 PM] Player: I'm all out of strength!"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:15:44 PM] [STATS] totalConsumed.Coffee = 1"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:16:32 PM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (-1.97, 0.12, -57.70)"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:18:15 PM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (-1.97, 0.12, -57.70)"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:18:54 PM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 100), transitioning to final state 2 and destroying"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:18:54 PM] [STATS] totalDestroyed.TreePine = 34"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:18:54 PM] > Mining_1_4 me=Player target=TreePine(Clone) at (-1.97, 0.12, -57.70)"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:19:37 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:19:49 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:20:20 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:20:59 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:21:49 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:22:06 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:22:25 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:22:54 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:23:16 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:23:48 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:24:30 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:25:07 PM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (-2.56, 0.12, -65.81)"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:26:12 PM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (-2.56, 0.12, -65.81)"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:27:04 PM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (-2.56, 0.12, -65.81)"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:28:36 PM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (-2.56, 0.12, -65.81)"}
+{"t": 1793452429.08, "type": "game", "line": "[D151 12:28:54 PM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 100), transitioning to final state 2 and destroying"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:28:54 PM] [STATS] totalDestroyed.TreePine = 35"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:28:54 PM] > Mining_1_4 me=Player target=TreePine(Clone) at (-2.56, 0.12, -65.81)"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:29:42 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:30:24 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:30:51 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:31:38 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:32:04 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:32:22 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:33:05 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:33:40 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:34:05 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:37:28 PM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:44:13 PM] [TRIGGER] OnEnterBuilding House"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:44:40 PM] > sleep14 me=Player target=Bed"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:44:40 PM] > sleep_transition me=Player target=null"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:47:22 PM] > advance_day me=Player target=null"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:47:31 PM] [GAME] ChangeScene Farm/Bed"}
+{"t": 1793452429.09, "type": "game", "line": "[D151 12:47:31 PM] [MODE] Spawning player at Farm/Bed"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:00:00 AM] > day_start_intro me=Player target=null"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:00:32 AM] > trigger_startday_events me=Player target=null"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:00:35 AM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:02:27 AM] > grab_item me=Player target=Weed(Clone) at (9.98, 0.12, -47.72)"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:03:26 AM] > grab_item me=Player target=Weed(Clone) at (3.26, 0.12, -49.11)"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:05:21 AM] > PlayerGardening_35_1 me=Player target=TreeOak(Clone) at (24.67, 0.12, -49.42)"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:06:43 AM] > PlayerGardening_35_1 me=Player target=TreeOak(Clone) at (24.67, 0.12, -49.42)"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:07:23 AM] > PlayerGardening_35_1 me=Player target=TreeOak(Clone) at (24.67, 0.12, -49.42)"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:08:25 AM] > PlayerGardening_35_1 me=Player target=TreeOak(Clone) at (24.67, 0.12, -49.42)"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:08:43 AM] [DAMAGE] Damage 30 to TreeOak(Clone) (Damageable) (damage = 100), transitioning to final state 2 and destroying"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:08:43 AM] [STATS] totalDestroyed.TreeOak = 22"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:08:43 AM] > Mining_1_4 me=Player target=TreeOak(Clone) at (24.67, 0.12, -49.42)"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:09:10 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:09:22 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:09:57 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.09, "type": "game", "line": "[D152 7:10:10 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:10:31 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:10:45 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:11:35 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:11:44 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:11:59 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:12:02 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:12:42 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:12:48 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:15:05 AM] > grab_item me=Player target=Weed(Clone) at (21.77, 0.12, -56.81)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:15:27 AM] > PlayerGardening_35_1 me=Player target=WoodBranch(Clone) at (24.80, 0.12, -54.14)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:16:04 AM] [DAMAGE] Damage 30 to WoodBranch(Clone) (Damageable) (damage = 30), transitioning to final state 1 and destroying"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:16:04 AM] [STATS] totalDestroyed.WoodBranch = 63"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:16:04 AM] > Mining_1_4 me=Player target=WoodBranch(Clone) at (24.80, 0.12, -54.14)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:16:46 AM] > PlayerGardening_35_1 me=Player target=WoodBranch(Clone) at (24.40, 0.12, -52.43)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:17:21 AM] [DAMAGE] Damage 30 to WoodBranch(Clone) (Damageable) (damage = 30), transitioning to final state 1 and destroying"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:17:21 AM] [STATS] totalDestroyed.WoodBranch = 64"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:17:21 AM] > Mining_1_4 me=Player target=WoodBranch(Clone) at (24.40, 0.12, -52.43)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:18:44 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (23.48, 0.12, -63.25)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:19:37 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (23.48, 0.12, -63.25)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:20:17 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (23.48, 0.12, -63.25)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:21:10 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (23.48, 0.12, -63.25)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:21:27 AM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 100), transitioning to final state 2 and destroying"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:21:27 AM] [STATS] totalDestroyed.TreePine = 36"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:21:27 AM] > Mining_1_4 me=Player target=TreePine(Clone) at (23.48, 0.12, -63.25)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:23:09 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:23:25 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:24:16 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:24:26 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:24:51 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:25:28 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:25:40 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:25:51 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:26:19 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:26:31 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:27:25 AM] > grab_item me=Player target=Weed(Clone) at (26.45, 0.12, -60.65)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:27:55 AM] > grab_item me=Player target=Weed(Clone) at (26.77, 0.12, -56.98)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:28:47 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (23.88, 0.12, -57.36)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:29:50 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:30:21 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (23.88, 0.12, -57.36)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:31:02 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (23.88, 0.12, -57.36)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:32:18 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (23.88, 0.12, -57.36)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:32:35 AM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 100), transitioning to final state 2 and destroying"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:32:35 AM] [STATS] totalDestroyed.TreePine = 37"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:32:35 AM] > Mining_1_4 me=Player target=TreePine(Clone) at (23.88, 0.12, -57.36)"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:34:07 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:34:19 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:34:34 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:35:06 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:35:17 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:35:25 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:35:36 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:36:05 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:36:45 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.1, "type": "game", "line": "[D152 7:36:53 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:37:00 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:37:06 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:37:49 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:38:05 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:39:03 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:39:41 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:40:26 AM] > stamina_fail me=Player target=null"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:40:26 AM] Player: I'm all out of strength!"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:41:28 AM] [STATS] totalConsumed.MushroomRisotto = 82"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:41:28 AM] [STATS] totalConsumed.MushroomRisotto = 83"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:41:28 AM] [STATS] totalConsumed.MushroomRisotto = 84"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:41:28 AM] [STATS] totalConsumed.MushroomRisotto = 85"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:41:28 AM] [STATS] totalConsumed.MushroomRisotto = 86"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:41:28 AM] [STATS] totalConsumed.MushroomRisotto = 87"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:42:04 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (30.12, 0.12, -51.83)"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:43:32 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (30.12, 0.12, -51.83)"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:44:12 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (30.12, 0.12, -51.83)"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:45:14 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (30.12, 0.12, -51.83)"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:45:32 AM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 100), transitioning to final state 2 and destroying"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:45:32 AM] [STATS] totalDestroyed.TreePine = 38"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:45:32 AM] > Mining_1_4 me=Player target=TreePine(Clone) at (30.12, 0.12, -51.83)"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:46:17 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:46:26 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:46:33 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:46:58 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:47:39 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:48:22 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:48:46 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:49:33 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:50:13 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:50:34 AM] > grab_item me=Player target=Weed(Clone) at (31.28, 0.12, -48.83)"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:50:58 AM] > grab_item me=Player target=Weed(Clone) at (32.83, 0.12, -48.91)"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:51:55 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:52:33 AM] > grab_item me=Player target=Weed(Clone) at (35.98, 0.12, -48.23)"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:54:45 AM] > PlayerGardening_35_1 me=Player target=TreeOak(Clone) at (32.90, 0.12, -63.60)"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:55:46 AM] > PlayerGardening_35_1 me=Player target=TreeOak(Clone) at (32.90, 0.12, -63.60)"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:56:23 AM] > PlayerGardening_35_1 me=Player target=TreeOak(Clone) at (32.90, 0.12, -63.60)"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:58:03 AM] > PlayerGardening_35_1 me=Player target=TreeOak(Clone) at (32.90, 0.12, -63.60)"}
+{"t": 1793452429.11, "type": "game", "line": "[D152 7:58:21 AM] [DAMAGE] Damage 30 to TreeOak(Clone) (Damageable) (damage = 100), transitioning to final state 2 and destroying"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 7:58:21 AM] [STATS] totalDestroyed.TreeOak = 23"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 7:58:21 AM] > Mining_1_4 me=Player target=TreeOak(Clone) at (32.90, 0.12, -63.60)"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 7:59:05 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 7:59:16 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 7:59:31 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:00:20 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:00:29 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:00:36 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:00:44 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:01:10 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:01:43 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:01:51 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:02:35 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:02:57 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:04:40 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:09:30 AM] > grab_item me=Player target=Thistle(Clone) at (21.91, 0.12, -86.63)"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:10:15 AM] > grab_item me=Player target=Weed(Clone) at (27.95, 0.12, -85.24)"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:10:40 AM] > grab_item me=Player target=#-1457779501"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:20:47 AM] > hit_rock me=Player target=Boulder"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:22:20 AM] > hit_rock me=Player target=Boulder"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:23:25 AM] > hit_rock me=Player target=Boulder"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:24:15 AM] > hit_rock me=Player target=Boulder"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:25:20 AM] > hit_rock me=Player target=Boulder"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:26:10 AM] > hit_rock me=Player target=Boulder"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:27:55 AM] > grab_item me=Player target=Stone(Clone) at (-53.84, 0.13, -50.65)"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:28:33 AM] > grab_item me=Player target=Stone(Clone) at (-55.23, 0.14, -49.96)"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:29:13 AM] > grab_item me=Player target=Stone(Clone) at (-57.53, 0.15, -50.80)"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:29:45 AM] > grab_item me=Player target=Stone(Clone) at (-58.02, 0.15, -47.37)"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:30:00 AM] > stamina_fail me=Player target=null"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:30:00 AM] Player: I'm all out of strength!"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:30:33 AM] > stamina_fail me=Player target=null"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:30:33 AM] Player: I'm all out of strength!"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:32:39 AM] [STATS] totalConsumed.Wine = 1"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:32:39 AM] [STATS] totalConsumed.Wine = 2"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:32:39 AM] [STATS] totalConsumed.CreamCheese = 10"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:33:50 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (-50.77, 0.12, -54.03)"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:42:23 AM] [TRIGGER] OnEnterBuilding House"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:42:59 AM] > sleep me=Player target=Bed"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:42:59 AM] > sleep_transition me=Player target=null"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:45:48 AM] > advance_day me=Player target=null"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:45:57 AM] [GAME] ChangeScene Farm/Bed"}
+{"t": 1793452429.12, "type": "game", "line": "[D152 8:45:57 AM] [MODE] Spawning player at Farm/Bed"}
+{"t": 1793452429.12, "type": "game", "line": "[D153 7:00:00 AM] > day_start_intro me=Player target=null"}
+{"t": 1793452429.12, "type": "game", "line": "[D153 7:01:58 AM] > trigger_startday_events me=Player target=null"}
+{"t": 1793452429.12, "type": "game", "line": "[D153 7:02:02 AM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793452429.12, "type": "game", "line": "[D153 7:03:13 AM] > water me=Player target=GardenBed (4) at (5.84, 0.10, -31.59)"}
+{"t": 1793452429.12, "type": "game", "line": "[D153 7:06:08 AM] > water me=Player target=GardenBed(Clone) at (5.84, 0.10, -29.09)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:08:57 AM] > water me=Player target=GardenBed (3) at (3.34, 0.10, -31.59)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:11:19 AM] > water me=Player target=GardenBed(Clone) at (0.84, 0.10, -31.59)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:13:23 AM] > water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -31.59)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:21:22 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (28.05, 0.12, -56.86)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:22:25 AM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 30), transitioning to final state 1 and destroying"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:22:25 AM] [STATS] totalDestroyed.TreePine = 39"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:22:25 AM] > Mining_1_4 me=Player target=TreePine(Clone) at (28.05, 0.12, -56.86)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:24:10 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:24:43 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:25:17 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:26:38 AM] > PlayerGardening_35_1 me=Player target=TreeOak(Clone) at (29.60, 0.12, -74.59)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:27:38 AM] > PlayerGardening_35_1 me=Player target=TreeOak(Clone) at (29.60, 0.12, -74.59)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:28:16 AM] > PlayerGardening_35_1 me=Player target=TreeOak(Clone) at (29.60, 0.12, -74.59)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:29:08 AM] > PlayerGardening_35_1 me=Player target=TreeOak(Clone) at (29.60, 0.12, -74.59)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:29:26 AM] [DAMAGE] Damage 30 to TreeOak(Clone) (Damageable) (damage = 100), transitioning to final state 2 and destroying"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:29:26 AM] [STATS] totalDestroyed.TreeOak = 24"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:29:26 AM] > Mining_1_4 me=Player target=TreeOak(Clone) at (29.60, 0.12, -74.59)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:30:04 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:30:10 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:30:18 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:30:25 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:30:31 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:30:38 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:31:25 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:31:34 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:32:17 AM] > grab_item me=Player target=Weed(Clone) at (33.08, 0.12, -75.13)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:32:57 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:33:04 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:33:10 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:33:17 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:33:24 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:34:43 AM] > grab_item me=Player target=Stone(Clone) at (31.16, 0.12, -79.26)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:35:44 AM] > grab_item me=Player target=Weed(Clone) at (33.51, 0.12, -83.59)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:36:27 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (31.03, 0.12, -91.55)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:37:23 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (31.03, 0.12, -91.55)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:38:01 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (31.03, 0.12, -91.55)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:38:58 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (31.03, 0.12, -91.55)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:39:16 AM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 100), transitioning to final state 2 and destroying"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:39:16 AM] [STATS] totalDestroyed.TreePine = 40"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:39:16 AM] > Mining_1_4 me=Player target=TreePine(Clone) at (31.03, 0.12, -91.55)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:40:07 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:40:16 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:40:45 AM] > grab_item me=Player target=#-1457779501"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:40:57 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:41:10 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:42:05 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:42:44 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:43:14 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:43:25 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:43:43 AM] > grab_item me=Player target=Weed(Clone) at (32.77, 0.12, -90.04)"}
+{"t": 1793452429.13, "type": "game", "line": "[D153 7:44:15 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 7:44:27 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 7:54:38 AM] > hit_rock me=Player target=Boulder"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 7:56:11 AM] > hit_rock me=Player target=Boulder"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 7:56:33 AM] [DAMAGE] Damage 30 to StoneBoulder (6) (Damageable) (damage = 240), transitioning to final state 4 and destroying"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 7:56:33 AM] [STATS] totalDestroyed.StoneBoulder = 6"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 7:56:33 AM] > Mining_1_4 me=Player target=Boulder"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 7:57:00 AM] /giveloot 1 TreasureFarm generated:"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 7:57:31 AM] > grab_item me=Player target=Stone(Clone) at (-51.62, 0.12, -48.04)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 7:58:10 AM] > grab_item me=Player target=Stone(Clone) at (-51.85, 0.12, -50.85)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 7:58:20 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (-50.77, 0.12, -54.03)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:00:00 AM] > grab_item me=Player target=Stone(Clone) at (-51.39, 0.12, -51.44)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:01:03 AM] > grab_item me=Player target=Weed(Clone) at (-47.68, 0.12, -48.30)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:01:14 AM] > grab_item me=Player target=Stone(Clone) at (-49.83, 0.12, -46.42)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:01:36 AM] > grab_item me=Player target=Stone(Clone) at (-48.18, 0.12, -47.06)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:02:24 AM] > grab_item me=Player target=Stone(Clone) at (-50.15, 0.12, -44.85)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:02:36 AM] > grab_item me=Player target=Stone(Clone) at (-51.17, 0.12, -42.28)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:02:48 AM] > grab_item me=Player target=Stone(Clone) at (-51.62, 0.12, -43.30)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:02:59 AM] > grab_item me=Player target=Stone(Clone) at (-52.07, 0.12, -43.30)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:03:21 AM] > grab_item me=Player target=Stone(Clone) at (-49.70, 0.12, -44.13)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:04:18 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:05:56 AM] > PlayerGardening_35_1 me=Player target=TreePine(Clone) at (-45.21, 0.12, -48.25)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:06:34 AM] [DAMAGE] Damage 30 to TreePine(Clone) (Damageable) (damage = 100), transitioning to final state 2 and destroying"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:06:34 AM] [STATS] totalDestroyed.TreePine = 41"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:06:34 AM] > Mining_1_4 me=Player target=TreePine(Clone) at (-45.21, 0.12, -48.25)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:07:19 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:08:03 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:08:16 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:08:38 AM] > grab_item me=Player target=Weed(Clone) at (-45.37, 0.12, -52.53)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:09:12 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:09:44 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:10:08 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:10:58 AM] > grab_item me=Player target=Weed(Clone) at (-44.47, 0.12, -53.65)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:12:00 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:12:12 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:12:30 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:13:13 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:13:25 AM] > grab_item me=Player target=Weed(Clone) at (-41.17, 0.12, -59.97)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:13:34 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:14:16 AM] > grab_item me=Player target=Stone(Clone) at (-44.00, 0.12, -58.16)"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:14:28 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:14:39 AM] > stamina_fail me=Player target=null"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:14:39 AM] Player: I'm all out of strength!"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:15:20 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.14, "type": "game", "line": "[D153 8:16:05 AM] > grab_item me=Player target=Stone(Clone) at (-45.83, 0.12, -62.16)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:16:49 AM] > grab_item me=Player target=Weed(Clone) at (-45.15, 0.12, -67.49)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:17:35 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:18:18 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:18:31 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:18:55 AM] > grab_item me=Player target=Weed(Clone) at (-49.66, 0.12, -69.67)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:19:11 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:19:20 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:19:31 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:21:36 AM] > grab_item me=Player target=Stone(Clone) at (-51.95, 0.12, -65.87)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:21:44 AM] > grab_item me=Player target=Stone(Clone) at (-51.51, 0.12, -66.16)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:21:53 AM] > grab_item me=Player target=Stone(Clone) at (-51.82, 0.12, -65.64)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:22:00 AM] > grab_item me=Player target=Stone(Clone) at (-52.08, 0.12, -65.71)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:22:46 AM] > grab_item me=Player target=Stone(Clone) at (-50.50, 0.12, -64.96)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:22:54 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:23:01 AM] > stamina_fail me=Player target=null"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:23:01 AM] Player: I'm all out of strength!"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:23:35 AM] > grab_item me=Player target=Weed(Clone) at (-49.75, 0.12, -61.48)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:24:37 AM] > grab_item me=Player target=Stone(Clone) at (-49.90, 0.12, -57.48)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:24:52 AM] > grab_item me=Player target=Stone(Clone) at (-51.21, 0.12, -55.95)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:25:32 AM] > grab_item me=Player target=Stone(Clone) at (-50.46, 0.12, -55.22)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:26:33 AM] > grab_item me=Player target=Weed(Clone) at (-56.64, 0.13, -60.22)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:27:18 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:27:30 AM] > grab_item me=Player target=Stone(Clone) at (-56.93, 0.12, -64.19)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:27:48 AM] > grab_item me=Player target=Weed(Clone) at (-56.79, 0.12, -65.79)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:28:27 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:31:48 AM] > grab_item me=Player target=Stone(Clone) at (-57.74, 0.15, -49.60)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:32:19 AM] > grab_item me=Player target=Stone(Clone) at (-59.10, 0.15, -46.99)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:32:27 AM] > grab_item me=Player target=Stone(Clone) at (-58.52, 0.15, -46.97)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:33:25 AM] > grab_item me=Player target=Stone(Clone) at (-61.46, 0.12, -43.51)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:33:50 AM] > grab_item me=Player target=Stone(Clone) at (-63.03, 0.12, -42.62)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:36:35 AM] > grab_item me=Player target=Stone(Clone) at (-39.51, 0.12, -64.20)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:37:14 AM] > grab_item me=Player target=Weed(Clone) at (-37.69, 0.12, -69.68)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:37:51 AM] > grab_item me=Player target=Weed(Clone) at (-35.30, 0.12, -65.78)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:38:33 AM] > grab_item me=Player target=Stone(Clone) at (-35.71, 0.12, -60.80)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:38:50 AM] > grab_item me=Player target=Weed(Clone) at (-35.87, 0.12, -57.72)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:39:17 AM] > stamina_fail me=Player target=null"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:39:17 AM] Player: I'm all out of strength!"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:41:14 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:41:42 AM] > grab_item me=Player target=Weed(Clone) at (-26.98, 0.12, -48.57)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:42:26 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:42:57 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:43:28 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:44:06 AM] > grab_item me=Player target=Weed(Clone) at (-36.34, 0.12, -50.71)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:44:31 AM] > grab_item me=Player target=Weed(Clone) at (-37.83, 0.12, -50.95)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:45:10 AM] > stamina_fail me=Player target=null"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:45:10 AM] Player: I'm all out of strength!"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:45:44 AM] > grab_item me=Player target=Weed(Clone) at (-35.25, 0.12, -54.63)"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:47:51 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:48:20 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.15, "type": "game", "line": "[D153 8:49:43 AM] > grab_item me=Player target=Stone(Clone) at (-31.85, 0.12, -56.29)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 8:51:52 AM] > grab_item me=Player target=Weed(Clone) at (-28.70, 0.12, -71.88)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 8:51:59 AM] > grab_item me=Player target=Weed(Clone) at (-29.34, 0.12, -69.93)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 8:53:07 AM] > grab_item me=Player target=Weed(Clone) at (-22.60, 0.12, -72.76)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 8:56:03 AM] > grab_item me=Player target=Weed(Clone) at (-14.22, 0.12, -60.57)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 8:57:29 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 8:57:43 AM] > grab_item me=Player target=Weed(Clone) at (-16.69, 0.12, -48.51)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 8:58:41 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 8:59:54 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:00:06 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:01:31 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:01:43 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:02:51 AM] > grab_item me=Player target=Weed(Clone) at (-14.37, 0.12, -42.14)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:03:57 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:04:32 AM] > grab_item me=Player target=Weed(Clone) at (-20.17, 0.12, -40.31)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:05:07 AM] > grab_item me=Player target=Weed(Clone) at (-20.04, 0.12, -36.39)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:06:06 AM] > grab_item me=Player target=Weed(Clone) at (-22.68, 0.12, -41.94)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:06:42 AM] > grab_item me=Player target=Weed(Clone) at (-23.62, 0.12, -39.42)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:07:02 AM] > grab_item me=Player target=Stone(Clone) at (-24.34, 0.12, -35.89)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:07:11 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:07:19 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:07:44 AM] > grab_item me=Player target=Stone(Clone) at (-25.59, 0.12, -36.73)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:08:13 AM] > grab_item me=Player target=Stone(Clone) at (-25.83, 0.12, -38.29)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:08:54 AM] > grab_item me=Player target=Stone(Clone) at (-23.36, 0.12, -35.02)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:09:30 AM] > grab_item me=Player target=Stone(Clone) at (-24.98, 0.12, -31.91)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:10:04 AM] > grab_item me=Player target=Weed(Clone) at (-26.67, 0.12, -33.97)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:10:37 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:10:51 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:11:54 AM] > grab_item me=Player target=Weed(Clone) at (-16.90, 0.12, -32.79)"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:12:30 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:16:02 AM] > grab_item me=Player target=#1705624119"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:19:06 AM] [TRIGGER] OnEnterBuilding House"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:19:49 AM] > sleep3 me=Player target=Bed"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:19:49 AM] > sleep_transition me=Player target=null"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:22:02 AM] > advance_day me=Player target=null"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:22:12 AM] [GAME] ChangeScene Farm/Bed"}
+{"t": 1793452429.16, "type": "game", "line": "[D153 9:22:12 AM] [MODE] Spawning player at Farm/Bed"}
+{"t": 1793452429.16, "type": "game", "line": "[D154 7:00:00 AM] > day_start_intro me=Player target=null"}
+{"t": 1793452429.16, "type": "game", "line": "[D154 7:00:32 AM] > trigger_startday_events me=Player target=null"}
+{"t": 1793452429.16, "type": "game", "line": "[D154 7:00:34 AM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793452429.16, "type": "game", "line": "[D154 7:02:01 AM] > harvest me=Player target=GardenBed (4) at (5.84, 0.10, -31.59)"}
+{"t": 1793452429.16, "type": "game", "line": "[D154 7:03:11 AM] [STATS] totalCrafted.Tulip = 184"}
+{"t": 1793452429.16, "type": "game", "line": "[D154 7:03:11 AM] [STATS] TulipSeed = growing.11"}
+{"t": 1793452429.16, "type": "game", "line": "[D154 7:03:50 AM] > harvest me=Player target=GardenBed(Clone) at (5.84, 0.10, -29.09)"}
+{"t": 1793452429.16, "type": "game", "line": "[D154 7:05:12 AM] [STATS] totalCrafted.Tulip = 188"}
+{"t": 1793452429.16, "type": "game", "line": "[D154 7:05:12 AM] [STATS] TulipSeed = growing.10"}
+{"t": 1793452429.16, "type": "game", "line": "[D154 7:07:20 AM] > harvest me=Player target=GardenBed (3) at (3.34, 0.10, -31.59)"}
+{"t": 1793452429.16, "type": "game", "line": "[D154 7:08:18 AM] [STATS] totalCrafted.Tulip = 192"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:08:18 AM] [STATS] TulipSeed = growing.9"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:08:57 AM] > out_of_water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -31.59)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:10:53 AM] > out_of_water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -31.59)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:11:36 AM] > out_of_water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -31.59)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:14:46 AM] > fill_watering_can me=Player target=Well"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:17:30 AM] > full_watering_can me=Player target=Well"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:18:37 AM] > unplant me=Player target=GardenBed(Clone) at (-1.66, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:18:37 AM] > unplant_impl me=Player target=GardenBed(Clone) at (-1.66, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:18:53 AM] [STATS] TulipSeed = growing.8"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:22:22 AM] > unplant me=Player target=GardenBed(Clone) at (0.84, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:22:22 AM] > unplant_impl me=Player target=GardenBed(Clone) at (0.84, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:22:38 AM] [STATS] TulipSeed = growing.7"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:23:03 AM] > plant me=Player target=GardenBed(Clone) at (0.84, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:24:07 AM] [STATS] totalPlanted.TulipSeed = 73"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:24:07 AM] [STATS] growing.TulipSeed = 8"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:25:46 AM] > plant me=Player target=GardenBed(Clone) at (-1.66, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:26:50 AM] [STATS] totalPlanted.TulipSeed = 74"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:26:50 AM] [STATS] growing.TulipSeed = 9"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:27:42 AM] > unplant me=Player target=GardenBed(Clone) at (3.34, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:27:42 AM] > unplant_impl me=Player target=GardenBed(Clone) at (3.34, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:27:57 AM] [STATS] TulipSeed = growing.8"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:28:50 AM] > unplant me=Player target=GardenBed(Clone) at (5.84, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:28:50 AM] > unplant_impl me=Player target=GardenBed(Clone) at (5.84, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:29:05 AM] [STATS] TulipSeed = growing.7"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:29:25 AM] > plant me=Player target=GardenBed(Clone) at (5.84, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:30:29 AM] [STATS] totalPlanted.TulipSeed = 75"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:30:29 AM] [STATS] growing.TulipSeed = 8"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:31:28 AM] > water me=Player target=GardenBed(Clone) at (5.84, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:34:14 AM] > water me=Player target=GardenBed(Clone) at (0.84, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:37:00 AM] > water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:40:01 AM] > plant me=Player target=GardenBed(Clone) at (3.34, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:41:04 AM] [STATS] totalPlanted.TulipSeed = 76"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:41:04 AM] [STATS] growing.TulipSeed = 9"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:41:25 AM] > water me=Player target=GardenBed(Clone) at (3.34, 0.10, -25.34)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:44:59 AM] > plant me=Player target=GardenBed (4) at (5.84, 0.10, -31.59)"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:46:03 AM] [STATS] totalPlanted.TulipSeed = 77"}
+{"t": 1793452429.17, "type": "game", "line": "[D154 7:46:03 AM] [STATS] growing.TulipSeed = 10"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:47:31 AM] > plant me=Player target=GardenBed(Clone) at (5.84, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:48:34 AM] [STATS] totalPlanted.TulipSeed = 78"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:48:34 AM] [STATS] growing.TulipSeed = 11"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:49:38 AM] > plant me=Player target=GardenBed (3) at (3.34, 0.10, -31.59)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:50:41 AM] [STATS] totalPlanted.TulipSeed = 79"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:50:41 AM] [STATS] growing.TulipSeed = 12"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:51:40 AM] > water me=Player target=GardenBed(Clone) at (0.84, 0.10, -31.59)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:54:03 AM] > out_of_water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -31.59)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:56:27 AM] > unplant me=Player target=GardenBed(Clone) at (-1.66, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:56:27 AM] > unplant_impl me=Player target=GardenBed(Clone) at (-1.66, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:56:43 AM] [STATS] TulipSeed = growing.11"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:57:53 AM] > unplant me=Player target=GardenBed(Clone) at (0.84, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:57:53 AM] > unplant_impl me=Player target=GardenBed(Clone) at (0.84, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:58:09 AM] [STATS] TulipSeed = growing.10"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:58:57 AM] > unplant me=Player target=GardenBed(Clone) at (3.34, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:58:57 AM] > unplant_impl me=Player target=GardenBed(Clone) at (3.34, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:59:13 AM] [STATS] TulipSeed = growing.9"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 7:59:43 AM] > plant me=Player target=GardenBed(Clone) at (3.34, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:00:47 AM] [STATS] totalPlanted.TulipSeed = 80"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:00:47 AM] [STATS] growing.TulipSeed = 10"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:01:58 AM] > plant me=Player target=GardenBed(Clone) at (0.84, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:03:02 AM] [STATS] totalPlanted.TulipSeed = 81"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:03:02 AM] [STATS] growing.TulipSeed = 11"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:03:41 AM] > plant me=Player target=GardenBed(Clone) at (-1.66, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:04:45 AM] [STATS] totalPlanted.TulipSeed = 82"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:04:45 AM] [STATS] growing.TulipSeed = 12"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:05:18 AM] > out_of_water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:15:50 AM] > fill_watering_can me=Player target=Well"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:19:01 AM] > water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:22:10 AM] > water me=Player target=GardenBed(Clone) at (0.84, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:24:39 AM] > water me=Player target=GardenBed(Clone) at (3.34, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:27:53 AM] > water me=Player target=GardenBed(Clone) at (5.84, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:32:37 AM] > water me=Player target=GardenBed (4) at (5.84, 0.10, -31.59)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:37:23 AM] > fill_watering_can me=Player target=Well"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:42:20 AM] > water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -31.59)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:44:59 AM] > water me=Player target=GardenBed (3) at (3.34, 0.10, -31.59)"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:48:49 AM] [TRIGGER] OnEnterBuilding House"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:49:19 AM] > sleep5 me=Player target=Bed"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:49:19 AM] > sleep_transition me=Player target=null"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:52:07 AM] > advance_day me=Player target=null"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:52:16 AM] [GAME] ChangeScene Farm/Bed"}
+{"t": 1793452429.18, "type": "game", "line": "[D154 8:52:16 AM] [MODE] Spawning player at Farm/Bed"}
+{"t": 1793452429.18, "type": "game", "line": "[D155 7:00:00 AM] > day_start_intro me=Player target=null"}
+{"t": 1793452429.18, "type": "game", "line": "[D155 7:01:23 AM] > trigger_startday_events me=Player target=null"}
+{"t": 1793452429.18, "type": "game", "line": "[D155 7:01:26 AM] [TRIGGER] OnExitBuilding House"}
+{"t": 1793452429.18, "type": "game", "line": "[D155 7:02:35 AM] > water me=Player target=GardenBed (4) at (5.84, 0.10, -31.59)"}
+{"t": 1793452429.18, "type": "game", "line": "[D155 7:05:12 AM] > water me=Player target=GardenBed(Clone) at (5.84, 0.10, -29.09)"}
+{"t": 1793452429.18, "type": "game", "line": "[D155 7:08:15 AM] > harvest me=Player target=GardenBed(Clone) at (0.84, 0.10, -31.59)"}
+{"t": 1793452429.18, "type": "game", "line": "[D155 7:09:26 AM] [STATS] totalCrafted.Tulip = 196"}
+{"t": 1793452429.18, "type": "game", "line": "[D155 7:09:26 AM] [STATS] TulipSeed = growing.11"}
+{"t": 1793452429.18, "type": "game", "line": "[D155 7:09:58 AM] > harvest me=Player target=GardenBed(Clone) at (-1.66, 0.10, -31.59)"}
+{"t": 1793452429.18, "type": "game", "line": "[D155 7:11:09 AM] [STATS] totalCrafted.Tulip = 200"}
+{"t": 1793452429.18, "type": "game", "line": "[D155 7:11:09 AM] [STATS] TulipSeed = growing.10"}
+{"t": 1793452429.18, "type": "game", "line": "[D155 7:11:33 AM] > plant me=Player target=GardenBed(Clone) at (-1.66, 0.10, -31.59)"}
+{"t": 1793452429.19, "type": "game", "line": "[D155 7:12:37 AM] [STATS] totalPlanted.TulipSeed = 83"}
+{"t": 1793452429.19, "type": "game", "line": "[D155 7:12:37 AM] [STATS] growing.TulipSeed = 11"}
+{"t": 1793452429.19, "type": "game", "line": "[D155 7:13:48 AM] > plant me=Player target=GardenBed(Clone) at (0.84, 0.10, -31.59)"}
+{"t": 1793452422.62, "type": "call", "start": 1793452422.62, "end": 1793452429.19, "cmd": "resume"}
+{"t": 1793452433.06, "type": "call", "start": 1793452433.06, "end": 1793452433.21, "cmd": "look"}
+{"t": 1793452433.38, "type": "attempt", "text": "step1 orient"}
+{"t": 1793452466.45, "type": "activity", "what": "go", "target": "go:1000:1030", "start": 1793452459.018472, "end": 1793452466.4511821, "moved": true}
+{"t": 1793452472.83, "type": "game", "line": "[D155 7:14:52 AM] [STATS] totalPlanted.TulipSeed = 84"}
+{"t": 1793452472.83, "type": "game", "line": "[D155 7:14:52 AM] [STATS] growing.TulipSeed = 12"}
+{"t": 1793452472.83, "type": "game", "line": "[D155 7:15:12 AM] > water me=Player target=GardenBed(Clone) at (0.84, 0.10, -31.59)"}
+{"t": 1793452472.83, "type": "game", "line": "[D155 7:17:57 AM] > plant_growing me=Player target=GardenBed (4) at (5.84, 0.10, -31.59)"}
+{"t": 1793452472.83, "type": "game", "line": "[D155 7:17:57 AM] [STATS] totalConsumed.BoostHarvestPotion = 10"}
+{"t": 1793452472.83, "type": "game", "line": "[D155 7:20:58 AM] > out_of_water me=Player target=GardenBed (3) at (3.34, 0.10, -31.59)"}
+{"t": 1793452472.83, "type": "game", "line": "[D155 7:22:12 AM] > out_of_water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -31.59)"}
+{"t": 1793452472.83, "type": "game", "line": "[D155 7:24:26 AM] > fill_watering_can me=Player target=Well"}
+{"t": 1793452472.83, "type": "game", "line": "[D155 7:29:00 AM] > water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -31.59)"}
+{"t": 1793452472.83, "type": "game", "line": "[D155 7:32:20 AM] > water me=Player target=GardenBed (3) at (3.34, 0.10, -31.59)"}
+{"t": 1793452475.73, "type": "nav", "what": "pos", "scene": "Farm", "x": -1.66, "z": -33.59, "fresh": true, "secs": 1.3}
+{"t": 1793452452.45, "type": "call", "start": 1793452452.45, "end": 1793452476.58, "cmd": "do go:1000:1030 --look"}
+{"t": 1793452482.91, "type": "attempt", "text": "start state differs: D155 Monday, Tara inside garden amid beds; click south over fence did not leave"}
+{"t": 1793452501.41, "type": "activity", "what": "go", "target": "go:1000:1050", "start": 1793452490.9738922, "end": 1793452501.413005, "moved": true}
+{"t": 1793452509.5, "type": "game", "line": "[D155 7:40:04 AM] > water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -29.09)"}
+{"t": 1793452509.5, "type": "game", "line": "[D155 7:42:51 AM] > water me=Player target=GardenBed(Clone) at (0.84, 0.10, -29.09)"}
+{"t": 1793452509.5, "type": "game", "line": "[D155 7:45:59 AM] > fill_watering_can me=Player target=Well"}
+{"t": 1793452509.5, "type": "game", "line": "[D155 7:51:05 AM] > water me=Player target=GardenBed(Clone) at (0.84, 0.10, -25.34)"}
+{"t": 1793452487.88, "type": "call", "start": 1793452487.88, "end": 1793452510.68, "cmd": "do go:1000:1050 --look"}
+{"t": 1793452517.75, "type": "game", "line": "[D155 7:53:29 AM] > water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -25.34)"}
+{"t": 1793452513.96, "type": "call", "start": 1793452513.96, "end": 1793452517.76, "cmd": "pause"}
+{"t": 1793452520.68, "type": "plan_step", "n": "2", "state": "escalate", "text": "start state wrong: D155 Monday (brief said D151 Thursday); Tara inside garden amid beds and the game auto-waters/fills (ZephyrRobots + water/fill_watering_can log lines not from my inputs); two clicks south did not take her out of the garden. Paused.", "hour": null}
+{"t": 1793452715.44, "type": "call", "start": 1793452715.44, "end": 1793452715.63, "cmd": "state"}
+{"t": 1793452719.15, "type": "call", "start": 1793452719.15, "end": 1793452723.15, "cmd": "pause"}
+{"t": 1793452724.12, "type": "end", "result": "abandoned", "text": "a new run started"}

@@ -1,0 +1,28 @@
+{
+ "Farm": {
+  "BeeHive": 5.19,
+  "Garden": 2.78,
+  "GardenBed": 3.04,
+  "Gate": 5.84,
+  "HouseDoor": 5.93,
+  "Mailbox": 3.32,
+  "Tara": 5.34,
+  "Well": 4.5,
+  "_raw": {
+   "Garden": 0.8
+  }
+ },
+ "Garden": {
+  "BeeHive": 3.08,
+  "Garden": 4.5,
+  "GardenBed": 2.98,
+  "Gate": 6.31,
+  "HouseDoor": 4.31,
+  "Mailbox": 4.5,
+  "Tara": 5.05,
+  "Well": 4.16,
+  "_raw": {
+   "GardenBed": 0.75
+  }
+ }
+}

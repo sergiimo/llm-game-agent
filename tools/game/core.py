@@ -77,12 +77,20 @@ def action(fn):
             raise
         except Exception as e:  # noqa: BLE001
             ok, why = False, f'{type(e).__name__}: {e}'
+            if type(e).__name__ in ('Stuck', 'NeedVision'):  # a vision question goes to the agent as it is (Stuck: move.goto turns it into one)
+                raise
             raise Failed(f'{name}({args}): {why}') from e
         finally:
             _DEPTH[0] -= 1
             if depth == 0:  # one screen read per top-level action (≈0.5 s each)
                 _SCREEN[0] = screen()
             track.action_event(name, args, t0, time.time(), depth, ok, why, before, _SCREEN[0])
+            if depth == 0:  # eval (M0): a top-level action proved itself or not
+                try:
+                    import evals
+                    evals.record('skills', name, args, 'ok' if ok else why, ok, {'action': name, 'args': args})
+                except Exception:  # noqa: BLE001 (scoring never breaks play)
+                    pass
     return run
 
 

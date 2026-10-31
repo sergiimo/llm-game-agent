@@ -768,3 +768,5 @@
 {"t": 1793382463.29, "type": "call", "start": 1793382463.29, "end": 1793382464.59, "cmd": "state"}
 {"t": 1793382466.63, "type": "call", "start": 1793382466.63, "end": 1793382469.79, "cmd": "pause"}
 {"t": 1793382471.99, "type": "call", "start": 1793382471.99, "end": 1793382472.09, "cmd": "state"}
+{"t": 1793383980.13, "type": "call", "start": 1793383980.13, "end": 1793383982.69, "cmd": "eval all"}
+{"t": 1793384086.26, "type": "end", "result": "abandoned", "text": "a new run started"}

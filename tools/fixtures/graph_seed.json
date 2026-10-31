@@ -1,0 +1,288 @@
+{
+ "area": "Farm",
+ "nodes": [
+  {
+   "id": "Farm",
+   "type": "region",
+   "kind": "Farm",
+   "region": null,
+   "signal": "scene"
+  },
+  {
+   "id": "House",
+   "type": "region",
+   "kind": "House",
+   "region": "Farm",
+   "signal": "scene",
+   "exit": "HouseExit"
+  },
+  {
+   "id": "Garden",
+   "type": "region",
+   "kind": "Garden",
+   "region": "Farm",
+   "signal": "view"
+  },
+  {
+   "id": "Well",
+   "type": "unique",
+   "kind": "Well",
+   "region": "Garden"
+  },
+  {
+   "id": "HouseDoor",
+   "type": "unique",
+   "kind": "HouseDoor",
+   "region": "Farm"
+  },
+  {
+   "id": "Mailbox",
+   "type": "unique",
+   "kind": "Mailbox",
+   "region": "Farm"
+  },
+  {
+   "id": "Bed",
+   "type": "unique",
+   "kind": "Bed",
+   "region": "House"
+  },
+  {
+   "id": "Stove",
+   "type": "unique",
+   "kind": "Stove",
+   "region": "House"
+  },
+  {
+   "id": "HouseExit",
+   "type": "unique",
+   "kind": "HouseExit",
+   "region": "House"
+  },
+  {
+   "id": "GardenBed",
+   "type": "group",
+   "kind": "GardenBed",
+   "region": "Garden",
+   "cover": false,
+   "pattern": {
+    "rows": 3,
+    "cols": 4,
+    "order": "north row first, west to east"
+   }
+  },
+  {
+   "id": "GardenBed#1",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed",
+   "index": 1
+  },
+  {
+   "id": "GardenBed#2",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed",
+   "index": 2
+  },
+  {
+   "id": "GardenBed#3",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed",
+   "index": 3
+  },
+  {
+   "id": "GardenBed#4",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed",
+   "index": 4
+  },
+  {
+   "id": "GardenBed#5",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed",
+   "index": 5
+  },
+  {
+   "id": "GardenBed#6",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed",
+   "index": 6
+  },
+  {
+   "id": "GardenBed#7",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed",
+   "index": 7
+  },
+  {
+   "id": "GardenBed#8",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed",
+   "index": 8
+  },
+  {
+   "id": "GardenBed#9",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed",
+   "index": 9
+  },
+  {
+   "id": "GardenBed#10",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed",
+   "index": 10
+  },
+  {
+   "id": "GardenBed#11",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed",
+   "index": 11
+  },
+  {
+   "id": "GardenBed#12",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed",
+   "index": 12
+  },
+  {
+   "id": "BeeHive",
+   "type": "group",
+   "kind": "BeeHive",
+   "region": "Garden",
+   "pattern": {
+    "rows": 1,
+    "cols": 8,
+    "order": "west to east"
+   }
+  },
+  {
+   "id": "BeeHive#1",
+   "type": "member",
+   "kind": "BeeHive",
+   "region": "BeeHive",
+   "index": 1
+  },
+  {
+   "id": "BeeHive#2",
+   "type": "member",
+   "kind": "BeeHive",
+   "region": "BeeHive",
+   "index": 2
+  },
+  {
+   "id": "BeeHive#3",
+   "type": "member",
+   "kind": "BeeHive",
+   "region": "BeeHive",
+   "index": 3
+  },
+  {
+   "id": "BeeHive#4",
+   "type": "member",
+   "kind": "BeeHive",
+   "region": "BeeHive",
+   "index": 4
+  },
+  {
+   "id": "BeeHive#5",
+   "type": "member",
+   "kind": "BeeHive",
+   "region": "BeeHive",
+   "index": 5
+  },
+  {
+   "id": "BeeHive#6",
+   "type": "member",
+   "kind": "BeeHive",
+   "region": "BeeHive",
+   "index": 6
+  },
+  {
+   "id": "BeeHive#7",
+   "type": "member",
+   "kind": "BeeHive",
+   "region": "BeeHive",
+   "index": 7
+  },
+  {
+   "id": "BeeHive#8",
+   "type": "member",
+   "kind": "BeeHive",
+   "region": "BeeHive",
+   "index": 8
+  }
+ ],
+ "edges": [
+  {
+   "a": "HouseDoor",
+   "b": "House",
+   "rel": "leads_to"
+  },
+  {
+   "a": "Well",
+   "b": "fill_can",
+   "rel": "offers"
+  },
+  {
+   "a": "GardenBed",
+   "b": "plant",
+   "rel": "offers"
+  },
+  {
+   "a": "GardenBed",
+   "b": "water",
+   "rel": "offers"
+  },
+  {
+   "a": "GardenBed",
+   "b": "harvest",
+   "rel": "offers"
+  },
+  {
+   "a": "GardenBed",
+   "b": "unplant",
+   "rel": "offers"
+  },
+  {
+   "a": "BeeHive",
+   "b": "honey",
+   "rel": "offers"
+  },
+  {
+   "a": "BeeHive",
+   "b": "beehive_progress",
+   "rel": "offers"
+  },
+  {
+   "a": "Bed",
+   "b": "sleep",
+   "rel": "offers"
+  },
+  {
+   "a": "Stove",
+   "b": "cook",
+   "rel": "offers"
+  },
+  {
+   "a": "HouseExit",
+   "b": "Farm",
+   "rel": "leads_to"
+  },
+  {
+   "a": "HouseExit",
+   "b": "exit",
+   "rel": "offers"
+  }
+ ]
+}

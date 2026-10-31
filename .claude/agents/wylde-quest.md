@@ -19,6 +19,11 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
   the step goes over its Budget (every `./wf` output then prints `STEP n OVER BUDGET`), you are stuck (position changes
   < 2 units over 3 moves, L75, and 2 vision answers didn't help), or the plan doesn't fit what you see.
   The supervisor runs a stuck retro, fixes plan.md from step n and resumes you.
+- A `STUCK …` output starts with `[eval <id>]`: once you know whether she really was stuck, mark it
+  `./wf eval mark <id> hit` (really stuck) or `miss` (false alarm: within reach of the goal, or still moving).
+- On any stuck or failure: `./wf look`, Read the image, describe it before naming a cause (user rule).
+- **One game command per tool call** (AGENTS.md rule 8): never chain `./wf …; ./wf …` — a rejected call may already have run its first commands (objects-seed batched several with `;`).
+- **The call budget is a hard stop:** count your `./wf` calls; at the budget, `./wf pause` and report partial with what is left (objects-relabel ran 55 of 45 and skipped its last checks).
 - Also, one line each as it happens: `./wf run attempt <what you try now>` · `issue` · `gap` · `decision`.
   Calls, Tara's walks/actions and game events are logged automatically. `./wf run end <result> [why]` last; paste its
   summary into your report.

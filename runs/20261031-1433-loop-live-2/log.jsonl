@@ -1,0 +1,33 @@
+{"t": 1793450021.31, "type": "start", "quest": "loop-live-2", "goal": "live rerun: fill_can() and goto_bed() from the house front on the fixed loop"}
+{"t": 1793450038.55, "type": "plan_step", "n": "1", "state": "start", "text": "", "hour": null}
+{"t": 1793450040.29, "type": "call", "start": 1793450040.29, "end": 1793450046.59, "cmd": "resume"}
+{"t": 1793450049.3, "type": "call", "start": 1793450049.3, "end": 1793450049.43, "cmd": "look"}
+{"t": 1793450056.46, "type": "plan_step", "n": "1", "state": "done", "text": "oriented at well", "hour": 22.833333333333332}
+{"t": 1793450056.85, "type": "plan_step", "n": "2", "state": "start", "text": "", "hour": 22.833333333333332}
+{"t": 1793450069.0, "type": "activity", "what": "go", "target": "go:1850:700", "start": 1793450067.0801458, "end": 1793450068.999254, "moved": true}
+{"t": 1793450079.18, "type": "nav", "what": "pos", "scene": "Farm", "x": -1.09, "z": -21.05, "fresh": false, "secs": 4.2}
+{"t": 1793450082.47, "type": "nav", "what": "fill-pin", "scene": "Farm", "cell": ["map", 13, 12], "pin": [531, 493]}
+{"t": 1793450058.93, "type": "call", "start": 1793450058.93, "end": 1793450082.49, "cmd": "do go:1850:700 --look"}
+{"t": 1793450092.54, "type": "activity", "what": "go", "target": "go:1700:1000", "start": 1793450089.828801, "end": 1793450092.539327, "moved": true}
+{"t": 1793450087.05, "type": "call", "start": 1793450087.05, "end": 1793450098.85, "cmd": "do go:1700:1000 --look"}
+{"t": 1793450101.71, "type": "plan_step", "n": "2", "state": "done", "text": "at farm porch", "hour": 23.166666666666668}
+{"t": 1793450102.15, "type": "plan_step", "n": "3", "state": "start", "text": "", "hour": 23.166666666666668}
+{"t": 1793450130.45, "type": "action", "name": "well.fill_can", "args": "", "start": 1793450104.95, "end": 1793450130.45, "depth": 0, "ok": true, "why": null, "before": "?", "after": "dialogue: Tara: My watering can is already full!"}
+{"t": 1793450131.77, "type": "game", "line": "[D150 11:28:45 PM] > full_watering_can me=Player target=Well"}
+{"t": 1793450104.57, "type": "call", "start": 1793450104.57, "end": 1793450131.77, "cmd": "py fill_can()"}
+{"t": 1793450134.87, "type": "call", "start": 1793450134.87, "end": 1793450135.0, "cmd": "look"}
+{"t": 1793450139.39, "type": "plan_step", "n": "3", "state": "done", "text": "well, already full, ok", "hour": 23.5}
+{"t": 1793450139.5, "type": "plan_step", "n": "4", "state": "start", "text": "", "hour": 23.5}
+{"t": 1793450144.06, "type": "activity", "what": "go", "target": "go:1700:1000", "start": 1793450142.427778, "end": 1793450144.060189, "moved": false}
+{"t": 1793450140.94, "type": "call", "start": 1793450140.94, "end": 1793450145.29, "cmd": "do go:1700:1000 --look"}
+{"t": 1793450158.19, "type": "action", "name": "garden.goto_bed", "args": "", "start": 1793450148.33, "end": 1793450158.19, "depth": 0, "ok": false, "why": "NeedVision: NEED_VISION: look at /Users/serg/w/llm-game-agent/runs/20261031-1433-loop-live-2/ask-1.png, answer with answer(n, x, y), then call goto again", "before": "dialogue: Tara: My watering can is already full!", "after": "gameplay"}
+{"t": 1793450147.79, "type": "call", "start": 1793450147.79, "end": 1793450158.19, "cmd": "py goto_bed()"}
+{"t": 1793450164.2, "type": "call", "start": 1793450164.2, "end": 1793450166.05, "cmd": "py label(1, 'GardenBed', 710, 925, 1050, 1080)"}
+{"t": 1793450187.16, "type": "action", "name": "garden.goto_bed", "args": "", "start": 1793450169.2, "end": 1793450187.16, "depth": 0, "ok": false, "why": "NeedVision: NEED_VISION: look at /Users/serg/w/llm-game-agent/runs/20261031-1433-loop-live-2/ask-2.png, answer with answer(n, x, y), then call goto again", "before": "gameplay", "after": "gameplay"}
+{"t": 1793450169.08, "type": "call", "start": 1793450169.08, "end": 1793450187.16, "cmd": "py goto_bed()"}
+{"t": 1793450194.41, "type": "call", "start": 1793450194.41, "end": 1793450196.04, "cmd": "py answer(2, 620, 950)"}
+{"t": 1793450203.93, "type": "action", "name": "garden.goto_bed", "args": "", "start": 1793450198.8, "end": 1793450203.93, "depth": 0, "ok": false, "why": "('GardenBed', None, []): 2 answers didn't help, escalate (reach GardenBed#1: not detected)", "before": "gameplay", "after": "gameplay"}
+{"t": 1793450198.68, "type": "call", "start": 1793450198.68, "end": 1793450203.94, "cmd": "py goto_bed()"}
+{"t": 1793450206.41, "type": "call", "start": 1793450206.41, "end": 1793450209.98, "cmd": "pause"}
+{"t": 1793450211.19, "type": "plan_step", "n": "4", "state": "fail", "text": "goto_bed: GardenBed not detected, label duplicate, answer didn't help", "hour": 23.833333333333332}
+{"t": 1793450211.34, "type": "end", "result": "partial", "text": "fill_can ok; goto_bed failed"}

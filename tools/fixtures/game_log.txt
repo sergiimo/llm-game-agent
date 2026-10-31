@@ -1,0 +1,33 @@
+[D148 11:01:15 PM]  Player failed to pathfind from  (-1.09, 0.10, -21.05) to BeeHive(Clone) at (2.72, 0.10, -23.46)  at 
+[D148 11:02:38 PM]  Player failed to pathfind from  (-1.09, 0.10, -21.05) to BeeHive(Clone) at (2.72, 0.10, -23.46)  at 
+[D148 11:43:02 PM] > beehive_progress me=Player target=BeeHive(Clone) at (1.47, 0.10, -23.46)
+[D148 11:45:11 PM] > beehive_progress me=Player target=BeeHive(Clone) at (0.22, 0.10, -23.46)
+[D148 11:47:50 PM] > beehive_progress me=Player target=BeeHive(Clone) at (1.47, 0.10, -23.46)
+[D148 11:51:01 PM] > beehive_progress me=Player target=BeeHive(Clone) at (0.22, 0.10, -23.46)
+[D148 12:28:07 AM] > sleep7 me=Player target=Bed
+[D148 12:36:25 AM] [GAME] ChangeScene Farm/Bed
+[D148 12:36:25 AM] [MODE] Spawning player at Farm/Bed
+[D148 12:36:25 AM] [TIME] Day 149
+[D148 7:10:00 PM] Waypoint Farm/Dog links to #1576942559/Cat, but not vice-versa
+[D148 7:10:00 PM] [MODE] Spawning player at last known position
+[D148 7:57:24 PM] > full_watering_can me=Player target=Well
+[D148 8:48:46 PM] > unplant_impl me=Player target=GardenBed(Clone) at (0.84, 0.10, -29.09)
+[D148 8:54:42 PM] [STATS] totalPlanted.TulipSeed = 61
+[D148 9:10:07 PM] > unplant_impl me=Player target=GardenBed(Clone) at (3.34, 0.10, -29.09)
+[D148 9:16:01 PM] [STATS] totalPlanted.TulipSeed = 62
+[D148 9:40:16 PM] > water me=Player target=GardenBed (4) at (5.84, 0.10, -31.59)
+[D149 12:36:25 AM] [ACTOR] BeeHive(Clone) (BeeHive) produced 0 pollen, current pollen is 6/12
+[D149 12:36:25 AM] [TIME] Forecast is Sunny today
+[D149 7:00:00 AM] [TRIGGER] OnDayStarted
+[D149 7:45:05 AM] [TRIGGER] OnExitBuilding House
+[D149 9:00:05 AM] > beehive_progress me=Player target=BeeHive(Clone) at (-2.28, 0.10, -23.46)
+[D149 9:04:02 AM] > beehive_progress me=Player target=BeeHive(Clone) at (-2.28, 0.10, -23.46)
+[D148 12:46:01 PM] Player locomotion failed at RuralBeach (16.09, 6.16, 33.88): Stopped against barrier while pathfinding
+[D148 1:36:34 PM]  Player failed to pathfind from  (8.01, 6.16, 33.00) to   at (8.70, 6.10, 35.83)
+[D148 1:39:25 PM] [TRIGGER] OnEnterBuilding Ranch at (0.00, 0.00, 0.00)
+[D148 10:05:01 AM] [QUEST] Complete goal BuildRanch:meet day 148
+[D148 10:05:01 AM] [QUEST] Complete quest BuildRanch day 148
+[D148 10:05:01 AM] [QUEST] Start quest MartyChickens day 148
+[D148 5:35:07 PM] [GAME] ChangeScene Farm/LinkBeach
+[D148 5:35:07 PM] [MODE] Spawning player at Farm/LinkBeach
+[D147 3:10:00 PM] Path blocked timeout exceeded at (12.50, 0.10, -20.00)

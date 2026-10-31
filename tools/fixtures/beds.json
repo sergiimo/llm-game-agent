@@ -1,0 +1,77 @@
+{
+ "_doc": "Save bed list D150 ~5:30 pm (game.garden.beds(): numbered north row first (nearest the hive row, z -23.46), west to east). Identity evidence only (spec: positions not stored in the graph).",
+ "beds": [
+  {
+   "id": 1,
+   "x": -1.66,
+   "z": -25.34,
+   "state": "seed"
+  },
+  {
+   "id": 2,
+   "x": 0.84,
+   "z": -25.34,
+   "state": "seed"
+  },
+  {
+   "id": 3,
+   "x": 3.34,
+   "z": -25.34,
+   "state": "seed"
+  },
+  {
+   "id": 4,
+   "x": 5.84,
+   "z": -25.34,
+   "state": "seed"
+  },
+  {
+   "id": 5,
+   "x": -1.66,
+   "z": -29.09,
+   "state": "seed"
+  },
+  {
+   "id": 6,
+   "x": 0.84,
+   "z": -29.09,
+   "state": "growing"
+  },
+  {
+   "id": 7,
+   "x": 3.34,
+   "z": -29.09,
+   "state": "growing"
+  },
+  {
+   "id": 8,
+   "x": 5.84,
+   "z": -29.09,
+   "state": "growing"
+  },
+  {
+   "id": 9,
+   "x": -1.66,
+   "z": -31.59,
+   "state": "seed"
+  },
+  {
+   "id": 10,
+   "x": 0.84,
+   "z": -31.59,
+   "state": "seed"
+  },
+  {
+   "id": 11,
+   "x": 3.34,
+   "z": -31.59,
+   "state": "growing"
+  },
+  {
+   "id": 12,
+   "x": 5.84,
+   "z": -31.59,
+   "state": "growing"
+  }
+ ]
+}

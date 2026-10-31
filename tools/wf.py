@@ -108,12 +108,18 @@ def game_window():
 FRAME_W, FRAME_H = 1920, 1080  # every wf coordinate is in this virtual frame, whatever the window size
 
 
+TITLE_BAR = 28  # points: macOS title bar of a windowed (non-fullscreen) window
+
+
 def content_box(w):
-    """(x0, y0, scale) of the 16:9 game picture inside window `w`, in window points: windowed mode adds a title bar
-    on top (e.g. 1600x928 window = 28 pt bar + 1600x900 picture). game point (gx, gy) -> window (x0 + gx*scale, ...)."""
-    scale = min(w['w'] / FRAME_W, w['h'] / FRAME_H)
+    """(x0, y0, scale) of the 16:9 game picture inside window `w`, in window points. A windowed window (w['y'] > 0)
+    has a 28 pt title bar on top; the picture is fitted into the rest, centred (bars on the sides or top/bottom).
+    game point (gx, gy) -> window (x0 + gx*scale, y0 + gy*scale)."""
+    bar = TITLE_BAR if w.get('y', 0) > 0 else 0
+    ah = w['h'] - bar
+    scale = min(w['w'] / FRAME_W, ah / FRAME_H)
     cw, ch = FRAME_W * scale, FRAME_H * scale
-    return (w['w'] - cw) / 2, w['h'] - ch, scale
+    return (w['w'] - cw) / 2, bar + (ah - ch) / 2, scale
 
 
 def permissions():
@@ -429,6 +435,18 @@ def mouse_move(x, y):
     Q.CGEventPost(Q.kCGHIDEventTap, ev)
 
 
+PARK = (110, 110)   # game coords: over the HUD clock — nothing to hover there. (obj-walk's title bar / overlay / failed
+                    # capture came from the user moving the window, not from parking — the clock is just the safer spot)
+
+
+def park_mouse():
+    """Move the cursor off the game view after a click, so hover cards (Bee Hive) don't cover screenshots/clicks."""
+    try:
+        mouse_move(*PARK)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def click(x, y, button='left', count=1, hold=0.06):
     Q = _quartz()
     sx, sy = _to_screen(x, y)
@@ -447,7 +465,7 @@ def click(x, y, button='left', count=1, hold=0.06):
         Q.CGEventSetIntegerValueField(e2, Q.kCGMouseEventClickState, i + 1)
         Q.CGEventPost(Q.kCGHIDEventTap, e2)
         time.sleep(0.08)
-
+    park_mouse()
 
 def scroll(dy, x=None, y=None):
     Q = _quartz()
@@ -505,7 +523,7 @@ TEMPLATES = os.path.join(ROOT, 'tools', 'templates')
 HUD_TEMPLATES = {'hud_pause': (50, 50, 120, 120), 'hud_journal3': (1605, 55, 110, 110)}
 MONEY_REGION = (1700, 130, 200, 70)
 MONEY_BOX = (1700, 130, 1900, 200)      # same, as a PIL crop box
-CLOCK_REGION = (150, 25, 350, 90)      # day name + time next to the analog clock (top-left, after clock appears)
+CLOCK_REGION = (120, 25, 380, 90)      # day name + time next to the analog clock (top-left); from x 120: "12:50 pm" starts left of 150 (objects-seed)
 POPUP_WORDS = ('Confirm', 'Hooray', 'Quest Complete', 'Quest complete',  # EN UI (L48; exact EN wording unverified)
                'одтвердить',          # RU "Подтвердить" Confirm (OCR sometimes reads П as Л)
                'Ура!',                # RU completion popup button "Hooray!"
@@ -660,18 +678,30 @@ def read_energy(img):
 # ---------------------------------------------------------------- prompt bubble detection
 
 def find_bubble(img):
-    """Find the interaction prompt bubble (round cream badge ~120px) outside the HUD bands. Returns (cx, cy) or None."""
+    """The biggest interaction prompt bubble (cx, cy), or None (see find_bubbles)."""
+    bs = find_bubbles(img)
+    return bs[0] if bs else None
+
+
+BUBBLE_FILL = 0.2   # share of the badge box that is cream; the icon covers more of it at night (honey jars: 26 %)
+
+
+def find_bubbles(img):
+    """Every interaction prompt bubble (round cream badge ~120px) outside the HUD bands, biggest first: [(cx, cy)].
+    Several show when several objects are in reach; the highlighted one is what Space acts on."""
     import numpy as np
     W, H = img.size
     f = 4
     a = np.asarray(img.resize((W // f, H // f)), dtype=np.int16)
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
-    mask = (r >= 195) & (r <= 235) & (g >= 165) & (g <= 215) & (b >= 135) & (b <= 195) & (r - b >= 25) & (r - b <= 65)
+    # cream badge; at night the cream is lit bluish (rim r-b ≈ 19, zoom-walk 9:20 pm): floor 12 still excludes the white
+    # fence (r-b ≈ 0–10); size/shape filters below do the rest
+    mask = (r >= 195) & (r <= 235) & (g >= 165) & (g <= 215) & (b >= 135) & (b <= 200) & (r - b >= 12) & (r - b <= 65)
     y0 = 230 // f  # skip HUD band (clock, buttons)
     mask[:y0] = False
     sh, sw = mask.shape
     seen = np.zeros_like(mask)
-    best = None
+    found = []
     for y, x in zip(*np.nonzero(mask)):
         if seen[y, x]:
             continue
@@ -689,11 +719,9 @@ def find_bubble(img):
                     stack.append((ny, nx))
         bw, bh = x1 - x0 + 1, yb - ya + 1
         # bubble ≈ 100-140 px wide at full res => 22-38 px at 1/4; roughly round; fairly filled (icon inside)
-        if 20 <= bw <= 40 and 20 <= bh <= 40 and 0.75 <= bw / bh <= 1.33 and n >= 0.35 * bw * bh:
-            c = (int((x0 + x1) // 2 * f), int((ya + yb) // 2 * f))
-            if best is None or n > best[1]:
-                best = (c, n)
-    return best[0] if best else None
+        if 20 <= bw <= 40 and 20 <= bh <= 40 and 0.75 <= bw / bh <= 1.33 and n >= BUBBLE_FILL * bw * bh:
+            found.append(((int((x0 + x1) // 2 * f), int((ya + yb) // 2 * f)), n))
+    return [c for c, _ in sorted(found, key=lambda t: -t[1])]
 
 
 MOVE_DIFF = 3.0  # verified: moving 0.2 s+ = 8-10, blocked = 1.1-1.6 (water animating). Mean grey diff (96x54) between frames before/after a walk; below = the camera didn't move
@@ -957,7 +985,7 @@ def _diff(a, b):
 # Older runs are flat runs/<…>.jsonl files. `wf run report` = timeline + summary.
 RUNS_DIR = os.path.join(ROOT, 'runs')
 RUN_CUR = os.path.join(SHOT_DIR, 'run.current')
-RUN_NOTES = ('attempt', 'issue', 'gap', 'decision', 'note')
+RUN_NOTES = ('attempt', 'issue', 'gap', 'decision', 'note', 'interrupt')  # interrupt = a user interrupt (bench)
 RUN_GAME = re.compile(r'\] > \w+ me=Player|totalPlanted|destroying|grab_item|\[QUEST\] (?!Posting)|\[STATS\]|\[REL\]|ChangeScene|OnEnterBuilding|'
                       r'OnExitBuilding|giveloot|out of strength|no strength|Spawning player')
 
@@ -1031,6 +1059,43 @@ MOVES = [0]       # go: clicks in this daemon (every move attempt)
 TRACK = os.path.join(SHOT_DIR, 'track.json')   # her position after each command that tried to move her (L80)
 
 
+_WORLD = [None, None]   # (World, LogReader): the world model in shadow mode (M2, spec 2026-10-30 §3)
+
+
+def world():
+    """The daemon's World, created on first use from the facts, the entity cache and the whole current game log."""
+    if _WORLD[0] is None:
+        import nav
+        from runtime.log import LogReader
+        from world.model import World
+        _WORLD[0] = World(facts=nav.load(), spawn_inside=spawn_inside())
+        _WORLD[1] = LogReader(GAME_LOG, start=0, unhash=_unhash)  # the real log hashes names (review C1)
+        world_sync()  # replay this session's log first …
+        _WORLD[0].end_replay()
+        try:  # … then the save, which is newer than old log lines (review I3)
+            _, s = read_save()
+            p = s.get('currentPlayerPosition') or {}  # as save_summary reads it
+            if s.get('currentScene'):
+                _WORLD[0].scene = s['currentScene']
+                _WORLD[0].belief.scene(s['currentScene'])
+                _WORLD[0].belief._set(float(p.get('x', 0)), float(p.get('z', 0)), 5.0)  # the save may be stale
+        except Exception:  # noqa: BLE001
+            pass
+    return _WORLD[0]
+
+
+def world_sync():
+    """Feed new game-log evidence into the world (shadow mode: it only predicts and is scored)."""
+    if _WORLD[0] is None:
+        return
+    n = 0
+    for ev in _WORLD[1].new():
+        _WORLD[0].observe(ev)
+        n += 1
+    if n:
+        _WORLD[0].save()
+
+
 class Stuck(Exception):
     """The stuck rule fired (L75, L80): aborts the running command or game function."""
 
@@ -1058,7 +1123,13 @@ def track_point(scene, x, z):
     json.dump([], open(TRACK, 'w'))  # one episode = one alarm; the next 3 moves are counted afresh
     n = next((st['n'] for st in plan_state()[1] if st['state'] == 'start'), None)
     run_log('stuck', at=pts[-1], moves=nav.STUCK_MOVES)
-    raise Stuck(f'STUCK (L75): position within {nav.STUCK_SPREAD:.0f} units over the last {nav.STUCK_MOVES} moves at '
+    sid = ''
+    try:  # eval (M0): the agent/supervisor marks it hit (really stuck) or miss: ./wf eval mark <id> hit|miss
+        import evals
+        sid = evals.predict('stuck', 'stuck', True, {'at': list(pts[-1])})
+    except Exception:  # noqa: BLE001
+        pass
+    raise Stuck(f'[eval {sid}] STUCK (L75): position within {nav.STUCK_SPREAD:.0f} units over the last {nav.STUCK_MOVES} moves at '
                 f'{scene} ({x:.1f}, {z:.1f}). Stop moving that way; ' +
                 (f'`./wf run escalate {n} stuck` and return RESULT: escalate step {n}' if n else
                  'ask for the next step (`./wf ask-step <place>`) or report'))
@@ -1177,6 +1248,284 @@ def run_cmd(sub_, args):
         run_report(p)
     else:
         sys.exit(run_cmd.__doc__)
+
+
+def world_cmd(args):
+    """wf world [entities [kind] | tara | route X Z | explain ID]."""
+    w = world()
+    world_sync()
+    sub_ = args[0] if args else 'entities'
+    if sub_ == 'entities':
+        es = w.entities(kind=args[1]) if len(args) > 1 else w.entities()
+        return print('\n'.join(f'{e} uses={",".join(e.uses)} sources={len(e.sources)}' for e in es) or 'no entities')
+    if sub_ == 'tara':
+        area, x, z, u = w.tara()
+        r = w.in_reach()
+        return print(f'tara: {area} ({x:.2f}, {z:.2f}) ±{u:.2f}' + (f' · in reach: {r}' if r else '') +
+                     (' · NEEDS FIX' if w.needs_fix() else ''))
+    if sub_ == 'route' and len(args) == 3:
+        area = w.tara()[0]
+        wps = w.route((area, float(args[1]), float(args[2])), reach=1.0)
+        return print('no way known' if wps is None else ' → '.join(f'({x:.1f}, {z:.1f})' for x, z in wps))
+    if sub_ == 'explain' and len(args) == 2:
+        return print(w.explain(int(args[1])))
+    sys.exit(world_cmd.__doc__)
+
+
+def bench_cmd(args):
+    """wf bench start A|B|C | report [run dir] | compare [A|B|C] (spec 2026-10-30 §7.2)."""
+    import shutil
+    import bench
+    import evals
+    sub_ = args[0] if args else ''
+    if sub_ == 'start' and len(args) == 2 and args[1] in 'ABC':
+        run_cmd('start', [f'bench-{args[1]}', f'benchmark {args[1]}'])
+        shutil.copy(os.path.join(bench.DIR, f'{args[1]}.md'), os.path.join(run_dir(), 'plan.md'))
+        return run_cmd('plan', [])
+    if sub_ == 'report':
+        if len(args) > 1:
+            d = args[1]
+        else:  # the newest bench run (never an ordinary task run, review #3a)
+            benches = [p for p in run_logs() if '-bench-' in p and p.endswith('log.jsonl')]
+            if not benches:
+                return print('no bench runs yet: wf bench start A|B|C')
+            d = os.path.dirname(max(benches, key=os.path.getmtime))
+        ev = run_events(os.path.join(d, 'log.jsonl'))
+        try:
+            import nav
+            navev = [json.loads(line) for line in open(nav.EVENTS) if line.strip()]
+        except OSError:
+            navev = []
+        t1 = ev[-1].get('end', ev[-1]['t']) if ev else None
+        s = bench.score(ev, navev, evals.report(ev[0]['t'], t1) if ev else {})
+        task = next((e.get('quest', '') for e in ev if e.get('type') == 'start'), '').replace('bench-', '')
+        rev = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], cwd=ROOT, capture_output=True,
+                             text=True).stdout.strip()
+        row = {'date': time.strftime('%Y-%m-%d %H:%M'), 'task': task, 'toolkit': rev, 'run': os.path.basename(d), **s}
+        json.dump(row, open(os.path.join(d, 'bench.json'), 'w'), indent=1)
+        bench.upsert_result(row)
+        return print(json.dumps(row, indent=1))
+    if sub_ == 'compare':
+        return print(bench.compare_table(bench.results(args[1] if len(args) > 1 else None)))
+    sys.exit(bench_cmd.__doc__)
+
+
+def objects_cmd(args):
+    """wf objects list [kind] | add <kind> x0 y0 x1 y1 [state] | remove <kind> <id> | detect [kind...] | find <kind> (= detect <kind>) |
+    eval [frames_dir] | calibrate [frames_dir] | reembed: appearance-based objects
+    (tools/objects, DINOv2 patch heatmaps). Reads the current frame only (WF_FRAME=<png> uses a saved one); no focus change, no input."""
+    if os.path.join(ROOT, 'tools') not in sys.path:
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from objects import store as OS, detect as OD, calib as OC
+    st = OS.Store(os.environ.get('WF_OBJECTS_DB') or OS.DEFAULT_ROOT)
+    if not args or args[0] == 'list':
+        if len(args) > 1:
+            if not st.count(args[1]):
+                return print('no such kind')
+            for e in st.examples(args[1]):
+                print(f'{e.id}  state={e.state} light={e.light} source={e.source}  {st.example_path(args[1], e.id)}')
+            return
+        for k in st.kinds():
+            print(f'{k}  {st.count(k)}')
+        return
+    def frame():
+        from PIL import Image
+        fp = os.environ.get('WF_FRAME')
+        return Image.open(fp).convert('RGB') if fp else grab()
+    def show(ds):
+        for d in ds:
+            print(f'{d.kind} box {",".join(str(int(v)) for v in d.box)} z {d.dist:.1f} point {d.point[0]},{d.point[1]}')
+        if not ds:
+            print('(nothing detected)')
+    def light_now(img):
+        try:
+            return light_period(game_hour(img))
+        except Exception:
+            return None
+    cmd, rest = args[0], args[1:]
+    if cmd == 'remove' and len(rest) == 2:
+        print(f'removed {rest[0]} {rest[1]}' if st.remove(rest[0], rest[1]) else 'no such example')
+        return
+    def unknown(ks):
+        bad = [k for k in ks if not st.count(k)]
+        for k in bad:
+            print(f'unknown kind: {k} (known: {", ".join(st.kinds()) or "none"})')
+        return bad
+    if cmd == 'add':
+        usage = 'usage: wf objects add <kind> x0 y0 x1 y1 [state]'
+        if not 5 <= len(rest) <= 6:
+            sys.exit(usage)
+        try:
+            box = tuple(int(v) for v in rest[1:5])
+        except ValueError:
+            sys.exit(usage)
+        img = frame()
+        W, H = img.size
+        if not (0 <= box[0] < box[2] <= W and 0 <= box[1] < box[3] <= H):
+            sys.exit(f'box outside the frame ({W}x{H})')
+        if not OS.KIND_RE.match(rest[0]):
+            sys.exit(f'bad kind name: {rest[0]!r} (letters, digits, _ and - only)')
+        state = rest[5] if len(rest) > 5 else None
+        try:
+            light = light_period(game_hour(img))
+        except Exception:
+            light = None
+        crop = img.crop(box)
+        vec = OD.dino.mean_vector(crop)
+        ex = st.add(rest[0], crop, vec, state=state, light=light, source='model')
+        if ex:
+            print(f'added {rest[0]} {ex.id} ({light}, {state})')
+        else:
+            d, near = st.nearest(vec, rest[0])
+            print(f'duplicate of {near.id} (dist {max(d, 0.0):.3f}), skipped')
+        return
+    if cmd == 'detect':
+        if rest and unknown(rest):
+            return
+        img = frame()
+        show(OD.detect(img, st, kinds=rest or None, light=light_now(img)))
+        return
+    if cmd == 'eval' and len(rest) <= 1:
+        print(OC.eval_table(st, rest[0] if rest else None))
+        return
+    if cmd == 'calibrate' and len(rest) <= 1:
+        th, table = OC.calibrate(st, rest[0] if rest else None)
+        OC.write_thresholds(st, th)
+        print(table)
+        print(f'wrote {os.path.join(st.root, OD.THRESHOLDS)}')
+        return
+    if cmd == 'reembed' and not rest:
+        for k, n in OC.reembed(st).items():
+            print(f'{k}  {n} re-embedded')
+        return
+    if cmd == 'find' and len(rest) == 1:
+        if unknown(rest):
+            return
+        img = frame()
+        show([d for d in OD.detect(img, st, kinds=rest) if d.kind == rest[0]][:3])
+        return
+    sys.exit(objects_cmd.__doc__)
+
+
+def graph_cmd(args):
+    """wf graph show [region] | where | path <Kind> [key=value ...] | view-add <region> | sync: the object graph with nested regions
+    (tools/objects/graph). Reads the current frame only (WF_FRAME=<img> uses a saved one); no focus change, no input.
+    Env: WF_GRAPH=<json>, WF_VIEWS=<dir>, WF_SCENE=<scene> (tests), WF_OBJECTS_DB=<dir>."""
+    if os.path.join(ROOT, 'tools') not in sys.path:
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from objects import graph as OG, query as OQ, regions as OR, views as OV, store as OS, detect as OD
+    g = OG.Graph()
+    g.load(os.environ.get('WF_GRAPH') or os.path.join(OG.DEFAULT_DIR, 'Farm.json'))
+    if not args or args[0] not in ('show', 'where', 'path', 'view-add', 'sync'):
+        sys.exit(graph_cmd.__doc__)
+    cmd, rest = args[0], args[1:]
+    if cmd == 'sync':   # game log since the last sync mark -> node states (plant / water / unplant / can), then save
+        import game
+        gpath = os.environ.get('WF_GRAPH') or os.path.join(OG.DEFAULT_DIR, 'Farm.json')
+        if game.core.WF is None:
+            game.bind(sys.modules[__name__])
+        mark, size = int(g.extra.get('_sync') or 0), log_mark()
+        if mark > size:   # the log was rotated
+            mark = 0
+        lines = _unhash(log_since(mark)).splitlines()
+        changes = OG.apply_log(g, lines, [vars(b) for b in game.garden.beds()])
+        g.extra['_sync'] = size
+        g.save(gpath)
+        for nid, key, val, when in changes:
+            print(f'{nid} {key}={val} @{when}')
+        return print(f'synced {len(lines)} log lines since {mark}: {len(changes)} state changes')
+
+    def frame():
+        from PIL import Image
+        fp = os.environ.get('WF_FRAME')
+        return Image.open(fp).convert('RGB') if fp else grab()
+
+    def states(n):
+        return ' '.join(f"{k}={v['value']}@{v['game_time']}({v['source']})" for k, v in n.state.items())
+
+    def tree(id, depth):
+        n = g.nodes[id]
+        offers = ','.join(e['b'] for e in g.edges(id, 'offers'))
+        line = '  ' * depth + id
+        extra = [f'[{n.type}]']
+        if states(n):
+            extra.append(states(n))
+        if offers:
+            extra.append('offers ' + offers)
+        print(line + '  ' + ' '.join(extra))
+        for c in sorted(g.children(id), key=lambda c: (c.type == 'member', c.extra.get('index', 0))):
+            if c.id != id:
+                tree(c.id, depth + 1)
+
+    if cmd == 'show':
+        top = rest[0] if rest else next(n.id for n in g.nodes.values() if n.type == 'region' and n.region is None)
+        if top not in g.nodes:
+            return print(f'no such node: {top}')
+        return tree(top, 0)
+    scene = os.environ.get('WF_SCENE') or current_scene()
+    img = frame()
+    st = OS.Store(os.environ.get('WF_OBJECTS_DB') or OS.DEFAULT_ROOT)
+    vs = OV.ViewStore(os.environ.get('WF_VIEWS') or OV.DEFAULT_ROOT)
+    if cmd == 'view-add':
+        if len(rest) != 1 or rest[0] not in g.nodes or g.nodes[rest[0]].type != 'region':
+            return print(f'unknown region: {rest[0] if rest else None} (regions: '
+                         f'{", ".join(n.id for n in g.nodes.values() if n.type == "region")})')
+        vid = vs.add(rest[0], img, os.environ.get('WF_FRAME') or 'live')
+        return print(f'added view {vid} to {rest[0]}' if vid else f'duplicate view of {rest[0]}, skipped')
+    # where / path: a view region is inside when (nearly) all members of one of its groups are detected with its thresholds
+    near = vs.nearest(img)
+    view, vdist = near if near else (None, None)
+    probes = {}   # view region id -> detections with that region's thresholds
+
+    def probe_of(rid):
+        if rid not in probes:
+            probes[rid] = OD.detect(img, st, kinds=OR.scope(g, rid), region=rid)
+        return probes[rid]
+
+    region, uncertain = OR.current_region(g, scene, probe_of, view)
+    dets = probe_of(region)
+    if cmd == 'where':
+        vtxt = f'{view} {vdist:.3f}' if view else (f'none {vdist:.3f}' if vdist is not None else 'none')
+        seen = ' '.join(f'{d.kind} z{d.dist:.1f} {d.point[0]},{d.point[1]}' for d in dets) or '-'
+        return print(f'region {region}{" (uncertain)" if uncertain else ""} · scene {scene} · view {vtxt} · seen: {seen}')
+    if not rest:
+        sys.exit(graph_cmd.__doc__)
+    state = {}
+    for kv in rest[1:]:
+        k, _, v = kv.partition('=')
+        state[k] = None if v == 'None' else v
+    q = OQ.Q(kind=rest[0]).where(**state)
+    cands = q.run(g, region, visible={d.kind for d in dets})
+    if not cands:
+        return print(f'no node of kind {rest[0]}' + (f' with {state}' if state else ''))
+    best = cands[0]
+    steps = OQ.path(g, region, best)
+    print(f'from {region}: {best.id} ({len(cands)} candidates)')
+    for stp in steps:
+        print(f'  {stp.action} {stp.node.id}')
+    if steps:
+        first = steps[0].node
+        hit = next((d for d in dets if d.kind == first.kind), None)
+        print(f'  click {hit.point[0]},{hit.point[1]}' if hit else f'  not visible ({first.kind})')
+
+
+def eval_cmd(args):
+    """wf eval [all] | pending | mark <id> hit|miss: hits and misses of predictions (spec 2026-10-30 §7.1)."""
+    import evals
+    if args and args[0] == 'mark':
+        if len(args) != 3 or args[2] not in ('hit', 'miss'):
+            sys.exit('usage: wf eval mark <id> hit|miss')
+        evals.outcome(args[1], args[2], args[2] == 'hit')
+        return print(f'marked {args[1]} {args[2]}')
+    if args and args[0] == 'pending':
+        rep = evals.report()
+        return print('\n'.join(f'{k}: {c["pending"]} pending' for k, c in sorted(rep.items()) if c['pending'])
+                     or 'nothing pending')
+    since = None
+    if not (args and args[0] == 'all'):
+        ev = run_events()
+        since = ev[0]['t'] if ev else None
+    print(('since the start of the open run\n' if since else 'all predictions\n') + evals.format_report(evals.report(since)))
 
 
 def game_cmd(kind, args):
@@ -1353,11 +1702,57 @@ def wait_settle(before=None, timeout=3.0, interval=0.1, still=1.5, min_wait=0.25
     return round(time.time() - t0, 2)
 
 
+MENU_WORDS = ('game paused', 'resume game', 'settings', 'volume', 'return to menu', 'exit game', 'inventory',
+              'select', 'buy', 'sell', 'not yet', 'remove', 'cancel', 'confirm')
+
+
+def menu_open(s):
+    """Why clicking the world now is unsafe (a menu with buttons, dialogue, popup, cutscene), or None. Passive info
+    cards (hive progress, wilted plant) have no buttons and don't block (S13 vs the bench B hive card)."""
+    if s['mode'] in ('dialogue', 'popup', 'cutscene'):
+        return s['mode']
+    if s['mode'] != 'overlay':  # gameplay text (toasts, quest tracker) never blocks walking (review #5)
+        return None
+    texts = [t.split(') ', 1)[-1] for t in s.get('text', [])]
+    hit = next((t for t in texts if any(w == t.strip().lower() or (len(w) >= 6 and w in t.lower())
+                                        for w in MENU_WORDS)), None)
+    return f'{s["mode"]}: {hit}' if hit else None
+
+
+UNDER_HER = 1.5   # world units: a click this close to her that lands on an object uses it instead of walking
+
+
+def object_under_her(x, y):
+    """The entity a short click (x, y) would land on next to Tara, when the world is sure where she is; else None."""
+    try:
+        w = world()
+        area, bx, bz, u = w.tara()
+        c = calib_load(area) if area else None
+        if not c or u > 1.0:
+            return None
+        import math
+        import nav
+        dx, dz = nav.screen_to_ground(c['H'], x, y)
+        if math.hypot(dx, dz) > UNDER_HER:
+            return None
+        hit = w.entities(area=area, near=(bx + dx, bz + dz), within=1.0)
+        return str(hit[0]) if hit else None
+    except Exception:  # noqa: BLE001 (a missing world never blocks a click)
+        return None
+
+
 def go_to(x, y, timeout=15.0, interval=0.15):
     """Click-to-move (L49): left-click a ground point or object; the game pathfinds around fences/objects and Tara
     walks there (clicking an object stops her in front of it, bubble shown, no interaction). Waits until the camera
     stops moving. Returns None on arrival, or a NO MOVE / STILL MOVING message.
-    Arrival = Tara's own activity stops (Tara tracker, L52), not the whole screen: water/NPCs don't delay it."""
+    Arrival = Tara's own activity stops (Tara tracker, L52), not the whole screen: water/NPCs don't delay it.
+    Refuses to click while a menu/overlay is open (S13: walking clicks moved the user's audio sliders to 0)."""
+    why = menu_open(state())
+    if why:  # not "NO MOVE": callers must stop, not treat the spot as unwalkable (review #2)
+        return f'MENU OPEN ({why}): close it first, never click through menus'
+    under = object_under_her(x, y)
+    if under:  # a short click onto the object she stands at is an interaction, not a step (world-shadow-2)
+        return f'NO MOVE: the click would use {under} right under her (interaction, not a step)'
     tr = Tara()
     tr.update(_frame())
     mark = log_mark()
@@ -1459,9 +1854,45 @@ def pos(refocus=None, timeout=3.5):
     return p
 
 
+_ZOOM = [0.0, None, 1.0]   # (time, area, k): the measured zoom, cached briefly (one mask request ≈ 0.1–0.3 s)
+ZOOM_TTL = 2.0
+ZOOM_MIN = 0.08            # |k - 1| below this = the calibrated zoom
+
+
+def current_zoom(scene):
+    """The camera zoom now (L85): Tara's height on screen (foreground mask) over the area's reference height."""
+    from world import zoom
+    ref = zoom.ref_load(scene)
+    if not ref:
+        return 1.0
+    if time.time() - _ZOOM[0] < ZOOM_TTL and _ZOOM[1] == scene:
+        return _ZOOM[2]
+    box = zoom.tara_mask(grab())
+    area, x, z, u = world().tara()
+    if not zoom.plausible(box, ref):  # she's hidden (behind the hives): the zoom measured nearest to her (day-walk)
+        k = zoom.nearest(scene, x, z) if area == scene and u <= 3.0 else None
+        return k if k else (_ZOOM[2] if _ZOOM[1] == scene else 1.0)
+    k = zoom.gauge(box[3] - box[1], ref)
+    _ZOOM[:] = [time.time(), scene, k]
+    if area == scene and u <= 1.0 and abs(k - 1.0) > ZOOM_MIN:
+        zoom.sample_add(scene, x, z, k, 'gauge')
+    return k
+
+
 def calib_load(scene):
+    """The area's screen<->ground calibration at the current camera zoom (L85: the garden zooms in)."""
     import nav
-    return nav.calib_load(scene)
+    c = nav.calib_load(scene)
+    if not c:
+        return c
+    try:
+        from world import zoom
+        k = current_zoom(scene)
+        if abs(k - 1.0) > ZOOM_MIN:
+            c = dict(c, H=zoom.apply(c['H'], k), zoom=round(k, 2))
+    except (Exception, SystemExit):  # noqa: BLE001 (no zoom measurement = the calibrated zoom)
+        pass
+    return c
 
 
 def _seg():
@@ -1584,10 +2015,18 @@ def checkpoint(result=None, goal=None, edge=None, target=None, refocus=True, pin
         img_guess, vec = img_locate() if is_frontmost() else (None, None)
     except Exception:  # Vision hiccup: the reading still counts
         img_guess, vec = None, None
+    try:
+        world_sync()  # the world's prediction includes all evidence up to this reading
+    except Exception:  # noqa: BLE001 (shadow mode never breaks play)
+        pass
     p = pos(refocus=refocus)
     inside = current_scene()  # buildings share the outdoor scene's world coords (D147: House = Farm at y 1.1)
     if inside and inside != p['scene']:
         p['scene'] = f"{p['scene']}/{inside}"
+    try:
+        world().reading(p['scene'], p['x'], p['z'])  # eval world_belief, then the exact fix
+    except Exception:  # noqa: BLE001
+        pass
     stuck = None
     try:
         track_point(p['scene'], p['x'], p['z'])
@@ -1622,6 +2061,14 @@ def checkpoint(result=None, goal=None, edge=None, target=None, refocus=True, pin
         fact['img'] = img_guess
     fact.update(extra or {})
     nav.append(fact)
+    if pred:  # eval (M0): dead reckoning vs the reading
+        try:
+            import evals
+            to = [p['x'], p['z']]
+            evals.record('belief', 'position', pred, to, evals.belief_hit(pred, to),
+                         {'scene': p['scene'], 'pred': pred, 'to': [round(v, 2) for v in to]})
+        except Exception:  # noqa: BLE001
+            pass
     if vec is not None and result != 'scene':  # a scene-change frame may still show the loading screen
         nav.print_append(p['scene'], fact['t'], vec)
     if fact.get('pin'):
@@ -1639,6 +2086,16 @@ def note_click(x, y, moved, mark):
     checkpoint when the click changed scene (spawn/door point = a free anchor) or the walk got stuck."""
     import nav
     MOVES[0] += 1
+    try:
+        world_sync()  # evidence from before/at this click first, in order (review C2)
+    except Exception:  # noqa: BLE001
+        pass
+    if moved is not None:  # eval (M0): did the click move her
+        try:
+            import evals
+            evals.record('click', 'moves her', True, bool(moved), bool(moved), {'click': [x, y]})
+        except Exception:  # noqa: BLE001
+            pass
     try:  # objects the log names with a position = obstacles for the planner (L79)
         fr0 = _seg()['from'] or {}
         nav.objects_learn(fr0.get('scene'), nav.objects_from_log(_unhash(log_since(mark))))
@@ -1667,6 +2124,14 @@ def note_click(x, y, moved, mark):
                 track_point(*est)
         return
     _seg_add(x, y)
+    try:  # shadow world: our click predicts her move
+        est0 = seg_estimate()
+        c0 = calib_load(est0[0]) if est0 else None
+        if c0 and moved:
+            world().clicked(*nav.screen_to_ground(c0['H'], x, y))
+            world_sync()  # what the walk itself logged (actions at the target) comes after the click
+    except Exception:  # noqa: BLE001
+        pass
     if not scene_change(mark, seg_estimate()):  # an exit is stored only when traced, never guessed
         lp = nav.log_position(_unhash(log_since(mark)))
         if lp:
@@ -1767,6 +2232,8 @@ def go_world(gx, gz, goal=None, max_rounds=2, radius=None, read=True):
                 return f'go-world: every direction toward ({gx:.1f}, {gz:.1f}) is blocked near ({x:.1f}, {z:.1f})'
             sx, sy, hx, hz = hop
             msg = go_to(sx, sy)
+            if msg and msg.startswith('MENU OPEN'):
+                return msg
             tries = 0
             while msg and msg.startswith('NO MOVE') and tries < 2:  # half the hop
                 hx, hz, tries = hx / 2, hz / 2, tries + 1
@@ -1818,6 +2285,8 @@ def detour(c, x, z, gx, gz):
         a = math.radians(rot)
         rx, rz = (dx * math.cos(a) - dz * math.sin(a)) / L * DETOUR_UNITS, (dx * math.sin(a) + dz * math.cos(a)) / L * DETOUR_UNITS
         msg = go_to(*nav.ground_to_screen(c['H'], rx, rz))
+        if msg and msg.startswith('MENU OPEN'):
+            return None
         if msg and msg.startswith('NO MOVE'):
             continue
         if _stuck():  # this side is walled too
@@ -1850,6 +2319,31 @@ SIDESTEP = 3.0   # world units: candidate first steps around her when the way is
 
 
 def goto_point(scene, x, z, r=None):
+    """goto_point_old, scored against the shadow world's route (eval `world_route`: the world said a way exists and
+    the walk arrived, or neither = hit)."""
+    try:
+        import nav
+        w = world()
+        w.facts = nav.load()  # refused clicks and walls learned since the daemon started (review I7)
+        fr = _seg()['from'] or {}
+        status, _ = w.route_status((scene, x, z), reach=r or 0.0,
+                                   now_hour=nav.game_hours(fr) if fr.get('hour') is not None else float('inf'))
+        predicted = None if status == 'unknown' else status == 'way'
+    except Exception:  # noqa: BLE001
+        predicted = None
+    msg = goto_point_old(scene, x, z, r)
+    if predicted is not None:
+        try:
+            import evals
+            arrived = msg.startswith(('ARRIVED', 'NEAR'))
+            evals.record('world_route', 'a way exists', predicted, arrived, predicted == arrived,
+                         {'goal': [scene, round(x, 2), round(z, 2)], 'msg': msg[:80]})
+        except Exception:  # noqa: BLE001
+            pass
+    return msg
+
+
+def goto_point_old(scene, x, z, r=None):
     """Walk to a world point in `scene` through the world graph (doors, proven trail, back links; L79): a temporary
     node at the point, planned like a place. A short straight hop in the same area goes directly. r = arrival
     radius (an object only needs to be within reach)."""
@@ -1861,6 +2355,8 @@ def goto_point(scene, x, z, r=None):
         sx, sy = nav.ground_to_screen(c['H'], x - start[1], z - start[2])
         if HOP_BOX[0] <= sx <= HOP_BOX[2] and HOP_BOX[1] <= sy <= HOP_BOX[3]:
             msg = go_to(sx, sy)
+            if msg and msg.startswith('MENU OPEN'):
+                return msg
             if not (msg and msg.startswith('NO MOVE')):
                 p, f = checkpoint(target=(x, z), radius=r)
                 left = math.dist((p['x'], p['z']), (x, z))
@@ -2561,11 +3057,19 @@ def teach(kind, cells):
             pt = ((x0 + x1) // 2, (y0 + y1) // 2)
         fr = dict(_seg()['from'] or {})
         msg = go_to(*pt)
+        if msg and msg.startswith('MENU OPEN'):
+            return f'teach step {cells[0]}: {msg}; then answer again (nothing learned)'
         if msg and msg.startswith('NO MOVE'):
             return f'teach step {cells[0]}: {msg} (not walkable): pick another cell'
         p, _ = checkpoint('via')
         moved = fr.get('x') is not None and math.dist((fr['x'], fr['z']), (p['x'], p['z']))
         run_log('vision', what='teach', kind=kind, cells=cells, moved=moved)
+        try:  # eval (M0): did the model's answer move her
+            import evals
+            evals.record('ask', 'answer moves her', cells[0], moved, bool(moved and moved >= 1.0),
+                         {'answer': cells[0], 'question': ctx.get('question', '')[:120]})
+        except Exception:  # noqa: BLE001
+            pass
         if not moved or moved < 1.0:
             return f'teach step {cells[0]}: she did not move: pick another cell'
         os.remove(ASK_CTX)
@@ -2818,9 +3322,55 @@ def where(learn=None):
     return f'where: map {pin[0]},{pin[1]} · nearest place {name} ({d:.0f} map px) · world {p["scene"]} ({p["x"]:.1f}, {p["z"]:.1f})'
 
 
+def nav_places():
+    """Learned places (exact readings) as nodes: [{'name', 'scene', 'x', 'z'}] (for game functions)."""
+    import nav
+    return [{'name': n['name'], 'scene': n['scene'], 'x': n['x'], 'z': n['z']}
+            for n in nav.nodes(nav.load()).values() if n['src'] == 'arrived' and n.get('x') is not None]
+
+
+class _Point:
+    KINDS = {'well': 'Well'}   # learned place → the object kind there (its unique bubbles mean "arrived")
+
+    def __init__(self, name, scene, x, z):
+        self.name, self.scene, self.x, self.z = name, scene, x, z
+        self.kind = self.KINDS.get(name)
+
+    def __str__(self):
+        return self.name
+
+
+def _goto_world(place):
+    """walk() to a learned place (an exact reading) in the world's current area; None if it doesn't apply."""
+    try:
+        import nav
+        from game import walk
+        area = world().tara()[0]
+        n = next((v for v in nav.nodes(nav.load()).values() if v['name'] == place and v['src'] == 'arrived'
+                  and v['scene'] == area and v.get('x') is not None), None)
+    except Exception:  # noqa: BLE001 (the old route still works without the world)
+        return None
+    if not n:
+        return None
+    import game
+    game.bind(sys.modules[__name__])
+    pt = _Point(place, area, n['x'], n['z'])
+    ent = next(iter(world().entities(kind=pt.kind, area=area)), None) if pt.kind else None
+    try:
+        if ent and walk.click_object(ent):  # the place's object is visible: click it, the game pathfinds (user)
+            return walk.walk(ent)
+        return walk.walk(ent or pt)
+    except game.Failed as e:
+        return f'goto {place}: {e}'
+
+
 def goto(place, max_hops=30):
     """Walk to a known place: the world graph when it knows the place, else the coarse map walk (map_walk, L72),
-    else (map won't open) a reading + the graph. Returns ARRIVED / NEAR / NOT REACHED messages."""
+    else (map won't open) a reading + the graph. Returns ARRIVED / NEAR / NOT REACHED messages.
+    A learned place in Tara's current area is walked on the world model (M3 walk): its belief, not the old estimate."""
+    via_world = _goto_world(place)
+    if via_world:
+        return via_world
     steps = graph_route(place)
     if steps:  # world graph (phase 2): walk / link / replay steps
         return run_route(place, steps)
@@ -3508,6 +4058,17 @@ def main(argv=None):
                                     'road; --calibrate = she IS on a road: learn this lighting period\'s colours')
     p.add_argument('--go', action='store_true')
     p.add_argument('--calibrate', action='store_true')
+    sub.add_parser('tara-box', help="Tara's box on screen (tracker): the zoom gauge (L85), no game input")
+    p = sub.add_parser('world', help='the world model (shadow, M2): wf world [entities [kind]|tara|route X Z|explain ID]')
+    p.add_argument('args', nargs='*')
+    p = sub.add_parser('bench', help='benchmark runs: wf bench start A|B|C | report [run dir] | compare [A|B|C]')
+    p.add_argument('args', nargs='*')
+    p = sub.add_parser('objects', help='object examples + detection: wf objects list | add <kind> x0 y0 x1 y1 [state] | detect [kind..] | find <kind> | eval [dir] | calibrate [dir] | reembed')
+    p.add_argument('args', nargs='*')
+    p = sub.add_parser('graph', help='object graph with nested regions: wf graph show [region] | where | path <Kind> [key=value..] | view-add <region>')
+    p.add_argument('args', nargs='*')
+    p = sub.add_parser('eval', help='hits/misses of predictions: wf eval [all] | pending | mark <id> hit|miss')
+    p.add_argument('args', nargs='*')
     p = sub.add_parser('py', help='run game functions (tools/game, L77): wf py "for b in beds(wilted=True): replant(b)"')
     p.add_argument('args', nargs='+')
     p = sub.add_parser('call', help='run one game function: wf call garden.water 3')
@@ -3562,6 +4123,29 @@ def main(argv=None):
         return actions(a.tags, a.all)
     if a.cmd == 'run':
         return run_cmd(a.sub, a.args)
+    if a.cmd == 'tara-box':  # zoom gauge check (L85): her box on screen, no game input
+        tr = Tara()
+        for _ in range(4):
+            tr.update(grab())
+            time.sleep(0.1)
+        x0, y0, x1, y1 = tr.box
+        from world import zoom
+        m = zoom.tara_mask(grab())
+        print(f'tracker box ({x0:.0f}, {y0:.0f}, {x1:.0f}, {y1:.0f}) · height {y1 - y0:.0f} px (does not follow the zoom)')
+        area = (seg_estimate() or (None,))[0] or 'Farm'
+        ref = zoom.ref_load(area.split('/')[0] if '/' not in area else area)
+        return print(f'mask box {m} · height {m[3] - m[1] if m else "?"} px · reference {ref} · zoom '
+                     f'{zoom.gauge(m[3] - m[1], ref) if m and ref else "?"}')
+    if a.cmd == 'world':  # inspection of the shadow world model, no game input
+        return world_cmd(a.args)
+    if a.cmd == 'bench':  # bookkeeping: no focus, no game input (review #1)
+        return bench_cmd(a.args)
+    if a.cmd == 'objects':
+        return objects_cmd(a.args)
+    if a.cmd == 'graph':
+        return graph_cmd(a.args)
+    if a.cmd == 'eval':
+        return eval_cmd(a.args)
     if a.cmd == 'learn':
         return print(learn_nav()) if a.what == 'nav' else learn_report()
     if a.cmd == 'coverage':
@@ -3823,7 +4407,11 @@ def serve():
                 except Exception as e:  # keep serving
                     print(f'ERROR: {type(e).__name__}: {e}')
                     code = 1
-                if argv and argv[0] not in ('run', 'stop', 'status'):
+                try:  # shadow world (M2): evidence after every command; its own try (review I8)
+                    world_sync()
+                except Exception:  # noqa: BLE001
+                    pass
+                if argv and argv[0] not in ('run', 'stop', 'status', 'eval', 'bench'):
                     try:
                         w = step_warning()
                         if w:

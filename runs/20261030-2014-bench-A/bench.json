@@ -1,0 +1,23 @@
+{
+ "date": "2026-10-30 20:23",
+ "task": "A",
+ "toolkit": "b74b0c9",
+ "run": "20261030-2014-bench-A",
+ "calls": 21,
+ "real_min": 8.5,
+ "game_min": 110,
+ "thinking_s": 104.5,
+ "readings": 25,
+ "stuck": 4,
+ "interrupts": 0,
+ "escalations": 1,
+ "steps_done": 1,
+ "steps_total": 2,
+ "eval": {
+  "click": 0.813953488372093,
+  "belief": 0.05555555555555555,
+  "skills": 0.0,
+  "stuck": 0.25,
+  "ask": 1.0
+ }
+}

@@ -18,6 +18,11 @@ winning.** Prefer goals that exercise undocumented actions/places/screens. When 
 docs, then re-test. Judge runs by gaps found and fixed.
 
 ## 1. Orient (cheap)
+- **Before every dispatch:** `./wf status` — a locked Mac screen blocks capture and input (loop-live 2026-10-31: the
+  agent stopped at its first call). Locked → tell the user, wait; never dispatch.
+- **…and check the user isn't playing:** `./wf log --tail 20` + `tail -5 .shots/actions.log`. Game actions in the log
+  (`> water`, `> plant`, `grab_item`…) newer than our last command, or a game clock far ahead of where we left it →
+  the user is playing: ask before dispatching (loop-live-4 2026-10-31: the agent fought the user's inputs).
 - Read `docs/progress.md` (state + **Current goal** + goal queue) and `docs/quests/INDEX.md` → "Active now".
 - `./wf save` + `./wf log --tail 20` (sandbox disabled): exact day/time, money, scene, quest goals, inventory, and
   recent events (`docs/ui/game-files.md`). Then `./wf state`; add one `./wf look` only if the exact spot matters.
@@ -100,6 +105,8 @@ its `run end`: wait for its task notification (retro 2026-10-28: my Escapes foug
 3. Log the ping in `docs/agent-runs.md` (Gap → fix). Many pings on one quest means the manifest template needs a new field.
 
 ## 4. Review
+- `./wf eval` (hits/misses per component for this run; mark each STUCK alarm `./wf eval mark <id> hit|miss`) and,
+  for bench runs, `./wf bench report`. Log every user interrupt as it happens: `./wf run interrupt <text>`.
 - `./wf run status` (progress per step) and `./wf run report [runs/<task>/]`: timeline (attempts, issues, walks, game events) + time split (in calls / agent
   thinking / Tara active). Retros start from run logs, not from video.
 - Read the report; verify with `./wf state`. Spot-check that the quest file's Verified steps were written.

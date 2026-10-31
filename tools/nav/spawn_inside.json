@@ -1,4 +1,5 @@
 {
  "Farm/Bed": "House",
- "Farm/FromBasement": "House"
+ "Farm/FromBasement": "House",
+ "Town/CarpenterCustomer1": "Carpenter"
 }

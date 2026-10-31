@@ -12,8 +12,9 @@ def goto(target):
     needs to be within REACH: the game refuses closer clicks once its bubble is in range ("ALREADY THERE"), and
     the caller's log proof checks the action hit this object's position, not a neighbour's."""
     try:
-        if hasattr(target, 'x'):  # on screen: click it (game pathfinds, L81); else the graph (L79)
-            msg = core.WF.goto_point(getattr(target, 'scene', 'Farm'), target.x, target.z, r=REACH)
+        if hasattr(target, 'x'):  # the world model's walk (M3): in reach / on screen / costmap / graph
+            from . import walk
+            msg = walk.walk(target, reach=REACH)
         else:
             msg = core.WF.goto(str(target))
     except Exception as e:  # noqa: BLE001

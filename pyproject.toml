@@ -3,10 +3,14 @@ name = "llm-game-agent"
 version = "0.1.0"
 requires-python = ">=3.12"  # .python-version pins 3.12.13: macOS privacy grants are per binary path
 dependencies = [
+    "filterpy>=2.0.0",
     "imageio-ffmpeg>=0.7.0",
+    "networkx>=3.7",
     "numpy>=2.5.4",
     "pillow>=13.0.0",
     "pyobjc-framework-applicationservices>=12.2.2",
     "pyobjc-framework-vision>=12.2.2",
+    "torch>=2.15.0",
+    "torchvision>=0.29.2",
     "zstandard>=0.25.0",
 ]

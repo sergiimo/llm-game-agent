@@ -1,0 +1,19 @@
+{"t": 1793445119.88, "type": "start", "quest": "graph-garden", "goal": "live: where/path from the road, click the Garden, confirm inside, detect garden members"}
+{"t": 1793445138.51, "type": "plan_step", "n": "1", "state": "start", "text": "", "hour": null}
+{"t": 1793445140.05, "type": "call", "start": 1793445140.05, "end": 1793445142.42, "cmd": "resume"}
+{"t": 1793445146.47, "type": "call", "start": 1793445146.47, "end": 1793445146.5, "cmd": "look"}
+{"t": 1793445150.44, "type": "plan_step", "n": "1", "state": "done", "text": "outside west of fence, unzoomed", "hour": 17.166666666666668}
+{"t": 1793445150.53, "type": "plan_step", "n": "2", "state": "start", "text": "", "hour": 17.166666666666668}
+{"t": 1793445159.32, "type": "plan_step", "n": "2", "state": "done", "text": "where=Garden (view 0.056) but image outside fence: wrong; path click 1790,810 on a bed: ok", "hour": 17.166666666666668}
+{"t": 1793445159.42, "type": "plan_step", "n": "3", "state": "start", "text": "", "hour": 17.166666666666668}
+{"t": 1793445164.3, "type": "activity", "what": "go", "target": "go:1790:810", "start": 1793445161.051931, "end": 1793445164.2998762, "moved": true}
+{"t": 1793445159.44, "type": "call", "start": 1793445159.44, "end": 1793445166.12, "cmd": "do go:1790:810 --look"}
+{"t": 1793445172.68, "type": "plan_step", "n": "3", "state": "done", "text": "inside zoomed, where=Garden ok", "hour": 17.333333333333332}
+{"t": 1793445172.78, "type": "plan_step", "n": "4", "state": "start", "text": "", "hour": 17.333333333333332}
+{"t": 1793445177.35, "type": "activity", "what": "go", "target": "go:1000:1000", "start": 1793445175.3277922, "end": 1793445177.345215, "moved": true}
+{"t": 1793445174.24, "type": "call", "start": 1793445174.24, "end": 1793445179.5, "cmd": "do go:1000:1000 --look"}
+{"t": 1793445192.58, "type": "activity", "what": "go", "target": "go:599:208", "start": 1793445188.118211, "end": 1793445192.577039, "moved": true}
+{"t": 1793445187.01, "type": "call", "start": 1793445187.01, "end": 1793445194.79, "cmd": "do go:599:208 --look"}
+{"t": 1793445199.73, "type": "call", "start": 1793445199.73, "end": 1793445201.84, "cmd": "pause"}
+{"t": 1793445203.59, "type": "plan_step", "n": "4", "state": "done", "text": "second sample ok", "hour": 17.5}
+{"t": 1793445203.61, "type": "end", "result": "done", "text": "graph where/path live check"}

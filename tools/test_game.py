@@ -82,6 +82,37 @@ class FakeGame:
     def wait_settle(self):
         pass
 
+    def world(self):
+        g = self
+
+        class W:
+            belief = None
+
+            def needs_fix(self):
+                return False
+
+            def tara(self):
+                return ('Farm', *g.at, 0.1) if isinstance(g.at, tuple) else ('Farm', 99.0, 99.0, 0.1)
+        return W()
+
+    def world_sync(self):
+        pass
+
+    def grab(self, crop=True):
+        return FakeImg()
+
+    def find_bubbles(self, img):                    # the well shows its can bubble when she is there
+        return [(500, 300)] if self.at == 'well' else []
+
+    def bubble_kind(self, img, b):
+        return getattr(self, 'bubble_name', 'fill_can'), 0.1
+
+    def bubble_highlighted(self, img, b):
+        return True
+
+    def calib_load(self, area):
+        return None                                   # no projection in the fake: walk uses goto_point
+
     def goto_point(self, scene, x, z, r=None):
         return self.go_world(x, z, radius=r)
 
@@ -107,7 +138,7 @@ class FakeGame:
 
     def run_action(self, spec):
         kind, _, arg = spec.partition(':')
-        if spec == 'key:space':
+        if spec == 'key:space' or (spec == 'click:500:300' and self.at == 'well'):
             self._space()
         elif kind == 'click':
             x, y = (int(v) for v in arg.split(':'))
@@ -128,7 +159,11 @@ class FakeGame:
 
     def _space(self):
         if self.at == 'well':
-            self.log.append('> fill_watering_can me=Player target=Well')
+            self.clicks_at_well = getattr(self, 'clicks_at_well', 0) + 1
+            if getattr(self, 'says_full', False):
+                self.log.append(getattr(self, 'says_text', '[D148 8:00:00 PM] My watering can is already full!'))
+                return
+            self.log.append('[D148 7:57:24 PM] > full_watering_can me=Player target=Well')
             self.can_full = True
             return
         c = self._crop()
@@ -143,6 +178,8 @@ class FakeGame:
         elif self.screen == 'gameplay' and c and self.can_full:
             self.log.append('> water me=Player target=GardenBed' + self._pos())
             c['isWatered'], self.can_full = 'true', False
+        elif self.screen == 'gameplay' and c:
+            self.log.append('> out_of_water me=Player target=GardenBed' + self._pos())
 
     def _click(self, text):
         c = self._crop()
@@ -160,10 +197,103 @@ class Game(unittest.TestCase):
     def setUp(self):
         self.g = FakeGame()
         game.bind(self.g)
+        self.graph_copy()                      # skills save the graph: never the live one
         track.LINES.clear()
         import tempfile
         from game import items
         items.ITEM_DIR, items._REFS = tempfile.mkdtemp(), []
+        from evals import store
+        store.PATH = os.path.join(tempfile.mkdtemp(), 'predictions.jsonl')   # never the real store
+
+    def fake_goto(self, calls=None):
+        from objects import loop
+        from game import well
+        g = self.g
+
+        def goto(q, wf, **kw):
+            if calls is not None:
+                calls.append(q)
+            g.at = 'well'
+            return loop.Arrival(None, 'Farm', (500, 300), 1)
+        self.old_goto, well.loop.goto = well.loop.goto, goto
+        self.addCleanup(setattr, well.loop, 'goto', self.old_goto)
+        return goto
+
+    def graph_copy(self):
+        import shutil
+        import tempfile
+        from game import well
+        from objects import graph as OG
+        p = os.path.join(tempfile.mkdtemp(), 'Farm.json')
+        shutil.copy(os.path.join(OG.DEFAULT_DIR, 'Farm.json'), p)
+        self.old_graph, well.GRAPH = well.GRAPH, p
+        self.addCleanup(setattr, well, 'GRAPH', self.old_graph)
+        return p
+
+    def test_fill_can_bubble_already_on_screen_one_click(self):
+        from objects import graph as OG
+        p = self.graph_copy()
+        calls = []
+        self.fake_goto(calls)
+        self.g.at = 'well'                                   # the can bubble shows: no goto
+        line = game.fill_can()
+        self.assertEqual(calls, [])
+        self.assertEqual(self.g.clicks_at_well, 1)
+        self.assertIn('target=Well', line)
+        g = OG.Graph()
+        g.load(p)
+        self.assertEqual(g.state_value('Well', 'can'), 'full')
+        self.assertEqual(g.node('Well').state['can']['source'], 'log')
+
+    def test_fill_can_goes_to_the_well_then_clicks_its_bubble(self):
+        p = self.graph_copy()
+        calls = []
+        self.fake_goto(calls)
+        self.g.at = None
+        game.fill_can()
+        self.assertEqual([(q.kind) for q in calls], ['Well'])
+        self.assertEqual(self.g.clicks_at_well, 1)
+
+    def test_fill_can_already_full_counts_as_done(self):
+        p = self.graph_copy()
+        self.fake_goto()
+        self.g.says_full = True
+        line = game.fill_can()
+        self.assertIn('already full', line)
+
+    def test_fill_can_full_can_bubble_named_full_watering_can(self):
+        self.graph_copy()
+        calls = []
+        self.fake_goto(calls)
+        self.g.at = 'well'
+        self.g.bubble_name, self.g.says_full = 'full_watering_can', True
+        self.g.says_text = 'Player: My watering can is already full!'
+        line = game.fill_can()
+        self.assertEqual(calls, [])
+        self.assertIn('already full', line)
+
+    def test_fill_can_need_vision_propagates(self):
+        from objects import loop
+        from game import well
+        self.graph_copy()
+        old = well.loop.goto
+        def boom(q, wf, **kw):
+            raise loop.NeedVision('/x/ask-1.png')
+        well.loop.goto = boom
+        self.addCleanup(setattr, well.loop, 'goto', old)
+        with self.assertRaises(loop.NeedVision):
+            game.fill_can()
+
+    def test_goto_bed_queries_the_state_and_returns_the_arrival(self):
+        from objects import loop
+        from game import garden
+        seen = []
+        arr = loop.Arrival(None, 'Garden', (1, 2), 1)
+        old = garden.loop.goto
+        garden.loop.goto = lambda q, wf, **kw: (seen.append(q), arr)[1]
+        self.addCleanup(setattr, garden.loop, 'goto', old)
+        self.assertIs(game.goto_bed(crop=None), arr)
+        self.assertEqual((seen[0].kind, seen[0].state), ('GardenBed', {'crop': None}))
 
     def test_beds_numbered_and_filtered(self):
         bs = game.beds()
@@ -177,18 +307,26 @@ class Game(unittest.TestCase):
         game.replant(1)
         self.assertIn('> unplant_impl', '\n'.join(self.g.log))   # the "Remove?" confirmation was answered inside
         self.assertIn('totalPlanted.TulipSeed', '\n'.join(self.g.log))
-        self.assertEqual(self.g.crops[0]['isWatered'], 'true')
+        self.assertEqual(self.g.crops[0]['isWatered'], 'false')    # M3: replant doesn't water (one job each)
         names = [(e['depth'], e['name']) for e in self.g.events if e['type'] == 'action']
         self.assertIn((0, 'garden.replant'), names)
         self.assertIn((1, 'garden.unplant'), names)
-        self.assertIn((2, 'garden.water'), names)                 # plant() waters its bed
+        self.assertNotIn('garden.water', [n for _, n in names])
         self.assertTrue(all(e['ok'] for e in self.g.events if e['type'] == 'action'))
 
     def test_water_refills_at_the_well(self):
         self.g.can_full = False
+        self.loop_goto = self.fake_goto()
         game.water(2)
-        self.assertIn('target=Well', '\n'.join(self.g.log))
+        log = '\n'.join(self.g.log)
+        self.assertIn('> out_of_water', log)                       # the game said the can is empty …
+        self.assertIn('target=Well', log)                           # … so it filled the can
         self.assertEqual(self.g.crops[1]['isWatered'], 'true')
+
+    def test_water_does_not_go_to_the_well_without_cause(self):
+        self.g.can_full = True
+        game.water(2)
+        self.assertNotIn('target=Well', '\n'.join(self.g.log))
 
     def test_unplant_refuses_healthy_plant(self):
         with self.assertRaises(game.Failed) as e:
@@ -236,6 +374,18 @@ class Game(unittest.TestCase):
             game.unplant(1)
         self.assertIn('NEED_VISION step', str(e.exception))
         self.assertEqual(len(asked), 1)
+
+    def test_skills_hook_records_hit_and_miss(self):
+        import evals
+        from evals import store
+        store.PATH = os.path.join(__import__('tempfile').mkdtemp(), 'p.jsonl')
+        game.replant(1)
+        with self.assertRaises(game.Failed):
+            game.unplant(2)                                   # healthy plant: refused = a miss
+        r = evals.report()['skills']
+        self.assertEqual((r['hits'], r['misses']), (1, 1))    # nested actions are not counted
+
+
 
     def test_waits(self):
         ev = [{'type': 'call', 'start': 0, 'end': 2, 'cmd': 'py replant'},

@@ -12,7 +12,7 @@
 | Map button (M; orange "!" = quest target) | ≈(1520,110) (≈(1690,110) before inventory existed) | start | — |
 | Journal button (J) | ≈(1660,110) (≈(1828,110) early) | start | template `hud_journal3` |
 | Inventory button (I) + coin badge → [money](../mechanics/money-and-shops.md) | ≈(1815,110), coins ≈(1815,166) | after farm arrival | `money` (OCR misses it indoors ❓) |
-| Prompt bubble | near Tara / target, y > 230 | when standing still next to an interactable | `bubble@x,y` |
+| Prompt bubble | above its object, y > 230; several at once when several objects are in reach | standing next to interactables; **click a bubble = its action**, the highlighted one = Space (mechanics/basic-actions.md) | `bubble@x,y` |
 
 Changes over time break templates: recalibrate with `./wf save-template <name>` from a clean gameplay frame (L22).
 Day 1 = Monday, starts ~10:00. ~02:00 → pass-out ([screens/pass-out.md](screens/pass-out.md)).

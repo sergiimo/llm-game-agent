@@ -391,6 +391,9 @@ class Runner(unittest.TestCase):
             pa.start()
             self.addCleanup(pa.stop)
         self.f = f
+        pg = p.patch.object(self.loop, 'goto', side_effect=lambda *a, **k: f.events.append('goto'))
+        self.go = pg.start()
+        self.addCleanup(pg.stop)
         return f
 
     def preset(self, at, hints=None):
@@ -760,8 +763,56 @@ class Runner(unittest.TestCase):
         from objects.loop import NeedVision
         with self.assertRaises(NeedVision):
             self.run_('water')
-        self.assertEqual(f.events[:2], ['close', 'ask'])
+        self.assertEqual(f.events[:3], ['close', 'goto', 'ask'])
         self.assertEqual(f.screen, 'gameplay')
+
+    def test_stale_at_walks_to_garden_once_before_the_question(self):
+        f = self.fake()
+        self.preset(self.node(2, 2))
+        self.g.set_state('Tara', 'at', self.node(2, 2), 'D4 9:00:00 AM', 'vision')
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(self.go.call_count, 1)
+        self.assertEqual(self.go.call_args.args[0].kind, 'GardenBed')
+        self.assertEqual(f.events, ['goto', 'ask'])
+
+    def test_after_fill_can_goto_before_the_reanchor_question(self):
+        f = self.fake(states={(2, 2): {'wet': False}}, can=False)
+        self.preset(self.node(2, 2))
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(f.fills, 1)
+        self.assertEqual(self.go.call_count, 1)
+        self.assertLess(f.events.index('goto'), f.events.index('ask'))
+
+    def test_none_answer_sets_need_goto_and_next_run_walks_first(self):
+        f = self.fake()
+        self.g.set_state(self.node(1, 1), 'phase', 'wilted', 'D5 9:00:00 AM', 'vision')
+        before = self.g.node(self.node(1, 1)).state['phase']['value']
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        msg = self.anchor.answer(f'group: {self.GB}   none', graph=self.g, gpath=self.gpath)
+        self.assertIn('no beds visible', msg)
+        self.assertIs(self.g.state_value('Tara', 'need_goto'), True)
+        self.assertIsNone(self.g.state_value('Tara', 'at'))
+        self.assertEqual(self.g.node(self.node(1, 1)).state['phase']['value'], before)
+        self.assertNotIn('layout', self.g.nodes[self.GB].extra)
+        self.go.reset_mock()
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(self.go.call_count, 1)   # once, although Tara.at is unknown too
+        self.assertIsNone(self.g.state_value('Tara', 'need_goto'))
+
+    def test_need_goto_with_known_at_walks_first_and_clears(self):
+        f = self.fake()
+        self.preset(self.node(2, 2))
+        self.g.set_state('Tara', 'need_goto', True, 'D5 9:00:00 AM', 'vision')
+        self.run_('water')
+        self.assertEqual(self.go.call_count, 1)
+        self.assertIsNone(self.g.state_value('Tara', 'need_goto'))
 
     def test_open_card_closed_before_a_step(self):
         f = self.fake(states={(2, 2): {'wet': False}})

@@ -151,6 +151,12 @@ def _ask(graph, task, why, res=None):
     raise _need_vision(prompt)
 
 
+def _goto_garden(g, group):
+    """Walk to the group's beds (ruling 27) and clear a pending `none` answer's need_goto flag."""
+    loop.goto(Q(kind=g.nodes[group].kind), core.WF, graph=g)
+    g.set_state('Tara', 'need_goto', None, _now(), 'event')
+
+
 def _set_at(g, nid):
     g.set_state('Tara', 'at', nid, _now(), 'event')
     g.set_state('Tara', 'at_scene', anchor._scene(core), _now(), 'event')
@@ -217,6 +223,7 @@ def _perform(r, t, task, target, b):
     g.set_state('Tara', 'last_action_save', _save_stamp(), _now(), 'event')
     if out == 'refill':
         g.set_state('Tara', 'at', None, _now(), 'event')
+        _goto_garden(g, g.nodes[target].region)   # she stands at the well: back to the beds before vision looks
         _ask(g, task, 'the can ran dry; refilled at the well, Tara moved: re-anchor', r.res)
     if out == 'stop':
         return 'stop'
@@ -254,14 +261,21 @@ def run(task, group, graph, seed=None, max_steps=40, wf=None):
     except core.Failed as e:
         _ask(g, task, str(e).split('NEED_VISION')[0].rstrip('; ') or 'could not close the open screen', res=res)
     at = g.state_value('Tara', 'at')
+    went = False
     if at in g.nodes and g.nodes[at].region != group:
-        loop.goto(Q(kind=g.nodes[group].kind), core.WF, graph=g)
+        went = True
+        _goto_garden(g, group)
         g.set_state('Tara', 'at', None, _now(), 'event')
         at = None
     elif at in g.nodes and _at_stale(g):
         g.set_state('Tara', 'at', None, _now(), 'event')
         at = None
+    if g.state_value('Tara', 'need_goto') and not went:   # the last anchor answer was `none`
+        went = True
+        _goto_garden(g, group)
     if at not in g.nodes:
+        if not went:
+            _goto_garden(g, group)
         _ask(g, task, 'Tara.at is unknown', res=res)
     try:
         pw = g.state_value('Tara', 'pending_water')

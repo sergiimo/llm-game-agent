@@ -27,6 +27,7 @@ SHAPE = ('group: <group>   ref: r<R>c<C>@<cell>\n'
          'e.g. "group: GardenBed@Garden   ref: r1c2@L8\nr1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   '
          'r2c2@L12 wilted(Tulip)   r3c1@F15 ?"; name >= 2 beds in different rows and columns)')
 PHASES = ('empty', 'growing', 'ripe', 'wilted')
+_NONE = re.compile(r'^\s*group:\s*(\S+)\s+none\s*$')
 _HEAD = re.compile(rf'^\s*group:\s*(\S+)\s+ref:\s*(r\d+c\d+)@({CELL})\b\s*(.*)$', re.S)
 _TOKEN = re.compile(rf'(r\d+c\d+)@({CELL})\s+(\?|(\w+)(?:\(([^)]*)\))?(?:\s+(dry|watered)\b)?)')
 
@@ -40,7 +41,7 @@ class AnchorError(Exception):
 @dataclass
 class Anchor:
     group: str
-    ref: str
+    ref: str | None
     cells: dict = field(default_factory=dict)    # member id -> grid cell
     states: dict = field(default_factory=dict)   # member id -> {phase, crop, watered_today}
 
@@ -53,6 +54,11 @@ def cell_point(cell):
 
 
 def parse(text, graph):
+    n = _NONE.match(text.strip())
+    if n:   # no beds visible: Tara is away from the garden
+        if n.group(1) not in graph.nodes or graph.nodes[n.group(1)].type != 'group':
+            raise AnchorError(f'unknown group {n.group(1)}')
+        return Anchor(n.group(1), None)
     m = _HEAD.match(text.strip())
     if not m:
         raise AnchorError('malformed answer')
@@ -127,6 +133,9 @@ def fit_layout(beds, ref, prev=None):
 
 def apply(graph, anchor, game_time, scene=None):
     """Fit the layout (raises AnchorError before anything changes), then Tara.at = ref, member states, group layout."""
+    if anchor.ref is None:   # `none`: change nothing but the walk-first flag
+        graph.set_state('Tara', 'need_goto', True, game_time, 'vision')
+        return [('Tara', 'need_goto', True)]
     g = graph.nodes[anchor.group]
     beds = {m: cell_point(c) for m, c in anchor.cells.items()}
     lay = fit_layout(beds, anchor.ref, g.extra.get('layout'))
@@ -229,7 +238,7 @@ def question(img, task, graph, unexpected, core=None):
     text = (f'Task: {task}. Unexpected: {unexpected}. Predicted near Tara.at={tara}: {"; ".join(near) or "unknown"}. '
             f'The image has a grid (columns A-X, rows 1-16). Name every visible bed by its pattern cell rXcY, the grid cell '
             f'nearest the centre of that bed, and its state; `ref:` = the bed nearest the magenta marker. '
-            f'Answer with ./wf anchor "<answer>" in the format: {SHAPE}')
+            f'If NO bed is visible answer exactly `group: <group>   none`. Answer with ./wf anchor "<answer>" in the format: {SHAPE}')
     prompt = core.WF.ask_vision('anchor', text, pic)
     os.makedirs(os.path.dirname(PENDING), exist_ok=True)
     with open(PENDING, 'w') as f:
@@ -297,6 +306,8 @@ def answer(text, graph=None, gpath=None, save_counts=None):
     changes = apply(graph, anchor, pend.get('game_time') or 'vision', pend.get('scene'))
     graph.save(gpath)
     clear_pending()   # one answer per question
+    if anchor.ref is None:
+        return 'no beds visible; the next replant_all walks to the garden first'
     out = f'anchored Tara at {anchor.ref}; {len(changes) - 1} state changes'
     if save_counts:
         why = incomplete(graph)

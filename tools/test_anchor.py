@@ -69,6 +69,19 @@ class AnchorTest(unittest.TestCase):
         self.assertAlmostEqual(lay['pitch'][0], 480, delta=1)
         self.assertEqual(lay['pitch'][1], 270)
 
+    def test_parse_none(self):
+        a = A.parse(f'group: {GB}   none', self.g)
+        self.assertEqual((a.group, a.ref, a.cells), (GB, None, {}))
+        with self.assertRaises(A.AnchorError):
+            A.parse('group: Nope   none', self.g)
+
+    def test_none_answer_only_sets_need_goto(self):
+        a = A.parse(f'group: {GB}   none', self.g)
+        A.apply(self.g, a, 'D3')
+        self.assertIs(self.g.state_value('Tara', 'need_goto'), True)
+        self.assertIsNone(self.g.state_value('Tara', 'at'))
+        self.assertNotIn('layout', self.g.node(GB).extra)
+
     def test_implausible_pitch_rejected(self):
         b = 'GardenBed@Garden#r%dc%d'
         for name, pts in (('negative x', {(1, 1): (400, 200), (1, 2): (200, 200), (2, 1): (400, 450), (2, 2): (200, 450)}),

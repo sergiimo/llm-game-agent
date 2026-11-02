@@ -109,3 +109,35 @@ Kept: log parser (event types), menu guard, bubble kinds + drop flag, item icons
 - Pattern fit under strong zoom or when only 2–3 tiles are visible: how often it needs vision.
 - The far garden's pattern and its entry signal (first survey).
 - Whether hives and the well also need patterns or stay unique nodes reached by `near`.
+
+## 10. Revision B (2026-11-02, after live run 1): vision gives the layout
+Live run 1 (L122): the `GardenBed` detector returns border fragments (20–100 px), not one tile per bed (≈560×300 px),
+so §4 step 2 (pattern fit of detected tiles) and §5's per-tile labels had nothing to work with. User decision: **vision
+gives the layout; no bed detector in the chain.** This section replaces §4 steps 2–4 and §5 items 1–3.
+
+**Layout (screen-relative, not world).** The camera follows Tara, so beds keep fixed screen offsets from the frame
+centre while she stands at a bed. A group's `layout` = `{pitch: (px, py), ref_offset: (dx, dy)}` in frame pixels:
+the screen point of member m = `CENTRE + ref_offset + ((col(m) − col(at)) · px, (row(m) − row(at)) · py)`.
+Stored on the group node (frame pixels only, never world coordinates); invalidated by any failed move proof.
+
+**Anchor image and answer.** The tool saves the full-size frame with a fine labelled grid (columns `A–X`, 80 px;
+rows `1–16`, 67.5 px) and the reference marker at CENTRE. Vision names each visible bed by its pattern cell, the grid
+cell nearest the **centre of that bed**, and its state:
+```
+group: GardenBed@Garden   ref: r1c2@L8
+r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?
+```
+`ref` = the bed nearest the marker (becomes `Tara.at`). Validation: grid cells exist; members exist in the pattern;
+at least two beds differing in column and two in row (or a previous layout) to fit the pitch. The tool fits `layout`
+by least squares over the named beds (pitch per axis, ref offset) and rejects an answer whose residual exceeds
+0.35 × pitch (inconsistent beds) with the expected shape.
+
+**Step (replaces §4.2–4.4).** Locate = the layout's point for the target neighbour. Click it. **Move proof** = the
+camera shift measured by phase correlation of the frames before and after the click (numpy FFT, frame pixels):
+it must be one pitch opposite to the move direction (±0.4 pitch on that axis, < 0.4 pitch on the other); otherwise
+Unexpected (layout dropped → next call re-anchors). After the move the target is at `CENTRE + ref_offset`; its bubble
+is `bubble_near` that point and must match the predicted state (§4.4 unchanged). A card or panel on screen before a
+step or before asking vision is closed first (`ui.close()`), and one that a click opened is Unexpected (as before).
+
+**Unchanged:** graph (§3), event-type checks (§4.5), tasks and runner (§6), removals (§7), one question per surprise.
+**Dropped from the chain:** `detect_fn`, `locate`'s pattern fit, `lines.py` tile clustering (kept only if still used).

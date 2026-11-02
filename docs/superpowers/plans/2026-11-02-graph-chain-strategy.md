@@ -177,3 +177,56 @@
 ---
 
 **Follow-up plan (not in this plan):** remove `tools/world/` (belief, costmap, view, zoom, entities with x/z), `tools/nav.py` coordinate routes, `tools/nav/*/calib.json`, `checkpoint`/`pos` in `wf.py`, and `game/walk.py` geometry (spec 2026-10-31 §10 step 5; spec 2026-11-02 §7 rows 1). It touches `wf.py`'s trip commands and needs its own plan once trips run on region relations.
+
+---
+
+## Revision B tasks (spec §10: vision gives the layout)
+Global constraints above still apply. Additional: layout is stored in **frame pixels** on the group node (`layout`
+extra: `{'pitch': [px, py], 'ref_offset': [dx, dy]}`); grid for the anchor image = columns `A–X` (80 px), rows `1–16`
+(67.5 px) over 1920×1080; cell centre of `F8` = (5·80+40, 7·67.5+33.75); fit residual limit 0.35 × pitch; move-proof
+tolerance ±0.4 pitch. Review Focus additions: (6) a phase-correlation peak on a near-uniform frame (night) must give
+Unexpected, not a fake shift; (7) an anchor answer naming only one bed with no previous layout must be REJECTED.
+
+### Task 8: Layout from the vision answer (anchor)
+**Files:** Modify `tools/objects/anchor.py`, `tools/wf.py` (`ask_vision` anchor branch draws the A–X × 1–16 grid +
+CENTRE marker on the full-size frame, no detector labels), `docs/actions.md` A18, `.claude/agents/wylde-quest.md`;
+Test `tools/test_anchor.py`.
+**Interfaces — Produces:** `parse(text, graph) -> Anchor` (grammar of spec §10: `group:`, `ref: r<R>c<C>@<cell>`,
+beds `r<R>c<C>@<cell> <state>`; cell = `[A-X](1[0-6]|[1-9])`); `cell_point(cell: str) -> (x, y)`;
+`fit_layout(beds: dict[member_id, (x, y)], ref: str, prev: dict|None) -> dict` (`{'pitch', 'ref_offset', 'residual'}`,
+raises `AnchorError` when < 2 distinct cols and rows and no `prev`, or residual > 0.35 × pitch); `apply(graph, anchor,
+game_time, scene=None)` sets `Tara.at = ref`, states, and the group's `layout`; `question(img, task, graph, unexpected,
+core=None)` (no `dets`). Old label-based `parse/apply/_grid/_label_letters` removed.
+- [ ] Step 1: failing tests — `test_parse_spec10_example` (the §10 example → ref `GardenBed@Garden#r1c2`, 5 beds,
+  r3c1 phase None); `test_cell_point` (`F8` → (440, 506.25)); `test_fit_layout_from_four_beds` (beds at F8/L8/F12/L12
+  → pitch ≈ (480, 270), ref_offset of r1c2@L8 ≈ (920−960, 506.25−540)); `test_single_bed_without_prev_rejected` (RF 7);
+  `test_inconsistent_beds_rejected` (one bed 1 pitch off → residual > 0.35 → AnchorError); `test_apply_sets_layout_and_ref`;
+  `test_real_ask_vision_anchor_grid` (real `wf.ask_vision` kind='anchor' → full-size image, grid letters drawn,
+  prompt has `ref:` example and `./wf anchor`).
+- [ ] Step 2: run `.venv/bin/python tools/test_anchor.py` → FAIL.
+- [ ] Step 3: implement; least-squares fit with numpy (`x = ox + (col−col_ref)·px`, `y = oy + (row−row_ref)·py`).
+- [ ] Step 4: run `tools/test_anchor.py`, `tools/test_wf_safety.py` → PASS. Step 5: commit.
+
+### Task 9: Layout-based step and phase-correlation move proof (chain)
+**Files:** Modify `tools/objects/chain_step.py`, `tools/objects/chain.py`; delete `tools/objects/lines.py` if unused;
+Test `tools/test_chain.py` (FakeGarden renders a textured frame that scrolls with Tara).
+**Interfaces — Consumes:** Task 8 group `layout`, `anchor.question(img, task, graph, unexpected, core)`.
+**Produces:** `layout_point(graph, at, target) -> (x, y)` (raises `Unexpected('no layout')` without one);
+`camera_shift(img0, img1) -> (dx, dy, peak)` (phase correlation on downscaled grayscale; `peak` = normalised
+correlation peak); `prove_move(layout, shift, d)` raises `Unexpected('move not proved: …')` unless the shift is one
+pitch opposite to `d` (±0.4 pitch; other axis < 0.4 pitch) and `peak ≥ 0.1`; a failed proof clears the group layout.
+`run(task, group, graph, seed=None, max_steps=40, wf=None)` (no `detect_fn`). Before each step and before asking:
+if not gameplay → `ui.close()`.
+- [ ] Step 1: failing tests — `test_layout_point_east_neighbour`; `test_camera_shift_measures_scroll` (textured
+  image shifted by (−480, 0) → dx ≈ −480 ± 8); `test_uniform_frame_is_unexpected` (RF 6: flat dark frames → peak
+  < 0.1 → Unexpected); `test_overshoot_two_pitches_rejected`; `test_no_move_rejected`; the existing Runner tests
+  ported to the textured FakeGarden (replant_all fixes every wilted bed, seeds run out, out_of_water, day change,
+  region entry, count check); `test_open_card_closed_before_asking` (a card open at run start → `ui.close()` before
+  the anchor question).
+- [ ] Step 2: run `.venv/bin/python tools/test_chain.py` → FAIL. Step 3: implement. Step 4: run all suites
+  (`test_chain test_anchor test_graph test_game test_affordances test_loop test_wf_safety test_runtime test_walk`)
+  → PASS. Step 5: commit.
+
+### Task 10: Live check B (supervised)
+Same as Task 7 with the new anchor format: the agent answers `ref:` + beds by grid cell. Done when `replant_all()`
+returns a summary, vision calls ≤ surprises + 1.

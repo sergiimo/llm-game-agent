@@ -178,6 +178,7 @@ def record_click(pt, what='point', before=None, chain=None, idx=None):
               affordances.scan(), mode, texts, _view_changed(imgs[0], imgs[-1]) if len(imgs) > 1 else None,
               _save_frames(imgs, time.strftime('%H%M%S') + f'-{x}-{y}'), _burst_texts(imgs) if _text_gaps() else [])
     check(c, chain, idx)
+    remember(c.events)
     try:
         W.run_log('click', pt=[x, y], what=what, events=c.events, mode=mode, texts=texts[:4],
                   before=[str(a) for a in before], after=[str(a) for a in c.after], moved=c.moved, frames=c.frames,
@@ -185,6 +186,44 @@ def record_click(pt, what='point', before=None, chain=None, idx=None):
     except Exception:   # noqa: BLE001
         pass
     return c
+
+
+FONTS = ('/System/Library/Fonts/Supplemental/Arial Bold.ttf', '/System/Library/Fonts/Helvetica.ttc',
+         '/Library/Fonts/Arial.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')
+
+
+def _font(px):
+    from PIL import ImageFont
+    for f in FONTS:
+        try:
+            return ImageFont.truetype(f, px)
+        except OSError:
+            continue
+    try:
+        return ImageFont.load_default(size=px)   # Pillow >= 10.1
+    except TypeError:
+        return ImageFont.load_default()
+
+
+def draw_grid(img):
+    """Copy of img with the A-X x 1-16 grid (thin lines, the cell name in each cell) and Tara's magenta circle at the
+    centre: the frame of a `NEED_VISION click` question."""
+    from PIL import Image, ImageDraw
+    pic = img.convert('RGBA')
+    ov = Image.new('RGBA', pic.size, (0, 0, 0, 0))
+    dr = ImageDraw.Draw(ov)
+    font = _font(15)
+    for c in range(COLS + 1):
+        dr.line((c * CELL_W, 0, c * CELL_W, pic.size[1]), fill=(255, 255, 0, 150), width=1)
+    for r in range(ROWS + 1):
+        dr.line((0, r * CELL_H, pic.size[0], r * CELL_H), fill=(255, 255, 0, 150), width=1)
+    for c in range(COLS):
+        for r in range(ROWS):
+            dr.text((c * CELL_W + 3, r * CELL_H + 2), f'{chr(65 + c)}{r + 1}', fill=(255, 255, 0, 230), font=font)
+    out = Image.alpha_composite(pic, ov).convert('RGB')
+    x, y = CENTRE
+    ImageDraw.Draw(out).ellipse((x - 26, y - 26, x + 26, y + 26), outline=(255, 0, 255), width=5)
+    return out
 
 
 def parse_point(ans):
@@ -204,6 +243,62 @@ def parse_point(ans):
     if any(x0 <= x < x1 and y0 <= y < y1 for x0, y0, x1, y1 in HUD):
         raise ValueError(f'({x:.0f}, {y:.0f}) is on the HUD (clock or buttons), not in the world')
     return round(x), round(y)
+
+
+# ---- graph memory (law 6: hints, never a gate) -------------------------------------------------------------------
+GRAPH = None        # Farm.json path (None = objects/graph/Farm.json)
+GROUP = 'GardenBed@Garden'
+MEMORY = {'graph': None}
+
+
+def _graph_path():
+    if GRAPH:
+        return GRAPH
+    from objects import graph as OG
+    return os.path.join(OG.DEFAULT_DIR, 'Farm.json')
+
+
+def _open_memory():
+    from objects import graph as OG
+    g = OG.Graph()
+    try:
+        g.load(_graph_path())
+    except (OSError, ValueError):
+        g = None
+    MEMORY['graph'] = g if g is not None and GROUP in g.nodes else None
+
+
+def _close_memory():
+    g, MEMORY['graph'] = MEMORY['graph'], None
+    if g is not None:
+        try:
+            g.save(_graph_path())
+        except OSError:
+            pass
+
+
+def _stamp():
+    try:
+        return core.WF.game_stamp()
+    except Exception:   # noqa: BLE001
+        return None
+
+
+def remember(events, crop=None):
+    """A click's events (and a crop read from a card) -> the group's memory (objects/graph.note_click)."""
+    g = MEMORY['graph']
+    if g is None or not (events or crop):
+        return
+    from objects import graph as OG
+    OG.note_click(g, GROUP, list(events), _stamp(), crop=crop)
+
+
+def memory_hint():
+    g = MEMORY['graph']
+    if g is None:
+        return ''
+    from objects import graph as OG
+    return OG.hint(g, GROUP)
 
 
 # ---- cross-call vision counter ---------------------------------------------------------------------------------
@@ -288,6 +383,7 @@ def chains_observe_remove(c):
     """Step 'press Remove': from the card click's mark (its unplant_impl), bubbles before = the card click's before."""
     rec = _after_press(c.pt, c.mark, c.before, affordances.scan())
     rec.events = [e for e in rec.events if e != 'unplant']
+    remember(rec.events)
     check(rec, 'replant', 1)
 
 
@@ -296,6 +392,7 @@ def _replant(c, res, seed):
     from .garden import crop_name
     crop = crop_name(' / '.join(ui.texts())) or None
     want = seed or crop
+    remember([], crop=crop)
     if not want:
         ui.close()
         raise core.Failed('the Remove card names no crop; ' + core.ask_vision('which crop is on this bed card?'))
@@ -326,7 +423,9 @@ def _replant(c, res, seed):
         raise core.Failed(f'Select was pressed but {want} was not planted; '
                           + core.ask_vision(f'is {want} planted on the bed?'))
     after = affordances.scan()
-    check(_after_press(pc.pt, mark, before, after), 'replant', 3)
+    sel = _after_press(pc.pt, mark, before, after)
+    remember(sel.events)
+    check(sel, 'replant', 3)
     drop = _nearest(after, pc.pt, lambda a: a.drop, max_d=250)
     if drop is None:
         res['notes'].append(f'{want} planted; no water bubble seen: water it later (water_all)')
@@ -383,6 +482,7 @@ def _ask(task, st, res, last):
          f'If there is none left anywhere, answer none.'
          + (f' The save says {left} left (may be stale).' if left is not None else '')
          + f' This call: done {len(res["done"])}, other {res["other"][-3:]}.'
+         + (f' Memory: {memory_hint()}.' if memory_hint() else '')
          + (f' Your last answer led to: {last.describe()}.' if last is not None else ''))
     st['asks'] += 1
     st['history'] = (st['history'] + [last.describe()[:160] if last is not None else 'no fitting bubble'])[-6:]
@@ -409,7 +509,14 @@ def run(task_name, click=None, seed=None, max_clicks=30):
     """Do `task_name` ('replant' | 'water' | 'harvest') on every fitting garden bed by the four laws. `click` = vision's
     answer to the last question: a grid cell ('Q14'), (x, y), or 'none' (nothing left: the run ends). Returns the summary
     dict; raises NeedVision when no fitting bubble is on screen (answer by calling again with click=...)."""
-    task = TASKS[task_name]
+    _open_memory()
+    try:
+        return _run(TASKS[task_name], click, seed, max_clicks)
+    finally:
+        _close_memory()
+
+
+def _run(task, click, seed, max_clicks):
     st = _load_state(task.name)
     res = {'task': task.name, 'done': [], 'other': [], 'notes': [], 'clicks': 0, 'vision': 0, 'refills': 0,
            'stop': None, 'left_in_save': _left_in_save(task), 'surprises': SURPRISES}

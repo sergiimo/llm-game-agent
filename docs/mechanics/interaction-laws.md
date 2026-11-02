@@ -68,4 +68,5 @@ that opens, `null` = stays in gameplay), `bubble` (the clicked object's bubble a
 | Vision "click point of the next node" (one grid cell) | ✅ `NEED_VISION click` (`wf.ask_vision('click', …)`), answer `click='Q14'`; `LAWS_STUCK` after 4 asks without progress |
 | `replant_all()` / `water_all()` / `harvest_all()` on these laws | ✅ `game/laws.py` (offline tests `tools/test_laws.py`); live check pending |
 | Actions DB as chains, surprises, gap filling | ✅ `game/chains.py` + `chains.json` |
-| Old graph-chain runner (anchor, layout, camera-shift proof) | superseded; still reachable as `garden._chain(task)`; removal pending |
+| Graph memory (law 6): per group today's tally per event (removed/planted/watered/harvested/growing_seen/can_ran_dry), crops grown, last event, the can; read back as a hint in the vision question | ✅ `objects/graph.note_click` / `hint`, fed by every recorded click and press; saved in `graph/Farm.json` |
+| Old graph-chain runner (anchor question, layout fit, camera-shift proof, `./wf anchor`) | ❌ removed (L124) |

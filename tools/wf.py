@@ -1458,22 +1458,6 @@ def game_stamp():
     return ms[-1] if ms else None
 
 
-def anchor_cmd(text):
-    """wf anchor "<answer>": parse the vision answer, set Tara.at + states in the graph, check wilted count vs the save. No input."""
-    if os.path.join(ROOT, 'tools') not in sys.path:
-        sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    from objects import anchor as OA
-    counts = None
-    try:
-        counts = save_bed_counts(farm_status()['crops'])
-    except Exception as e:
-        print(f'save counts unavailable ({type(e).__name__}: {e})')
-    try:
-        print(OA.answer(text, save_counts=counts))
-    except OA.AnchorError as e:
-        sys.exit(f'REJECTED: {e}')
-
-
 def graph_cmd(args):
     """wf graph show [region] | where | path <Kind> [key=value ...] | view-add <region> | sync |
     map-seed <map.png> | map-heatmap <node> <map.png> [out.png]: the object graph with nested regions
@@ -1503,7 +1487,7 @@ def graph_cmd(args):
         for nid, key, val, when in changes:
             print(f'{nid} {key}={val} @{when}')
         if skipped:
-            print(f'skipped {len(skipped)} garden events (Tara.at unknown; vision re-anchors)')
+            print(f'skipped {len(skipped)} garden events (Tara.at unknown)')
         return print(f'synced {len(lines)} log lines since {mark}: {len(changes)} state changes')
     if cmd in ('map-seed', 'map-heatmap'):
         from PIL import Image
@@ -1633,10 +1617,10 @@ def _NeedVision():
     return NeedVision
 
 
-def _ChainStuck():
+def _LawsStuck():
     _NeedVision()   # puts tools/ on sys.path
-    from objects.chain import ChainStuck
-    return ChainStuck
+    from game.laws import LawsStuck
+    return LawsStuck
 
 
 def game_cmd(kind, args):
@@ -1660,7 +1644,7 @@ def game_cmd(kind, args):
             res = f(*[int(a) if re.fullmatch(r'-?\d+', a) else a for a in args[1:]])
     except game.Failed as e:
         err = str(e)
-    except _ChainStuck() as e:   # terminal (ruling 29): print it plainly, the agent stops and reports
+    except _LawsStuck() as e:   # terminal (LAWS_STUCK): print it plainly, the agent stops and reports
         for line in game.track.LINES:
             print(line)
         print(str(e))
@@ -3109,23 +3093,9 @@ def cell_box(cell):
 def ask_vision(kind, question, img, **ctx):
     """Save a small gridded frame + context and return the NEED_VISION prompt for the agent."""
     from PIL import ImageDraw
-    if kind == 'anchor':   # full-size frame with the A-X x 1-16 grid; vision names beds by grid cell (spec 2026-11-02 §10)
-        from objects import anchor as OA
-        OA.draw_grid(img).save(ASK_FRAME)
-        with open(ASK_CTX, 'w') as f:
-            json.dump({'kind': kind, 'question': question, **ctx}, f)
-        run_log('vision', what='ask', kind=kind, question=question)
-        return (f'NEED_VISION {kind}: {question}\n  look: {ASK_FRAME} (full size {img.size[0]}x{img.size[1]}, grid columns '
-                f'A-X x rows 1-16, magenta circle = reference marker)\n  answer: ./wf anchor "group: GardenBed@Garden   '
-                f'ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?"   '
-                f'(ref = the bed nearest the marker; rXcY@cell = the bed\'s pattern cell @ the grid cell nearest the bed\'s centre; '
-                f'? = state unknown; name every visible bed, at least 2 in different rows and columns)')
     if kind == 'click':   # interaction laws (L124): full-size gridded frame, Tara = magenta circle at the centre; one cell back
-        from PIL import ImageDraw as _D
-        from objects import anchor as OA
-        pic = OA.draw_grid(img)
-        _D.Draw(pic).ellipse((960 - 26, 540 - 26, 960 + 26, 540 + 26), outline=(255, 0, 255), width=5)
-        pic.save(ASK_FRAME)
+        from game import laws
+        laws.draw_grid(img).save(ASK_FRAME)
         with open(ASK_CTX, 'w') as f:
             json.dump({'kind': kind, 'question': question, **ctx}, f)
         run_log('vision', what='ask', kind=kind, question=question)
@@ -4231,8 +4201,6 @@ def main(argv=None):
     p.add_argument('args', nargs='*')
     p = sub.add_parser('graph', help='object graph: show/where/path/view-add/sync/map-seed/map-heatmap')
     p.add_argument('args', nargs='*')
-    p = sub.add_parser('anchor', help='apply a structured vision answer to the object graph (no game input): wf anchor "<answer>"')
-    p.add_argument('answer')
     p = sub.add_parser('eval', help='hits/misses of predictions: wf eval [all] | pending | mark <id> hit|miss')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('py', help='run game functions (tools/game, L77): wf py "replant_all()"')
@@ -4310,8 +4278,6 @@ def main(argv=None):
         return objects_cmd(a.args)
     if a.cmd == 'graph':
         return graph_cmd(a.args)
-    if a.cmd == 'anchor':
-        return anchor_cmd(a.answer)
     if a.cmd == 'eval':
         return eval_cmd(a.args)
     if a.cmd == 'learn':

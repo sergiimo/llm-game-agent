@@ -12,6 +12,7 @@ from game.affordances import Affordance  # noqa: E402
 from objects.loop import NeedVision  # noqa: E402
 
 core.LOG_WAIT = 0.0
+SEED = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures', 'graph_seed.json')
 
 
 class Fake:
@@ -157,10 +158,17 @@ class Base(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         ps = [mock.patch.object(laws, 'STATE', os.path.join(self.tmp.name, 'laws.json')),
               mock.patch.object(chains, 'OBSERVED', os.path.join(self.tmp.name, 'observed.jsonl')),
+              mock.patch.object(laws, 'GRAPH', self._graph_copy()),
               mock.patch.object(laws, 'BURST', (0.0,)), mock.patch.object(laws, 'EVENT_WAIT', 0.0)]
         for p in ps:
             p.start()
             self.addCleanup(p.stop)
+
+    def _graph_copy(self):
+        import shutil
+        p = os.path.join(self.tmp.name, 'Farm.json')
+        shutil.copy(SEED, p)
+        return p
 
     def use(self, f):
         self.f = f
@@ -401,6 +409,62 @@ class ChainsDB(Base):
             chains.observe('harvest', 0, laws.Click((1100, 600), 'bubble', 0, events=['grab_item'], before=[ripe], after=after))
         chains.gaps(apply=True)
         self.assertEqual(chains.load()['harvest'][0]['expect']['bubble'], '?')
+
+class Memory(Base):
+    def graph(self):
+        from objects import graph as G
+        g = G.Graph()
+        g.load(laws.GRAPH)
+        return g
+
+    def test_a_replant_run_is_remembered_per_group(self):
+        f = self.use(Fake({'a': bed('wilted', 'Tulip', bubble=(1100, 600)), 'b': bed('dry', bubble=(800, 600))}))
+        f.save_left = 1
+        f.game_stamp = lambda: 'D184 7:30:00 AM'
+        garden.replant_all()
+        g = self.graph()
+        t = g.state_value(laws.GROUP, 'today')
+        self.assertEqual(t['day'], 184)
+        self.assertEqual((t['removed'], t['planted']), (1, 1))
+        self.assertEqual(t['watered'], 1)   # the new seedling; the save's 1 wilted is done, so the run stops there
+        self.assertEqual(g.state_value(laws.GROUP, 'crops'), ['Tulip'])
+
+    def test_memory_goes_into_the_vision_question(self):
+        f = self.use(Fake({}))
+        f.game_stamp = lambda: 'D184 7:30:00 AM'
+        g = self.graph()
+        g.set_state(laws.GROUP, 'crops', ['Tulip', 'Carrot'], 'D184 7:00:00 AM', 'event')
+        g.save(laws.GRAPH)
+        with self.assertRaises(NeedVision):
+            garden.replant_all()
+        self.assertIn('crops grown here: Tulip, Carrot', f.asks[-1][1])
+        self.assertIn('Well', f.asks[-1][1])
+
+    def test_a_new_day_resets_the_tally(self):
+        from objects import graph as G
+        g = self.graph()
+        G.note_click(g, laws.GROUP, ['water'], 'D183 9:00:00 PM')
+        G.note_click(g, laws.GROUP, ['water'], 'D184 7:00:00 AM')
+        self.assertEqual(g.state_value(laws.GROUP, 'today'), {'day': 184, 'watered': 1})
+
+    def test_can_state_from_events(self):
+        from objects import graph as G
+        g = self.graph()
+        G.note_click(g, laws.GROUP, ['out_of_water'], 'D184 7:00:00 AM')
+        self.assertEqual(g.state_value('Tara', 'can'), 'empty')
+        G.note_click(g, laws.GROUP, ['full_watering_can'], 'D184 7:01:00 AM')
+        self.assertEqual(g.state_value('Tara', 'can'), 'full')
+
+    def test_no_positions_or_layouts_in_the_runner(self):
+        src = open(laws.__file__).read()
+        for word in ('ref_offset', 'pitch', 'camera_shift', 'Tara.at', 'log_pos'):
+            self.assertNotIn(word, src)
+
+    def test_draw_grid_marks_tara(self):
+        from PIL import Image
+        pic = laws.draw_grid(Image.new('RGB', (1920, 1080), (0, 0, 0)))
+        self.assertEqual(pic.getpixel((960, 540 - 26)), (255, 0, 255))
+
 
 if __name__ == '__main__':
     unittest.main()

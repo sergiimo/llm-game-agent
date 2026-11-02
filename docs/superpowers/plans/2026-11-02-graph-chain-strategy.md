@@ -1,5 +1,7 @@
 # Graph-Chain Strategy Implementation Plan
 
+> **Status: superseded (L124, D184).** The runner this plan built (anchor, layout, camera-shift proof) was removed; see docs/mechanics/interaction-laws.md.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Garden skills act from a graph memory: a vision anchor fixes which node Tara is at and the visible states, then a runner moves node by node along pattern relations, checks each step against the predicted state, and asks vision on anything unexpected — with no positions anywhere.

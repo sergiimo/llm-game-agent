@@ -6,7 +6,7 @@
 > anywhere** (no world coordinates, calibration, belief or projection). Extends `2026-10-31-object-graph-navigation-design.md`
 > (object graph, regions, detection, vision) and makes its §10 step 5 (removals) concrete.
 
-Status: design, 2026-11-02 (user-directed: brainstorming D183). Approach B of three (A pure chain, C periodic re-anchor).
+Status: **superseded (L124, D184)** by docs/mechanics/interaction-laws.md: the anchor/layout/camera-shift runner was removed; the graph stays as group-level memory. Was: design, 2026-11-02 (user-directed: brainstorming D183). Approach B of three (A pure chain, C periodic re-anchor).
 
 ## 1. Why
 D183 replant: projection of beds to the screen was ~2× off (L116), bubble owners picked neighbours (L114) or nothing

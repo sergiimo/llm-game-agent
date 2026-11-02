@@ -6,78 +6,121 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from game import core  # noqa: E402
 from objects import chain as C, graph as G  # noqa: E402
-from objects.detect import Detection  # noqa: E402
 
 SEED = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures', 'graph_seed.json')
 B = 'GardenBed@Garden#r%dc%d'
 
 
-def det(r, c, ox=960, oy=540):
-    """Tile (r, c) of a 3x4 grid drawn so that r2c2 sits at the frame centre."""
-    x, y = ox + (c - 2) * 200, oy + (r - 2) * 120
-    return Detection('GardenBed', (x - 40, y - 30, x + 40, y + 30), 1.0, None, (x, y))
+PX, PY, OFF = 240, 135, (40, 33.75)   # the fake garden's true layout: bed pitch and where Tara's bed sits vs the frame centre
+LAYOUT = {'pitch': [PX, PY], 'ref_offset': list(OFF)}
+_WORLD = []
 
 
-class Locate(unittest.TestCase):
+def world():
+    """A deterministic textured world (blocky seeded noise), bigger than the frame by the camera travel."""
+    if not _WORLD:
+        import numpy as np
+        rng = np.random.default_rng(7)
+        small = rng.integers(0, 256, (1080 // 6 + 90, 1920 // 6 + 200)).astype('uint8')
+        _WORLD.append(np.kron(small, np.ones((6, 6), dtype='uint8')))
+    return _WORLD[0]
+
+
+def frame_at(cx, cy):
+    from PIL import Image
+    w = world()
+    return Image.fromarray(w[cy:cy + 1080, cx:cx + 1920]).convert('RGB')
+
+
+class Layout(unittest.TestCase):
     def setUp(self):
         self.g = G.Graph()
         self.g.load(SEED)
+        self.g.nodes['GardenBed@Garden'].extra['layout'] = dict(LAYOUT)
 
-    def full(self):
-        return [det(r, c) for r in (1, 2, 3) for c in (1, 2, 3, 4)]
+    def test_layout_point_east_neighbour(self):
+        self.assertEqual(C.layout_point(self.g, B % (2, 2), B % (2, 3)), (960 + 40 + PX, 540 + 33.75))
 
-    def test_east_neighbour_on_full_grid(self):
-        d = C.locate(self.g, B % (2, 2), B % (2, 3), self.full())
-        self.assertEqual(d.point, (1160, 540))
+    def test_layout_point_south_west_two_steps(self):
+        self.assertEqual(C.layout_point(self.g, B % (2, 2), B % (3, 1)), (960 + 40 - PX, 540 + 33.75 + PY))
 
-    def test_two_steps_south_east(self):
-        d = C.locate(self.g, B % (2, 2), B % (3, 3), self.full())
-        self.assertEqual(d.point, (1160, 660))
+    def test_layout_point_same_bed_is_the_tile_point(self):
+        self.assertEqual(C.layout_point(self.g, B % (2, 2), B % (2, 2)), (1000, 573.75))
 
-    def test_only_one_tile_visible_is_unexpected(self):
+    def test_no_layout_is_unexpected(self):
+        del self.g.nodes['GardenBed@Garden'].extra['layout']
         with self.assertRaises(C.Unexpected) as cm:
-            C.locate(self.g, B % (2, 2), B % (2, 3), [det(2, 2)])
-        self.assertIn('pattern fit', cm.exception.why)
+            C.layout_point(self.g, B % (2, 2), B % (2, 3))
+        self.assertEqual(cm.exception.why, 'no layout')
 
-    def test_target_out_of_view_is_unexpected(self):
-        dets = [det(r, c) for r in (2, 3) for c in (2, 3)]
+    def test_bad_pitch_is_unexpected_and_dropped(self):
+        for pitch in ([0, 135], [-240, 135], [240, 30], [39, 135]):
+            with self.subTest(pitch=pitch):
+                self.g.nodes['GardenBed@Garden'].extra['layout'] = {'pitch': pitch, 'ref_offset': [0, 0]}
+                with self.assertRaises(C.Unexpected) as cm:
+                    C.layout_point(self.g, B % (2, 2), B % (2, 3))
+                self.assertIn('bad layout', cm.exception.why)
+                self.assertNotIn('layout', self.g.nodes['GardenBed@Garden'].extra)
+
+    def test_camera_shift_measures_scroll(self):
+        dx, dy, peak = C.camera_shift(frame_at(0, 0), frame_at(480, 0))
+        self.assertAlmostEqual(dx, -480, delta=8)
+        self.assertAlmostEqual(dy, 0, delta=8)
+        self.assertGreaterEqual(peak, 0.1)
+        dx, dy, peak = C.camera_shift(frame_at(100, 120), frame_at(0, 0))
+        self.assertAlmostEqual(dx, 100, delta=8)
+        self.assertAlmostEqual(dy, 120, delta=8)
+
+    def test_uniform_frame_is_unexpected(self):
+        from PIL import Image
+        flat = Image.new('RGB', (1920, 1080), (12, 12, 20))
+        shift = C.camera_shift(flat, flat.copy())
+        self.assertLess(shift[2], 0.1)
         with self.assertRaises(C.Unexpected) as cm:
-            C.locate(self.g, B % (2, 2), B % (1, 4), dets)
-        self.assertIn('pattern fit', cm.exception.why)
+            C.prove_move(LAYOUT, shift, 'E')
+        self.assertIn('move not proved', cm.exception.why)
 
-    def test_partial_view_uses_cluster_offsets(self):
-        dets = [det(r, c) for r in (2, 3) for c in (2, 3)]
-        self.assertEqual(C.locate(self.g, B % (2, 2), B % (3, 3), dets).point, (1160, 660))
+    def test_near_uniform_noise_frame_has_no_peak(self):
+        import numpy as np
+        from PIL import Image
+        rng = np.random.default_rng(3)
+        a = Image.fromarray((14 + rng.integers(0, 2, (1080, 1920))).astype('uint8')).convert('RGB')
+        b = Image.fromarray((14 + rng.integers(0, 2, (1080, 1920))).astype('uint8')).convert('RGB')
+        self.assertLess(C.camera_shift(a, b)[2], 0.1)
 
-    def test_single_row_with_jitter(self):
-        jy = [-3, 3, 0, 2]
-        dets = []
-        for c, j in zip((1, 2, 3, 4), jy):
-            d = det(2, c)
-            dets.append(d._replace(point=(d.point[0] + j, d.point[1] + j)))
-        d = C.locate(self.g, B % (2, 2), B % (2, 3), dets)
-        self.assertEqual(d.point[0], 1160 + 0)
+    def test_prove_move_accepts_one_pitch_opposite(self):
+        for d, sh in (('E', (-PX, 0)), ('W', (PX, 0)), ('S', (0, -PY)), ('N', (0, PY))):
+            C.prove_move(LAYOUT, (sh[0] + 20, sh[1] - 20, .5), d)
 
-    def test_full_grid_with_jitter_matches_clean(self):
-        import random
-        rnd = random.Random(1)
-        dets = [d._replace(point=(d.point[0] + rnd.randint(-5, 5), d.point[1] + rnd.randint(-5, 5))) for d in self.full()]
-        clean = self.full()
-        for tgt in (B % (2, 3), B % (3, 3), B % (1, 1), B % (3, 4)):
-            got = C.locate(self.g, B % (2, 2), tgt, dets)
-            r, c = G.cell(tgt)
-            self.assertEqual(clean[(r - 1) * 4 + c - 1].box, got.box)
+    def test_overshoot_two_pitches_rejected(self):
+        with self.assertRaises(C.Unexpected) as cm:
+            C.prove_move(LAYOUT, (-2 * PX, 0, .5), 'E')
+        self.assertIn('move not proved', cm.exception.why)
+
+    def test_no_move_rejected(self):
+        with self.assertRaises(C.Unexpected):
+            C.prove_move(LAYOUT, (0, 0, .9), 'E')
+
+    def test_wrong_direction_and_other_axis_rejected(self):
+        with self.assertRaises(C.Unexpected):
+            C.prove_move(LAYOUT, (PX, 0, .5), 'E')
+        with self.assertRaises(C.Unexpected):
+            C.prove_move(LAYOUT, (-PX, PY * .5, .5), 'E')
 
     def test_click_tile_avoids_bubble(self):
-        d = det(2, 2)
-        self.assertEqual(C.click_tile(d, []), (960, 540))
-        x, y = C.click_tile(d, [(960, 540)])
-        self.assertGreaterEqual(((x - 960) ** 2 + (y - 540) ** 2) ** .5, 0)
+        self.assertEqual(C.click_tile((960, 540), []), (960, 540))
+        x, y = C.click_tile((960, 540), [(960, 540)])
+        self.assertGreaterEqual(((x - 960) ** 2 + (y - 540) ** 2) ** .5, 45)
 
     def test_no_positions_imported(self):
         src = open(C.__file__).read()
         for bad in ('calib_load', 'checkpoint', 'world()', 'log_pos'):
             self.assertNotIn(bad, src)
+
+    def test_removed_detection_code(self):
+        for name in ('detect_fn', 'locate', '_pitch', '_prove_shift', '_centre', '_default_detect'):
+            self.assertFalse(hasattr(C, name), name)
+        self.assertFalse(os.path.exists(os.path.join(os.path.dirname(C.__file__), 'lines.py')))
 
 
 class Expect(unittest.TestCase):
@@ -148,7 +191,7 @@ class FakeGarden:
         self.tara, self.can, self.log, self.screen = (2, 2), can, [], 'gameplay'
         self.cur, self.picked, self.seed_limit = None, None, 99
         self.position_reads, self.closed, self.asked, self.fills, self.save_override = 0, 0, [], 0, None
-        self.fill_graph = None
+        self.fill_graph, self.flat, self.events = None, False, []
         self.save_n, self.move = 1, 'ok'   # move: 'ok' | 'none' (click does not move Tara) | 'far' (moves her two tiles)
         for n in self.POS:
             setattr(self, n, self._pos_reader)
@@ -159,11 +202,7 @@ class FakeGarden:
     # --- the frame
     def tile_pt(self, rc):
         t = self.tara or (2, 2)
-        return 960 + (rc[1] - t[1]) * 200, 540 + (rc[0] - t[0]) * 120
-
-    def detect(self, img):
-        return [Detection('GardenBed', (x - 40, y - 30, x + 40, y + 30), 1.0, None, (x, y))
-                for x, y in (self.tile_pt(rc) for rc in sorted(self.st))]
+        return 960 + OFF[0] + (rc[1] - t[1]) * PX, 540 + OFF[1] + (rc[0] - t[0]) * PY
 
     def kind_of(self, rc):
         s = self.st[rc]
@@ -176,18 +215,24 @@ class FakeGarden:
         for rc in sorted(self.st):
             x, y = self.tile_pt(rc)
             k, drop = self.kind_of(rc)
-            out.append(Affordance(k, None, (x, y - 150), False, 0, drop))
+            out.append(Affordance(k, None, (round(x), round(y - 150)), False, 0, drop))
         return out
 
     # --- the game / wf surface
     def grab(self, crop=True):
         from PIL import Image, ImageDraw
-        img = Image.new('RGB', (1920, 1080), (40, 40, 40))
+        if self.flat:
+            return Image.new('RGB', (1920, 1080), (12, 12, 20))
+        t = self.tara or (2, 2)
+        img = frame_at(t[1] * PX, t[0] * PY)   # the camera follows Tara: one bed step = one pitch of scroll
         dr = ImageDraw.Draw(img)
-        for rc in self.st:   # identical tiles: only geometry can prove a move
+        for rc in self.st:
             x, y = self.tile_pt(rc)
-            dr.rectangle((x - 40, y - 30, x + 40, y + 30), fill=(90, 120, 90))
+            dr.rectangle((x - 80, y - 45, x + 80, y + 45), fill=(90, 120, 90))
         return img
+
+    def state(self, save=False):
+        return {'mode': self.screen}
 
     def save_stamp(self):
         return self.save_n
@@ -209,6 +254,7 @@ class FakeGarden:
 
     def ask_vision(self, kind, q, img, **ctx):
         self.asked.append(q)
+        self.events.append('ask')
         return f'NEED_VISION {kind}: {q}'
 
     def emit(self, act, target='GardenBed'):
@@ -220,16 +266,15 @@ class FakeGarden:
             tx, ty = self.tile_pt(rc)
             if abs(x - tx) < 25 and abs(y - (ty - 150)) < 25:
                 return self.bubble(rc)
-        for rc in sorted(self.st):
-            tx, ty = self.tile_pt(rc)
-            if abs(x - tx) < 45 and abs(y - ty) < 45:
-                if self.move == 'opens':
-                    self.cur, self.screen = rc, 'panel'
-                elif self.move == 'ok':
-                    self.tara = rc
-                elif self.move == 'far':
-                    self.tara = (rc[0], min(4, rc[1] + 1)) if rc[1] >= self.tara[1] else (rc[0], max(1, rc[1] - 1))
-                return
+        rc = min(self.st, key=lambda r: (x - self.tile_pt(r)[0]) ** 2 + (y - self.tile_pt(r)[1]) ** 2)
+        tx, ty = self.tile_pt(rc)
+        if abs(x - tx) < PX / 2 and abs(y - ty) < PY / 2:
+            if self.move == 'opens':
+                self.cur, self.screen = rc, 'panel'
+            elif self.move == 'ok':
+                self.tara = rc
+            elif self.move == 'far':
+                self.tara = (rc[0], min(4, rc[1] + 1)) if rc[1] >= self.tara[1] else (rc[0], max(1, rc[1] - 1))
 
     def bubble(self, rc):
         s = self.st[rc]
@@ -287,6 +332,7 @@ class FakeGarden:
 
     def close(self):
         self.closed += 1
+        self.events.append('close')
         self.screen = 'gameplay'
 
     def fill_can(self, graph=None):
@@ -294,21 +340,23 @@ class FakeGarden:
         self.can = True
         self.fill_graph = graph
 
-    # --- scripted anchor answer from the truth
-    def truth_answer(self, pending):
-        pts = {rc: self.tile_pt(rc) for rc in self.st}
+    # --- scripted anchor answer from the truth (the grid cell nearest each bed centre)
+    @staticmethod
+    def cell_of(pt):
+        return f'{chr(65 + int(pt[0] // 80))}{int(pt[1] // 67.5) + 1}'
+
+    def truth_answer(self, pending=None):
         words = []
-        for l, d in pending['labels'].items():
-            rc = next(rc for rc, p in pts.items() if tuple(p) == tuple(d['point']))
+        for rc in sorted(self.st):
             s = self.st[rc]
-            w = f'{l}=r{rc[0]}c{rc[1]} {s["phase"]}'
+            w = f'r{rc[0]}c{rc[1]}@{self.cell_of(self.tile_pt(rc))} {s["phase"]}'
             if s['crop'] and s['phase'] in ('wilted', 'ripe', 'growing'):
                 w += f'({s["crop"]})'
             if s['phase'] == 'growing':
                 w += ' watered' if s['wet'] else ' dry'
             words.append(w)
-        at = next(l for l, d in pending['labels'].items() if tuple(d['point']) == tuple(pts[self.tara]))
-        return f'group: GardenBed@Garden   at: {at}=r{self.tara[0]}c{self.tara[1]}   ' + '   '.join(words)
+        t = self.tara
+        return (f'group: GardenBed@Garden   ref: r{t[0]}c{t[1]}@{self.cell_of(self.tile_pt(t))}\n' + '   '.join(words))
 
 
 class Runner(unittest.TestCase):
@@ -348,6 +396,7 @@ class Runner(unittest.TestCase):
     def preset(self, at, hints=None):
         """Graph already anchored: Tara.at and the same states the fake holds (no vision needed)."""
         self.g.set_state('Tara', 'at', at, 'D5 9:00:00 AM', 'vision')
+        self.g.nodes[self.GB].extra['layout'] = dict(LAYOUT)
         self.f.tara = G.cell(at)
         for rc, v in self.f.st.items():
             n = f'{self.GB}#r{rc[0]}c{rc[1]}'
@@ -359,7 +408,7 @@ class Runner(unittest.TestCase):
                 self.g.set_state(f'{self.GB}#r{rc[0]}c{rc[1]}', k, val, 'D5 9:00:00 AM', 'vision')
 
     def run_(self, task, **kw):
-        return C.run(task, self.GB, self.g, detect_fn=self.f.detect, wf=self.f, **kw)
+        return C.run(task, self.GB, self.g, wf=self.f, **kw)
 
     def drive(self, task, max_visions=6, **kw):
         """Call run, answering every anchor question from the fake's truth; returns (summary, visions)."""
@@ -392,7 +441,6 @@ class Runner(unittest.TestCase):
             self.run_('water')
         self.assertTrue(os.path.exists(self.anchor.PENDING))
 
-    @unittest.skip('Task 9 rewires the chain on layout')
     def test_replant_all_fixes_every_wilted_bed(self):
         f = self.fake(states={(1, 1): {'phase': 'wilted', 'crop': 'Green Bean'}, (2, 3): {'phase': 'wilted', 'crop': 'Carrot'},
                               (3, 4): {'phase': 'wilted', 'crop': 'Tulip'}})
@@ -410,7 +458,6 @@ class Runner(unittest.TestCase):
             self.assertEqual(self.g.state_value(n, 'crop'), crop)
         self.assertEqual(f.position_reads, 0)
 
-    @unittest.skip('Task 9 rewires the chain on layout')
     def test_stale_hint_triggers_one_vision_then_continues(self):
         f = self.fake(states={(r, c): {'wet': False} for r in (1, 2, 3) for c in (1, 2, 3, 4)})
         f.st[(1, 2)].update(phase='empty', crop=None, wet=False)
@@ -437,7 +484,6 @@ class Runner(unittest.TestCase):
         self.assertEqual(res['done'], [self.node(1, 1)])
         self.assertGreaterEqual(f.closed, 2)
 
-    @unittest.skip('Task 9 rewires the chain on layout')
     def test_out_of_water_fills_and_returns_once(self):
         f = self.fake(states={(2, 2): {'wet': False}}, can=False)
         self.preset(self.node(2, 2))
@@ -470,7 +516,6 @@ class Runner(unittest.TestCase):
         self.assertEqual(go.call_args.args[0].kind, 'GardenBed')
         self.assertIsNone(self.g.state_value('Tara', 'at'))
 
-    @unittest.skip('Task 9 rewires the chain on layout')
     def test_count_mismatch_asks_once(self):
         f = self.fake()
         self.complete()
@@ -492,7 +537,7 @@ class Runner(unittest.TestCase):
         self.preset(self.node(2, 2))
         gp = os.path.join(self.tmp.name, 'saved.json')
         with self.mock.patch.object(C, 'run', wraps=C.run) as r:
-            res = garden.water_all(graph=self.g, gpath=gp, detect_fn=f.detect)
+            res = garden.water_all(graph=self.g, gpath=gp)
         self.assertEqual(r.call_args.args[:2], ('water', self.GB))
         self.assertEqual(res['done'], [self.node(2, 2)])
         self.assertTrue(os.path.exists(gp))
@@ -559,7 +604,6 @@ class Runner(unittest.TestCase):
             self.run_('water')
         self.assertEqual(len(f.asked), 2)
 
-    @unittest.skip('Task 9 rewires the chain on layout')
     def test_replant_interrupted_by_dry_can_waters_first_next_run(self):
         f = self.fake(states={(2, 2): {'phase': 'wilted', 'crop': 'Tulip'}, (2, 3): {'wet': False}}, can=False)
         self.preset(self.node(2, 2))
@@ -619,17 +663,13 @@ class Runner(unittest.TestCase):
         self.assertEqual(res['unknown'], [self.node(1, 1)])
         self.assertEqual(res['count_check'], 'skipped (graph incomplete)')
 
-    def test_stale_at_other_day_with_no_tiles_walks_to_garden_then_asks_once(self):
+    def test_stale_at_other_day_is_dropped_and_asks_once(self):
         f = self.fake()
         self.preset(self.node(2, 2))
         self.g.set_state('Tara', 'at', self.node(2, 2), 'D4 9:00:00 AM', 'vision')   # yesterday
-        f.detect = lambda img: []
         from objects.loop import NeedVision
-        with self.mock.patch.object(self.loop, 'goto') as go:
-            with self.assertRaises(NeedVision):
-                self.run_('water')
-        self.assertEqual(go.call_count, 1)
-        self.assertEqual(go.call_args.args[0].kind, 'GardenBed')
+        with self.assertRaises(NeedVision):
+            self.run_('water')
         self.assertEqual(len(f.asked), 1)
         self.assertIsNone(self.g.state_value('Tara', 'at'))
 
@@ -679,14 +719,57 @@ class Runner(unittest.TestCase):
         self.assertNotIn('NEED_VISION game', f.asked[0])
         self.assertGreater(f.closed, 0)
 
-    def test_no_tiles_at_current_tile_is_one_question_not_valueerror(self):
-        f = self.fake(states={(2, 2): {'wet': False}})
+    def test_no_layout_is_one_question(self):
+        f = self.fake(states={(2, 3): {'wet': False}})
         self.preset(self.node(2, 2))
-        f.detect = lambda img: []
+        del self.g.nodes[self.GB].extra['layout']
         from objects.loop import NeedVision
         with self.assertRaises(NeedVision):
             self.run_('water')
         self.assertEqual(len(f.asked), 1)
+        self.assertIn('no layout', f.asked[0])
+        self.assertEqual(f.log, [])
+
+    def test_bad_layout_is_one_question_and_dropped(self):
+        f = self.fake(states={(2, 3): {'wet': False}})
+        self.preset(self.node(2, 2))
+        self.g.nodes[self.GB].extra['layout']['pitch'] = [30, 135]
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(len(f.asked), 1)
+        self.assertIn('bad layout', f.asked[0])
+        self.assertNotIn('layout', self.g.nodes[self.GB].extra)
+
+    def test_uniform_frames_are_one_question_and_no_action(self):
+        f = self.fake(states={(2, 3): {'wet': False}})
+        self.preset(self.node(2, 2))
+        f.flat = True
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(len(f.asked), 1)
+        self.assertIn('move not proved', f.asked[0])
+        self.assertEqual(f.log, [])
+        self.assertEqual(self.g.state_value('Tara', 'at'), self.node(2, 2))
+        self.assertNotIn('layout', self.g.nodes[self.GB].extra)
+
+    def test_open_card_closed_before_asking(self):
+        f = self.fake()
+        f.screen = 'card'
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(f.events[:2], ['close', 'ask'])
+        self.assertEqual(f.screen, 'gameplay')
+
+    def test_open_card_closed_before_a_step(self):
+        f = self.fake(states={(2, 2): {'wet': False}})
+        self.preset(self.node(2, 2))
+        f.screen = 'panel'
+        res = self.run_('water')
+        self.assertEqual(f.events[0], 'close')
+        self.assertEqual(res['done'], [self.node(2, 2)])
 
     def test_unreadable_card_crop_does_not_remove_the_bed(self):
         f = self.fake(states={(2, 2): {'phase': 'wilted', 'crop': 'Tulip'}})
@@ -719,18 +802,19 @@ class Runner(unittest.TestCase):
         self.assertEqual((s['value'], s['conf']), (None, 0.0))
         self.assertEqual(res['unknown'], [self.node(1, 4)])
 
-    @unittest.skip('Task 9 rewires the chain on layout')
-    def test_answer_naming_non_centre_tile_sets_centre_member(self):
+    def test_answer_ref_sets_tara_and_layout(self):
         f = self.fake()
+        f.tara = (3, 2)
         from objects.loop import NeedVision
         with self.assertRaises(NeedVision):
             self.run_('water')
-        import json
-        pend = json.load(open(self.anchor.PENDING))
-        lab = {tuple(d['point']): l for l, d in pend['labels'].items()}
-        left = lab[(960 - 200, 540)]   # r2c1: the vision answer names this one as `at`
-        self.anchor.answer(f'group: {self.GB}   at: {left}=r2c1', graph=self.g, gpath=self.gpath)
-        self.assertEqual(self.g.state_value('Tara', 'at'), self.node(2, 2))
+        self.anchor.answer(f.truth_answer(), graph=self.g, gpath=self.gpath)
+        self.assertEqual(self.g.state_value('Tara', 'at'), self.node(3, 2))
+        lay = self.g.nodes[self.GB].extra['layout']
+        self.assertAlmostEqual(lay['pitch'][0], PX, delta=1)
+        self.assertAlmostEqual(lay['pitch'][1], PY, delta=1)
+        self.assertAlmostEqual(lay['ref_offset'][0], OFF[0], delta=1)
+        self.assertAlmostEqual(lay['ref_offset'][1], OFF[1], delta=1)
 
 
 class WellGraph(unittest.TestCase):

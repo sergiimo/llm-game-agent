@@ -1,9 +1,10 @@
-"""Chain helpers (spec 2026-11-02): pattern fit of a neighbour tile on the frame, the bubble expectation of a predicted state, and the
-geometric proof of a one-tile move. Frame pixels only; no positions."""
+"""Chain helpers (spec 2026-11-02 §10): the layout's screen point of a neighbour bed, the bubble expectation of a predicted
+state, and the proof of a one-bed move by phase correlation of the frames. Frame pixels only; no positions."""
 from game import ui, core
-from . import anchor, identity, loop
+from . import anchor
 from .graph import cell
-from .lines import lines as _lines
+
+MIN_PITCH, TOL, MIN_PEAK, DOWN = 40.0, 0.4, 0.1, 4   # px; of the pitch; correlation peak; frame downscale factor
 
 CENTRE = anchor.CENTRE   # the camera follows Tara, so the reference tile is the one nearest the frame centre
 
@@ -14,29 +15,65 @@ class Unexpected(Exception):
         self.why = why
 
 
-def locate(graph, at, target, dets):
-    """The detection of `target`, fitted to the group grid relative to `at` (the tile nearest the frame centre)."""
-    group = graph.nodes[graph.nodes[at].region]
-    dets = identity.dedupe_for(group, list(dets))
-    if len(dets) < 2:
-        raise Unexpected(f'pattern fit: only {len(dets)} tile(s) visible')
-    ry = _lines([d.point[1] for d in dets], [d.box[3] - d.box[1] for d in dets])
-    cx = _lines([d.point[0] for d in dets], [d.box[2] - d.box[0] for d in dets])
-    cells = list(zip(ry, cx))
-    if len(set(cells)) < len(cells):
-        raise Unexpected('pattern fit: ambiguous (two tiles in one grid cell)')
-    i0 = min(range(len(dets)), key=lambda i: (dets[i].point[0] - CENTRE[0]) ** 2 + (dets[i].point[1] - CENTRE[1]) ** 2)
+def _layout(graph, node_id):
+    """The validated layout of a node's group; Unexpected('no layout') / ('bad layout', dropped) otherwise."""
+    group = graph.nodes[graph.nodes[node_id].region]
+    lay = group.extra.get('layout')
+    if not lay:
+        raise Unexpected('no layout')
+    try:
+        px, py = (float(v) for v in lay['pitch'])
+        dx, dy = (float(v) for v in lay['ref_offset'])
+    except (KeyError, TypeError, ValueError):
+        group.extra.pop('layout', None)
+        raise Unexpected('bad layout') from None
+    if px < MIN_PITCH or py < MIN_PITCH:
+        group.extra.pop('layout', None)
+        raise Unexpected(f'bad layout: pitch ({px:.0f}, {py:.0f}) is not a bed spacing')
+    return px, py, dx, dy
+
+
+def layout_point(graph, at, target):
+    """Frame pixel of member `target` while Tara stands at `at` (camera follows her): CENTRE + ref_offset + cell delta x pitch."""
+    px, py, dx, dy = _layout(graph, at)
     (ar, ac), (tr, tc) = cell(at), cell(target)
-    want = (ry[i0] + tr - ar, cx[i0] + tc - ac)
-    for d, rc in zip(dets, cells):
-        if rc == want:
-            return d
-    raise Unexpected(f'pattern fit: target not visible (offset {tr - ar},{tc - ac} from {at})')
+    return (CENTRE[0] + dx + (tc - ac) * px, CENTRE[1] + dy + (tr - ar) * py)
 
 
-def click_tile(det, bubbles):
-    """Pixel to click on a tile, kept away from unwanted bubbles."""
-    return loop.click_point(det, bubbles)
+def click_tile(pt, bubbles):
+    """Pixel to click for a tile at `pt`, nudged off any bubble that sits on it."""
+    for ox, oy in ((0, 0), (0, 50), (50, 0), (-50, 0), (0, -50)):
+        x, y = pt[0] + ox, pt[1] + oy
+        if all((x - b[0]) ** 2 + (y - b[1]) ** 2 >= 45 ** 2 for b in bubbles):
+            return (round(x), round(y))
+    return (round(pt[0]), round(pt[1]))
+
+
+def _gray(img):
+    import numpy as np
+    from PIL import Image
+    g = img.convert('L')
+    g = g.resize((max(1, g.width // DOWN), max(1, g.height // DOWN)), Image.BOX)
+    return np.asarray(g, dtype=float)
+
+
+def camera_shift(img0, img1):
+    """How the scene moved between two full frames: (dx, dy, peak) in frame pixels (content at x in img0 is at x+dx in img1);
+    phase correlation on 1/4-size grayscale. peak = normalised correlation peak (~1 pure shift, ~0 no common texture)."""
+    import numpy as np
+    a, b = _gray(img0), _gray(img1)
+    if a.shape != b.shape:
+        return 0.0, 0.0, 0.0
+    win = np.outer(np.hanning(a.shape[0]), np.hanning(a.shape[1]))
+    a, b = (a - a.mean()) * win, (b - b.mean()) * win
+    if a.std() < 1e-6 or b.std() < 1e-6:
+        return 0.0, 0.0, 0.0
+    cross = np.fft.fft2(b) * np.conj(np.fft.fft2(a))
+    r = np.fft.ifft2(cross / (np.abs(cross) + 1e-9 * np.abs(cross).max())).real
+    iy, ix = np.unravel_index(int(np.argmax(r)), r.shape)
+    h, w = r.shape
+    dy, dx = (iy - h if iy > h // 2 else iy), (ix - w if ix > w // 2 else ix)
+    return float(dx * DOWN), float(dy * DOWN), float(r[iy, ix])
 
 
 def expected_bubble(graph, node_id):
@@ -65,37 +102,24 @@ def bubble_near(affs, tile_pt, max_dx=110, max_up=(40, 260)):
     return best
 
 
-def _pitch(dets, axis):
-    """Tile pitch along axis 0 (x) / 1 (y): median gap between adjacent tile lines; one line -> the tile's own size."""
-    sizes = [d.box[axis + 2] - d.box[axis] for d in dets]
-    lab = _lines([d.point[axis] for d in dets], sizes)
-    by = {}
-    for l, d in zip(lab, dets):
-        by.setdefault(l, []).append(d.point[axis])
-    ms = sorted(sum(v) / len(v) for v in by.values())
-    gaps = sorted(b - a for a, b in zip(ms, ms[1:]))
-    return gaps[len(gaps) // 2] if gaps else sorted(sizes)[len(sizes) // 2]
-
-
 SHIFT = {'E': (-1, 0), 'W': (1, 0), 'S': (0, -1), 'N': (0, 1)}   # grid shift (in pitches) after Tara moves one tile that way
 
 
-def _prove_shift(group, dets0, dets1, d):
-    """Screen geometry (frame pixels only): after a one-tile move toward `d` the camera follows, so the whole visible grid
-    shifts by one pitch the opposite way. The shift is the whole-pitch displacement k that best maps the tiles seen
-    before onto the tiles seen after; it must be exactly the expected one (a tie or any other k = not proved)."""
-    d0, d1 = identity.dedupe_for(group, list(dets0)), identity.dedupe_for(group, list(dets1))
-    px, py = _pitch(d0, 0), _pitch(d0, 1)
-    scores = {}
-    for kx in range(-3, 4):
-        for ky in range(-3, 4):
-            scores[(kx, ky)] = sum(1 for p in d0 if any(abs(p.point[0] + kx * px - q.point[0]) < .3 * px and
-                                                        abs(p.point[1] + ky * py - q.point[1]) < .3 * py for q in d1))
-    top = max(scores.values())
-    best = [k for k, v in scores.items() if v == top]
-    if top < 1 or len(best) != 1 or best[0] != SHIFT[d]:
-        raise Unexpected(f'move not proved: grid shifted {best[0] if len(best) == 1 else "ambiguously"} pitches '
-                         f'(expected {SHIFT[d]} for {d})')
+def prove_move(layout, shift, d):
+    """The camera must have moved one pitch opposite to the step direction `d` (+-0.4 pitch; < 0.4 pitch on the other axis)
+    with a real correlation peak, else Unexpected('move not proved: ...')."""
+    dx, dy, peak = shift
+    if not layout:
+        raise Unexpected('no layout')
+    px, py = (float(v) for v in layout['pitch'])
+    if px < MIN_PITCH or py < MIN_PITCH:
+        raise Unexpected('bad layout')
+    sx, sy = SHIFT[d]
+    ex, ey = sx * px, sy * py
+    if peak < MIN_PEAK:
+        raise Unexpected(f'move not proved: no common texture between the frames (peak {peak:.2f})')
+    if abs(dx - ex) > TOL * px or abs(dy - ey) > TOL * py:
+        raise Unexpected(f'move not proved: camera shifted ({dx:.0f}, {dy:.0f}) px, expected ({ex:.0f}, {ey:.0f}) for {d}')
 
 
 def _implies_bubble(g, nid):
@@ -113,3 +137,13 @@ def opened_screen():
     except Exception:   # noqa: BLE001 (no state: fall back to on-screen texts)
         t = ui.texts()
         return ' / '.join(t[:2]) if t else None
+
+
+def ensure_gameplay():
+    """Close a card/panel/menu that is open (a 2nd Escape in gameplay would open the pause menu, so only when not in it)."""
+    try:
+        mode = core.WF.state().get('mode')
+    except Exception:   # noqa: BLE001
+        mode = 'gameplay'
+    if mode != 'gameplay':
+        ui.close()

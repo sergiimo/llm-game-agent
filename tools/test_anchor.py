@@ -69,6 +69,16 @@ class AnchorTest(unittest.TestCase):
         self.assertAlmostEqual(lay['pitch'][0], 480, delta=1)
         self.assertEqual(lay['pitch'][1], 270)
 
+    def test_implausible_pitch_rejected(self):
+        b = 'GardenBed@Garden#r%dc%d'
+        for name, pts in (('negative x', {(1, 1): (400, 200), (1, 2): (200, 200), (2, 1): (400, 450), (2, 2): (200, 450)}),
+                          ('negative y', {(1, 1): (200, 450), (1, 2): (600, 450), (2, 1): (200, 200), (2, 2): (600, 200)}),
+                          ('tiny x', {(1, 1): (200, 200), (1, 2): (220, 200), (2, 1): (200, 450), (2, 2): (220, 450)}),
+                          ('tiny y', {(1, 1): (200, 200), (1, 2): (600, 200), (2, 1): (200, 220), (2, 2): (600, 220)})):
+            with self.subTest(name), self.assertRaises(A.AnchorError) as cm:
+                A.fit_layout({b % rc: p for rc, p in pts.items()}, b % (1, 1), None)
+            self.assertIn('plausible', str(cm.exception))
+
     def test_inconsistent_beds_rejected(self):
         beds = {}
         for r in (1, 2, 3):

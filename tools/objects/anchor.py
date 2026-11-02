@@ -19,6 +19,7 @@ PENDING = os.path.join(os.environ.get('WF_SHOT_DIR', os.path.join(ROOT, '.shots'
 CELL = r'[A-X](?:1[0-6]|[1-9])'
 COLS, ROWS = 24, 16
 CELL_W, CELL_H = 1920 / COLS, 1080 / ROWS   # 80 x 67.5 px
+MIN_PITCH = 40                              # px: a smaller (or non-positive) pitch is not a bed spacing
 RESIDUAL_LIMIT = 0.35                       # of the pitch
 SHAPE = ('group: <group>   ref: r<R>c<C>@<cell>\n'
          'r<R>c<C>@<cell> <phase>[(<crop>)][ dry|watered]   r<R>c<C>@<cell> ?   ... '
@@ -116,7 +117,9 @@ def fit_layout(beds, ref, prev=None):
     prev_p = (prev or {}).get('pitch') or (None, None)
     ox, px, rx = _axis([beds[m][0] for m in ids], [c for _, c in rc], prev_p[0])
     oy, py, ry = _axis([beds[m][1] for m in ids], [r for r, _ in rc], prev_p[1])
-    if px == 0 or py == 0 or abs(rx) > RESIDUAL_LIMIT * abs(px) or abs(ry) > RESIDUAL_LIMIT * abs(py):
+    if px < MIN_PITCH or py < MIN_PITCH:
+        raise AnchorError(f'bed spacing (pitch {px:.0f}, {py:.0f} px) is not plausible: the beds are at least {MIN_PITCH} px apart, columns go east, rows south')
+    if abs(rx) > RESIDUAL_LIMIT * abs(px) or abs(ry) > RESIDUAL_LIMIT * abs(py):
         raise AnchorError(f'beds are inconsistent with one grid (pitch ({px:.0f}, {py:.0f}), residual ({rx:.0f}, {ry:.0f}) px)')
     # the reference bed's own fitted screen point is (ox, oy)
     return {'pitch': (px, py), 'ref_offset': (ox - CENTRE[0], oy - CENTRE[1]), 'residual': (rx, ry)}

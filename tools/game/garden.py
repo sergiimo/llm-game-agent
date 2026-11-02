@@ -25,7 +25,7 @@ def crop_name(card_text):
     return card_text.split(' / ', 1)[0].strip()
 
 
-def _chain(task, seed=None, graph=None, gpath=None, detect_fn=None):
+def _chain(task, seed=None, graph=None, gpath=None):
     """Run a chain task (objects/chain.py, spec 2026-11-02) on the home garden: load the object graph, expire yesterday's
     watered hints, run, ALWAYS save the graph (a NeedVision answer reads it from disk). Returns the run summary."""
     from objects import chain, graph as OG
@@ -37,7 +37,7 @@ def _chain(task, seed=None, graph=None, gpath=None, detect_fn=None):
     if m:
         graph.new_day(int(m.group(1)))
     try:
-        return chain.run(task, 'GardenBed@Garden', graph, seed=seed, detect_fn=detect_fn)
+        return chain.run(task, 'GardenBed@Garden', graph, seed=seed)
     finally:
         graph.save(gpath)
 

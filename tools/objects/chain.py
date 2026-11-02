@@ -1,14 +1,14 @@
-"""Graph chain strategy (spec 2026-11-02): locate a neighbour tile on screen by pattern fit (no positions: frame pixels
-only), and `run` a garden task over a group chain: tile by tile, the log read for event TYPE only, every unexpected
-situation = one vision question (anchor), never a guess. Helpers (pattern fit, expectations, move proof): chain_step."""
+"""Graph chain strategy (spec 2026-11-02 §10): `run` a garden task over a group chain, bed by bed: the click point comes from
+the vision-given layout (frame pixels only, no positions), every move is proved by the camera shift, the log is read for event
+TYPE only, every unexpected situation = one vision question (anchor), never a guess. Helpers: chain_step."""
 import re
 from collections import namedtuple
 
 from game import affordances, core, ui, well
 
-from . import anchor, detect as D, loop, store as S
-from .chain_step import (CENTRE, SHIFT, Unexpected, _implies_bubble, _lines, _pitch, _prove_shift, bubble_near,  # noqa: F401
-                         click_tile, expected_bubble, locate, opened_screen)
+from . import anchor, loop
+from .chain_step import (CENTRE, SHIFT, Unexpected, _implies_bubble, bubble_near, camera_shift, click_tile,  # noqa: F401
+                         ensure_gameplay, expected_bubble, layout_point, opened_screen, prove_move)
 from .graph import apply_log
 from .query import Q
 
@@ -137,26 +137,18 @@ def _summary(res):
             f'skipped {[(i.split("#")[-1], w[:40]) for i, w in res["skipped"]]}, unknown {len(res.get("unknown", []))}.')
 
 
-def _ask(graph, task, why, detect_fn, res=None):
+def _ask(graph, task, why, res=None):
     """One fresh anchor question about the current frame (a stale pending answer is cleared first); raises NeedVision."""
     why += _summary(res)
     anchor.clear_pending()
+    try:
+        ensure_gameplay()   # a card/panel left open would hide the beds from vision
+    except Exception:   # noqa: BLE001
+        pass
     img = core.WF.grab()
     prompt = anchor.question(img, task, graph, why, core=core)
     graph.set_state('Tara', 'asks', (graph.state_value('Tara', 'asks') or 0) + 1, _now(), 'event')
     raise _need_vision(prompt)
-
-
-def _default_detect(graph, group):
-    node = graph.nodes[group]
-    store = S.Store()
-    return lambda img: D.detect(img, store, kinds=[node.kind], region=node.region)
-
-
-def _centre(dets):
-    if not dets:
-        raise Unexpected('no tiles visible on the frame')
-    return min(dets, key=lambda d: (d.point[0] - CENTRE[0]) ** 2 + (d.point[1] - CENTRE[1]) ** 2)
 
 
 def _set_at(g, nid):
@@ -164,25 +156,27 @@ def _set_at(g, nid):
     g.set_state('Tara', 'at_scene', anchor._scene(core), _now(), 'event')
 
 
-def _step(run, cur, nid, detect_fn, last, d=None):
+def _step(run, cur, nid, last, d=None):
     """Move one chain step onto `nid` (a neighbour of `cur`) and prove it from the frames, then check the bubble above
     Tara's tile against the predicted state. Tara.at is set only after the proof (a click that did not move her, or
-    moved her elsewhere, is Unexpected)."""
+    moved her elsewhere, is Unexpected and drops the layout)."""
     g = run.graph
-    dets = detect_fn(core.WF.grab())
+    ensure_gameplay()
     if cur != nid:
-        pt = click_tile(locate(g, cur, nid, dets), [a.pt for a in affordances.scan()])
+        pt = click_tile(layout_point(g, cur, nid), [a.pt for a in affordances.scan()])
+        img0 = core.WF.grab()
         core.WF.run_action(f'click:{pt[0]}:{pt[1]}')
         core.WF.wait_settle()
         scr = opened_screen()
         if scr:   # a click on an adjacent bed can open its panel/card instead of walking
             ui.close()
             raise Unexpected(f'the click opened {scr}')
-        dets1 = detect_fn(core.WF.grab())
-        _prove_shift(g.nodes[g.nodes[nid].region], dets, dets1, d)
-        locate(g, nid, cur, dets1)   # secondary: the previous tile is visible one step back from Tara's tile
-        dets = dets1
-    run.tile_pt = _centre(dets).point
+        try:
+            prove_move(g.nodes[g.nodes[nid].region].extra.get('layout'), camera_shift(img0, core.WF.grab()), d)
+        except Unexpected:
+            g.nodes[g.nodes[nid].region].extra.pop('layout', None)
+            raise
+    run.tile_pt = layout_point(g, nid, nid)
     _set_at(g, nid)
     b = bubble_near(affordances.scan(), run.tile_pt)
     if b is None:
@@ -194,11 +188,11 @@ def _step(run, cur, nid, detect_fn, last, d=None):
     return b
 
 
-def _goto_node(r, at, target, detect_fn):
+def _goto_node(r, at, target):
     """Walk the chain from `at` to `target`; returns (bubble at target, new at)."""
     b = None
     for d, nid in r.graph.hops(at, target) + [(None, target)] * (at == target):
-        b = _step(r, at, nid, detect_fn, nid == target, d)
+        b = _step(r, at, nid, nid == target, d)
         at = nid
     return b, at
 
@@ -210,7 +204,7 @@ def _save_stamp():
         return None
 
 
-def _perform(r, t, task, target, b, detect_fn):
+def _perform(r, t, task, target, b):
     """Act on `target`, replay the log into the graph, check the task's events. 'ok' | 'stop'."""
     g = r.graph
     r.mark = core.WF.log_mark()
@@ -223,7 +217,7 @@ def _perform(r, t, task, target, b, detect_fn):
     g.set_state('Tara', 'last_action_save', _save_stamp(), _now(), 'event')
     if out == 'refill':
         g.set_state('Tara', 'at', None, _now(), 'event')
-        _ask(g, task, 'the can ran dry; refilled at the well, Tara moved: re-anchor', detect_fn, r.res)
+        _ask(g, task, 'the can ran dry; refilled at the well, Tara moved: re-anchor', r.res)
     if out == 'stop':
         return 'stop'
     text = '\n'.join(lines)
@@ -248,14 +242,17 @@ def _at_stale(g):
     return bool(was and cur and was != cur)
 
 
-def run(task, group, graph, seed=None, max_steps=40, detect_fn=None, wf=None):
+def run(task, group, graph, seed=None, max_steps=40, wf=None):
     """Do `task` on every needing member of `group`, nearest first (a pending water from an interrupted replant first).
     Returns {'done','skipped','unknown','vision','steps','count_check'}; raises loop.NeedVision (an anchor question) when
     Tara.at is unknown or anything is unexpected - answer with ./wf anchor and call again: the run continues from the graph."""
     t, g = TASKS[task], graph
-    detect_fn = detect_fn or _default_detect(g, group)
     r = _Run(g, seed)
     res = r.res = {'done': [], 'skipped': r.skipped, 'unknown': [], 'vision': 0, 'steps': 0}
+    try:
+        ensure_gameplay()
+    except core.Failed as e:
+        _ask(g, task, str(e).split('NEED_VISION')[0].rstrip('; ') or 'could not close the open screen', res=res)
     at = g.state_value('Tara', 'at')
     if at in g.nodes and g.nodes[at].region != group:
         loop.goto(Q(kind=g.nodes[group].kind), core.WF, graph=g)
@@ -265,15 +262,13 @@ def run(task, group, graph, seed=None, max_steps=40, detect_fn=None, wf=None):
         g.set_state('Tara', 'at', None, _now(), 'event')
         at = None
     if at not in g.nodes:
-        if not detect_fn(core.WF.grab()):   # outside the garden (or nothing seen): walk there first, then ask
-            loop.goto(Q(kind=g.nodes[group].kind), core.WF, graph=g)
-        _ask(g, task, 'Tara.at is unknown', detect_fn, res)
+        _ask(g, task, 'Tara.at is unknown', res=res)
     try:
         pw = g.state_value('Tara', 'pending_water')
         if pw:
             if pw in g.nodes and g.phase(pw) == 'growing' and g.state_value(pw, 'watered_today') is not True:
-                b, at = _goto_node(r, at, pw, detect_fn)
-                _perform(r, TASKS['water'], 'water', pw, b, detect_fn)
+                b, at = _goto_node(r, at, pw)
+                _perform(r, TASKS['water'], 'water', pw, b)
                 res['done'].append(pw)
             g.set_state('Tara', 'pending_water', None, _now(), 'event')
         while not r.stop and res['steps'] < max_steps:
@@ -283,26 +278,26 @@ def run(task, group, graph, seed=None, max_steps=40, detect_fn=None, wf=None):
                 break
             res['steps'] += 1
             target = min(todo)[1]
-            b, at = _goto_node(r, at, target, detect_fn)
-            if _perform(r, t, task, target, b, detect_fn) == 'stop':
+            b, at = _goto_node(r, at, target)
+            if _perform(r, t, task, target, b) == 'stop':
                 break
             res['done'].append(target)
     except Unexpected as e:
-        _ask(g, task, e.why, detect_fn, res)
+        _ask(g, task, e.why, res=res)
     except core.Failed as e:   # fill_can / Remove / Select failed: close any menu, then exactly one question
         try:
             ui.close()
         except Exception:   # noqa: BLE001
             pass
-        _ask(g, task, str(e).split('NEED_VISION')[0].rstrip('; ') or 'an action failed', detect_fn, res)
+        _ask(g, task, str(e).split('NEED_VISION')[0].rstrip('; ') or 'an action failed', res=res)
     res['unknown'] = [m.id for m in g.members(group) if g.phase(m.id) is None]
-    _count_check(g, res, task, detect_fn)
+    _count_check(g, res, task)
     res['vision'] = g.state_value('Tara', 'asks') or 0
     g.set_state('Tara', 'asks', 0, _now(), 'event')
     return res
 
 
-def _count_check(g, res, task, detect_fn):
+def _count_check(g, res, task):
     """Graph vs save counts, only on a save newer than the run's last action, at most once per save stamp, and only when the
     graph covers every bed (a group without members/pattern or an unknown phase makes the farm-wide sums meaningless)."""
     why = anchor.incomplete(g)
@@ -323,7 +318,7 @@ def _count_check(g, res, task, detect_fn):
     mm = _save_mismatch(g)
     res['count_check'] = 'ok' if not mm else 'mismatch'
     if mm:
-        _ask(g, task, 'graph vs save counts differ (graph, save): ' + ', '.join(f'{k}={v}' for k, v in mm.items()), detect_fn, res)
+        _ask(g, task, 'graph vs save counts differ (graph, save): ' + ', '.join(f'{k}={v}' for k, v in mm.items()), res=res)
 
 
 def _save_mismatch(graph):

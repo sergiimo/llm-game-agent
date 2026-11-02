@@ -103,6 +103,39 @@ class AnchorTest(unittest.TestCase):
             self.assertIn('wilted=(0, 2)', msg)
             self.assertEqual(self.g.phase('GardenBed@Garden#r1c1'), 'ripe')
 
+    def test_answer_stamps_pending_game_time_and_new_day_keeps_it(self):
+        import json
+        with tempfile.TemporaryDirectory() as d:
+            A.PENDING = os.path.join(d, 'anchor-pending.json')
+            json.dump({'labels': {'A': {'point': [1, 1], 'box': [0, 0, 1, 1], 'kind': 'GardenBed'}},
+                       'game_time': 'D183 1:30:00 PM'}, open(A.PENDING, 'w'))
+            A.answer(f'group: {GB}   at: A=r1c1   A=r1c1 growing watered', graph=self.g, gpath=os.path.join(d, 'g.json'))
+            s = self.g.node('GardenBed@Garden#r1c1').state['watered_today']
+            self.assertEqual(s['game_time'], 'D183 1:30:00 PM')
+            self.g.new_day(183)
+            self.assertIs(self.g.state_value('GardenBed@Garden#r1c1', 'watered_today'), True)
+            self.g.new_day(184)
+            self.assertIs(self.g.state_value('GardenBed@Garden#r1c1', 'watered_today'), False)
+
+    def test_clock_fallback(self):
+        class Core:
+            class WF:
+                @staticmethod
+                def game_stamp():
+                    raise OSError
+        self.assertEqual(A._clock(Core), 'vision')
+
+    def test_farm_wide_count_mismatch_sums_groups(self):
+        self.g.set_state('GardenBed@Garden#r1c1', 'phase', 'wilted', 'D1', 'vision')
+        far = [n.id for n in self.g.nodes.values() if n.type == 'member' and n.region == 'GardenBed@FarGarden']
+        if far:
+            self.g.set_state(far[0], 'phase', 'wilted', 'D1', 'vision')
+        have = 1 + (1 if far else 0)
+        self.g.set_state('GardenBed@Garden#r1c2', 'phase', 'growing', 'D1', 'vision')
+        self.g.set_state('GardenBed@Garden#r1c2', 'watered_today', False, 'D1', 'vision')
+        mm = A.count_mismatch(self.g, None, {'wilted': have + 2, 'dry': 1, 'ripe': 0})
+        self.assertEqual(mm, {'wilted': (have, have + 2)})
+
 
 if __name__ == '__main__':
     unittest.main()

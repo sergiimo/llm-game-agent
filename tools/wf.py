@@ -1433,6 +1433,31 @@ def objects_cmd(args):
     sys.exit(objects_cmd.__doc__)
 
 
+def save_bed_counts(crops):
+    """Farm-wide bed totals from the save crop list: empty (plantState ##0), ripe (##produced), wilted (isWilted),
+    dry (growing, isWatered false, not wilted)."""
+    def st(c):
+        return (c.get('plantState') or '').strip('#')
+    wilted = lambda c: c.get('isWilted') == 'true'
+    return {'wilted': sum(wilted(c) for c in crops),
+            'ripe': sum(c.get('plantState') == '##produced' and not wilted(c) for c in crops),
+            'empty': sum(st(c) in ('', '0') for c in crops),
+            'dry': sum(c.get('plantState') in ('##growing', '##producing') and c.get('isWatered') != 'true'
+                       and not wilted(c) for c in crops)}
+
+
+def game_stamp():
+    """Latest game-log stamp such as 'D183 1:30:00 PM' (the clock the graph hints use), or None."""
+    try:
+        with open(GAME_LOG, 'rb') as fh:
+            fh.seek(max(0, os.path.getsize(GAME_LOG) - 20000))
+            tail = fh.read().decode('utf-8', 'replace')
+    except OSError:
+        return None
+    ms = re.findall(r'^\[(D\d+ [^\]]+)\]', tail, re.M)
+    return ms[-1] if ms else None
+
+
 def anchor_cmd(text):
     """wf anchor "<answer>": parse the vision answer, set Tara.at + states in the graph, check wilted count vs the save. No input."""
     if os.path.join(ROOT, 'tools') not in sys.path:
@@ -1440,10 +1465,9 @@ def anchor_cmd(text):
     from objects import anchor as OA
     counts = None
     try:
-        crops = farm_status()['crops']
-        counts = {'wilted': sum(1 for c in crops if c.get('isWilted') == 'true')}
-    except Exception:
-        pass
+        counts = save_bed_counts(farm_status()['crops'])
+    except Exception as e:
+        print(f'save counts unavailable ({type(e).__name__}: {e})')
     try:
         print(OA.answer(text, save_counts=counts))
     except OA.AnchorError as e:

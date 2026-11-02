@@ -131,11 +131,24 @@ def cell_of(member_id):
     return G.cell(member_id)
 
 
+def _bed_members(graph, group):
+    """Members of `group`; group None or a bare kind (no '@') -> members of every group of that kind (default GardenBed)."""
+    if group and '@' in group:
+        return graph.members(group)
+    kind = group or 'GardenBed'
+    return [m for n in graph.nodes.values() if n.type == 'group' and n.kind == kind for m in graph.members(n.id)]
+
+
 def count_mismatch(graph, group, save_counts):
-    """{state: (graph count, save count)} where they differ; states are phases."""
+    """{state: (graph count, save count)} where they differ. States: empty|growing|ripe|wilted by phase, `dry` = growing
+    and watered_today False. group None or a kind -> farm-wide sum over all its groups (the save has no per-group split)."""
+    members = _bed_members(graph, group)
     out = {}
     for state, want in save_counts.items():
-        have = len(graph.needs(group, lambda n, s=state: graph.phase(n.id) == s))
+        if state == 'dry':
+            have = sum(1 for m in members if graph.phase(m.id) == 'growing' and graph.state_value(m.id, 'watered_today') is False)
+        else:
+            have = sum(1 for m in members if graph.phase(m.id) == state)
         if have != want:
             out[state] = (have, want)
     return out
@@ -174,13 +187,16 @@ def question(img, dets, task, graph, unexpected, core=None, tara_point=None):
     os.makedirs(os.path.dirname(PENDING), exist_ok=True)
     with open(PENDING, 'w') as f:
         json.dump({'labels': {l: {'point': list(d.point), 'box': list(d.box), 'kind': d.kind} for l, d in labels.items()},
-                   'game_time': _now(graph)}, f)
+                   'game_time': _clock(core)}, f)
     return prompt, labels
 
 
-def _now(graph):
-    s = graph.nodes['Tara'].state.get('at') if 'Tara' in graph.nodes else None
-    return s['game_time'] if s else 'vision'
+def _clock(core):
+    """Current game clock stamp ('D183 1:30:00 PM', the game-log format) or 'vision' if unavailable."""
+    try:
+        return core.WF.game_stamp() or 'vision'
+    except Exception:
+        return 'vision'
 
 
 def _pending():
@@ -211,7 +227,7 @@ def answer(text, graph=None, gpath=None, save_counts=None):
     graph.save(gpath)
     out = f'anchored Tara at {anchor.at[1]}; {len(changes) - 1} state changes'
     if save_counts:
-        mm = count_mismatch(graph, anchor.group, save_counts)
+        mm = count_mismatch(graph, None, save_counts)
         if mm:
             out += '; MISMATCH vs save (graph, save): ' + ', '.join(f'{k}={v}' for k, v in mm.items()) + \
                    ' - ask ONE follow-up naming it'

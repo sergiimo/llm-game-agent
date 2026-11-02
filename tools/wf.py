@@ -1455,11 +1455,14 @@ def graph_cmd(args):
         if mark > size:   # the log was rotated
             mark = 0
         lines = _unhash(log_since(mark)).splitlines()
-        changes = OG.apply_log(g, lines, at=g.state_value('Tara', 'at'))
+        skipped = []
+        changes = OG.apply_log(g, lines, at=g.state_value('Tara', 'at'), skipped=skipped)
         g.extra['_sync'] = size
         g.save(gpath)
         for nid, key, val, when in changes:
             print(f'{nid} {key}={val} @{when}')
+        if skipped:
+            print(f'skipped {len(skipped)} garden events (Tara.at unknown; vision re-anchors)')
         return print(f'synced {len(lines)} log lines since {mark}: {len(changes)} state changes')
     if cmd in ('map-seed', 'map-heatmap'):
         from PIL import Image

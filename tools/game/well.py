@@ -46,6 +46,6 @@ def fill_can():
     line = prove('fill the can', PROOF, mark)
     changes = G.apply_log(g, [line], at=None)
     if not changes and 'already full' in line:
-        g.set_state('Well', 'can', 'full', line.split(']')[0].lstrip('[') if line.startswith('[') else None, 'log')
+        g.set_state('Well', 'can', 'full', line.split(']')[0].lstrip('[') if line.startswith('[') else None, 'event')
     g.save(GRAPH)
     return line

@@ -187,12 +187,13 @@ _STAMP = re.compile(r'^\[(D(\d+)) ([^\]]+)\]')
 _ACT = re.compile(r'>\s*(\w+)\b[^\n]*?target=(\w+)')
 
 
-def apply_log(graph, lines, at):
-    """Update node states from game-log lines (source 'log', game_time = the line's stamp 'D148 9:36:36 PM'). Only the
+def apply_log(graph, lines, at, skipped=None):
+    """Update node states from game-log lines (source 'event', game_time = the line's stamp 'D148 9:36:36 PM'). Only the
     event type is read, never a position:
     `> fill_watering_can|full_watering_can ... target=Well` -> Well can=full;
     `> plant|water|unplant_impl ... target=GardenBed` -> the member `at` (the chain's current node; None = unknown,
     skipped): plant phase=growing | water watered_today=True | unplant_impl phase=empty + crop=None.
+    Garden events that cannot be applied (at unknown) are appended to the `skipped` list, if given, as (act, game_time).
     Returns [(node_id, key, value, game_time)] of the changes in order."""
     out = []
     for line in lines:
@@ -205,12 +206,14 @@ def apply_log(graph, lines, at):
             chs = [('Well', 'can', 'full')]
         elif target == 'GardenBed' and act in ('plant', 'water', 'unplant_impl'):
             if at is None or at not in graph.nodes:
+                if skipped is not None:
+                    skipped.append((act, when))
                 continue
             chs = [(at, 'phase', 'growing')] if act == 'plant' else [(at, 'watered_today', True)] \
                 if act == 'water' else [(at, 'phase', 'empty'), (at, 'crop', None)]
         else:
             continue
         for ch in chs:
-            graph.set_state(*ch, when, 'log')
+            graph.set_state(*ch, when, 'event')
             out.append((*ch, when))
     return out

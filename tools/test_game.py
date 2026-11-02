@@ -245,7 +245,7 @@ class Game(unittest.TestCase):
         g = OG.Graph()
         g.load(p)
         self.assertEqual(g.state_value('Well', 'can'), 'full')
-        self.assertEqual(g.node('Well').state['can']['source'], 'log')
+        self.assertEqual(g.node('Well').state['can']['source'], 'event')
 
     def test_fill_can_goes_to_the_well_then_clicks_its_bubble(self):
         p = self.graph_copy()

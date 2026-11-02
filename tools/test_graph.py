@@ -47,7 +47,7 @@ class GraphTest(unittest.TestCase):
         self.assertEqual(G.cell(self.g.node('GardenBed@Garden#r2c1').id), (2, 1))
 
     def test_state_age_roundtrip(self):
-        self.g.set_state('GardenBed@Garden#r1c3', 'crop', 'tulip', 1234, 'log')
+        self.g.set_state('GardenBed@Garden#r1c3', 'crop', 'tulip', 1234, 'event')
         self.assertEqual(self.g.state_value('GardenBed@Garden#r1c3', 'crop'), 'tulip')
         self.assertIsNone(self.g.state_value('GardenBed@Garden#r1c3', 'nope'))
         with tempfile.TemporaryDirectory() as d:
@@ -55,7 +55,7 @@ class GraphTest(unittest.TestCase):
             self.g.save(p)
             h = G.Graph()
             h.load(p)
-        self.assertEqual(h.node('GardenBed@Garden#r1c3').state['crop'], {'value': 'tulip', 'game_time': 1234, 'source': 'log', 'conf': 1.0})
+        self.assertEqual(h.node('GardenBed@Garden#r1c3').state['crop'], {'value': 'tulip', 'game_time': 1234, 'source': 'event', 'conf': 1.0})
         self.assertEqual(h.chain('GardenBed@Garden#r2c3'), self.g.chain('GardenBed@Garden#r2c3'))
         self.assertEqual(len(h.edges()), len(self.g.edges()))
 
@@ -129,7 +129,7 @@ class QueryTest(unittest.TestCase):
     def test_query_bed_for_seed(self):
         for i in range(1, 13):
             if i not in (3, 9):
-                self.g.set_state(CELLS[i - 1], 'crop', 'tulip', 1, 'log')
+                self.g.set_state(CELLS[i - 1], 'crop', 'tulip', 1, 'event')
         q = Qm.Q(kind='GardenBed').where(crop=None)
         self.assertEqual(self.ids(q.run(self.g, 'Garden')), ['GardenBed@Garden#r1c3', 'GardenBed@Garden#r3c1'])
         self.assertEqual(self.ids(q.run(self.g, 'Garden', visible={'GardenBed@Garden#r3c1'})), ['GardenBed@Garden#r3c1', 'GardenBed@Garden#r1c3'])
@@ -244,20 +244,20 @@ class Cells(unittest.TestCase):
         a = 'GardenBed@Garden#r1c1'
         self.g.set_state(a, 'phase', 'growing', 'D1 1:00:00 AM', 'frame', conf=0.6)
         self.assertEqual(self.g.node(a).state['phase']['conf'], 0.6)
-        self.g.set_state(a, 'phase', 'ripe', 'D1 1:00:00 AM', 'log')
+        self.g.set_state(a, 'phase', 'ripe', 'D1 1:00:00 AM', 'event')
         self.assertEqual(self.g.node(a).state['phase']['conf'], 1.0)
 
     def test_phase_and_needs(self):
         a, b = 'GardenBed@Garden#r1c1', 'GardenBed@Garden#r1c2'
-        self.g.set_state(a, 'phase', 'empty', 1, 'log')
-        self.g.set_state(b, 'phase', 'growing', 1, 'log')
+        self.g.set_state(a, 'phase', 'empty', 1, 'event')
+        self.g.set_state(b, 'phase', 'growing', 1, 'event')
         self.assertEqual(self.g.phase(a), 'empty')
         self.assertEqual(self.g.needs(GB, lambda n: self.g.phase(n.id) == 'empty'), [a])
 
     def test_new_day_clears_yesterdays_watered(self):
         a, b = 'GardenBed@Garden#r1c1', 'GardenBed@Garden#r1c2'
-        self.g.set_state(a, 'watered_today', True, 'D182 9:00:00 AM', 'log')
-        self.g.set_state(b, 'watered_today', True, 'D183 9:00:00 AM', 'log')
+        self.g.set_state(a, 'watered_today', True, 'D182 9:00:00 AM', 'event')
+        self.g.set_state(b, 'watered_today', True, 'D183 9:00:00 AM', 'event')
         self.g.new_day(183)
         self.assertIs(self.g.state_value(a, 'watered_today'), False)
         self.assertEqual(self.g.node(a).state['watered_today']['source'], 'event')
@@ -318,7 +318,9 @@ class ApplyLogTest(unittest.TestCase):
 
     def test_garden_events_without_chain_node_are_skipped(self):
         ln = ['[D148 8:00:00 PM] > plant me=Player target=GardenBed (4) at (5.84, 0.10, -31.59)']
-        self.assertEqual(G.apply_log(self.g, ln, None), [])
+        skipped = []
+        self.assertEqual(G.apply_log(self.g, ln, None, skipped=skipped), [])
+        self.assertEqual(skipped, [('plant', 'D148 8:00:00 PM')])
 
     def test_legacy_full_watering_can_alias(self):
         ln = ['[D148 7:57:24 PM] > full_watering_can me=Player target=Well']

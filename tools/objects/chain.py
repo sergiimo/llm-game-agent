@@ -216,16 +216,37 @@ def _centre(dets):
     return min(dets, key=lambda d: (d.point[0] - CENTRE[0]) ** 2 + (d.point[1] - CENTRE[1]) ** 2)
 
 
-def _look(img, box, size=(8, 8)):
-    import numpy as np
-    return np.asarray(img.crop(tuple(int(v) for v in box)).convert('RGB').resize(size), dtype=int)
+def _pitch(dets, axis):
+    """Tile pitch along axis 0 (x) / 1 (y): median gap between adjacent tile lines; one line -> the tile's own size."""
+    sizes = [d.box[axis + 2] - d.box[axis] for d in dets]
+    lab = _lines([d.point[axis] for d in dets], sizes)
+    by = {}
+    for l, d in zip(lab, dets):
+        by.setdefault(l, []).append(d.point[axis])
+    ms = sorted(sum(v) / len(v) for v in by.values())
+    gaps = sorted(b - a for a, b in zip(ms, ms[1:]))
+    return gaps[len(gaps) // 2] if gaps else sorted(sizes)[len(sizes) // 2]
 
 
-def _differs(a, b, tol=1.5):
-    """The two frames are not the same picture (the view scrolled)."""
-    import numpy as np
-    sa, sb = (np.asarray(i.convert('L').resize((32, 18)), dtype=int) for i in (a, b))
-    return float(np.abs(sa - sb).mean()) > tol
+SHIFT = {'E': (-1, 0), 'W': (1, 0), 'S': (0, -1), 'N': (0, 1)}   # grid shift (in pitches) after Tara moves one tile that way
+
+
+def _prove_shift(group, dets0, dets1, d):
+    """Screen geometry (frame pixels only): after a one-tile move toward `d` the camera follows, so the whole visible grid
+    shifts by one pitch the opposite way. The shift is the whole-pitch displacement k that best maps the tiles seen
+    before onto the tiles seen after; it must be exactly the expected one (a tie or any other k = not proved)."""
+    d0, d1 = identity.dedupe_for(group, list(dets0)), identity.dedupe_for(group, list(dets1))
+    px, py = _pitch(d0, 0), _pitch(d0, 1)
+    scores = {}
+    for kx in range(-3, 4):
+        for ky in range(-3, 4):
+            scores[(kx, ky)] = sum(1 for p in d0 if any(abs(p.point[0] + kx * px - q.point[0]) < .3 * px and
+                                                        abs(p.point[1] + ky * py - q.point[1]) < .3 * py for q in d1))
+    top = max(scores.values())
+    best = [k for k, v in scores.items() if v == top]
+    if top < 1 or len(best) != 1 or best[0] != SHIFT[d]:
+        raise Unexpected(f'move not proved: grid shifted {best[0] if len(best) == 1 else "ambiguously"} pitches '
+                         f'(expected {SHIFT[d]} for {d})')
 
 
 def _implies_bubble(g, nid):
@@ -233,7 +254,7 @@ def _implies_bubble(g, nid):
     return ph in ('wilted', 'empty', 'ripe') or (ph == 'growing' and g.state_value(nid, 'watered_today') is not True)
 
 
-def _step(run, cur, nid, detect_fn, last):
+def _step(run, cur, nid, detect_fn, last, d=None):
     """Move one chain step onto `nid` (a neighbour of `cur`) and prove it from the frames, then check the bubble above
     Tara's tile against the predicted state. Tara.at is set only after the proof (a click that did not move her, or
     moved her elsewhere, is Unexpected)."""
@@ -247,12 +268,8 @@ def _step(run, cur, nid, detect_fn, last):
         core.WF.wait_settle()
         img1 = core.WF.grab()
         dets1 = detect_fn(img1)
-        if not _differs(img, img1):
-            raise Unexpected(f'the click toward {nid} did not move the view')
-        back = locate(g, nid, cur, dets1)   # the previous tile must now sit one step back from Tara's tile
-        import numpy as np
-        if float(np.abs(_look(img, prev.box) - _look(img1, back.box)).mean()) > 30:
-            raise Unexpected(f'after the click the tile one step back from {nid} is not the one Tara left ({cur})')
+        _prove_shift(g.nodes[nid].region and g.nodes[g.nodes[nid].region], dets, dets1, d)
+        locate(g, nid, cur, dets1)   # secondary: the previous tile is visible one step back from Tara's tile
         img, dets = img1, dets1
     run.tile_pt = _centre(dets).point
     g.set_state('Tara', 'at', nid, _now(), 'event')
@@ -269,8 +286,8 @@ def _step(run, cur, nid, detect_fn, last):
 def _goto_node(r, at, target, detect_fn):
     """Walk the chain from `at` to `target`; returns (bubble at target, new at)."""
     b = None
-    for _, nid in r.graph.hops(at, target) + [(None, target)] * (at == target):
-        b = _step(r, at, nid, detect_fn, nid == target)
+    for d, nid in r.graph.hops(at, target) + [(None, target)] * (at == target):
+        b = _step(r, at, nid, detect_fn, nid == target, d)
         at = nid
     return b, at
 

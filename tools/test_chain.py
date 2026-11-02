@@ -183,9 +183,9 @@ class FakeGarden:
         from PIL import Image, ImageDraw
         img = Image.new('RGB', (1920, 1080), (40, 40, 40))
         dr = ImageDraw.Draw(img)
-        for rc in self.st:   # every tile has its own colour: the runner can tell which tile it is looking at
+        for rc in self.st:   # identical tiles: only geometry can prove a move
             x, y = self.tile_pt(rc)
-            dr.rectangle((x - 40, y - 30, x + 40, y + 30), fill=(30 + rc[0] * 90, 30 + rc[1] * 50, 40 + rc[1] * 50 + rc[0] * 30))
+            dr.rectangle((x - 40, y - 30, x + 40, y + 30), fill=(90, 120, 90))
         return img
 
     def save_stamp(self):
@@ -555,6 +555,28 @@ class Runner(unittest.TestCase):
         self.assertTrue(f.st[(2, 2)]['wet'])
         self.assertIsNone(self.g.state_value('Tara', 'pending_water'))
         self.assertEqual(f.fills, 1)
+
+    def test_identical_beds_one_tile_move_proceeds(self):
+        f = self.fake(states={(2, 3): {'wet': False}})
+        f.st[(2, 2)]['wet'] = True
+        self.preset(self.node(2, 2))
+        res = self.run_('water')
+        self.assertEqual(res['done'], [self.node(2, 3)])
+        self.assertTrue(f.st[(2, 3)]['wet'])
+
+    def test_two_tile_overshoot_in_identical_row_is_rejected(self):
+        f = self.fake(states={(2, 3): {'wet': False}})
+        f.st[(2, 2)]['wet'] = True
+        f.st[(2, 1)]['wet'] = True
+        self.preset(self.node(2, 1))
+        f.move = 'far'
+        from objects.loop import NeedVision
+        n = len(f.log)
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(len(f.asked), 1)
+        self.assertEqual(f.log[n:], [])
+        self.assertEqual(self.g.state_value('Tara', 'at'), self.node(2, 1))
 
 
 if __name__ == '__main__':

@@ -7,13 +7,12 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.argv = ['x']   # wf parses argv on import
 from objects import anchor as A, graph as G  # noqa: E402
-from objects.detect import Detection  # noqa: E402
 
 GB = 'GardenBed@Garden'
 SEED = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures', 'graph_seed.json')
-SPEC = (f'group: {GB}   at: B=r2c1\n'
-        'A=r1c1 empty   B=r2c1 wilted(Green Bean)   C=r2c2 growing dry   D=r2c3 ripe   E=?')
-LABELS = set('ABCDE')
+SPEC = (f'group: {GB}   ref: r1c2@L8\n'
+        'r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?')
+ANS4 = f'group: {GB}   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 growing dry   r2c1@F12 wilted(Green Bean)   r2c2@L12 empty'
 
 
 class AnchorTest(unittest.TestCase):
@@ -21,37 +20,122 @@ class AnchorTest(unittest.TestCase):
         self.g = G.Graph()
         self.g.load(SEED)
 
-    def test_parse_spec_example(self):
-        a = A.parse(SPEC, LABELS, self.g)
-        self.assertEqual(a.at, ('B', 'GardenBed@Garden#r2c1'))
-        self.assertEqual(a.states['B']['phase'], 'wilted')
-        self.assertEqual(a.states['B']['crop'], 'Green Bean')
-        self.assertIs(a.states['C']['watered_today'], False)
-        self.assertEqual(a.states['D']['member'], 'GardenBed@Garden#r2c3')
-        self.assertIsNone(a.states['E']['phase'])
+    def test_parse_spec10_example(self):
+        a = A.parse(SPEC, self.g)
+        self.assertEqual(a.ref, 'GardenBed@Garden#r1c2')
+        self.assertEqual(len(a.cells), 5)
+        self.assertEqual(a.cells['GardenBed@Garden#r2c1'], 'F12')
+        self.assertEqual(a.states['GardenBed@Garden#r2c1']['crop'], 'Tulip')
+        self.assertNotIn('GardenBed@Garden#r3c1', a.states)   # `?` = unknown state (phase None)
 
-    def test_rejects_unknown_label(self):
+    def test_parse_rejects_bad_input(self):
+        for bad in (SPEC.replace('F15', 'Y15'), SPEC.replace('F15', 'F17'), SPEC.replace('r3c1@F15 ?', 'r4c1@F15 ?'),
+                    SPEC.replace('ripe', 'soggy', 1), SPEC.replace(GB, 'Nope'), 'nonsense'):
+            with self.assertRaises(A.AnchorError) as cm:
+                A.parse(bad, self.g)
+            self.assertIn('r1c2@L8', str(cm.exception))   # the spec 10 example in the message
+
+    def test_parse_watered_words(self):
+        a = A.parse(f'group: {GB}   ref: r1c1@F8   r1c1@F8 growing watered   r1c2@L8 growing dry', self.g)
+        self.assertIs(a.states['GardenBed@Garden#r1c1']['watered_today'], True)
+        self.assertIs(a.states['GardenBed@Garden#r1c2']['watered_today'], False)
+
+    def test_cell_point(self):
+        self.assertEqual(A.cell_point('F8'), (440, 506.25))
+        self.assertEqual(A.cell_point('X16'), (1880, 1046.25))
+        with self.assertRaises(A.AnchorError):
+            A.cell_point('Y1')
+
+    def four(self):
+        return {'GardenBed@Garden#r1c1': A.cell_point('F8'), 'GardenBed@Garden#r1c2': A.cell_point('L8'),
+                'GardenBed@Garden#r2c1': A.cell_point('F12'), 'GardenBed@Garden#r2c2': A.cell_point('L12')}
+
+    def test_fit_layout_from_four_beds(self):
+        lay = A.fit_layout(self.four(), 'GardenBed@Garden#r1c2', None)
+        self.assertAlmostEqual(lay['pitch'][0], 480, delta=1)
+        self.assertAlmostEqual(lay['pitch'][1], 270, delta=1)
+        self.assertAlmostEqual(lay['ref_offset'][0], 920 - 960, delta=1)
+        self.assertAlmostEqual(lay['ref_offset'][1], 506.25 - 540, delta=1)
+
+    def test_single_bed_without_prev_rejected(self):
+        with self.assertRaises(A.AnchorError):
+            A.fit_layout({'GardenBed@Garden#r1c2': A.cell_point('R7')}, 'GardenBed@Garden#r1c2', None)
+
+    def test_one_axis_only_uses_prev_pitch(self):
+        beds = {'GardenBed@Garden#r1c1': A.cell_point('F8'), 'GardenBed@Garden#r1c2': A.cell_point('L8')}
+        with self.assertRaises(A.AnchorError):
+            A.fit_layout(beds, 'GardenBed@Garden#r1c1', None)
+        lay = A.fit_layout(beds, 'GardenBed@Garden#r1c1', {'pitch': [480, 270]})
+        self.assertAlmostEqual(lay['pitch'][0], 480, delta=1)
+        self.assertEqual(lay['pitch'][1], 270)
+
+    def test_inconsistent_beds_rejected(self):
+        beds = {}
+        for r in (1, 2, 3):
+            for c in (1, 2, 3):
+                beds[f'GardenBed@Garden#r{r}c{c}'] = (200 + 400 * (c - 1), 150 + 250 * (r - 1))
+        A.fit_layout(beds, 'GardenBed@Garden#r1c1', None)   # consistent: fine
+        beds['GardenBed@Garden#r2c2'] = (200 + 400 * 2, 150 + 250 * 2)   # one bed a full pitch off in both axes
         with self.assertRaises(A.AnchorError) as cm:
-            A.parse(SPEC.replace('E=?', 'Z=?'), LABELS, self.g)
-        self.assertIn('at: <L>=r<R>c<C>', str(cm.exception))
+            A.fit_layout(beds, 'GardenBed@Garden#r1c1', None)
+        self.assertIn('r1c2@L8', str(cm.exception))
 
-    def test_rejects_cell_outside_pattern(self):
-        with self.assertRaises(A.AnchorError):
-            A.parse(f'group: {GB}   at: B=r4c1   B=r4c1 empty', LABELS, self.g)
+    def test_apply_sets_layout_and_ref(self):
+        a = A.parse(SPEC, self.g)
+        A.apply(self.g, a, 'D3 10:00')
+        self.assertEqual(self.g.state_value('Tara', 'at'), 'GardenBed@Garden#r1c2')
+        lay = self.g.node(GB).extra['layout']
+        self.assertAlmostEqual(lay['pitch'][0], 480, delta=40)
+        self.assertEqual(self.g.node('GardenBed@Garden#r2c1').state['phase']['value'], 'wilted')
+        self.assertEqual(self.g.node('GardenBed@Garden#r2c1').state['crop']['value'], 'Tulip')
+        self.assertIsNone(self.g.phase('GardenBed@Garden#r3c1'))
 
-    def test_rejects_unknown_state_and_group(self):
+    def test_inconsistent_answer_changes_nothing(self):
+        bad = SPEC.replace('r2c2@L12', 'r2c2@X12')
+        a = A.parse(bad, self.g)
         with self.assertRaises(A.AnchorError):
-            A.parse(f'group: {GB}   at: B=r2c1   A=r1c1 soggy', LABELS, self.g)
-        with self.assertRaises(A.AnchorError):
-            A.parse('group: Nope   at: B=r2c1', LABELS, self.g)
+            A.apply(self.g, a, 'D3')
+        self.assertIsNone(self.g.state_value('Tara', 'at'))
+        self.assertNotIn('layout', self.g.node(GB).extra)
 
-    def test_apply_sets_tara_and_states(self):
-        a = A.parse(SPEC, LABELS, self.g)
-        A.apply(self.g, a, {}, 'D3 10:00')
-        self.assertEqual(self.g.state_value('Tara', 'at'), 'GardenBed@Garden#r2c1')
-        s = self.g.node('GardenBed@Garden#r2c1').state['phase']
-        self.assertEqual((s['value'], s['source'], s['conf']), ('wilted', 'vision', 1.0))
-        self.assertIs(self.g.state_value('GardenBed@Garden#r2c2', 'watered_today'), False)
+    def test_layout_survives_save_load(self):
+        A.apply(self.g, A.parse(SPEC, self.g), 'D3')
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'g.json')
+            self.g.save(p)
+            g2 = G.Graph()
+            g2.load(p)
+        self.assertEqual(g2.node(GB).extra['layout'], self.g.node(GB).extra['layout'])
+
+    def test_question_marks_centre_and_stores_pending(self):
+        import json
+        from PIL import Image
+        seen = {}
+
+        class W:
+            @staticmethod
+            def ask_vision(kind, q, img, **ctx):
+                seen['q'], seen['img'] = q, img
+                return 'NEED_VISION anchor'
+
+        class Core:
+            WF = W
+        img = Image.new('RGB', (1920, 1080), (0, 0, 0))
+        self.addCleanup(setattr, A, 'PENDING', A.PENDING)
+        with tempfile.TemporaryDirectory() as d:
+            A.PENDING = os.path.join(d, 'p.json')
+            prompt = A.question(img, 'water', self.g, 'x', core=Core)
+            pend = json.load(open(A.PENDING))
+            gp = os.path.join(d, 'g.json')
+            self.complete()
+            msg = A.answer(SPEC, graph=self.g, gpath=gp, save_counts={'wilted': 2})
+        self.assertEqual(prompt, 'NEED_VISION anchor')
+        self.assertEqual(pend['task'], 'water')
+        self.assertIn('nearest the magenta marker', seen['q'])
+        self.assertEqual(seen['img'].size, (1920, 1080))
+        self.assertEqual(seen['img'].getpixel((960, 540 - 26)), (255, 0, 255))
+        self.assertEqual(img.getpixel((960, 540 - 26)), (0, 0, 0))   # drawn on a copy
+        self.assertIn('anchored Tara at GardenBed@Garden#r1c2', msg)
 
     def complete(self):
         """Every bed group has members/pattern and every phase is known (the farm-wide count check is meaningful)."""
@@ -62,65 +146,19 @@ class AnchorTest(unittest.TestCase):
             if self.g.phase(m.id) is None:
                 self.g.set_state(m.id, 'phase', 'empty', 'D1', 'vision')
 
-    def test_unnamed_labels_follow_pattern(self):
-        # 2x3 grid of tiles, only B (row 1, col 0) named r2c1
-        dets = {}
-        for i, l in enumerate('ABCDEF'):
-            r, c = divmod(i, 3)
-            dets[l] = Detection('GardenBed', (0, 0, 1, 1), 1.0, None, (960 + 100 * c - 0, 440 + 100 * r))
-        a = A.Anchor(GB, ('D', 'GardenBed@Garden#r2c1'), {'D': {'member': 'GardenBed@Garden#r2c1', 'phase': 'ripe',
-                                                              'crop': None, 'watered_today': None}})
-        A.apply(self.g, a, dets, 'D1')
-        self.assertEqual(self.g.state_value('Tara', 'at'), 'GardenBed@Garden#r2c1')
-        # unnamed labels: ids mapped relative to D; states stay unset (no state words), but mapping must not raise
-        a.states.update({'B': {'member': None, 'phase': 'empty', 'crop': None, 'watered_today': None},
-                         'F': {'member': None, 'phase': 'growing', 'crop': None, 'watered_today': None}})
-        A.apply(self.g, a, dets, 'D1')
-        self.assertEqual(self.g.phase('GardenBed@Garden#r1c2'), 'empty')    # B is one row up, one col right of D
-        self.assertEqual(self.g.phase('GardenBed@Garden#r2c3'), 'growing')  # F is two cols right of D
-        self.assertEqual(self.g.phase('GardenBed@Garden#r2c1'), 'ripe')
-
     def test_count_mismatch(self):
         for i in (1, 2, 3):
             self.g.set_state(f'GardenBed@Garden#r1c{i}', 'phase', 'wilted', 'D1', 'vision')
         self.assertEqual(A.count_mismatch(self.g, GB, {'wilted': 4}), {'wilted': (3, 4)})
         self.assertEqual(A.count_mismatch(self.g, GB, {'wilted': 3}), {})
 
-    def test_question_and_answer_roundtrip(self):
-        from PIL import Image
-        asked = {}
-
-        class W:
-            @staticmethod
-            def ask_vision(kind, q, img, **ctx):
-                asked.update(kind=kind, q=q, size=img.size)
-                return 'NEED_VISION anchor'
-
-        class Core:
-            WF = W
-        dets = [Detection('GardenBed', (0, 0, 1, 1), 1.0, None, (300, 100)),
-                Detection('GardenBed', (0, 0, 1, 1), 1.0, None, (100, 100))]
-        img = Image.new('RGB', (400, 300), (255, 255, 255))
-        with tempfile.TemporaryDirectory() as d:
-            A.PENDING = os.path.join(d, 'anchor-pending.json')
-            prompt, labels = A.question(img, dets, 'water', self.g, 'bubble missing', core=Core)
-            self.assertEqual(asked['kind'], 'anchor')
-            self.assertEqual(labels['A'].point, (100, 100))   # left -> right
-            self.assertEqual(img.getpixel((100, 100)), (255, 255, 255))   # labels drawn on a copy
-            gp = os.path.join(d, 'g.json')
-            self.complete()
-            msg = A.answer(f'group: {GB}   at: A=r1c1   A=r1c1 ripe', graph=self.g, gpath=gp, save_counts={'wilted': 2})
-            self.assertIn('anchored Tara at GardenBed@Garden#r1c1', msg)
-            self.assertIn('wilted=(0, 2)', msg)
-            self.assertEqual(self.g.phase('GardenBed@Garden#r1c1'), 'ripe')
-
     def test_answer_stamps_pending_game_time_and_new_day_keeps_it(self):
         import json
         with tempfile.TemporaryDirectory() as d:
             A.PENDING = os.path.join(d, 'anchor-pending.json')
-            json.dump({'labels': {'A': {'point': [1, 1], 'box': [0, 0, 1, 1], 'kind': 'GardenBed'}},
+            json.dump({
                        'game_time': 'D183 1:30:00 PM'}, open(A.PENDING, 'w'))
-            A.answer(f'group: {GB}   at: A=r1c1   A=r1c1 growing watered', graph=self.g, gpath=os.path.join(d, 'g.json'))
+            A.answer(f'group: {GB}   ref: r1c2@L8   r1c1@F8 growing watered   r1c2@L8 empty   r2c1@F12 empty', graph=self.g, gpath=os.path.join(d, 'g.json'))
             s = self.g.node('GardenBed@Garden#r1c1').state['watered_today']
             self.assertEqual(s['game_time'], 'D183 1:30:00 PM')
             self.g.new_day(183)
@@ -170,59 +208,21 @@ class AnchorTest(unittest.TestCase):
         self.addCleanup(setattr, A, 'PENDING', A.PENDING)
         with tempfile.TemporaryDirectory() as d:
             A.PENDING = os.path.join(d, 'anchor-pending.json')
-            json.dump({'labels': {'A': {'point': [1, 1], 'box': [0, 0, 1, 1], 'kind': 'GardenBed'}}, 'game_time': 'D1 1:00:00 PM'},
+            json.dump({'game_time': 'D1 1:00:00 PM'},
                       open(A.PENDING, 'w'))
-            A.answer(f'group: {GB}   at: A=r1c1   A=r1c1 growing', graph=self.g, gpath=os.path.join(d, 'g.json'))
+            A.answer(f'group: {GB}   ref: r1c2@L8   r1c1@F8 growing   r1c2@L8 empty   r2c1@F12 empty   r2c2@L12 empty', graph=self.g, gpath=os.path.join(d, 'g.json'))
             with self.assertRaises(A.AnchorError):
-                A.answer(f'group: {GB}   at: A=r1c1   A=r1c1 growing', graph=self.g, gpath=os.path.join(d, 'g.json'))
+                A.answer(f'group: {GB}   ref: r1c2@L8   r1c1@F8 growing   r1c2@L8 empty   r2c1@F12 empty   r2c2@L12 empty', graph=self.g, gpath=os.path.join(d, 'g.json'))
 
     def test_clear_pending_makes_stale_answer_rejected(self):
         import json
         self.addCleanup(setattr, A, 'PENDING', A.PENDING)
         with tempfile.TemporaryDirectory() as d:
             A.PENDING = os.path.join(d, 'anchor-pending.json')
-            json.dump({'labels': {}, 'game_time': 'x'}, open(A.PENDING, 'w'))
+            json.dump({'game_time': 'x'}, open(A.PENDING, 'w'))
             A.clear_pending()
             with self.assertRaises(A.AnchorError):
-                A.answer(f'group: {GB}   at: A=r1c1', graph=self.g, gpath=os.path.join(d, 'g.json'))
-
-    def test_grid_one_jittered_row_stays_one_row(self):
-        dets = {l: Detection('GardenBed', (0, 0, 80, 60), 1.0, None, (100 + 200 * i, 300 + j))
-                for i, (l, j) in enumerate(zip('ABCD', (-3, 3, 0, 2)))}
-        grid = A._grid(dets)
-        self.assertEqual({r for r, _ in grid.values()}, {0})
-        self.assertEqual(sorted(c for _, c in grid.values()), [0, 1, 2, 3])
-
-    def test_tara_at_is_the_member_nearest_the_centre_whatever_was_named(self):
-        dets = {}
-        for i, l in enumerate('ABCDEF'):
-            r, c = divmod(i, 3)
-            dets[l] = Detection('GardenBed', (0, 0, 80, 60), 1.0, None, (760 + 200 * c, 480 + 120 * r))
-        # centre (960,540) is nearest B (960,480). The answer names A (r2c1) as `at`: B is then r2c2.
-        a = A.Anchor(GB, ('A', 'GardenBed@Garden#r2c1'), {})
-        A.apply(self.g, a, dets, 'D1')
-        self.assertEqual(self.g.state_value('Tara', 'at'), 'GardenBed@Garden#r2c2')
-
-    def test_question_marks_centre_with_large_labels(self):
-        from PIL import Image
-        seen = {}
-
-        class W:
-            @staticmethod
-            def ask_vision(kind, q, img, **ctx):
-                seen['q'], seen['img'] = q, img
-                return 'x'
-
-        class Core:
-            WF = W
-        img = Image.new('RGB', (1920, 1080), (0, 0, 0))
-        with tempfile.TemporaryDirectory() as d:
-            A.PENDING = os.path.join(d, 'p.json')
-            A.question(img, [Detection('GardenBed', (0, 0, 80, 60), 1.0, None, (400, 300))], 'water', self.g, 'x', core=Core)
-        self.assertIn('nearest this marker', seen['q'])
-        self.assertEqual(seen['img'].getpixel((960, 540 - 26)), (255, 0, 255))      # marker ring at the CENTRE
-        yellow = sum(1 for x in range(360, 440) for y in range(270, 330) if seen['img'].getpixel((x, y)) == (255, 255, 0))
-        self.assertGreater(yellow, 150)   # a big letter, not a speck
+                A.answer(ANS4, graph=self.g, gpath=os.path.join(d, 'g.json'))
 
     def test_clock_uses_today_log_day_when_stamp_missing(self):
         class Core:
@@ -248,8 +248,8 @@ class AnchorTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             A.PENDING = os.path.join(d, 'p.json')
             import json
-            json.dump({'labels': {'A': {'point': [960, 540], 'box': [0, 0, 1, 1], 'kind': 'GardenBed'}}, 'game_time': 'D1'}, open(A.PENDING, 'w'))
-            msg = A.answer(f'group: {GB}   at: A=r1c1   A=r1c1 ripe', graph=self.g, gpath=os.path.join(d, 'g.json'), save_counts={'wilted': 9})
+            json.dump({'game_time': 'D1'}, open(A.PENDING, 'w'))
+            msg = A.answer(f'group: {GB}   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 ripe   r2c2@L12 ripe', graph=self.g, gpath=os.path.join(d, 'g.json'), save_counts={'wilted': 9})
         self.assertIn('count check skipped (graph incomplete)', msg)
         self.assertNotIn('MISMATCH', msg)
 
@@ -257,7 +257,7 @@ class AnchorTest(unittest.TestCase):
 class RealAskVision(unittest.TestCase):
     """The real wf.ask_vision / game_cmd (SHOT paths redirected to a temp dir)."""
 
-    def test_anchor_kind_is_full_size_ungridded_with_the_anchor_answer_format(self):
+    def test_real_ask_vision_anchor_grid(self):
         import json
         from unittest import mock
         from PIL import Image
@@ -267,15 +267,19 @@ class RealAskVision(unittest.TestCase):
                 mock.patch.object(wf, 'ASK_IMG', os.path.join(d, 'a.jpg')), mock.patch.object(wf, 'ASK_CTX', os.path.join(d, 'c.json')), \
                 mock.patch.object(wf, 'run_log'):
             out = wf.ask_vision('anchor', 'Task: water. Unexpected: x', img)
-            self.assertEqual(Image.open(os.path.join(d, 'f.png')).size, (1920, 1080))
-            self.assertEqual(Image.open(os.path.join(d, 'f.png')).getpixel((100, 100)), (10, 20, 30))   # no grid drawn
+            fr = Image.open(os.path.join(d, 'f.png'))
+            self.assertEqual(fr.size, (1920, 1080))
+            self.assertNotEqual(fr.getpixel((80, 500)), (10, 20, 30))   # a grid line between columns A and B
+            self.assertEqual(fr.getpixel((40, 500)), (10, 20, 30))      # cell interior untouched
+            lab = [fr.getpixel((x, y)) for x in range(83, 120) for y in range(2, 20)]   # cell label "B1"
+            self.assertTrue(any(p != (10, 20, 30) for p in lab))
             self.assertFalse(os.path.exists(os.path.join(d, 'a.jpg')))
             self.assertEqual(json.load(open(os.path.join(d, 'c.json')))['kind'], 'anchor')
         self.assertIn('./wf anchor "group: GardenBed@Garden', out)
-        self.assertIn('B=r2c1 wilted(Green Bean)', out)
+        self.assertIn('ref: r1c2@L8', out)
+        self.assertIn('r2c1@F12 wilted(Tulip)', out)
         self.assertNotIn('teach', out)
         self.assertIn(os.path.join(d, 'f.png'), out)
-        self.assertNotIn('grid A-L', out)
 
     def test_other_kinds_keep_the_grid(self):
         from unittest import mock

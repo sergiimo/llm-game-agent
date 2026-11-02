@@ -3098,14 +3098,17 @@ def cell_box(cell):
 def ask_vision(kind, question, img, **ctx):
     """Save a small gridded frame + context and return the NEED_VISION prompt for the agent."""
     from PIL import ImageDraw
-    img.save(ASK_FRAME)
-    if kind == 'anchor':   # tile labels must stay readable: full-size frame, no grid overlay, the structured answer format
+    if kind == 'anchor':   # full-size frame with the A-X x 1-16 grid; vision names beds by grid cell (spec 2026-11-02 §10)
+        from objects import anchor as OA
+        OA.draw_grid(img).save(ASK_FRAME)
         json.dump({'kind': kind, 'question': question, **ctx}, open(ASK_CTX, 'w'))
         run_log('vision', what='ask', kind=kind, question=question)
-        return (f'NEED_VISION {kind}: {question}\n  look: {ASK_FRAME} (full size {img.size[0]}x{img.size[1]}, tiles labelled '
-                f'A, B, ...; no grid)\n  answer: ./wf anchor "group: GardenBed@Garden   at: B=r2c1   A=r1c1 empty   '
-                f'B=r2c1 wilted(Green Bean)   C=r2c2 growing dry   E=?"   (at = the tile nearest the magenta marker; '
-                f'E=? = cannot tell; you may name only some tiles)')
+        return (f'NEED_VISION {kind}: {question}\n  look: {ASK_FRAME} (full size {img.size[0]}x{img.size[1]}, grid columns '
+                f'A-X x rows 1-16, magenta circle = reference marker)\n  answer: ./wf anchor "group: GardenBed@Garden   '
+                f'ref: r1c2@L8\nr1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?"   '
+                f'(ref = the bed nearest the marker; rXcY@cell = the bed\'s pattern cell @ the grid cell nearest the bed\'s centre; '
+                f'? = state unknown; name every visible bed, at least 2 in different rows and columns)')
+    img.save(ASK_FRAME)
     small = img.resize((768, 432))
     d = ImageDraw.Draw(small)
     cw, ch = 768 / GRID_COLS, 432 / GRID_ROWS

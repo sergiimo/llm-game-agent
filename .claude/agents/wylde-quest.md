@@ -26,12 +26,13 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
   see, answer the question in your report (e.g. "the panel shows 3 cards, Green Bean first, highlighted"). Never
   report a cause or guess ("seeds not owned?") without having looked. No path → `./wf look` and Read it.
 - **Anchor round trip (`replant_all()` / `water_all()` / `harvest_all()` print `NEED_VISION anchor: …`):** (1) `./wf pause`
-  (the question costs no game time); (2) Read the full-size image named on the `look:` line: yellow letters A, B, ... label
-  the bed tiles, the magenta circle marks the reference tile (the tile nearest it is `at`); (3) answer with one
-  `./wf anchor "group: GardenBed@Garden   at: B=r2c1   A=r1c1 empty   B=r2c1 wilted(Green Bean)   C=r2c2 growing dry   E=?"`
-  (`rXcY` = row/column in the 3x4 bed grid, north row first, west to east; phase = empty|growing|ripe|wilted; `dry` or `watered`
-  after growing; `E=?` = cannot tell; name every tile you can read). `REJECTED: …` prints the expected shape: re-read the image and
-  answer again, never guess a label. (4) `./wf resume`, then call the same function again: the run continues from the graph.
+  (the question costs no game time); (2) Read the full-size image named on the `look:` line:
+  a grid (columns A-X, rows 1-16, each cell named) is drawn on it and the magenta circle marks the reference point; (3) answer
+  with one `./wf anchor "group: GardenBed@Garden   ref: r1c2@L8` newline `r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?"`
+  (`ref:` = the bed nearest the magenta marker; every bed is `rXcY@<cell>`: rXcY = row/column in the 3x4 bed grid, north row first,
+  west to east, and `<cell>` = the grid cell nearest the bed's centre; state = empty|growing|ripe|wilted, `dry` or `watered` after
+  growing, `?` = cannot tell; name every visible bed, at least 2 in different rows and columns). `REJECTED: …` prints the expected
+  shape: re-read the image and answer again, never guess. (4) `./wf resume`, then call the same function again: the run continues from the graph.
   A `NEED_VISION` from `loop.goto` (a click point question) inside `replant_all` means: answer that (`loop.answer`), then call
   `replant_all` again. No bed tiles visible: the runner walks to the garden first; if it still asks, describe what you see.
 - **One game command per tool call** (AGENTS.md rule 8): never chain `./wf …; ./wf …` — a rejected call may already have run its first commands (objects-seed batched several with `;`).

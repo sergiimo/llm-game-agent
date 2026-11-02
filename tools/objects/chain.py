@@ -142,7 +142,7 @@ def _ask(graph, task, why, detect_fn, res=None):
     why += _summary(res)
     anchor.clear_pending()
     img = core.WF.grab()
-    prompt, _ = anchor.question(img, detect_fn(img), task, graph, why, core=core)
+    prompt = anchor.question(img, task, graph, why, core=core)
     graph.set_state('Tara', 'asks', (graph.state_value('Tara', 'asks') or 0) + 1, _now(), 'event')
     raise _need_vision(prompt)
 

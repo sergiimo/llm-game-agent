@@ -1,8 +1,8 @@
-"""Vision anchor (spec 2026-11-02 §5): one structured question and one fixed answer format about LABELS, never coordinates.
-question() labels the visible tiles A, B, C ... (left->right, top->bottom) on a copy of the frame and asks vision;
-answer() parses `group: G  at: B=r2c1  A=r1c1 empty  B=r2c1 wilted(Green Bean)  C=growing dry  E=?`, applies Tara.at and the
-member states (source vision, conf 1) and checks totals against the save counts. No positions: detection points only
-order/label tiles on the frame."""
+"""Vision layout anchor (spec 2026-11-02 §10): vision reads the visible beds off a grid image; the tool fits the layout.
+question() saves the full-size frame with the marker at CENTRE (wf.ask_vision draws the A-X x 1-16 grid) and asks vision;
+answer() parses `group: G   ref: r1c2@L8` + `r<R>c<C>@<cell> <state>` per bed, fits the group's screen layout
+(pitch, ref_offset in frame pixels) by least squares, sets Tara.at = ref and the member states (source vision, conf 1) and
+checks totals against the save counts. Frame pixels only, never world coordinates."""
 import json
 import os
 import re
@@ -10,18 +10,24 @@ import sys
 from dataclasses import dataclass, field
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from objects import graph as G, identity as I  # noqa: E402
-from objects.lines import lines as _lines  # noqa: E402
+from objects import graph as G  # noqa: E402
 
 CENTRE = (960, 540)   # the chain's reference tile = the tile nearest this point (the camera follows Tara)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PENDING = os.path.join(os.environ.get('WF_SHOT_DIR', os.path.join(ROOT, '.shots')), 'anchor-pending.json')
-SHAPE = ('group: <group>   at: <L>=r<R>c<C>   <L>=[r<R>c<C> ]<phase>[(<crop>)][ dry|watered] ...   <L>=?   '
-         '(phase: empty|growing|ripe|wilted)')
+CELL = r'[A-X](?:1[0-6]|[1-9])'
+COLS, ROWS = 24, 16
+CELL_W, CELL_H = 1920 / COLS, 1080 / ROWS   # 80 x 67.5 px
+RESIDUAL_LIMIT = 0.35                       # of the pitch
+SHAPE = ('group: <group>   ref: r<R>c<C>@<cell>\n'
+         'r<R>c<C>@<cell> <phase>[(<crop>)][ dry|watered]   r<R>c<C>@<cell> ?   ... '
+         '(cell = grid cell A1-X16 nearest the bed centre; phase: empty|growing|ripe|wilted; ? = state unknown; '
+         'e.g. "group: GardenBed@Garden   ref: r1c2@L8\nr1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   '
+         'r2c2@L12 wilted(Tulip)   r3c1@F15 ?"; name >= 2 beds in different rows and columns)')
 PHASES = ('empty', 'growing', 'ripe', 'wilted')
-_HEAD = re.compile(r'^\s*group:\s*(\S+)\s+at:\s*([A-Z])=(r\d+c\d+)\s*(.*)$', re.S)
-_TOKEN = re.compile(r'([A-Z])=(\?|(?:(r\d+c\d+)\s+)?(\w+)(?:\(([^)]*)\))?(?:\s+(dry|watered))?)')
+_HEAD = re.compile(rf'^\s*group:\s*(\S+)\s+ref:\s*(r\d+c\d+)@({CELL})\b\s*(.*)$', re.S)
+_TOKEN = re.compile(rf'(r\d+c\d+)@({CELL})\s+(\?|(\w+)(?:\(([^)]*)\))?(?:\s+(dry|watered)\b)?)')
 
 
 class AnchorError(Exception):
@@ -33,15 +39,23 @@ class AnchorError(Exception):
 @dataclass
 class Anchor:
     group: str
-    at: tuple
-    states: dict = field(default_factory=dict)
+    ref: str
+    cells: dict = field(default_factory=dict)    # member id -> grid cell
+    states: dict = field(default_factory=dict)   # member id -> {phase, crop, watered_today}
 
 
-def parse(text, labels, graph):
+def cell_point(cell):
+    """Centre (x, y) of grid cell like `F8` in the 1920x1080 frame."""
+    if not re.fullmatch(CELL, cell):
+        raise AnchorError(f'bad grid cell {cell!r}')
+    return ((ord(cell[0]) - 65) * CELL_W + CELL_W / 2, (int(cell[1:]) - 1) * CELL_H + CELL_H / 2)
+
+
+def parse(text, graph):
     m = _HEAD.match(text.strip())
     if not m:
         raise AnchorError('malformed answer')
-    group, at_label, at_cell, rest = m.groups()
+    group, ref_cell, ref_grid, rest = m.groups()
     if group not in graph.nodes or graph.nodes[group].type != 'group':
         raise AnchorError(f'unknown group {group}')
 
@@ -52,70 +66,74 @@ def parse(text, labels, graph):
             raise AnchorError(f'cell {cellid} is outside the pattern of {group}')
         return n.id
 
-    if at_label not in labels:
-        raise AnchorError(f'label {at_label} is not on the frame')
-    anchor = Anchor(group, (at_label, member(at_cell)))
+    anchor = Anchor(group, member(ref_cell))
     pos, rest = 0, rest.strip()
     while pos < len(rest):
         t = _TOKEN.match(rest, pos)
         if not t:
-            raise AnchorError(f'cannot read {rest[pos:pos + 20]!r}')
-        label, body, cellid, phase, crop, wet = t.groups()
+            raise AnchorError(f'cannot read {rest[pos:pos + 24]!r}')
+        cellid, grid, body, phase, crop, wet = t.groups()
         pos = t.end()
         while pos < len(rest) and rest[pos].isspace():
             pos += 1
-        if label not in labels:
-            raise AnchorError(f'label {label} is not on the frame')
+        mid = member(cellid)
+        anchor.cells[mid] = grid
         if body == '?':
-            anchor.states[label] = {'member': None, 'phase': None, 'crop': None, 'watered_today': None}
             continue
         if phase not in PHASES:
             raise AnchorError(f'unknown state word {phase!r}')
-        anchor.states[label] = {'member': member(cellid) if cellid else None, 'phase': phase, 'crop': crop or None,
-                                'watered_today': None if wet is None else wet == 'watered'}
+        anchor.states[mid] = {'phase': phase, 'crop': crop or None,
+                              'watered_today': None if wet is None else wet == 'watered'}
+    if anchor.ref not in anchor.cells:
+        anchor.cells[anchor.ref] = ref_grid
+    elif anchor.cells[anchor.ref] != ref_grid:
+        raise AnchorError(f'ref cell {ref_grid} differs from the bed list ({anchor.cells[anchor.ref]})')
     return anchor
 
 
-def _grid(labels):
-    """{label: (row, col)} relative grid of the labelled detections' screen points (tile-size gap rule, shared with the chain)."""
-    names = list(labels)
-    pts = [labels[n].point for n in names]
-    if not names:
-        return {}
-    boxes = [labels[n].box for n in names]
-    ry = _lines([p[1] for p in pts], [b[3] - b[1] or 1 for b in boxes])
-    cx = _lines([p[0] for p in pts], [b[2] - b[0] or 1 for b in boxes])
-    return {n: (r, c) for n, r, c in zip(names, ry, cx)}
+def _axis(vals, idx, prev_pitch):
+    """Least squares v = o + (idx - idx0) * p over one axis -> (o at idx0, p, max abs residual); idx0 = idx[0]."""
+    import numpy as np
+    i0 = idx[0]
+    d = np.array([i - i0 for i in idx], float)
+    v = np.array(vals, float)
+    if len(set(idx)) >= 2:
+        p, o = np.polyfit(d, v, 1)
+    elif prev_pitch is not None:
+        p = prev_pitch
+        o = float(np.mean(v - d * p))
+    else:
+        raise AnchorError('need beds in different rows and columns to fit the layout')
+    return float(o), float(p), float(np.max(np.abs(o + d * p - v)))
 
 
-def apply(graph, anchor, labels, game_time, scene=None):
-    """Set member states from vision; unnamed labels follow the pattern relative to `at`. Tara.at is the member mapped to the
-    tile nearest the frame CENTRE (the chain's reference tile), whichever tile the answer named as `at` (spec §5, ruling 21)."""
+def fit_layout(beds, ref, prev=None):
+    """beds {member id: (x, y) frame px}, ref member id -> {'pitch': (px, py), 'ref_offset': (dx, dy), 'residual': (rx, ry)}.
+    Needs >= 2 distinct columns and rows (else the previous layout's pitch on the missing axis); raises AnchorError when the
+    worst residual exceeds 0.35 x pitch (inconsistent beds)."""
+    ids = [ref] + [m for m in beds if m != ref]
+    rc = [G.cell(m) for m in ids]
+    prev_p = (prev or {}).get('pitch') or (None, None)
+    ox, px, rx = _axis([beds[m][0] for m in ids], [c for _, c in rc], prev_p[0])
+    oy, py, ry = _axis([beds[m][1] for m in ids], [r for r, _ in rc], prev_p[1])
+    if px == 0 or py == 0 or abs(rx) > RESIDUAL_LIMIT * abs(px) or abs(ry) > RESIDUAL_LIMIT * abs(py):
+        raise AnchorError(f'beds are inconsistent with one grid (pitch ({px:.0f}, {py:.0f}), residual ({rx:.0f}, {ry:.0f}) px)')
+    # the reference bed's own fitted screen point is (ox, oy)
+    return {'pitch': (px, py), 'ref_offset': (ox - CENTRE[0], oy - CENTRE[1]), 'residual': (rx, ry)}
+
+
+def apply(graph, anchor, game_time, scene=None):
+    """Fit the layout (raises AnchorError before anything changes), then Tara.at = ref, member states, group layout."""
+    g = graph.nodes[anchor.group]
+    beds = {m: cell_point(c) for m, c in anchor.cells.items()}
+    lay = fit_layout(beds, anchor.ref, g.extra.get('layout'))
+    g.extra['layout'] = {'pitch': list(lay['pitch']), 'ref_offset': list(lay['ref_offset'])}
     changes = []
-    at_label, at_member = anchor.at
-    pos = {l: s['member'] for l, s in anchor.states.items() if s.get('member')}
-    pos[at_label] = at_member
-    grid = _grid(labels) if labels else {}
-    if at_label in grid:
-        r0, c0 = cell_of(at_member)
-        gr, gc = grid[at_label]
-        for l, (r, c) in grid.items():
-            if l in pos:
-                continue
-            n = graph.member_at(anchor.group, r0 + r - gr, c0 + c - gc)
-            if n is not None:
-                pos[l] = n.id
-    centre = min((l for l in labels if l in pos),
-                 key=lambda l: (labels[l].point[0] - CENTRE[0]) ** 2 + (labels[l].point[1] - CENTRE[1]) ** 2, default=None)
-    tara_at = pos[centre] if centre else at_member
-    graph.set_state('Tara', 'at', tara_at, game_time, 'vision')
+    graph.set_state('Tara', 'at', anchor.ref, game_time, 'vision')
     if scene:
         graph.set_state('Tara', 'at_scene', scene, game_time, 'vision')
-    changes.append(('Tara', 'at', tara_at))
-    for l, mid in pos.items():
-        s = anchor.states.get(l)
-        if not s or s['phase'] is None:
-            continue
+    changes.append(('Tara', 'at', anchor.ref))
+    for mid, s in anchor.states.items():
         for key, val in (('phase', s['phase']), ('crop', s['crop']), ('watered_today', s['watered_today'])):
             if val is not None:
                 graph.set_state(mid, key, val, game_time, 'vision', 1.0)
@@ -150,10 +168,6 @@ def count_mismatch(graph, group, save_counts):
     return out
 
 
-def _label_letters(n):
-    return [chr(65 + i) if i < 26 else f'A{chr(65 + i - 26)}' for i in range(n)]
-
-
 FONTS = ('/System/Library/Fonts/Supplemental/Arial Bold.ttf', '/System/Library/Fonts/Helvetica.ttc',
          '/Library/Fonts/Arial.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')
 LABEL_PX = 44   # label letters are at least this tall so they stay readable on the full-size frame
@@ -179,39 +193,45 @@ def _scene(core):
         return None
 
 
-def question(img, dets, task, graph, unexpected, core=None, tara_point=CENTRE):
-    """Draw large labels A, B, ... (left->right, top->bottom) on a full-size copy of img, mark the chain's reference point
-    (the frame CENTRE, magenta circle) and ask vision; returns (prompt, {label: Detection}). The label map is stored for answer()."""
+def draw_grid(img):
+    """Copy of img with the A-X x 1-16 grid (thin lines, a small cell name in each cell) for the anchor question."""
+    from PIL import Image, ImageDraw
+    pic = img.convert('RGBA')
+    ov = Image.new('RGBA', pic.size, (0, 0, 0, 0))
+    dr = ImageDraw.Draw(ov)
+    font = _font(15)
+    for c in range(COLS + 1):
+        dr.line((c * CELL_W, 0, c * CELL_W, pic.size[1]), fill=(255, 255, 0, 150), width=1)
+    for r in range(ROWS + 1):
+        dr.line((0, r * CELL_H, pic.size[0], r * CELL_H), fill=(255, 255, 0, 150), width=1)
+    for c in range(COLS):
+        for r in range(ROWS):
+            dr.text((c * CELL_W + 3, r * CELL_H + 2), f'{chr(65 + c)}{r + 1}', fill=(255, 255, 0, 230), font=font)
+    return Image.alpha_composite(pic, ov).convert('RGB')
+
+
+def question(img, task, graph, unexpected, core=None):
+    """Mark the chain's reference point (the frame CENTRE, magenta circle) on a full-size copy of img and ask vision for the
+    layout (wf.ask_vision draws the grid); returns the prompt. task/game_time/scene are stored for answer()."""
     from PIL import ImageDraw
     if core is None:
         from game import core
-    ordered = sorted(dets, key=lambda d: (round(d.point[1] / 60), d.point[0]))
-    labels = dict(zip(_label_letters(len(ordered)), ordered))
     pic = img.copy()
-    dr = ImageDraw.Draw(pic)
-    font = _font()
-    for l, d in labels.items():
-        x, y = d.point
-        w = LABEL_PX * 0.65 * len(l) + 12
-        dr.rectangle((x - w / 2, y - LABEL_PX / 2 - 6, x + w / 2, y + LABEL_PX / 2 + 6), fill=(0, 0, 0), outline=(255, 255, 0), width=3)
-        dr.text((x, y), l, fill=(255, 255, 0), font=font, anchor='mm')
-    if tara_point:
-        x, y = tara_point
-        dr.ellipse((x - 26, y - 26, x + 26, y + 26), outline=(255, 0, 255), width=5)
+    x, y = CENTRE
+    ImageDraw.Draw(pic).ellipse((x - 26, y - 26, x + 26, y + 26), outline=(255, 0, 255), width=5)
     tara = graph.state_value('Tara', 'at')
     near = []
     if tara:
         near = [f'{m}: {graph.phase(m)}' for m in [tara] + list(graph.neighbours(tara).values())]
     text = (f'Task: {task}. Unexpected: {unexpected}. Predicted near Tara.at={tara}: {"; ".join(near) or "unknown"}. '
-            f'Tiles are labelled {", ".join(labels) or "(none)"}. The magenta circle marks the chain\'s reference tile '
-            f'(the tile nearest this marker): `at:` names that tile (its label and rXcY). '
+            f'The image has a grid (columns A-X, rows 1-16). Name every visible bed by its pattern cell rXcY, the grid cell '
+            f'nearest the centre of that bed, and its state; `ref:` = the bed nearest the magenta marker. '
             f'Answer with ./wf anchor "<answer>" in the format: {SHAPE}')
     prompt = core.WF.ask_vision('anchor', text, pic)
     os.makedirs(os.path.dirname(PENDING), exist_ok=True)
     with open(PENDING, 'w') as f:
-        json.dump({'labels': {l: {'point': list(d.point), 'box': list(d.box), 'kind': d.kind} for l, d in labels.items()},
-                   'game_time': _clock(core), 'scene': _scene(core)}, f)
-    return prompt, labels
+        json.dump({'task': task, 'game_time': _clock(core), 'scene': _scene(core)}, f)
+    return prompt
 
 
 def _clock(core):
@@ -261,26 +281,20 @@ def _pending():
         return None
 
 
-class _Det:
-    def __init__(self, d):
-        self.point, self.box, self.kind = tuple(d['point']), tuple(d['box']), d['kind']
-
-
 def answer(text, graph=None, gpath=None, save_counts=None):
     """Parse + apply the pending question; saves the graph; returns a one-line summary (raises AnchorError)."""
     pend = _pending()
     if pend is None:
         raise AnchorError('no pending anchor question (run the question first)')
-    labels = {l: _Det(d) for l, d in pend['labels'].items()}
     gpath = gpath or os.environ.get('WF_GRAPH') or os.path.join(G.DEFAULT_DIR, 'Farm.json')
     if graph is None:
         graph = G.Graph()
         graph.load(gpath)
-    anchor = parse(text, set(labels), graph)
-    changes = apply(graph, anchor, labels, pend.get('game_time') or 'vision', pend.get('scene'))
+    anchor = parse(text, graph)
+    changes = apply(graph, anchor, pend.get('game_time') or 'vision', pend.get('scene'))
     graph.save(gpath)
     clear_pending()   # one answer per question
-    out = f'anchored Tara at {anchor.at[1]}; {len(changes) - 1} state changes'
+    out = f'anchored Tara at {anchor.ref}; {len(changes) - 1} state changes'
     if save_counts:
         why = incomplete(graph)
         mm = {} if why else count_mismatch(graph, None, save_counts)

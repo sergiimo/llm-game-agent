@@ -5,6 +5,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.argv = ['x']   # wf parses argv on import
 from objects import anchor as A, graph as G  # noqa: E402
 from objects.detect import Detection  # noqa: E402
 
@@ -126,15 +127,26 @@ class AnchorTest(unittest.TestCase):
         self.assertEqual(A._clock(Core), 'vision')
 
     def test_farm_wide_count_mismatch_sums_groups(self):
+        far_id = 'GardenBed@FarGarden#1'
+        self.g.nodes[far_id] = G.Node(far_id, 'member', kind='GardenBed', region='GardenBed@FarGarden')
+        self.assertIn(far_id, [m.id for m in self.g.members('GardenBed@FarGarden')])
         self.g.set_state('GardenBed@Garden#r1c1', 'phase', 'wilted', 'D1', 'vision')
-        far = [n.id for n in self.g.nodes.values() if n.type == 'member' and n.region == 'GardenBed@FarGarden']
-        if far:
-            self.g.set_state(far[0], 'phase', 'wilted', 'D1', 'vision')
-        have = 1 + (1 if far else 0)
+        self.g.set_state(far_id, 'phase', 'wilted', 'D1', 'vision')
         self.g.set_state('GardenBed@Garden#r1c2', 'phase', 'growing', 'D1', 'vision')
         self.g.set_state('GardenBed@Garden#r1c2', 'watered_today', False, 'D1', 'vision')
-        mm = A.count_mismatch(self.g, None, {'wilted': have + 2, 'dry': 1, 'ripe': 0})
-        self.assertEqual(mm, {'wilted': (have, have + 2)})
+        self.assertEqual(A.count_mismatch(self.g, None, {'wilted': 2, 'dry': 1, 'ripe': 0}), {})
+        self.assertEqual(A.count_mismatch(self.g, None, {'wilted': 3}), {'wilted': (2, 3)})   # far member is in the sum
+
+    def test_save_bed_counts_all_four_states(self):
+        import wf
+        crops = [{'plantState': '##0'}, {'plantState': ''},
+                 {'plantState': '##produced', 'isWilted': 'false'},
+                 {'plantState': '##produced', 'isWilted': 'true'},
+                 {'plantState': '##growing', 'isWatered': 'false', 'isWilted': 'false'},
+                 {'plantState': '##producing', 'isWatered': 'false'},
+                 {'plantState': '##growing', 'isWatered': 'true'},
+                 {'plantState': '##growing', 'isWatered': 'false', 'isWilted': 'true'}]
+        self.assertEqual(wf.save_bed_counts(crops), {'wilted': 2, 'ripe': 1, 'empty': 2, 'dry': 2})
 
 
 if __name__ == '__main__':

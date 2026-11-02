@@ -5,6 +5,7 @@ when the planting panel closes (also when cancelled), `[STATS] totalPlanted.<See
 (x, y, z)` = watered. Planting panel = "Inventory / Seeds" picker: cards show icon + count only (Green Bean 26,
 Carrot 10, Tulip 22 on D148); clicking one opens its detail card (title + Select)."""
 from dataclasses import dataclass
+import os
 import re
 
 from objects import loop
@@ -329,3 +330,39 @@ def replant_visible(seed=None):
             ui.close()
     raise Failed(f'no visible wilted bed (tried {len(tried)}, watered {watered}): {_scan_text(seen)}; '
                  + core.ask_vision('where are the wilted beds? (none visible → navigate to the garden by the graph)'))
+
+
+def _chain(task, seed=None, graph=None, gpath=None, detect_fn=None):
+    """Run a chain task (objects/chain.py, spec 2026-11-02) on the home garden: load the object graph, expire yesterday's
+    watered hints, run, ALWAYS save the graph (a NeedVision answer reads it from disk). Returns the run summary."""
+    from objects import chain, graph as OG
+    gpath = gpath or os.path.join(OG.DEFAULT_DIR, 'Farm.json')
+    if graph is None:
+        graph = OG.Graph()
+        graph.load(gpath)
+    m = re.match(r'D(\d+)', core.WF.game_stamp() or '') if hasattr(core.WF, 'game_stamp') else None
+    if m:
+        graph.new_day(int(m.group(1)))
+    try:
+        return chain.run(task, 'GardenBed@Garden', graph, seed=seed, detect_fn=detect_fn)
+    finally:
+        graph.save(gpath)
+
+
+@action
+def replant_all(seed=None, **kw):
+    """Every wilted bed of the home garden: remove, replant (seed=None: the same crop), water. Chain strategy: no
+    positions; an unexpected frame raises NeedVision (answer with ./wf anchor, call again)."""
+    return _chain('replant', seed, **kw)
+
+
+@action
+def water_all(**kw):
+    """Water every home-garden bed that is growing and not watered today (chain strategy)."""
+    return _chain('water', **kw)
+
+
+@action
+def harvest_all(**kw):
+    """Pick every ripe home-garden bed (chain strategy)."""
+    return _chain('harvest', **kw)

@@ -4,6 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from game import core  # noqa: E402
 from objects import chain as C, graph as G  # noqa: E402
 from objects.detect import Detection  # noqa: E402
 
@@ -133,6 +134,345 @@ class Expect(unittest.TestCase):
         core.bind(Fake())
         self.assertIn('> water', C.event(0, 'water', 0))
         self.assertIsNone(C.event(0, 'pickup', 0))
+
+
+class FakeGarden:
+    """The 3x4 garden as the runner sees it: a frame (tile points with Tara's tile at the centre, bubbles above tiles),
+    clicks that move Tara / fire bubbles, a stamped game log, a Remove card and a seed panel. Counts position reads."""
+    POS = ('calib_load', 'checkpoint', 'pos', 'world')
+
+    def __init__(self, states=None, can=True):
+        self.st = {(r, c): {'phase': 'growing', 'crop': 'Tulip', 'wet': True} for r in (1, 2, 3) for c in (1, 2, 3, 4)}
+        for rc, v in (states or {}).items():
+            self.st[rc] = {'phase': 'growing', 'crop': 'Tulip', 'wet': True, **v}
+        self.tara, self.can, self.log, self.screen = (2, 2), can, [], 'gameplay'
+        self.cur, self.picked, self.seed_limit = None, None, 99
+        self.position_reads, self.closed, self.asked, self.fills, self.save_override = 0, 0, [], 0, None
+        for n in self.POS:
+            setattr(self, n, self._pos_reader)
+
+    def _pos_reader(self, *a, **k):
+        self.position_reads += 1
+
+    # --- the frame
+    def tile_pt(self, rc):
+        t = self.tara or (2, 2)
+        return 960 + (rc[1] - t[1]) * 200, 540 + (rc[0] - t[0]) * 120
+
+    def detect(self, img):
+        return [Detection('GardenBed', (x - 40, y - 30, x + 40, y + 30), 1.0, None, (x, y))
+                for x, y in (self.tile_pt(rc) for rc in sorted(self.st))]
+
+    def kind_of(self, rc):
+        s = self.st[rc]
+        return {'wilted': ('unplant', True), 'empty': ('plant', False), 'ripe': ('pickup', False)}.get(
+            s['phase'], ('water', True) if not s['wet'] else ('unknown', False))
+
+    def scan(self):
+        from game.affordances import Affordance
+        out = []
+        for rc in sorted(self.st):
+            x, y = self.tile_pt(rc)
+            k, drop = self.kind_of(rc)
+            out.append(Affordance(k, None, (x, y - 150), False, 0, drop))
+        return out
+
+    # --- the game / wf surface
+    def grab(self, crop=True):
+        from PIL import Image
+        return Image.new('RGB', (1920, 1080), (40, 40, 40))
+
+    def wait_settle(self):
+        pass
+
+    def log_mark(self):
+        return len(self.log)
+
+    def log_since(self, mark):
+        return '\n'.join(self.log[mark:])
+
+    def _unhash(self, t):
+        return t
+
+    def game_stamp(self):
+        return 'D5 10:00:00 AM'
+
+    def ask_vision(self, kind, q, img, **ctx):
+        self.asked.append(q)
+        return f'NEED_VISION {kind}: {q}'
+
+    def emit(self, act, target='GardenBed'):
+        self.log.append(f'[D5 10:00:00 AM] > {act} Thing target={target} at (12.5, 0.0, -3.5)')
+
+    def run_action(self, a):
+        x, y = (int(v) for v in a.split(':')[1:])
+        for rc in sorted(self.st):
+            tx, ty = self.tile_pt(rc)
+            if abs(x - tx) < 25 and abs(y - (ty - 150)) < 25:
+                return self.bubble(rc)
+        for rc in sorted(self.st):
+            tx, ty = self.tile_pt(rc)
+            if abs(x - tx) < 45 and abs(y - ty) < 45:
+                self.tara = rc
+                return
+
+    def bubble(self, rc):
+        s = self.st[rc]
+        self.cur = rc
+        if s['phase'] == 'wilted':
+            self.emit('unplant')
+            self.screen = 'card'
+        elif s['phase'] == 'empty':
+            self.screen = 'panel'
+        elif s['phase'] == 'ripe':
+            self.emit('grab_item')
+            s.update(phase='growing', wet=False)
+        elif not s['wet']:
+            if self.can:
+                self.emit('water')
+                s['wet'] = True
+            else:
+                self.emit('out_of_water')
+
+    def farm_status(self):
+        pst = {'wilted': '##growing', 'empty': '##0', 'ripe': '##produced', 'growing': '##growing'}
+        return {'crops': [{'plantState': pst[v['phase']], 'isWilted': 'true' if v['phase'] == 'wilted' else 'false',
+                           'isWatered': 'true' if v['wet'] else 'false'} for v in self.st.values()]}
+
+    def save_bed_counts(self, crops):
+        import wf
+        return self.save_override or wf.save_bed_counts(crops)
+
+    # --- patched ui / well
+    def texts(self):
+        return {'card': [(self.st[self.cur]['crop'] if self.cur else None) or 'Green Bean', 'This plant has wilted', 'Remove'], 'panel': ['Inventory', 'Seeds'],
+                'detail': ['Tulip Bulbs', 'Select']}.get(self.screen, [])
+
+    def shows(self, word, wait=2.0):
+        return any(word.lower() in t.lower() for t in self.texts())
+
+    def press(self, label):
+        s = self.st[self.cur]
+        if label == 'Remove' and self.screen == 'card':
+            self.emit('unplant_impl')
+            s.update(phase='empty', crop=None)
+        elif label == 'Select' and self.screen == 'detail':
+            self.emit('plant')
+            self.log.append('[D5 10:00:01 AM] [STATS] totalPlanted.' + self.picked)
+            s.update(phase='growing', crop=self.picked, wet=False)
+        else:
+            raise core.Failed(f'no "{label}"')
+        self.screen = 'gameplay'
+
+    def pick_card(self, name):
+        if self.seed_limit <= 0:
+            raise core.Failed(f'no "{name}" among 3 cards')
+        self.seed_limit -= 1
+        self.picked, self.screen = name, 'detail'
+
+    def close(self):
+        self.closed += 1
+        self.screen = 'gameplay'
+
+    def fill_can(self):
+        self.fills += 1
+        self.can = True
+
+    # --- scripted anchor answer from the truth
+    def truth_answer(self, pending):
+        pts = {rc: self.tile_pt(rc) for rc in self.st}
+        words = []
+        for l, d in pending['labels'].items():
+            rc = next(rc for rc, p in pts.items() if tuple(p) == tuple(d['point']))
+            s = self.st[rc]
+            w = f'{l}=r{rc[0]}c{rc[1]} {s["phase"]}'
+            if s['crop'] and s['phase'] in ('wilted', 'ripe', 'growing'):
+                w += f'({s["crop"]})'
+            if s['phase'] == 'growing':
+                w += ' watered' if s['wet'] else ' dry'
+            words.append(w)
+        at = next(l for l, d in pending['labels'].items() if tuple(d['point']) == tuple(pts[self.tara]))
+        return f'group: GardenBed@Garden   at: {at}=r{self.tara[0]}c{self.tara[1]}   ' + '   '.join(words)
+
+
+class Runner(unittest.TestCase):
+    GB = 'GardenBed@Garden'
+
+    def setUp(self):
+        import tempfile
+        from unittest import mock
+        from game import core, ui, well, affordances
+        from objects import anchor, loop
+        self.core, self.anchor, self.loop = core, anchor, loop
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.addCleanup(setattr, core, 'WF', core.WF)
+        self.addCleanup(setattr, anchor, 'PENDING', anchor.PENDING)
+        anchor.PENDING = os.path.join(self.tmp.name, 'anchor-pending.json')
+        self.g = G.Graph()
+        self.g.load(SEED)
+        self.gpath = os.path.join(self.tmp.name, 'g.json')
+        self.mock = mock
+        self.mods = (ui, well, affordances)
+
+    def fake(self, **kw):
+        f = FakeGarden(**kw)
+        self.core.bind(f)
+        p = self.mock
+        for obj, name, fn in ((self.mods[0], 'texts', f.texts), (self.mods[0], 'shows', f.shows),
+                              (self.mods[0], 'press', f.press), (self.mods[0], 'pick_card', f.pick_card),
+                              (self.mods[0], 'close', f.close), (self.mods[1], 'fill_can', f.fill_can),
+                              (self.mods[2], 'scan', f.scan), (self.core, 'log_pos', f._pos_reader)):
+            pa = p.patch.object(obj, name, fn)
+            pa.start()
+            self.addCleanup(pa.stop)
+        self.f = f
+        return f
+
+    def preset(self, at, hints=None):
+        """Graph already anchored: Tara.at and the same states the fake holds (no vision needed)."""
+        self.g.set_state('Tara', 'at', at, 'D5 9:00:00 AM', 'vision')
+        self.f.tara = G.cell(at)
+        for rc, v in self.f.st.items():
+            n = f'{self.GB}#r{rc[0]}c{rc[1]}'
+            self.g.set_state(n, 'phase', v['phase'], 'D5 9:00:00 AM', 'vision')
+            self.g.set_state(n, 'watered_today', v['wet'], 'D5 9:00:00 AM', 'vision')
+            self.g.set_state(n, 'crop', v['crop'], 'D5 9:00:00 AM', 'vision')
+        for rc, v in (hints or {}).items():
+            for k, val in v.items():
+                self.g.set_state(f'{self.GB}#r{rc[0]}c{rc[1]}', k, val, 'D5 9:00:00 AM', 'vision')
+
+    def run_(self, task, **kw):
+        return C.run(task, self.GB, self.g, detect_fn=self.f.detect, wf=self.f, **kw)
+
+    def drive(self, task, max_visions=6, **kw):
+        """Call run, answering every anchor question from the fake's truth; returns (summary, visions)."""
+        import json
+        from objects.loop import NeedVision
+        n = 0
+        while True:
+            try:
+                return self.run_(task, **kw), n
+            except NeedVision:
+                n += 1
+                self.assertLessEqual(n, max_visions, 'too many vision questions')
+                pend = json.load(open(self.anchor.PENDING))
+                self.anchor.answer(self.f.truth_answer(pend), graph=self.g, gpath=self.gpath)
+
+    def node(self, r, c):
+        return f'{self.GB}#r{r}c{c}'
+
+    def test_first_call_asks_anchor(self):
+        self.fake()
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertTrue(os.path.exists(self.anchor.PENDING))
+
+    def test_replant_all_fixes_every_wilted_bed(self):
+        f = self.fake(states={(1, 1): {'phase': 'wilted', 'crop': 'Green Bean'}, (2, 3): {'phase': 'wilted', 'crop': 'Carrot'},
+                              (3, 4): {'phase': 'wilted', 'crop': 'Tulip'}})
+        res, visions = self.drive('replant')
+        self.assertEqual(visions, 1)
+        self.assertEqual(res['vision'], 1)
+        self.assertEqual(sorted(res['done']), sorted([self.node(1, 1), self.node(2, 3), self.node(3, 4)]))
+        for rc, crop in (((1, 1), 'Green Bean'), ((2, 3), 'Carrot'), ((3, 4), 'Tulip')):
+            self.assertEqual(f.st[rc]['phase'], 'growing')
+            self.assertEqual(f.st[rc]['crop'], crop)
+            self.assertTrue(f.st[rc]['wet'])
+            n = self.node(*rc)
+            self.assertEqual(self.g.phase(n), 'growing')
+            self.assertIs(self.g.state_value(n, 'watered_today'), True)
+            self.assertEqual(self.g.state_value(n, 'crop'), crop)
+        self.assertEqual(f.position_reads, 0)
+
+    def test_stale_hint_triggers_one_vision_then_continues(self):
+        f = self.fake(states={(r, c): {'wet': False} for r in (1, 2, 3) for c in (1, 2, 3, 4)})
+        f.st[(1, 2)].update(phase='empty', crop=None, wet=False)
+        self.preset(self.node(2, 2))
+        self.g.set_state(self.node(1, 2), 'phase', 'growing', 'D5 9:00:00 AM', 'vision')   # the stale hint
+        self.g.set_state(self.node(1, 2), 'crop', 'Tulip', 'D5 9:00:00 AM', 'vision')
+        res, visions = self.drive('water')
+        self.assertEqual(visions, 1)
+        self.assertNotIn(self.node(1, 2), res['done'])
+        self.assertEqual(len(res['done']), 10)   # r2c2 was done in the first call, r1c2 needs nothing
+        self.assertTrue(all(v['wet'] for rc, v in f.st.items() if rc != (1, 2)))
+        self.assertEqual(self.g.phase(self.node(1, 2)), 'empty')
+
+    def test_seeds_run_out_marks_bed_empty_and_stops(self):
+        f = self.fake(states={(1, 1): {'phase': 'wilted'}, (1, 2): {'phase': 'wilted'}, (1, 3): {'phase': 'wilted'}})
+        f.seed_limit = 1
+        self.preset(self.node(1, 1))
+        res = self.run_('replant')
+        self.assertEqual([i for i, _ in res['skipped']], [self.node(1, 2)])
+        self.assertIn('no seeds', res['skipped'][0][1])
+        self.assertEqual(self.g.phase(self.node(1, 2)), 'empty')
+        self.assertIsNone(self.g.state_value(self.node(1, 2), 'crop'))
+        self.assertEqual(self.g.phase(self.node(1, 3)), 'wilted')   # the run stopped
+        self.assertEqual(res['done'], [self.node(1, 1)])
+        self.assertGreaterEqual(f.closed, 2)
+
+    def test_out_of_water_fills_and_returns_once(self):
+        f = self.fake(states={(2, 2): {'wet': False}}, can=False)
+        self.preset(self.node(2, 2))
+        res, visions = self.drive('water')
+        self.assertEqual(f.fills, 1)
+        self.assertTrue(f.st[(2, 2)]['wet'])
+        self.assertEqual(res['done'], [self.node(2, 2)])
+        self.assertEqual(visions, 1)           # the re-anchor after the well
+        self.assertEqual(res['vision'], 1)
+
+    def test_water_all_after_day_change(self):
+        f = self.fake(states={(r, c): {'wet': False} for r in (1, 2, 3) for c in (1, 2, 3, 4)})
+        self.preset(self.node(2, 2))
+        for rc in f.st:
+            self.g.set_state(self.node(*rc), 'watered_today', True, 'D4 10:00:00 AM', 'event')
+        self.g.new_day(5)
+        res = self.run_('water')
+        self.assertEqual(len(res['done']), 12)
+        self.assertTrue(all(v['wet'] for v in f.st.values()))
+        self.assertEqual(f.position_reads, 0)
+
+    def test_enters_region_before_anchoring(self):
+        self.fake()
+        self.g.set_state('Tara', 'at', 'House', 'D5 9:00:00 AM', 'vision')
+        from objects.loop import NeedVision
+        with self.mock.patch.object(self.loop, 'goto') as go:
+            with self.assertRaises(NeedVision):
+                self.run_('water')
+        self.assertEqual(go.call_count, 1)
+        self.assertEqual(go.call_args.args[0].kind, 'GardenBed')
+        self.assertIsNone(self.g.state_value('Tara', 'at'))
+
+    def test_count_mismatch_asks_once(self):
+        f = self.fake()
+        res, visions = self.drive('water')     # nothing to water: only the anchor
+        self.assertEqual(visions, 1)
+        f.save_override = {'wilted': 1, 'ripe': 0, 'empty': 0, 'dry': 0}
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertIn('wilted', f.asked[-1])
+        self.assertEqual(len([q for q in f.asked if 'wilted=' in q]), 1)
+
+    def test_garden_wrappers_run_the_tasks(self):
+        from game import garden
+        f = self.fake(states={(2, 2): {'wet': False}})
+        self.preset(self.node(2, 2))
+        gp = os.path.join(self.tmp.name, 'saved.json')
+        with self.mock.patch.object(C, 'run', wraps=C.run) as r:
+            res = garden.water_all(graph=self.g, gpath=gp, detect_fn=f.detect)
+        self.assertEqual(r.call_args.args[:2], ('water', self.GB))
+        self.assertEqual(res['done'], [self.node(2, 2)])
+        self.assertTrue(os.path.exists(gp))
+        self.assertTrue(callable(garden.replant_all) and callable(garden.harvest_all))
+
+    def test_harvest_picks_ripe(self):
+        f = self.fake(states={(1, 4): {'phase': 'ripe'}})
+        self.preset(self.node(2, 2))
+        res = self.run_('harvest')
+        self.assertEqual(res['done'], [self.node(1, 4)])
+        self.assertEqual(f.st[(1, 4)]['phase'], 'growing')
 
 
 if __name__ == '__main__':

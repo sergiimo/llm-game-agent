@@ -148,6 +148,34 @@ class AnchorTest(unittest.TestCase):
                  {'plantState': '##growing', 'isWatered': 'false', 'isWilted': 'true'}]
         self.assertEqual(wf.save_bed_counts(crops), {'wilted': 2, 'ripe': 1, 'empty': 2, 'dry': 2})
 
+    def test_unknown_watered_counts_as_dry(self):
+        self.g.set_state('GardenBed@Garden#r1c2', 'phase', 'growing', 'D1', 'vision')   # watered_today never set
+        self.g.set_state('GardenBed@Garden#r1c3', 'phase', 'growing', 'D1', 'vision')
+        self.g.set_state('GardenBed@Garden#r1c3', 'watered_today', True, 'D1', 'vision')
+        self.assertEqual(A.count_mismatch(self.g, 'GardenBed@Garden', {'dry': 1}), {})
+        self.assertEqual(A.count_mismatch(self.g, 'GardenBed@Garden', {'dry': 2}), {'dry': (1, 2)})
+
+    def test_answer_consumes_pending_and_second_is_rejected(self):
+        import json
+        self.addCleanup(setattr, A, 'PENDING', A.PENDING)
+        with tempfile.TemporaryDirectory() as d:
+            A.PENDING = os.path.join(d, 'anchor-pending.json')
+            json.dump({'labels': {'A': {'point': [1, 1], 'box': [0, 0, 1, 1], 'kind': 'GardenBed'}}, 'game_time': 'D1 1:00:00 PM'},
+                      open(A.PENDING, 'w'))
+            A.answer(f'group: {GB}   at: A=r1c1   A=r1c1 growing', graph=self.g, gpath=os.path.join(d, 'g.json'))
+            with self.assertRaises(A.AnchorError):
+                A.answer(f'group: {GB}   at: A=r1c1   A=r1c1 growing', graph=self.g, gpath=os.path.join(d, 'g.json'))
+
+    def test_clear_pending_makes_stale_answer_rejected(self):
+        import json
+        self.addCleanup(setattr, A, 'PENDING', A.PENDING)
+        with tempfile.TemporaryDirectory() as d:
+            A.PENDING = os.path.join(d, 'anchor-pending.json')
+            json.dump({'labels': {}, 'game_time': 'x'}, open(A.PENDING, 'w'))
+            A.clear_pending()
+            with self.assertRaises(A.AnchorError):
+                A.answer(f'group: {GB}   at: A=r1c1', graph=self.g, gpath=os.path.join(d, 'g.json'))
+
 
 if __name__ == '__main__':
     unittest.main()

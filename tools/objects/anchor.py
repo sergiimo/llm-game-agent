@@ -141,12 +141,12 @@ def _bed_members(graph, group):
 
 def count_mismatch(graph, group, save_counts):
     """{state: (graph count, save count)} where they differ. States: empty|growing|ripe|wilted by phase, `dry` = growing
-    and watered_today False. group None or a kind -> farm-wide sum over all its groups (the save has no per-group split)."""
+    and watered_today not True (unknown counts as dry). group None or a kind -> farm-wide sum over all its groups (the save has no per-group split)."""
     members = _bed_members(graph, group)
     out = {}
     for state, want in save_counts.items():
         if state == 'dry':
-            have = sum(1 for m in members if graph.phase(m.id) == 'growing' and graph.state_value(m.id, 'watered_today') is False)
+            have = sum(1 for m in members if graph.phase(m.id) == 'growing' and graph.state_value(m.id, 'watered_today') is not True)
         else:
             have = sum(1 for m in members if graph.phase(m.id) == state)
         if have != want:
@@ -199,6 +199,14 @@ def _clock(core):
         return 'vision'
 
 
+def clear_pending():
+    """Forget the pending question: an answer applies only to the question it was asked for."""
+    try:
+        os.remove(PENDING)
+    except OSError:
+        pass
+
+
 def _pending():
     try:
         with open(PENDING) as f:
@@ -225,6 +233,7 @@ def answer(text, graph=None, gpath=None, save_counts=None):
     anchor = parse(text, set(labels), graph)
     changes = apply(graph, anchor, labels, pend.get('game_time') or 'vision')
     graph.save(gpath)
+    clear_pending()   # one answer per question
     out = f'anchored Tara at {anchor.at[1]}; {len(changes) - 1} state changes'
     if save_counts:
         mm = count_mismatch(graph, None, save_counts)

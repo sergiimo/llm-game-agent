@@ -11,15 +11,27 @@ class Unexpected(Exception):
         self.why = why
 
 
+def _lines(vals, sizes):
+    """Cluster index per value (input order): split sorted values only at gaps > half the median tile size, so pixel
+    jitter never makes phantom rows/columns even when fewer lines than the pattern has are visible."""
+    lim = .5 * sorted(sizes)[len(sizes) // 2]
+    order = sorted(range(len(vals)), key=lambda i: vals[i])
+    lab, c = [0] * len(vals), 0
+    for k, i in enumerate(order):
+        if k and vals[i] - vals[order[k - 1]] > lim:
+            c += 1
+        lab[i] = c
+    return lab
+
+
 def locate(graph, at, target, dets):
     """The detection of `target`, fitted to the group grid relative to `at` (the tile nearest the frame centre)."""
     group = graph.nodes[graph.nodes[at].region]
     dets = identity.dedupe_for(group, list(dets))
     if len(dets) < 2:
         raise Unexpected(f'pattern fit: only {len(dets)} tile(s) visible')
-    rows, cols = group.pattern['rows'], group.pattern['cols']
-    ry = identity._cluster([d.point[1] for d in dets], rows)
-    cx = identity._cluster([d.point[0] for d in dets], cols)
+    ry = _lines([d.point[1] for d in dets], [d.box[3] - d.box[1] for d in dets])
+    cx = _lines([d.point[0] for d in dets], [d.box[2] - d.box[0] for d in dets])
     cells = list(zip(ry, cx))
     if len(set(cells)) < len(cells):
         raise Unexpected('pattern fit: ambiguous (two tiles in one grid cell)')

@@ -48,6 +48,25 @@ class Locate(unittest.TestCase):
         dets = [det(r, c) for r in (2, 3) for c in (2, 3)]
         self.assertEqual(C.locate(self.g, B % (2, 2), B % (3, 3), dets).point, (1160, 660))
 
+    def test_single_row_with_jitter(self):
+        jy = [-3, 3, 0, 2]
+        dets = []
+        for c, j in zip((1, 2, 3, 4), jy):
+            d = det(2, c)
+            dets.append(d._replace(point=(d.point[0] + j, d.point[1] + j)))
+        d = C.locate(self.g, B % (2, 2), B % (2, 3), dets)
+        self.assertEqual(d.point[0], 1160 + 0)
+
+    def test_full_grid_with_jitter_matches_clean(self):
+        import random
+        rnd = random.Random(1)
+        dets = [d._replace(point=(d.point[0] + rnd.randint(-5, 5), d.point[1] + rnd.randint(-5, 5))) for d in self.full()]
+        clean = self.full()
+        for tgt in (B % (2, 3), B % (3, 3), B % (1, 1), B % (3, 4)):
+            got = C.locate(self.g, B % (2, 2), tgt, dets)
+            r, c = G.cell(tgt)
+            self.assertEqual(clean[(r - 1) * 4 + c - 1].box, got.box)
+
     def test_click_tile_avoids_bubble(self):
         d = det(2, 2)
         self.assertEqual(C.click_tile(d, []), (960, 540))

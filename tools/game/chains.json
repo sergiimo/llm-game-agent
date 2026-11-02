@@ -1,0 +1,20 @@
+{
+  "_doc": "Actions as chains of (action -> result on screen). Fields: events = game-log event types (any order, all expected); card = text on the card/panel that opens (substring), null = stays in gameplay; bubble = the clicked object's bubble after: gone | plant (seedling) | drop (needs water/wilted) | no-drop (crop icon without drop) | same; text = short-lived on-screen message (substring), null = none. \"?\" = a gap: not known yet, filled from observations (chains.gaps(apply=True) after 2 agreeing ones). source = where the expectation comes from. Code: game/chains.py; docs: docs/mechanics/interaction-laws.md.",
+  "replant": [
+    {"step": "click the drop bubble of a wilted bed", "expect": {"events": ["unplant"], "card": "This plant has wilted", "bubble": "?", "text": "?"}, "source": "game D148 (log), D183 (card)"},
+    {"step": "press Remove (card, then the confirmation)", "expect": {"events": ["unplant_impl"], "card": null, "bubble": "plant", "text": "?"}, "source": "game D148"},
+    {"step": "click the seedling bubble", "expect": {"events": [], "card": "Seeds", "bubble": "?", "text": null}, "source": "game D148"},
+    {"step": "pick the crop card, press Select", "expect": {"events": ["plant"], "card": null, "bubble": "drop", "text": "?"}, "source": "game D148 (totalPlanted + plant)"},
+    {"step": "click the drop bubble of the new seedling", "expect": {"events": ["water"], "card": null, "bubble": "?", "text": "?"}, "source": "game D148"}
+  ],
+  "water": [
+    {"step": "click the drop bubble of a dry bed", "expect": {"events": ["water"], "card": null, "bubble": "?", "text": "?"}, "source": "game D148"},
+    {"step": "click the drop bubble with an empty can", "expect": {"events": ["out_of_water"], "card": null, "bubble": "same", "text": "?"}, "source": "game D149"}
+  ],
+  "harvest": [
+    {"step": "click the pickup bubble of a ripe bed", "expect": {"events": ["grab_item"], "card": null, "bubble": "?", "text": "?"}, "source": "game D149"}
+  ],
+  "bed": [
+    {"step": "click the bubble of a growing, watered bed", "expect": {"events": ["plant_growing"], "card": "?", "bubble": "same", "text": "?"}, "source": "game D183 (L123)"}
+  ]
+}

@@ -559,7 +559,7 @@ class Runner(RunnerBase):
         self.preset(self.node(2, 2))
         gp = os.path.join(self.tmp.name, 'saved.json')
         with self.mock.patch.object(C, 'run', wraps=C.run) as r:
-            res = garden.water_all(graph=self.g, gpath=gp)
+            res = garden._chain('water', graph=self.g, gpath=gp)
         self.assertEqual(r.call_args.args[:2], ('water', self.GB))
         self.assertEqual(res['done'], [self.node(2, 2)])
         self.assertTrue(os.path.exists(gp))
@@ -1097,7 +1097,7 @@ class Stuck(RunnerBase):
         self.fake()
         with self.mock.patch.object(C, 'run', side_effect=C.ChainStuck('CHAIN_STUCK: x')):
             with self.assertRaises(C.ChainStuck):
-                garden.water_all(graph=self.g, gpath=os.path.join(self.tmp.name, 's.json'))
+                garden._chain('water', graph=self.g, gpath=os.path.join(self.tmp.name, 's.json'))
 
     def test_wf_py_prints_chain_stuck_plainly(self):
         import contextlib

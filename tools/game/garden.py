@@ -1,5 +1,5 @@
-"""The garden (L77): position-free (spec 2026-11-02): `replant_all` / `water_all` / `harvest_all` run the graph chain
-(objects/chain.py); `goto_bed` walks to a bed by the object loop. Log (D148): `> unplant` = Space on a wilted bed (card/prompt), `> unplant_impl` = removed; `> plant` is written
+"""The garden (L77): `replant_all` / `water_all` / `harvest_all` run the interaction laws (game/laws.py,
+docs/mechanics/interaction-laws.md, L124); the old graph chain (objects/chain.py) stays reachable as `_chain`; `goto_bed` walks to a bed by the object loop. Log (D148): `> unplant` = Space on a wilted bed (card/prompt), `> unplant_impl` = removed; `> plant` is written
 when the planting panel closes (also when cancelled), `[STATS] totalPlanted.<Seed>` = planted; `> water` = watered. Planting panel = "Inventory / Seeds" picker: cards show icon + count only (Green Bean 26,
 Carrot 10, Tulip 22 on D148); clicking one opens its detail card (title + Select)."""
 import os
@@ -43,19 +43,23 @@ def _chain(task, seed=None, graph=None, gpath=None):
 
 
 @action
-def replant_all(seed=None, **kw):
-    """Every wilted bed of the home garden: remove, replant (seed=None: the same crop), water. Chain strategy: no
-    positions; an unexpected frame raises NeedVision (answer with ./wf anchor, call again)."""
-    return _chain('replant', seed, **kw)
+def replant_all(seed=None, click=None):
+    """Every wilted bed: remove, replant (seed=None: the same crop, read from the Remove card), water. Clicks every
+    water-drop bubble on screen; with none, raises NEED_VISION click: answer by calling again with click='<grid cell>'
+    (or click='none' when no wilted bed is left)."""
+    from . import laws
+    return laws.run('replant', click=click, seed=seed)
 
 
 @action
-def water_all(**kw):
-    """Water every home-garden bed that is growing and not watered today (chain strategy)."""
-    return _chain('water', **kw)
+def water_all(click=None):
+    """Water every growing, dry bed (water-drop bubbles); NEED_VISION click as replant_all."""
+    from . import laws
+    return laws.run('water', click=click)
 
 
 @action
-def harvest_all(**kw):
-    """Pick every ripe home-garden bed (chain strategy)."""
-    return _chain('harvest', **kw)
+def harvest_all(click=None):
+    """Pick every ripe bed (pickup bubbles); NEED_VISION click as replant_all."""
+    from . import laws
+    return laws.run('harvest', click=click)

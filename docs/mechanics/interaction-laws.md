@@ -46,11 +46,26 @@ bad state carried over to the next call. These laws keep one guess per click and
 same crop → water) or something else (growing/dry: record it, close the card) → next drop bubble. No drop bubble →
 vision: "click point of the nearest wilted bed" → click → its bubble or card appears → continue the loop.
 
+## Actions DB as chains (user, D183)
+Each game function is a chain of steps; each step = an action and the result it should leave on screen. The DB is
+`tools/game/chains.json` (code: `game/chains.py`): per step `events` (log event types), `card` (text on the card/panel
+that opens, `null` = stays in gameplay), `bubble` (the clicked object's bubble after: `gone | plant | drop | no-drop | same`),
+`text` (short-lived message, OCR'd from the burst frames) and its `source` (game day, wiki). `"?"` = a gap.
+- Every recorded click is checked against its step (`laws.record_click(..., chain, idx)`, or by its event for bubble-loop
+  clicks): a mismatch is a **surprise** (run summary `surprises`, run log `click` row); every field goes to
+  `tools/game/observed.jsonl`.
+- **Gaps fill from the game:** `./wf py "from game import chains; chains.gaps()"` lists each gap with what was seen;
+  `chains.gaps(apply=True)` writes a value once **2 observations agree** and none differ (never from one sighting). The
+  wiki has no UI-level detail for beds (Garden Bed page: only "water each day, 4 crops"), so the game is the source.
+- A new function adds its chain to the DB first (steps + what is known, `?` for the rest), then passes `chain`/`idx` to
+  `record_click`.
+
 ## Tool status
 | Piece | Status |
 |---|---|
-| Centre constant, bubble scan with kinds and drop flag | ✅ `chain_step.CENTRE`, `affordances.scan()` |
-| Event read after a click | ✅ `chain_step.click_target` (log only) |
-| Click-result record (burst frames + bubbles before/after + text) | ❌ to build (rule 3) |
-| Vision "click point of the first node" question | ❌ to build; `loop.answer(n, X, Y)` is the nearest existing shape |
-| `replant_all()` / `water_all()` / `harvest_all()` on these laws | ❌ to rebuild; today they run the graph-chain runner (A18) |
+| Centre constant, bubble scan with kinds and drop flag | ✅ `laws.CENTRE`, `affordances.scan()` |
+| Click-result record (burst frames + new log lines + bubbles before/after + screen + burst OCR) | ✅ `laws.record_click` → `Click` (run log `click`, frames in `<run>/clicks/`) |
+| Vision "click point of the next node" (one grid cell) | ✅ `NEED_VISION click` (`wf.ask_vision('click', …)`), answer `click='Q14'`; `LAWS_STUCK` after 4 asks without progress |
+| `replant_all()` / `water_all()` / `harvest_all()` on these laws | ✅ `game/laws.py` (offline tests `tools/test_laws.py`); live check pending |
+| Actions DB as chains, surprises, gap filling | ✅ `game/chains.py` + `chains.json` |
+| Old graph-chain runner (anchor, layout, camera-shift proof) | superseded; still reachable as `garden._chain(task)`; removal pending |

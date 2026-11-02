@@ -25,17 +25,15 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
   <question>` (the frame saved at the moment of failure, before menus were closed). Read that PNG, describe what you
   see, answer the question in your report (e.g. "the panel shows 3 cards, Green Bean first, highlighted"). Never
   report a cause or guess ("seeds not owned?") without having looked. No path → `./wf look` and Read it.
-- **Anchor round trip (`replant_all()` / `water_all()` / `harvest_all()` print `NEED_VISION anchor: …`):** (1) `./wf pause`
-  (the question costs no game time); (2) Read the full-size image named on the `look:` line:
-  a grid (columns A-X, rows 1-16, each cell named) is drawn on it and the magenta circle marks the reference point; (3) answer
-  with one `./wf anchor "group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?"`
-  (no bed visible at all: `./wf anchor "group: GardenBed@Garden   none"`, the next call walks to the garden first; `ref:` = the bed nearest the magenta marker; every bed is `rXcY@<cell>`: rXcY = row/column in the 3x4 bed grid, north row first,
-  west to east, and `<cell>` = the grid cell nearest the bed's centre; state = empty|growing|ripe|wilted, `dry` or `watered` after
-  growing, `?` = cannot tell; name every visible bed, at least 2 in different rows and columns). `REJECTED: …` prints the expected
-  shape: re-read the image and answer again, never guess (the whole answer goes on ONE line; state words in any case). (4) `./wf resume`, then call the same function again: the run continues from the graph.
-  A `NEED_VISION` from `loop.goto` (a click point question) inside `replant_all` means: answer that (`loop.answer`), then call
-  `replant_all` again. **`CHAIN_STUCK: …`** (4 questions in one task, or the same question again at the same bed) is terminal:
-  stop, `./wf pause`, report the printed whys, do not retry. No bed tiles visible: the runner walks to the garden first; if it still asks, describe what you see.
+- **Click round trip (`replant_all()` / `water_all()` / `harvest_all()` print `NEED_VISION click: …`; interaction laws,
+  docs/mechanics/interaction-laws.md):** they click every fitting bubble on screen by themselves and ask only when none is
+  left. (1) `./wf pause`; (2) Read the full-size image on the `look:` line (grid A-X × 1-16, magenta circle = Tara, always the
+  centre); (3) pick ONE grid cell on the target bed itself (its soil/plants, not a bubble; nearest to Tara), or a cell of open
+  ground toward the garden when no bed is visible; (4) `./wf resume`, then call again with it: `./wf py "replant_all(click='Q14')"`.
+  Nothing left of the target anywhere: `replant_all(click='none')` ends the run. The question says what your last cell led to
+  (events, bubbles): a cell that led to `plant_growing` was a growing bed, pick another. **`LAWS_STUCK: …`** (4 questions
+  without progress) is terminal: stop, `./wf pause`, report. The summary's `surprises` (results that differ from
+  `tools/game/chains.json`) go into your report as `[docs]` gaps.
 - **One game command per tool call** (AGENTS.md rule 8): never chain `./wf …; ./wf …` — a rejected call may already have run its first commands (objects-seed batched several with `;`).
 - **The call budget is a hard stop:** count your `./wf` calls; at the budget, `./wf pause` and report partial with what is left (objects-relabel ran 55 of 45 and skipped its last checks).
 - Also, one line each as it happens: `./wf run attempt <what you try now>` · `issue` · `gap` · `decision`.

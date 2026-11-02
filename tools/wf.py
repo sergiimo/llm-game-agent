@@ -3120,6 +3120,18 @@ def ask_vision(kind, question, img, **ctx):
                 f'ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?"   '
                 f'(ref = the bed nearest the marker; rXcY@cell = the bed\'s pattern cell @ the grid cell nearest the bed\'s centre; '
                 f'? = state unknown; name every visible bed, at least 2 in different rows and columns)')
+    if kind == 'click':   # interaction laws (L124): full-size gridded frame, Tara = magenta circle at the centre; one cell back
+        from PIL import ImageDraw as _D
+        from objects import anchor as OA
+        pic = OA.draw_grid(img)
+        _D.Draw(pic).ellipse((960 - 26, 540 - 26, 960 + 26, 540 + 26), outline=(255, 0, 255), width=5)
+        pic.save(ASK_FRAME)
+        with open(ASK_CTX, 'w') as f:
+            json.dump({'kind': kind, 'question': question, **ctx}, f)
+        run_log('vision', what='ask', kind=kind, question=question)
+        return (f'NEED_VISION {kind}: {question}\n  look: {ASK_FRAME} (full size {img.size[0]}x{img.size[1]}, grid columns '
+                f'A-X x rows 1-16, magenta circle = Tara)\n  answer: {ctx.get("answer", "a grid cell, e.g. Q14")}   '
+                f'(one grid cell on the target bed itself; or click=\'none\' when none is left)')
     img.save(ASK_FRAME)
     small = img.resize((768, 432))
     d = ImageDraw.Draw(small)

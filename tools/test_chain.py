@@ -79,5 +79,61 @@ class Locate(unittest.TestCase):
             self.assertNotIn(bad, src)
 
 
+class Expect(unittest.TestCase):
+    def setUp(self):
+        from game.affordances import Affordance
+        self.A = Affordance
+        self.g = G.Graph()
+        self.g.load(SEED)
+        self.id = B % (2, 2)
+
+    def aff(self, kind='plant', drop=False, pt=(0, 0)):
+        return self.A(kind, None, pt, False, 0, drop)
+
+    def phase(self, ph, watered=None):
+        self.g.set_state(self.id, 'phase', ph, 0, 'event')
+        if watered is not None:
+            self.g.set_state(self.id, 'watered_today', watered, 0, 'event')
+        return C.expected_bubble(self.g, self.id)
+
+    def test_wilted_expects_drop(self):
+        f = self.phase('wilted')
+        self.assertTrue(f(self.aff('water', drop=True)))
+        self.assertFalse(f(self.aff('plant')))
+
+    def test_growing_dry_expects_drop_wet_does_not(self):
+        self.assertTrue(self.phase('growing', False)(self.aff('water', drop=True)))
+        self.assertFalse(self.phase('growing', True)(self.aff('water', drop=True)))
+
+    def test_empty_expects_plant_bubble(self):
+        f = self.phase('empty')
+        self.assertTrue(f(self.aff('plant')))
+        self.assertFalse(f(self.aff('pickup')))
+
+    def test_ripe_expects_pickup(self):
+        f = self.phase('ripe')
+        self.assertTrue(f(self.aff('pickup')))
+        self.assertFalse(f(self.aff('plant')))
+
+    def test_unknown_phase_accepts_any(self):
+        f = C.expected_bubble(self.g, self.id)
+        self.assertTrue(f(self.aff('unknown')))
+
+    def test_bubble_near_picks_the_one_above_the_tile(self):
+        near, far = self.aff(pt=(1000, 420)), self.aff(pt=(1000, 140))
+        self.assertIs(C.bubble_near([far, near], (960, 540)), near)
+        self.assertIsNone(C.bubble_near([far], (960, 540)))
+        self.assertIsNone(C.bubble_near([self.aff(pt=(1300, 420))], (960, 540)))
+
+    def test_event_ignores_position(self):
+        from game import core
+        class Fake:
+            def log_since(s, m): return '12:00 > water Tulip at (99.0, 0.0, -5.5)'
+            def _unhash(s, t): return t
+        core.bind(Fake())
+        self.assertIn('> water', C.event(0, 'water', 0))
+        self.assertIsNone(C.event(0, 'pickup', 0))
+
+
 if __name__ == '__main__':
     unittest.main()

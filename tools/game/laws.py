@@ -396,9 +396,13 @@ def _replant(c, res, seed):
     if not want:
         ui.close()
         raise core.Failed('the Remove card names no crop; ' + core.ask_vision('which crop is on this bed card?'))
-    for _ in range(2):   # card -> (confirmation) -> exact Remove button
-        if ui.shows('remove', wait=0.5) and not core.seen(r'> unplant_impl ', c.mark, 0):
+    for _ in range(3):   # wilted card (no Remove text, a ⃠ icon) -Space-> "remove …?" confirmation -> Remove button
+        if core.seen(r'> unplant_impl ', c.mark, 0):
+            break
+        if ui.shows('remove', wait=0.5):
             ui.press('Remove')
+        else:
+            ui.press_bubble()
         if core.seen(r'> unplant_impl ', c.mark, 1.5):
             break
     else:

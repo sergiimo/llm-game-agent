@@ -108,7 +108,8 @@ class Fake:
     # -- ui
     def texts(self):
         b = self.beds.get(self.card_bed)
-        return {'card': [f'{b["crop"] if b else "?"}', 'This plant has wilted.', 'Remove'],
+        # the real wilted card has no Remove text, only a ⃠ icon (live run D184): Space opens the confirmation
+        return {'card': [f'{b["crop"] if b else "?"}', 'This plant has wilted.'],
                 'prompt': [f'Are you sure you want to remove {b["crop"] if b else "?"}?', 'Remove', 'Cancel'],
                 'panel': ['Inventory', 'Seeds'], 'detail': ['Seeds', 'Select']}.get(self.screen, [])
 
@@ -117,9 +118,7 @@ class Fake:
 
     def press(self, label):
         b = self.card_bed
-        if label == 'Remove' and self.screen == 'card':
-            self.screen = 'prompt'
-        elif label == 'Remove' and self.screen == 'prompt':
+        if label == 'Remove' and self.screen == 'prompt':
             self.log.append(f'21:00 > unplant_impl {self.beds[b]["crop"]}')
             self.beds[b].update(state='empty', crop=None)
             self.screen = 'gameplay'
@@ -131,6 +130,10 @@ class Fake:
             self.screen = 'gameplay'
         else:
             raise core.Failed(f'no {label} on {self.screen}')
+
+    def press_bubble(self):
+        if self.screen == 'card':
+            self.screen = 'prompt'
 
     def pick_card(self, name):
         assert self.screen == 'panel', self.screen
@@ -176,7 +179,7 @@ class Base(unittest.TestCase):
         core.bind(f)
         self.addCleanup(core.bind, old)
         for mod, name, fn in ((affordances, 'scan', f.scan), (ui, 'texts', f.texts), (ui, 'shows', f.shows),
-                              (ui, 'press', f.press), (ui, 'pick_card', f.pick_card), (ui, 'close', f.close),
+                              (ui, 'press', f.press), (ui, 'press_bubble', f.press_bubble), (ui, 'pick_card', f.pick_card), (ui, 'close', f.close),
                               (well, 'fill_can', f.fill_can)):
             p = mock.patch.object(mod, name, fn)
             p.start()

@@ -46,7 +46,7 @@ def bubble_after(click):
 
 def actual(click):
     """The click's result in the DB's terms."""
-    card = ' / '.join(click.texts[:3]) if click.mode != 'gameplay' else None
+    card = ' / '.join(click.texts) if click.mode != 'gameplay' else None   # whole card: the matched line can be low
     text = ' / '.join(getattr(click, 'burst_texts', [])[:4]) or None
     return {'events': list(click.events), 'card': card, 'bubble': bubble_after(click), 'text': text}
 

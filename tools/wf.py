@@ -1633,6 +1633,12 @@ def _NeedVision():
     return NeedVision
 
 
+def _ChainStuck():
+    _NeedVision()   # puts tools/ on sys.path
+    from objects.chain import ChainStuck
+    return ChainStuck
+
+
 def game_cmd(kind, args):
     """`wf py "<code>"` / `wf call <module.fn> [args…]`: game functions (tools/game, L77), each proven by the game log
     and tracked as an action tree in the run log."""
@@ -1654,6 +1660,11 @@ def game_cmd(kind, args):
             res = f(*[int(a) if re.fullmatch(r'-?\d+', a) else a for a in args[1:]])
     except game.Failed as e:
         err = str(e)
+    except _ChainStuck() as e:   # terminal (ruling 29): print it plainly, the agent stops and reports
+        for line in game.track.LINES:
+            print(line)
+        print(str(e))
+        return 3
     except _NeedVision() as e:   # a vision question is an answer request, not a crash: print just its prompt
         for line in game.track.LINES:
             print(line)
@@ -3101,11 +3112,12 @@ def ask_vision(kind, question, img, **ctx):
     if kind == 'anchor':   # full-size frame with the A-X x 1-16 grid; vision names beds by grid cell (spec 2026-11-02 §10)
         from objects import anchor as OA
         OA.draw_grid(img).save(ASK_FRAME)
-        json.dump({'kind': kind, 'question': question, **ctx}, open(ASK_CTX, 'w'))
+        with open(ASK_CTX, 'w') as f:
+            json.dump({'kind': kind, 'question': question, **ctx}, f)
         run_log('vision', what='ask', kind=kind, question=question)
         return (f'NEED_VISION {kind}: {question}\n  look: {ASK_FRAME} (full size {img.size[0]}x{img.size[1]}, grid columns '
                 f'A-X x rows 1-16, magenta circle = reference marker)\n  answer: ./wf anchor "group: GardenBed@Garden   '
-                f'ref: r1c2@L8\nr1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?"   '
+                f'ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?"   '
                 f'(ref = the bed nearest the marker; rXcY@cell = the bed\'s pattern cell @ the grid cell nearest the bed\'s centre; '
                 f'? = state unknown; name every visible bed, at least 2 in different rows and columns)')
     img.save(ASK_FRAME)

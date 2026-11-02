@@ -7,12 +7,13 @@ from collections import namedtuple
 from game import affordances, core, ui, well
 
 from . import anchor, loop
-from .chain_step import (CENTRE, SHIFT, Unexpected, _implies_bubble, bubble_near, camera_shift, click_tile,  # noqa: F401
+from .chain_step import (CENTRE, SHIFT, Unexpected, click_target, _implies_bubble, bubble_near, camera_shift, click_tile,  # noqa: F401
                          ensure_gameplay, expected_bubble, layout_point, opened_screen, prove_move)
 from .graph import apply_log
 from .query import Q
 
 
+EXPECT = {'replant': {'unplant'}, 'water': {'water', 'out_of_water'}, 'harvest': {'grab_item'}}   # click interactions per task
 EVENTS = {'unplant': r'> unplant ', 'removed': r'> unplant_impl ', 'plant': r'> plant ', 'planted': r'totalPlanted\.',
           'water': r'> water ', 'dry_can': r'> out_of_water ', 'pickup': r'> grab_item '}
 
@@ -34,6 +35,7 @@ class _Run:
     def __init__(self, graph, seed):
         self.graph, self.seed, self.mark, self.stop, self.skipped = graph, seed, 0, False, []
         self.tile_pt = CENTRE
+        self.arrival = None   # the click's log mark when the click itself interacted with the target (ruling 28)
         self.res = None   # the run summary (for the vision prompt)
         self.final = []   # (id, key, value, conf) set after the log replay (apply_log would overwrite them)
 
@@ -42,8 +44,14 @@ def _now():
     return anchor._clock(core)
 
 
+def _mark(run, aff):
+    """Log mark of the act's first click, or the arrival click's mark when that click already did it (consumed once)."""
+    m, run.arrival = run.arrival, None
+    return m if m is not None else affordances.click(aff)
+
+
 def _water(run, aff):
-    mark = affordances.click(aff)
+    mark = _mark(run, aff)
     line = core.seen(r'> (water|out_of_water) ', mark, wait=2.0)
     if line and '> water ' in line:
         return 'ok'
@@ -59,7 +67,7 @@ def _act_water(run, nid, aff):
 
 
 def _act_harvest(run, nid, aff):
-    mark = affordances.click(aff)
+    mark = _mark(run, aff)
     if not event(mark, 'pickup', 2.0):
         raise Unexpected('the pickup bubble produced no grab_item event')
     # the plant regrows into an unknown stage: phase unknown (conf 0) until the next anchor settles it
@@ -71,7 +79,7 @@ def _act_harvest(run, nid, aff):
 def _act_replant(run, nid, aff):
     from game.garden import crop_name
     g = run.graph
-    mark = affordances.click(aff)
+    mark = _mark(run, aff)   # an arrival by interaction left the Remove card open: use it, do not close it
     if not event(mark, 'unplant', 2.0):
         raise Unexpected('the wilted bubble did not open the Remove card')
     crop = crop_name(' / '.join(ui.texts())) or None
@@ -123,6 +131,13 @@ TASKS = {
 }
 
 
+class ChainStuck(Exception):
+    """Terminal (ruling 29): the run asked vision too often (4 questions) or the same question again at the same bed. Stop and report."""
+
+
+MAX_ASKS = 4
+
+
 def _need_vision(prompt):
     e = loop.NeedVision(prompt)
     e.args = (prompt,)
@@ -139,6 +154,16 @@ def _summary(res):
 
 def _ask(graph, task, why, res=None):
     """One fresh anchor question about the current frame (a stale pending answer is cleared first); raises NeedVision."""
+    asks, hist = graph.state_value('Tara', 'asks') or 0, list(graph.state_value('Tara', 'ask_whys') or [])
+    at = graph.state_value('Tara', 'at')
+    if asks >= MAX_ASKS or (at is not None and [at, why] in hist):
+        graph.set_state('Tara', 'asks', 0, _now(), 'event')
+        graph.set_state('Tara', 'ask_whys', None, _now(), 'event')
+        anchor.clear_pending()
+        raise ChainStuck(f'CHAIN_STUCK: {task} stopped after {asks} vision question(s)'
+                         f'{" (the same one again at " + at + ")" if at is not None and [at, why] in hist else ""}; last: '
+                         + ' | '.join(w[:100] for _, w in hist[-3:] + [[at, why]]) + '. Stop and report; do not retry blindly.')
+    graph.set_state('Tara', 'ask_whys', hist + [[at, why]], _now(), 'event')
     why += _summary(res)
     anchor.clear_pending()
     try:
@@ -147,7 +172,7 @@ def _ask(graph, task, why, res=None):
         pass
     img = core.WF.grab()
     prompt = anchor.question(img, task, graph, why, core=core)
-    graph.set_state('Tara', 'asks', (graph.state_value('Tara', 'asks') or 0) + 1, _now(), 'event')
+    graph.set_state('Tara', 'asks', asks + 1, _now(), 'event')
     raise _need_vision(prompt)
 
 
@@ -156,7 +181,13 @@ def _goto_garden(g, group):
     forces a re-anchor)."""
     loop.goto(Q(kind=g.nodes[group].kind), core.WF, graph=g)
     g.set_state('Tara', 'need_goto', None, _now(), 'event')
+    _clear_at(g, group)
+
+
+def _clear_at(g, group):
+    """Tara.at forgotten: the group's layout (relative to her bed) goes with it."""
     g.set_state('Tara', 'at', None, _now(), 'event')
+    g.nodes[group].extra.pop('layout', None)
 
 
 def _set_at(g, nid):
@@ -164,44 +195,30 @@ def _set_at(g, nid):
     g.set_state('Tara', 'at_scene', anchor._scene(core), _now(), 'event')
 
 
-def _step(run, cur, nid, last, d=None):
-    """Move one chain step onto `nid` (a neighbour of `cur`) and prove it from the frames, then check the bubble above
-    Tara's tile against the predicted state. Tara.at is set only after the proof (a click that did not move her, or
-    moved her elsewhere, is Unexpected and drops the layout)."""
-    g = run.graph
+def _goto_node(r, at, target, task):
+    """Ruling 28: click the target bed's layout point directly. Returns (bubble at target | None, Tara's bed). An in-reach
+    bed interacts instead of walking (arrival by interaction: Tara stays at `at`, r.arrival = the click's log mark, no bubble
+    check - the event proves the state); a far one is walked to (camera-shift proof, ref_offset re-measured), then the
+    bubble above it is checked against the predicted state. Tara.at is set only after the proof."""
+    g = r.graph
     ensure_gameplay()
-    if cur != nid:
-        pt = click_tile(layout_point(g, cur, nid), [a.pt for a in affordances.scan()])
-        img0 = core.WF.grab()
-        core.WF.run_action(f'click:{pt[0]}:{pt[1]}')
-        core.WF.wait_settle()
-        scr = opened_screen()
-        if scr:   # a click on an adjacent bed can open its panel/card instead of walking
-            ui.close()
-            raise Unexpected(f'the click opened {scr}')
-        try:
-            prove_move(g.nodes[g.nodes[nid].region].extra.get('layout'), camera_shift(img0, core.WF.grab()), d)
-        except Unexpected:
-            g.nodes[g.nodes[nid].region].extra.pop('layout', None)
-            raise
-    run.tile_pt = layout_point(g, nid, nid)
-    _set_at(g, nid)
-    b = bubble_near(affordances.scan(), run.tile_pt)
+    r.arrival = None
+    if at != target:
+        kind, val, mark = click_target(g, at, target, [a.pt for a in affordances.scan()])
+        if kind == 'event':
+            if val not in EXPECT[task]:
+                raise Unexpected(f'clicking {target} logged {val}, {task} expects {sorted(EXPECT[task])}')
+            r.arrival, r.tile_pt = mark, layout_point(g, at, target)
+            return None, at
+        g.nodes[g.nodes[target].region].extra['layout']['ref_offset'] = [round(v, 1) for v in val]   # ruling 30
+        at = target
+    r.tile_pt = layout_point(g, target, target)
+    _set_at(g, target)
+    b = bubble_near(affordances.scan(), r.tile_pt)
     if b is None:
-        if last or _implies_bubble(g, nid):
-            raise Unexpected(f'no bubble above {nid}, predicted {g.phase(nid)}')
-        return None
-    if not expected_bubble(g, nid)(b):
-        raise Unexpected(f'bubble {b.kind}{" +drop" if b.drop else ""} above {nid} does not match predicted {g.phase(nid)}')
-    return b
-
-
-def _goto_node(r, at, target):
-    """Walk the chain from `at` to `target`; returns (bubble at target, new at)."""
-    b = None
-    for d, nid in r.graph.hops(at, target) + [(None, target)] * (at == target):
-        b = _step(r, at, nid, nid == target, d)
-        at = nid
+        raise Unexpected(f'no bubble above {target}, predicted {g.phase(target)}')
+    if not expected_bubble(g, target)(b):
+        raise Unexpected(f'bubble {b.kind}{" +drop" if b.drop else ""} above {target} does not match predicted {g.phase(target)}')
     return b, at
 
 
@@ -215,7 +232,7 @@ def _save_stamp():
 def _perform(r, t, task, target, b):
     """Act on `target`, replay the log into the graph, check the task's events. 'ok' | 'stop'."""
     g = r.graph
-    r.mark = core.WF.log_mark()
+    r.mark = r.arrival if r.arrival is not None else core.WF.log_mark()   # an interaction arrival: its event is in the log
     out = t.act(r, target, b)
     lines = core.log_text(r.mark).splitlines()
     apply_log(g, lines, target)
@@ -269,7 +286,7 @@ def run(task, group, graph, seed=None, max_steps=40, wf=None):
         _goto_garden(g, group)
         at = None
     elif at in g.nodes and _at_stale(g):
-        g.set_state('Tara', 'at', None, _now(), 'event')
+        _clear_at(g, group)
         at = None
     if g.state_value('Tara', 'need_goto') and not went:   # the last anchor answer was `none`
         went = True
@@ -285,7 +302,7 @@ def run(task, group, graph, seed=None, max_steps=40, wf=None):
         pw = g.state_value('Tara', 'pending_water')
         if pw:
             if pw in g.nodes and g.phase(pw) == 'growing' and g.state_value(pw, 'watered_today') is not True:
-                b, at = _goto_node(r, at, pw)
+                b, at = _goto_node(r, at, pw, 'water')
                 _perform(r, TASKS['water'], 'water', pw, b)
                 res['done'].append(pw)
             g.set_state('Tara', 'pending_water', None, _now(), 'event')
@@ -296,7 +313,7 @@ def run(task, group, graph, seed=None, max_steps=40, wf=None):
                 break
             res['steps'] += 1
             target = min(todo)[1]
-            b, at = _goto_node(r, at, target)
+            b, at = _goto_node(r, at, target, task)
             if _perform(r, t, task, target, b) == 'stop':
                 break
             res['done'].append(target)
@@ -312,6 +329,7 @@ def run(task, group, graph, seed=None, max_steps=40, wf=None):
     _count_check(g, res, task)
     res['vision'] = g.state_value('Tara', 'asks') or 0
     g.set_state('Tara', 'asks', 0, _now(), 'event')
+    g.set_state('Tara', 'ask_whys', None, _now(), 'event')
     return res
 
 

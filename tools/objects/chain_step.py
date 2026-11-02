@@ -1,10 +1,13 @@
 """Chain helpers (spec 2026-11-02 §10): the layout's screen point of a neighbour bed, the bubble expectation of a predicted
 state, and the proof of a one-bed move by phase correlation of the frames. Frame pixels only; no positions."""
+import re
+import time
+
 from game import ui, core
 from . import anchor
 from .graph import cell
 
-MIN_PITCH, TOL, MIN_PEAK, DOWN = 40.0, 0.4, 0.1, 4   # px; of the pitch; correlation peak; frame downscale factor
+MIN_PITCH, TOL, MIN_PEAK, DOWN = 40.0, 0.4, 0.06, 4   # px; of the pitch; correlation peak; frame downscale factor
 
 CENTRE = anchor.CENTRE   # the camera follows Tara, so the reference tile is the one nearest the frame centre
 
@@ -147,3 +150,46 @@ def ensure_gameplay():
         mode = 'gameplay'
     if mode != 'gameplay':
         ui.close()
+
+
+INTERACT = r'> (unplant|water|out_of_water|grab_item|plant_growing) .*target=GardenBed'   # a click on a bed in reach logs one
+ARRIVE_WAIT, POLL, STABLE = 8.0, 0.3, 12   # s to wait for the click's outcome; poll interval; px the shift may move between polls
+
+
+def click_target(g, cur, target, bubble_pts):
+    """Ruling 28: click the TARGET bed's layout point (no hops) and wait up to ARRIVE_WAIT s for its outcome. Returns
+    ('event', type, mark) when the click interacted (a bed in reach: the log shows an interaction event on a GardenBed), or
+    ('walk', ref_offset, mark) when the camera shift proves Tara now stands at the target (layout point + shift lands
+    within 0.4 pitch of CENTRE + ref_offset, stable over two polls). Else Unexpected (layout dropped)."""
+    px, py, dx, dy = _layout(g, cur)
+    lay_pt = layout_point(g, cur, target)
+    if not (0 <= lay_pt[0] < 1920 and 0 <= lay_pt[1] < 1080):
+        raise Unexpected(f'the layout puts {target} off screen at ({lay_pt[0]:.0f}, {lay_pt[1]:.0f})')
+    pt = click_tile(lay_pt, bubble_pts)
+    img0, mark = core.WF.grab(), core.WF.log_mark()
+    core.WF.run_action(f'click:{pt[0]}:{pt[1]}')
+    core.WF.wait_settle()
+    end, prev, shift, polls = time.monotonic() + ARRIVE_WAIT, None, (0.0, 0.0, 0.0), 0
+    while True:
+        line = core.seen(INTERACT, mark, 0)
+        if line:
+            return 'event', re.search(INTERACT, line).group(1), mark
+        shift = camera_shift(img0, core.WF.grab())
+        want = (CENTRE[0] + dx, CENTRE[1] + dy)
+        got = (lay_pt[0] + shift[0], lay_pt[1] + shift[1])
+        near = abs(got[0] - want[0]) <= TOL * px and abs(got[1] - want[1]) <= TOL * py and shift[2] >= MIN_PEAK
+        if near and prev is not None and abs(shift[0] - prev[0]) <= STABLE and abs(shift[1] - prev[1]) <= STABLE:
+            return 'walk', (got[0] - CENTRE[0], got[1] - CENTRE[1]), mark
+        prev = shift if near else None
+        polls += 1
+        if polls >= 2 and time.monotonic() >= end:   # at least two looks: a shift must be seen stable
+            break
+        time.sleep(POLL)
+    g.nodes[g.nodes[target].region].extra.pop('layout', None)
+    scr = opened_screen()
+    if scr:
+        ui.close()
+        raise Unexpected(f'the click on {target} opened {scr}, no interaction event, no move')
+    raise Unexpected(f'move not proved: the click on {target} logged no interaction and the camera shifted '
+                     f'({shift[0]:.0f}, {shift[1]:.0f}) px (peak {shift[2]:.2f}), expected about '
+                     f'({CENTRE[0] + dx - lay_pt[0]:.0f}, {CENTRE[1] + dy - lay_pt[1]:.0f})')

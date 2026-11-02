@@ -88,7 +88,7 @@ def action(fn):
             raise Failed(why) from e
         except Exception as e:  # noqa: BLE001
             ok, why = False, f'{type(e).__name__}: {e}'
-            if type(e).__name__ in ('Stuck', 'NeedVision'):  # a vision question goes to the agent as it is (Stuck: move.goto turns it into one)
+            if type(e).__name__ in ('Stuck', 'NeedVision', 'ChainStuck'):  # a vision question goes to the agent as it is (Stuck: move.goto turns it into one)
                 raise
             raise Failed(f'{name}({args}): {why}') from e
         finally:

@@ -192,6 +192,7 @@ class FakeGarden:
         self.cur, self.picked, self.seed_limit = None, None, 99
         self.position_reads, self.closed, self.asked, self.fills, self.save_override = 0, 0, [], 0, None
         self.fill_graph, self.flat, self.events = None, False, []
+        self.reach, self.clicks = False, []   # reach: a click on a bed next to Tara interacts instead of walking
         self.save_n, self.move = 1, 'ok'   # move: 'ok' | 'none' (click does not move Tara) | 'far' (moves her two tiles)
         for n in self.POS:
             setattr(self, n, self._pos_reader)
@@ -262,6 +263,7 @@ class FakeGarden:
 
     def run_action(self, a):
         x, y = (int(v) for v in a.split(':')[1:])
+        self.clicks.append((x, y))
         for rc in sorted(self.st):
             tx, ty = self.tile_pt(rc)
             if abs(x - tx) < 25 and abs(y - (ty - 150)) < 25:
@@ -269,12 +271,23 @@ class FakeGarden:
         rc = min(self.st, key=lambda r: (x - self.tile_pt(r)[0]) ** 2 + (y - self.tile_pt(r)[1]) ** 2)
         tx, ty = self.tile_pt(rc)
         if abs(x - tx) < PX / 2 and abs(y - ty) < PY / 2:
+            if self.reach and rc != self.tara and max(abs(rc[0] - self.tara[0]), abs(rc[1] - self.tara[1])) <= 1:
+                return self.interact(rc)
             if self.move == 'opens':
                 self.cur, self.screen = rc, 'panel'
             elif self.move == 'ok':
                 self.tara = rc
             elif self.move == 'far':
                 self.tara = (rc[0], min(4, rc[1] + 1)) if rc[1] >= self.tara[1] else (rc[0], max(1, rc[1] - 1))
+
+    def interact(self, rc):
+        """A click on a bed in reach: Space on it (wilted card, water, pickup, plant_growing info, planting panel)."""
+        s = self.st[rc]
+        if s['phase'] == 'growing' and s['wet']:
+            self.emit('plant_growing')
+            self.cur = rc
+        else:
+            self.bubble(rc)
 
     def bubble(self, rc):
         s = self.st[rc]
@@ -359,7 +372,7 @@ class FakeGarden:
         return (f'group: GardenBed@Garden   ref: r{t[0]}c{t[1]}@{self.cell_of(self.tile_pt(t))}\n' + '   '.join(words))
 
 
-class Runner(unittest.TestCase):
+class RunnerBase(unittest.TestCase):
     GB = 'GardenBed@Garden'
 
     def setUp(self):
@@ -372,6 +385,10 @@ class Runner(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.addCleanup(setattr, core, 'WF', core.WF)
         self.addCleanup(setattr, anchor, 'PENDING', anchor.PENDING)
+        from objects import chain_step
+        for name, val in (('ARRIVE_WAIT', 0.0), ('POLL', 0.0)):   # the fake settles at once: do not really wait 8 s
+            self.addCleanup(setattr, chain_step, name, getattr(chain_step, name))
+            setattr(chain_step, name, val)
         anchor.PENDING = os.path.join(self.tmp.name, 'anchor-pending.json')
         self.g = G.Graph()
         self.g.load(SEED)
@@ -437,6 +454,8 @@ class Runner(unittest.TestCase):
         self.g.nodes[far + '#r1c1'] = G.Node(far + '#r1c1', 'member', kind='GardenBed', region=far)
         self.g.set_state(far + '#r1c1', 'phase', 'empty', 'D5 9:00:00 AM', 'vision')
 
+
+class Runner(RunnerBase):
     def test_first_call_asks_anchor(self):
         self.fake()
         from objects.loop import NeedVision
@@ -885,6 +904,193 @@ class Runner(unittest.TestCase):
         self.assertAlmostEqual(lay['pitch'][1], PY, delta=1)
         self.assertAlmostEqual(lay['ref_offset'][0], OFF[0], delta=1)
         self.assertAlmostEqual(lay['ref_offset'][1], OFF[1], delta=1)
+
+
+class Reach(RunnerBase):
+    """Ruling 28-31: the click goes straight to the target; a bed in reach interacts (that is the arrival)."""
+
+    def test_wilted_in_reach_target_arrives_by_interaction_and_uses_the_card(self):
+        f = self.fake(states={(2, 3): {'phase': 'wilted', 'crop': 'Carrot'}})
+        f.reach = True
+        self.preset(self.node(2, 2))
+        lay = dict(self.g.nodes[self.GB].extra['layout'])
+        res = self.run_('replant')
+        self.assertEqual(res['done'], [self.node(2, 3)])
+        self.assertEqual((f.st[(2, 3)]['phase'], f.st[(2, 3)]['crop'], f.st[(2, 3)]['wet']), ('growing', 'Carrot', True))
+        self.assertEqual(f.closed, 0)                  # the Remove card the click opened was used, not closed
+        self.assertEqual(f.asked, [])
+        self.assertEqual(len([l for l in f.log if 'unplant ' in l]), 1)   # one click, one unplant
+        self.assertEqual(self.g.state_value('Tara', 'at'), self.node(2, 2))   # she did not move
+        self.assertEqual(self.g.nodes[self.GB].extra['layout'], lay)          # ruling 30: unchanged
+        self.assertEqual(self.g.state_value(self.node(2, 3), 'crop'), 'Carrot')
+
+    def test_dry_in_reach_target_is_watered_by_the_click(self):
+        f = self.fake(states={(2, 3): {'wet': False}})
+        f.reach = True
+        self.preset(self.node(2, 2))
+        res = self.run_('water')
+        self.assertEqual(res['done'], [self.node(2, 3)])
+        self.assertTrue(f.st[(2, 3)]['wet'])
+        self.assertIs(self.g.state_value(self.node(2, 3), 'watered_today'), True)
+        self.assertEqual(len([l for l in f.log if '> water ' in l]), 1)
+        self.assertEqual((f.asked, f.clicks.__len__()), ([], 1))
+
+    def test_in_reach_out_of_water_takes_the_refill_path(self):
+        f = self.fake(states={(2, 3): {'wet': False}}, can=False)
+        f.reach = True
+        self.preset(self.node(2, 2))
+        res, visions = self.drive('water')
+        self.assertEqual((f.fills, visions), (1, 1))
+        self.assertEqual(res['done'], [self.node(2, 3)])
+        self.assertTrue(f.st[(2, 3)]['wet'])
+
+    def test_in_reach_ripe_target_is_picked_by_the_click(self):
+        f = self.fake(states={(1, 2): {'phase': 'ripe'}})
+        f.reach = True
+        self.preset(self.node(2, 2))
+        res = self.run_('harvest')
+        self.assertEqual(res['done'], [self.node(1, 2)])
+        self.assertEqual(f.asked, [])
+
+    def test_far_target_walks_with_shift_proof_then_acts_and_remeasures_ref_offset(self):
+        f = self.fake(states={(2, 4): {'wet': False}})
+        f.reach = True
+        self.preset(self.node(2, 2))
+        self.g.nodes[self.GB].extra['layout']['pitch'] = [PX + 10, PY]   # a slightly wrong pitch, still inside 0.4 pitch
+        res = self.run_('water')
+        self.assertEqual(res['done'], [self.node(2, 4)])
+        self.assertEqual(f.asked, [])
+        self.assertEqual(len(f.clicks) - 1, 1)         # one click to walk (plus the bubble click)
+        self.assertEqual(self.g.state_value('Tara', 'at'), self.node(2, 4))
+        off = self.g.nodes[self.GB].extra['layout']['ref_offset']
+        self.assertAlmostEqual(off[0], OFF[0] + 20, delta=6)   # ruling 30: layout point (2 x 250) + shift (2 x -240) - CENTRE
+        self.assertAlmostEqual(off[1], OFF[1], delta=6)
+
+    def test_other_event_than_expected_is_one_question(self):
+        f = self.fake(states={(2, 3): {'wet': False}})   # really a dry growing bed ...
+        f.reach = True
+        self.preset(self.node(2, 2), hints={(2, 3): {'phase': 'wilted'}})   # ... the graph thinks wilted
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('replant')
+        self.assertEqual(len(f.asked), 1)
+        self.assertIn('logged water', f.asked[0])
+
+    def test_no_event_and_no_shift_is_one_question(self):
+        f = self.fake(states={(2, 3): {'phase': 'empty', 'crop': None, 'wet': False}})   # in reach: opens the planting panel
+        f.reach = True
+        self.preset(self.node(2, 2), hints={(2, 3): {'phase': 'wilted'}})
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('replant')
+        self.assertEqual(len(f.asked), 1)
+        self.assertIn('opened', f.asked[0])
+
+    def test_shift_that_is_not_the_target_is_one_question(self):
+        f = self.fake(states={(2, 3): {'wet': False}})
+        f.reach = True
+        f.move = 'far'                                  # walks one bed too far
+        self.preset(self.node(2, 1))
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(len(f.asked), 1)
+        self.assertIn('move not proved', f.asked[0])
+        self.assertNotIn('layout', self.g.nodes[self.GB].extra)
+
+
+class Stuck(RunnerBase):
+    def test_fifth_question_is_chain_stuck(self):
+        f = self.fake()
+        self.preset(self.node(2, 2))
+        self.g.set_state('Tara', 'asks', 4, 'D5 9:00:00 AM', 'event')
+        self.g.set_state('Tara', 'ask_whys', [['x', 'w1'], ['x', 'w2'], ['x', 'w3'], ['x', 'w4']], 'D5 9:00:00 AM', 'event')
+        f.move = 'none'
+        self.g.set_state(self.node(2, 3), 'watered_today', False, 'D5 9:00:00 AM', 'vision')
+        with self.assertRaises(C.ChainStuck) as cm:
+            self.run_('water')
+        self.assertTrue(str(cm.exception).startswith('CHAIN_STUCK:'))
+        self.assertIn('w4', str(cm.exception))
+        self.assertEqual(f.asked, [])
+        self.assertEqual(self.g.state_value('Tara', 'asks'), 0)          # reset: a fresh task may ask again
+        self.assertIsNone(self.g.state_value('Tara', 'ask_whys'))
+
+    def test_four_questions_are_allowed(self):
+        f = self.fake()
+        self.preset(self.node(2, 2))
+        self.g.set_state('Tara', 'asks', 3, 'D5 9:00:00 AM', 'event')
+        f.move = 'none'
+        self.g.set_state(self.node(2, 3), 'watered_today', False, 'D5 9:00:00 AM', 'vision')
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(self.g.state_value('Tara', 'asks'), 4)
+
+    def test_same_why_at_same_bed_is_chain_stuck(self):
+        f = self.fake()
+        self.preset(self.node(2, 2))
+        f.move = 'none'
+        self.g.set_state(self.node(2, 3), 'watered_today', False, 'D5 9:00:00 AM', 'vision')
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.g.nodes[self.GB].extra['layout'] = dict(LAYOUT)   # the answer re-fitted the layout; the click still does nothing
+        self.g.set_state('Tara', 'at', self.node(2, 2), 'D5 9:00:00 AM', 'vision')
+        with self.assertRaises(C.ChainStuck) as cm:
+            self.run_('water')
+        self.assertIn('the same one again', str(cm.exception))
+        self.assertEqual(len(f.asked), 1)
+
+    def test_completed_run_resets_ask_history(self):
+        self.fake()
+        self.preset(self.node(2, 2))
+        self.g.set_state('Tara', 'asks', 2, 'D5 9:00:00 AM', 'event')
+        self.g.set_state('Tara', 'ask_whys', [['a', 'b']], 'D5 9:00:00 AM', 'event')
+        res = self.run_('water')
+        self.assertEqual(res['vision'], 2)
+        self.assertEqual(self.g.state_value('Tara', 'asks'), 0)
+        self.assertIsNone(self.g.state_value('Tara', 'ask_whys'))
+
+    def test_garden_wrapper_propagates_chain_stuck(self):
+        from game import garden
+        self.fake()
+        with self.mock.patch.object(C, 'run', side_effect=C.ChainStuck('CHAIN_STUCK: x')):
+            with self.assertRaises(C.ChainStuck):
+                garden.water_all(graph=self.g, gpath=os.path.join(self.tmp.name, 's.json'))
+
+    def test_wf_py_prints_chain_stuck_plainly(self):
+        import contextlib
+        import io
+        sys.argv = ['x']
+        import game
+        import wf
+        def boom():
+            raise C.ChainStuck('CHAIN_STUCK: replant stopped after 4 vision question(s)')
+        buf = io.StringIO()
+        with self.mock.patch.object(game, 'namespace', return_value={'boom': boom}), \
+                self.mock.patch.object(game, 'bind'), contextlib.redirect_stdout(buf):
+            code = wf.game_cmd('py', ['boom()'])
+        self.assertEqual(code, 3)
+        self.assertIn('CHAIN_STUCK: replant stopped', buf.getvalue())
+        self.assertNotIn('FAILED', buf.getvalue())
+        self.assertNotIn('Traceback', buf.getvalue())
+
+
+class LayoutDropped(RunnerBase):
+    def test_goto_garden_and_stale_at_drop_the_layout(self):
+        self.fake()
+        self.preset(self.node(2, 2))
+        self.g.set_state('Tara', 'at', self.node(2, 2), 'D4 9:00:00 AM', 'vision')   # stale
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertNotIn('layout', self.g.nodes[self.GB].extra)
+        self.g.nodes[self.GB].extra['layout'] = dict(LAYOUT)
+        self.g.set_state('Tara', 'need_goto', True, 'D5 9:00:00 AM', 'vision')
+        self.g.set_state('Tara', 'at', self.node(2, 2), 'D5 9:00:00 AM', 'vision')
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertNotIn('layout', self.g.nodes[self.GB].extra)
 
 
 class WellGraph(unittest.TestCase):

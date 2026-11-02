@@ -28,13 +28,14 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
 - **Anchor round trip (`replant_all()` / `water_all()` / `harvest_all()` print `NEED_VISION anchor: …`):** (1) `./wf pause`
   (the question costs no game time); (2) Read the full-size image named on the `look:` line:
   a grid (columns A-X, rows 1-16, each cell named) is drawn on it and the magenta circle marks the reference point; (3) answer
-  with one `./wf anchor "group: GardenBed@Garden   ref: r1c2@L8` newline `r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?"`
+  with one `./wf anchor "group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?"`
   (no bed visible at all: `./wf anchor "group: GardenBed@Garden   none"`, the next call walks to the garden first; `ref:` = the bed nearest the magenta marker; every bed is `rXcY@<cell>`: rXcY = row/column in the 3x4 bed grid, north row first,
   west to east, and `<cell>` = the grid cell nearest the bed's centre; state = empty|growing|ripe|wilted, `dry` or `watered` after
   growing, `?` = cannot tell; name every visible bed, at least 2 in different rows and columns). `REJECTED: …` prints the expected
-  shape: re-read the image and answer again, never guess. (4) `./wf resume`, then call the same function again: the run continues from the graph.
+  shape: re-read the image and answer again, never guess (the whole answer goes on ONE line; state words in any case). (4) `./wf resume`, then call the same function again: the run continues from the graph.
   A `NEED_VISION` from `loop.goto` (a click point question) inside `replant_all` means: answer that (`loop.answer`), then call
-  `replant_all` again. No bed tiles visible: the runner walks to the garden first; if it still asks, describe what you see.
+  `replant_all` again. **`CHAIN_STUCK: …`** (4 questions in one task, or the same question again at the same bed) is terminal:
+  stop, `./wf pause`, report the printed whys, do not retry. No bed tiles visible: the runner walks to the garden first; if it still asks, describe what you see.
 - **One game command per tool call** (AGENTS.md rule 8): never chain `./wf …; ./wf …` — a rejected call may already have run its first commands (objects-seed batched several with `;`).
 - **The call budget is a hard stop:** count your `./wf` calls; at the budget, `./wf pause` and report partial with what is left (objects-relabel ran 55 of 45 and skipped its last checks).
 - Also, one line each as it happens: `./wf run attempt <what you try now>` · `issue` · `gap` · `decision`.

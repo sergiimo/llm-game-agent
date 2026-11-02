@@ -24,12 +24,12 @@ RESIDUAL_LIMIT = 0.35                       # of the pitch
 SHAPE = ('group: <group>   ref: r<R>c<C>@<cell>\n'
          'r<R>c<C>@<cell> <phase>[(<crop>)][ dry|watered]   r<R>c<C>@<cell> ?   ... '
          '(no bed visible at all: "group: <group>   none"; cell = grid cell A1-X16 nearest the bed centre; phase: empty|growing|ripe|wilted; ? = state unknown; '
-         'e.g. "group: GardenBed@Garden   ref: r1c2@L8\nr1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   '
+         'e.g. "group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   '
          'r2c2@L12 wilted(Tulip)   r3c1@F15 ?"; name >= 2 beds in different rows and columns)')
 PHASES = ('empty', 'growing', 'ripe', 'wilted')
 _NONE = re.compile(r'^\s*group:\s*(\S+)\s+none\s*$')
 _HEAD = re.compile(rf'^\s*group:\s*(\S+)\s+ref:\s*(r\d+c\d+)@({CELL})\b\s*(.*)$', re.S)
-_TOKEN = re.compile(rf'(r\d+c\d+)@({CELL})\s+(\?|(\w+)(?:\(([^)]*)\))?(?:\s+(dry|watered)\b)?)')
+_TOKEN = re.compile(rf'(r\d+c\d+)@({CELL})\s+(\?|(\w+)(?:\(([^)]*)\))?(?:\s+(dry|watered)\b)?)', re.I)
 
 
 class AnchorError(Exception):
@@ -54,6 +54,7 @@ def cell_point(cell):
 
 
 def parse(text, graph):
+    text = text.replace('\\n', '\n')   # a literal backslash-n (typed in a shell argument) is whitespace too (ruling 31)
     n = _NONE.match(text.strip())
     if n:   # no beds visible: Tara is away from the garden
         if n.group(1) not in graph.nodes or graph.nodes[n.group(1)].type != 'group':
@@ -84,9 +85,12 @@ def parse(text, graph):
         while pos < len(rest) and rest[pos].isspace():
             pos += 1
         mid = member(cellid)
+        if anchor.cells.get(mid, grid) != grid:
+            raise AnchorError(f'{cellid} is listed twice with different grid cells ({anchor.cells[mid]}, {grid})')
         anchor.cells[mid] = grid
         if body == '?':
             continue
+        phase, wet = phase.lower(), wet and wet.lower()
         if phase not in PHASES:
             raise AnchorError(f'unknown state word {phase!r}')
         anchor.states[mid] = {'phase': phase, 'crop': crop or None,

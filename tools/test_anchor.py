@@ -40,6 +40,29 @@ class AnchorTest(unittest.TestCase):
         self.assertIs(a.states['GardenBed@Garden#r1c1']['watered_today'], True)
         self.assertIs(a.states['GardenBed@Garden#r1c2']['watered_today'], False)
 
+    def test_parse_accepts_literal_backslash_n_and_any_case(self):
+        lit = SPEC.replace('\n', '\\n')
+        self.assertIn('\\n', lit)
+        self.assertEqual(A.parse(lit, self.g).cells, A.parse(SPEC, self.g).cells)
+        a = A.parse(SPEC.replace('ripe', 'Ripe').replace('wilted', 'WILTED'), self.g)
+        self.assertEqual(a.states['GardenBed@Garden#r1c1']['phase'], 'ripe')
+        self.assertEqual(a.states['GardenBed@Garden#r2c1']['phase'], 'wilted')
+        self.assertEqual(a.states['GardenBed@Garden#r2c1']['crop'], 'Tulip')   # the crop keeps its case
+        b = A.parse(f'group: {GB}   ref: r1c1@F8   r1c1@F8 Growing Watered   r1c2@L8 growing DRY', self.g)
+        self.assertIs(b.states['GardenBed@Garden#r1c1']['watered_today'], True)
+        self.assertIs(b.states['GardenBed@Garden#r1c2']['watered_today'], False)
+
+    def test_prompt_example_is_one_line(self):
+        self.assertNotIn('\n', A.SHAPE.split('e.g. ', 1)[1])
+
+    def test_bed_listed_twice_with_different_cells_is_rejected(self):
+        with self.assertRaises(A.AnchorError) as cm:
+            A.parse(SPEC + '   r1c1@G8 ripe', self.g)       # last bed repeated with another cell
+        self.assertIn('twice', str(cm.exception))
+        with self.assertRaises(A.AnchorError):
+            A.parse(SPEC.replace('r1c2@L8 ripe', 'r1c1@G8 ripe'), self.g)   # first bed repeated
+        A.parse(SPEC + '   r1c1@F8 ripe', self.g)             # the same cell twice is harmless
+
     def test_cell_point(self):
         self.assertEqual(A.cell_point('F8'), (440, 506.25))
         self.assertEqual(A.cell_point('X16'), (1880, 1046.25))

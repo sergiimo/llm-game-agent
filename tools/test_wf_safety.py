@@ -25,6 +25,13 @@ class NoClickThroughMenus(unittest.TestCase):
         self.assertIn('menu', msg)
         self.assertEqual(self.clicks, [])
 
+    def test_refuses_on_russian_pause_menu_and_recognises_paused(self):
+        s = {'mode': 'overlay', 'text': ['0) Пауза', '1) Продолжить игру', '2) Настройки']}
+        wf.state = lambda save=False: s
+        self.assertTrue(wf.is_paused(s))
+        self.assertTrue(wf.go_to(900, 600).startswith('MENU OPEN'))
+        self.assertEqual(self.clicks, [])
+
     def test_refuses_on_settings_sliders(self):
         wf.state = lambda save=False: {'mode': 'overlay', 'text': ['0) Settings', '1) Music Volume']}
         self.assertTrue(wf.go_to(900, 600).startswith('MENU OPEN'))
@@ -66,6 +73,14 @@ class NoClickThroughMenus(unittest.TestCase):
 
 
 class Bubbles(unittest.TestCase):
+    def test_embedding_crop_excludes_the_human_orange_highlight_ring(self):
+        from PIL import Image, ImageDraw
+        plain = Image.new('RGB', (140, 140), 'white')
+        ImageDraw.Draw(plain).rectangle((55, 55, 85, 85), fill='blue')
+        highlighted = plain.copy()
+        ImageDraw.Draw(highlighted).ellipse((12, 12, 128, 128), outline='orange', width=12)
+        self.assertEqual(wf.bubble_icon(plain).tobytes(), wf.bubble_icon(highlighted).tobytes())
+
     def test_night_bubbles_found(self):                     # zoom-walk 9:20 pm: 3 honey bubbles, detector found 0
         from PIL import Image
         img = Image.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures',
@@ -150,6 +165,46 @@ class ChainedCalls(unittest.TestCase):
 
     def test_other_wf_text_is_not_a_call(self):
         self.assertFalse(self.refused(['do', 'go:1:2'], 'echo "./wf" ; ./wf do go:1:2'))
+
+
+class LocalImportsInScope(unittest.TestCase):
+    """wf.py imports many modules inside functions; a function that uses one without importing it fails only live
+    (replant-wilted-3: `click:` used math.dist → NameError before the click)."""
+
+    def test_every_used_module_is_imported_in_scope(self):
+        import ast
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wf.py')
+        tree = ast.parse(open(path).read())
+
+        def names(node):
+            return {a.asname or a.name.split('.')[0] for x in ast.walk(node) if isinstance(x, ast.Import)
+                    for a in x.names}
+        top = {a.asname or a.name.split('.')[0] for x in tree.body if isinstance(x, ast.Import) for a in x.names}
+        local_mods = names(tree) - top
+        bad = []
+
+        def walk(node, have):
+            for n in ast.iter_child_nodes(node):
+                if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    h = have | names(n)
+                    assigned = {x.id for x in ast.walk(n) if isinstance(x, ast.Name) and isinstance(x.ctx, ast.Store)}
+                    used = {x.id for x in ast.walk(n) if isinstance(x, ast.Name)} & local_mods - assigned
+                    bad.extend(f'{n.name}:{n.lineno} uses {m}' for m in used - h)
+                    walk(n, h)
+                else:
+                    walk(n, have)
+        walk(tree, top)
+        self.assertEqual(bad, [])
+
+
+class BubbleLabels(unittest.TestCase):
+    """A dialog confirmation is not a bubble interaction (10-30: Remove → `> unplant_impl` labelled the bed's new plant
+    bubble as `unplant_impl`; replant-wilted-3 then saw no plant bubble and walked away)."""
+
+    def test_remove_confirmation_labels_no_bubble(self):
+        import wf
+        self.assertIsNone(wf.event_kind(['[D183 12:24:32 PM] > unplant_impl me=Player target=GardenBed(Clone) at (3.34, 0.10, -29.09)']))
+        self.assertEqual(wf.event_kind(['[D183 12:24:32 PM] > unplant me=Player target=GardenBed(Clone) at (3.34, 0.10, -29.09)']), 'unplant')
 
 
 if __name__ == '__main__':

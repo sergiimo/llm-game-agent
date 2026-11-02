@@ -24,6 +24,19 @@
 | Item icons (which card is which item) | `ui.pick_card(name)` matches card icons to stored prints | the detail card's title after a click | `tools/items/<name>/*.png` (cap 20, dup < 0.15) | ✅ automatic (L78) |
 | Briefs, docs | quest brief Steps/Where | run log `issue` / `gap` / `decision` lines | quest files, `docs/world/locations.md` | supervisor debrief |
 
+Unknown bubble rule: if its owner resolves to the exact requested graph/world object, infer the requested action from
+that context, record `bubble_resolve`, click it, then let the resulting game-log performance label and store the crop.
+If kind or owner remains unresolved, stop with `UNKNOWN_BUBBLE` before input; model/user vision must resolve it first.
+Bubble clicks as well as Space presses capture crops for this learning loop.
+
+The orange highlight ring is excluded from bubble embeddings. It only tells a human which interaction Space would
+choose; agents click the selected bubble's coordinates directly. Highlight remains separate diagnostic state and never
+affects kind matching or agent selection.
+
+For crop-state ambiguity, bubble ownership narrows candidates to GardenBeds and the tool probes them one-by-one. OCR of
+the opened card supplies the immediate state (“plant has wilted”); the exact `> unplant`/`unplant_impl` game log remains
+the required destructive-action proof. Other crop cards are closed and the next GardenBed bubble is tried.
+
 ## Adding a new skill to the loop
 1. Find the game-log line that proves the outcome (search `./wf log --tail 200` right after doing it by hand).
 2. Make the tool record its prediction next to it (state line, run log).

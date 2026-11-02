@@ -95,6 +95,15 @@ class Walk(unittest.TestCase):
         self.assertEqual(len(s.clicks), 1)
         self.assertLess(math.dist(s.truth, (4.0, -31.0)), walk.REACH)
 
+    def test_domain_target_may_have_scalar_state(self):
+        s = Sim((0.0, -30.0), belief=(0.0, -30.0))
+        game.bind(s)
+        t = Target(4.0, -31.0)
+        t.state = 'growing'  # garden.Bed uses this field; it is not an Entity.state mapping
+        walk.walk(t)
+        self.assertEqual(len(s.clicks), 1)
+        self.assertLess(math.dist(s.truth, (4.0, -31.0)), walk.REACH)
+
     def test_unknown_belief_reads_first(self):
         s = Sim((0.0, -30.0))                               # belief unknown (u 99)
         game.bind(s)

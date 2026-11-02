@@ -10,6 +10,7 @@ what to do if it differs). Print the rows a job needs: `./wf actions chop rock p
 interaction model: approaching targets, gotchas, movement.
 
 ## Interaction bubbles (verified, user 2026-10-30; D148–D149)
+- **Sub-icons (D183, user):** a crop bubble with a pale-blue **water drop** at its top right = the crop needs water **or has wilted** (any crop icon carries it; `affordances.has_drop`). An orange **"!"** sub-icon = another state, not yet verified (probe/vision). Empty bed = seedling bubble without a sub-icon.
 - **Clicking any bubble triggers its action**, highlighted or not. The **highlight** (orange ring) only marks the one
   **Space** would use. So with several bubbles on screen (several beds, a bed and the well), **click the bubble of the
   object you want** instead of pressing Space: it can't pick the wrong one.
@@ -50,6 +51,13 @@ places chain `go:` hops (look between). `go:` returns when Tara herself stops (t
   Jump failed while pathfinding` and she stayed inside (loop-live-3). If the log shows that line, click a point on her
   side of the fence or toward a gap.
 - The loop (`fill_can()`, `goto_bed(…)`) clicks the target as soon as it is visible (user rule); stuck → it writes `ask-<n>.png` (+ clean `ask-<n>.frame.png`) in the run dir and raises NeedVision (two asks per goal, then Failed). Answer with `./wf py "answer(n, X, Y)"` (a walkable point toward the target) or, when the target is visible but not detected, teach it: `./wf py "label(n, 'Well', x0, y0, x1, y1)"`; then re-run the call. A wrong box → label it as what it really is (`label(n, 'Grass', …)`): rival kinds take the spot from then on.
+- **Every object whose bubble is showing is available now.** Several nearby objects can be available simultaneously
+  (six adjacent beds were observed). The loop stores each bubble's kind and click point as transient graph-node state;
+  `goto_bed()` succeeds on any available bed matching its query rather than walking to a preselected member. Tara is a
+  transient graph node with `near` edges to those objects; each edge notes their screen-relative direction
+  (`north`, `south-east`, etc.). `./wf py "available()"` lists each active node with its direction, bubble kind and
+  exact bubble click point. Bubble ownership is resolved against **all objects in the current region** before the goal
+  query is applied (e.g. a beehive bubble remains a hive and cannot satisfy `goto_bed()`).
 - `ALREADY THERE` = she was already at the object (its bubble shows): act.
 - `NO MOVE` = not walkable (wall, furniture, water, a menu open): click a ground point nearer to Tara.
 - `STILL MOVING` = long path: look and continue.
@@ -63,6 +71,12 @@ often next to grey rocks (easy to read as a pebble). **Thistle** = purple flower
 
 ## Finding targets
 - Where things are: [../world/locations.md](../world/locations.md) (per-area resources) → quest file notes → map `M` + `./wf look`.
+- The object graph stays singular. Nodes that visibly exist on the illustrated map may have optional map examples;
+  descendants use their nearest represented ancestor (a bed → Garden, a stove → House). Seed examples from existing
+  labelled map points with `./wf graph map-seed .shots/map_full.png`; inspect a saved map with
+  `./wf graph map-heatmap <node> <map.png> [out.png]`. Nodes without a map representation return that fact rather than
+  inventing a parallel node. The later far/lost navigator can derive a compass direction from Tara's map pin to the
+  heatmap peak.
 - A target with no bubble from any side is probably decoration. Note it in the quest file and locations.md.
 
 ## Energy

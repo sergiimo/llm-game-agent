@@ -1,5 +1,7 @@
 # Objects Steps 0–1: Frame Mapping, Detection and Vector Store Implementation Plan
 
+**Status (2026-11-02):** implemented (frame mapping in `wf.py`, detection + vector store in `tools/objects/`). Checkboxes were not ticked during execution.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans (user chose native/auto). Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** Grab frames and send clicks correctly for any window size/display (step 0), and detect objects in a frame by

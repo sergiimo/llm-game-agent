@@ -1,7 +1,8 @@
 """Object graph with nested regions (no coordinates: identity = kind, region, pattern index). Nodes are regions,
 uniques, groups and group members; `in` is the node's `region` field (a member's region is its group); edges carry
 `offers` (node, action), `leads_to` (door, region) and the like. States are hints with an age:
-{key: {value, game_time, source}}. Persisted as plain JSON (one file per top region); unknown keys survive load -> save."""
+{key: {value, game_time, source}}. Frame observations (source `frame`, such as a currently showing bubble) are transient;
+other states persist as plain JSON (one file per top region). Unknown keys survive load -> save."""
 import json
 import os
 import re
@@ -28,6 +29,9 @@ class Node:
         d = {'id': self.id, 'type': self.type, 'kind': self.kind, 'region': self.region}
         for k in ('state', 'vec', 'seen'):
             v = getattr(self, k)
+            if k == 'state':
+                v = {name: obs for name, obs in v.items()
+                     if not isinstance(obs, dict) or obs.get('source') != 'frame'}
             if v:
                 d[k] = v
         d.update(self.extra)
@@ -52,11 +56,19 @@ class Graph:
 
     def save(self, path):
         data = dict(self.extra)
-        data['nodes'] = [n.to_dict() for n in self.nodes.values()]
-        data['edges'] = self._edges
+        data['nodes'] = [n.to_dict() for n in self.nodes.values() if not n.extra.get('transient')]
+        data['edges'] = [e for e in self._edges if e.get('source') != 'frame']
         with open(path, 'w') as f:
             json.dump(data, f, indent=1, ensure_ascii=False)
             f.write('\n')
+
+    def clear_frame(self):
+        """Drop the previous frame's dynamic nodes, edges and state before observing the next frame."""
+        for n in self.nodes.values():
+            n.state = {k: v for k, v in n.state.items()
+                       if not isinstance(v, dict) or v.get('source') != 'frame'}
+        self._edges = [e for e in self._edges if e.get('source') != 'frame']
+        self.nodes = {id: n for id, n in self.nodes.items() if not n.extra.get('transient')}
 
     def node(self, id):
         return self.nodes.get(id)
@@ -112,7 +124,8 @@ _ACT = re.compile(r'>\s*(\w+)\b[^\n]*?target=(\w+)')
 
 def apply_log(graph, lines, beds):
     """Update node states from game-log lines (source 'log', game_time = the line's stamp 'D148 9:36:36 PM'):
-    `> full_watering_can ... target=Well` -> Well can=full; `> plant|water|unplant_impl ... target=GardenBed ... at (x, y, z)`
+    `> fill_watering_can|full_watering_can ... target=Well` -> Well can=full;
+    `> plant|water|unplant_impl ... target=GardenBed ... at (x, y, z)`
     -> that bed member (identity.member_from_log) crop=planted | watered=<game day> | crop=None. Returns
     [(node_id, key, value, game_time)] of the changes in order."""
     from .identity import member_from_log
@@ -123,7 +136,7 @@ def apply_log(graph, lines, beds):
             continue
         act, target = m.group(1), m.group(2)
         when = f'{st.group(1)} {st.group(3)}'
-        if act == 'full_watering_can' and target == 'Well' and 'Well' in graph.nodes:
+        if act in ('fill_watering_can', 'full_watering_can') and target == 'Well' and 'Well' in graph.nodes:
             ch = ('Well', 'can', 'full')
         elif target == 'GardenBed' and act in ('plant', 'water', 'unplant_impl'):
             mid = member_from_log(line, beds)

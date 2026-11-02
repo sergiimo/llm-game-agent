@@ -6,7 +6,7 @@
 
 | ID | Routine | When / skip | Steps | Done when | Cost |
 |---|---|---|---|---|---|
-| R1 | **Water the garden** (12 beds, 4×3 grid left of the farmhouse) | every day; **skip if** today's log says `Forecast is Rain/Storm` (rain waters everything). Wilted beds first | `Bed` → `House-door` (edges) → the **well** (left side of the garden): `act:fill_can` → each dry bed: `go:` onto it → `act:water`. Rusty can: **1 fill waters 1 bed** (refill between beds) | `./wf routines` R1 = DONE (`> water me=Player target=GardenBed` lines today ≥ beds not ripe) | small ⚡ per pour; ~10 game min per bed |
+| R1 | **Water the garden** (12 beds, 4×3 grid left of the farmhouse) | every day; **skip if** today's log says `Forecast is Rain/Storm` (rain waters everything). Wilted beds first | `./wf py "[water_next() for _ in range(N)]"` in small batches. `water_next()` filters today's exact successes, walks to a due bed, clicks the bed object directly (not a noisy bubble label), consumes the actual log position, and refills only after `out_of_water`. Rusty can: **5 beds per fill** (D156 live) | `./wf routines` R1 = DONE (`> water me=Player target=GardenBed` lines today ≥ beds not ripe) | ~7 ⚡ and ~10 game min per pour |
 | R2 | **Harvest ripe crops** | when the save shows `plantState ##produced` in a bed | `go:` onto the ripe bed → bag bubble → `act:pickup` (harvest = pickup ❓ verify) | R2 = DONE | free |
 | R3 | Bee hives (8) | ❓ (log shows pollen levels per hive overnight) | ❓ | ❓ | ❓ |
 

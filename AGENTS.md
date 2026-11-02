@@ -20,7 +20,7 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 | `docs/actions.md` | **Actions DB:** each action → recipe, **expected** hits/drops/energy, verify signal, fix. `./wf actions <tags>` prints a job's rows |
 | `runs/<YYYYMMDD-HHMM>-<task>/` | **One dir per task (L76):** `plan.md` (supervisor's step plan for the agent), `log.jsonl` (auto: calls, walks, game events; `./wf run step/attempt/issue/escalate/end`), `progress.md` (step timestamps + budget use), `retro-N.md`. `./wf run status` / `report`. Older runs: `runs/*.jsonl` |
 | `tools/game/` | **Game functions (L77)**: `garden.replant/plant/unplant/water/harvest`, `well.fill_can`, `move.goto`, `ui.press/close`; each walks, confirms, proves itself from the game log, logs an action tree. `./wf py "<code>"`, `./wf call <module.fn> args`, `./wf run waits` |
-| `tools/runtime/`, `tools/world/` | **Runtime evidence + world model (M1–M2, shadow)**: one game-log parser (`runtime/log.py`), actuators with a menu guard (`act.py`), the save (`save.py`); the world = entities (from log lines with positions), scene graph (networkx), costmap + A*, Tara's belief (Kalman), view. `./wf world [entities\|tara\|route X Z\|explain ID]`. Shadow until M3: predicts and is scored, doesn't act |
+| `tools/runtime/`, `tools/world/` | **Runtime evidence + world model (M1–M2, shadow)**: one game-log parser (`runtime/log.py`), actuators with a menu guard (`act.py`), the save (`save.py`); the world = entities (from log lines with positions), scene graph (networkx), costmap + A*, Tara's belief (Kalman), view. `./wf world [entities\|tara\|route X Z\|explain ID]`. **`tools/world/` coordinate model is superseded** by the object graph (spec 2026-10-31 §10 step 5: remove; don't extend). Identify targets from game-log `at (x, y, z)` lines instead (§13) |
 | `tools/objects/` | **Objects by appearance (spec 2026-10-31)**: per-kind vector store of labelled crops (`db/<kind>/`) + detection (DINOv2 patch heatmaps, one pass per frame, per-kind calibrated z thresholds, zoom-invariant). `./wf objects list\|add <kind> x0 y0 x1 y1 [state]\|detect [kinds]\|find <kind>\|eval\|calibrate\|reembed`; reads the frame only, no input. **Object graph with nested regions** (`graph.py`, `query.py`, `regions.py`, `views.py`, `graph/Farm.json`): Farm ⊃ House, Garden ⊃ beds/hives/well; `./wf graph show\|where\|path <Kind> [k=v]\|view-add <region>` (frame only, no input). **Object loop** (`loop.py`, `identity.py`, `bubbles.py`): `fill_can()`, `goto_bed(crop=None)` click the target as soon as it is visible; stuck -> `ask-<n>.png` + `loop.answer(n, X, Y)`; `./wf graph sync` applies the game log to node states (Well can, bed crop/watered) |
 | `tools/evals/`, `tools/bench/` | **Eval + benchmark (M0, spec 2026-10-30)**: every prediction's hit/miss per component (`./wf eval`, `./wf eval mark <id> hit\|miss`); fixed benchmark tasks A garden day, B trips, C NPC (`./wf bench start\|report\|compare`) |
 | `docs/self-improvement.md` | **Self-improvement loop**: act → capture → label from the game log → store disagreements → verify (`./wf learn`) → use. Bubble kinds learn automatically |
@@ -31,8 +31,8 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 | `routes/*.txt` | Old keyboard routes (disabled, L54); landmarks in them still describe the way |
 | `.claude/skills/` | `wylde-play` (main loop), `wylde-navigate`, `wylde-lookup`; generic `game-onboarding` (method for onboarding any game, with template scripts) |
 | `.claude/skills/wylde-supervise/` | **How to play:** supervisor loop (main conversation) → one `wylde-quest` per goal |
-| `.claude/agents/wylde-quest.md` | Quest agent (Sonnet): one goal, loads relevant docs, plans, records verified steps |
-| `.claude/agents/wylde-runner.md` | Action agent (Haiku): executes one concrete step via `./wf`, text-only |
+| `.claude/agents/wylde-quest.md` | Quest agent (cheapest model): one goal, loads relevant docs, plans, records verified steps |
+| `.claude/agents/wylde-runner.md` | Action agent (cheapest model): executes one concrete step via `./wf`, text-only |
 | `retros/` | Retrospectives (`/retro`) |
 | `tools/gen_quests.py`, `gen_world_tables.py`, `build_reference.py`, `wikiclean.py` | Regenerate quests/world/reference (verified steps are preserved) |
 
@@ -49,6 +49,8 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 Always have **one current goal** (in `docs/progress.md`). The main conversation supervises (`wylde-supervise`):
 choose the goal, dispatch `wylde-quest`, review, ask the user for decisions. The quest agent loads only the relevant
 docs and drives steps through `wylde-runner`.
+**User model preference (2026-11-01): every spawned gameplay agent uses the cheapest available model** unless the user
+explicitly requests another one (Codex: `gpt-6-luna` low; Claude: `haiku`). Do not inherit the supervisor model.
 **Manifest protocol:** the parent gives the child every file/reference it needs (quest file + its `Read:` list). A child that
 hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief for now and the future, then resumes it.
 
@@ -84,3 +86,7 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
 8. **One game command per tool call** (never `wf stop; wf resume; wf goto` in one call): a rejected call may already
    have run its first commands. After any rejection: `tail -3 .shots/actions.log`, then `./wf pause` if needed.
    wfc refuses an input command chained with another ./wf call.
+9. **Uncertainty → model vision, always (user, D183).** Game functions never fail blind: any `Failed` carries
+   `NEED_VISION: look at <png>: <question>` (`core.ask_vision`, frame taken at the innermost failure, before menus
+   close). Agents Read it before reporting a cause or deciding; code that can't tell (unknown icon, unread card, no
+   proof) asks vision, it doesn't guess.

@@ -14,14 +14,16 @@
    "kind": "House",
    "region": "Farm",
    "signal": "scene",
-   "exit": "HouseExit"
+   "exit": "HouseExit",
+   "map": {"label": "farmhouse", "kind": "MapHouse"}
   },
   {
    "id": "Garden",
    "type": "region",
    "kind": "Garden",
    "region": "Farm",
-   "signal": "view"
+   "signal": "view",
+   "map": {"label": "farm-garden", "kind": "MapGarden"}
   },
   {
    "id": "Well",

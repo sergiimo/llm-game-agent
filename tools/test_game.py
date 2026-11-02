@@ -44,7 +44,7 @@ class FakeGame:
         return t
 
     def state(self):
-        texts = {'card': ['This plant has wilted. You should remember to water plants every day'],
+        texts = {'card': ['Tulip', 'This plant has wilted. You should remember to water plants every day'],
                  'prompt': ['Are you sure you want to remove Tulip?', 'Remove', 'Cancel'],
                  'panel': ['Inventory', 'Seeds'],  # detail screens also say Seeds (the description)
                  'detail': [self.detail, 'Plant these seeds', 'Select'] if getattr(self, 'detail', None) else []
@@ -187,8 +187,10 @@ class FakeGame:
             self.log.append('> unplant_impl me=Player target=GardenBed' + self._pos())
             c.update(plantState='##0', isWilted='false')
             self.screen = 'gameplay'
-        elif self.screen == 'detail' and text == 'Select' and self.detail.startswith('Tulip'):
-            self.log.append('[STATS] totalPlanted.TulipSeed = 65')
+        elif self.screen == 'detail' and text == 'Select' and self.detail.startswith(('Tulip', 'Green Bean')):
+            self.log.append('[STATS] totalPlanted.TulipSeed = 65' if self.detail.startswith('Tulip')
+                            else '[STATS] totalPlanted.#-145752244 = 52')   # D183: Green Bean's stat is a hash
+            self.log.append('> plant me=Player target=GardenBed' + self._pos())   # logged as the panel closes
             c.update(plantState='##growing')
             self.screen = 'gameplay'
 
@@ -328,17 +330,209 @@ class Game(unittest.TestCase):
         game.water(2)
         self.assertNotIn('target=Well', '\n'.join(self.g.log))
 
+    def test_water_next_consumes_the_bed_the_active_bubble_actually_used(self):
+        from game import affordances, garden
+        from types import SimpleNamespace
+        self.g.crops[0]['isWilted'] = 'false'
+        old_scan, old_run = affordances.scan, self.g.run_action
+
+        affordances.scan = lambda: [affordances.Affordance(
+            'water', SimpleNamespace(x=3.34, z=-29.09), (500, 300), False, 0.1)]
+
+        def run_action(spec):
+            self.assertEqual(spec, 'click:500:300')
+            self.g.at = (3.34, -29.09)  # another simultaneously active bed, not beds_due()[0]
+            self.g._space()
+
+        self.g.run_action = run_action
+        self.addCleanup(setattr, affordances, 'scan', old_scan)
+        self.addCleanup(setattr, self.g, 'run_action', old_run)
+        actual = game.water_next()
+        self.assertEqual(actual.id, 2)
+        self.assertIn('> water', '\n'.join(self.g.log))
+        self.g.crops[1]['isWatered'] = 'false'  # simulate a save that has not caught up with the exact log yet
+        self.assertEqual([b.id for b in garden.beds_due()], [1])
+
+    def test_due_water_bubble_rejects_an_owner_not_in_the_due_set(self):
+        from game import affordances, garden
+        from types import SimpleNamespace
+        old_scan = affordances.scan
+        affordances.scan = lambda: [affordances.Affordance(
+            'water', SimpleNamespace(x=3.34, z=-29.09), (500, 300), False, 0.1)]
+        self.addCleanup(setattr, affordances, 'scan', old_scan)
+        self.assertFalse(garden._click_due_water_bubble([game.bed(1)]))
+
     def test_unplant_refuses_healthy_plant(self):
         with self.assertRaises(game.Failed) as e:
             game.unplant(2)
         self.assertIn('not wilted', str(e.exception))
         self.assertTrue(track.LINES[-1].startswith('✗ garden.unplant'))
 
+    def test_unplant_does_not_press_an_incompatible_neighbour_bubble(self):
+        from game import affordances, walk
+        from types import SimpleNamespace
+        old_use, old_scan, old_click = affordances.use, affordances.scan, walk.click_object
+        affordances.use = lambda action, target: False
+        affordances.scan = lambda: [affordances.Affordance(
+            'beehive_progress', SimpleNamespace(x=5.22, z=-23.46), (500, 300), True, 0.1)]
+        walk.click_object = lambda target: False
+        self.addCleanup(setattr, affordances, 'use', old_use)
+        self.addCleanup(setattr, affordances, 'scan', old_scan)
+        self.addCleanup(setattr, walk, 'click_object', old_click)
+        with self.assertRaises(game.Failed) as e:
+            game.unplant(1)
+        self.assertIn('other bubbles are visible', str(e.exception))
+        self.assertNotIn('beehive_progress', '\n'.join(self.g.log))
+
+    def _visible(self, healthy_first=True):
+        """Screen bubbles from the beds' state (no geometry): empty → plant; planted and dry/wilted → drop sub-icon."""
+        from game import affordances
+        pts = {0: (500, 300), 1: (600, 300)}
+        def scan():
+            out = []
+            for i, c in enumerate(self.g.crops):
+                empty = c['plantState'] == '##0'
+                out.append(affordances.Affordance('plant' if empty else 'unknown', None, pts[i], i == 1, 0.8,
+                                                  not empty and c['isWatered'] == 'false'))
+            return sorted(out, key=lambda a: a.pt[0], reverse=healthy_first)
+        def run_action(spec):
+            for i, pt in pts.items():
+                if spec == f'click:{pt[0]}:{pt[1]}':
+                    c = self.g.crops[i]
+                    self.g.at = (float(c['x']), float(c['z']))
+                    self.g.can_full = True               # a can with enough water for the test
+                    self.g._space()
+                    return
+            old_run(spec)
+        old_scan, old_run = affordances.scan, self.g.run_action
+        affordances.scan, self.g.run_action = scan, run_action
+        self.addCleanup(setattr, affordances, 'scan', old_scan)
+        self.addCleanup(setattr, self.g, 'run_action', old_run)
+
+    def test_drop_sub_icon_on_real_bubbles(self):            # user, D183: the drop goes with any crop icon
+        from game import affordances
+        from PIL import Image
+        d = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bubbles')
+        drop = {'water/water-20261030-185207.png', 'water/water-20261031-155650.png',
+                'unplant/unplant-20261101-183642.png', 'unplant/unplant-20261030-184236.png'}
+        none = {'plant/plant-20261030-184926.png', 'unplant/unplant-20261030-184331.png',
+                'water/water-20261030-184954.png', 'fill_can/fill_can-20261029-094417.png', 'talk/talk-live1.png'}
+        for f in drop | none:
+            self.assertEqual(affordances.has_drop(Image.open(os.path.join(d, f))), f in drop, f)
+
+    def test_replant_visible_waters_dry_beds_then_fixes_the_wilted_one(self):
+        self._visible()
+        b = game.replant_visible()
+        log = '\n'.join(self.g.log)
+        self.assertEqual((b.x, b.z), (0.84, -29.09))
+        self.assertIn('> water me=Player target=GardenBed at (3.34, 0.10, -29.09)', log)   # dry bed on the way
+        self.assertIn('> unplant_impl', log)
+        self.assertIn('totalPlanted.TulipSeed', log)
+        self.assertIn('> water me=Player target=GardenBed at (0.84, 0.10, -29.09)', log)   # the replanted bed
+        self.assertEqual(self.g.crops[0]['isWatered'], 'true')
+
+    def test_replant_visible_same_crop_by_log_not_geometry(self):
+        from game import garden
+        old_goto = garden.goto
+        garden.goto = lambda b: self.fail('visible bed must not navigate')
+        self.addCleanup(setattr, garden, 'goto', old_goto)
+        self._visible()
+        b = game.replant_visible()                       # seed=None: the crop the wilted card names (Tulip)
+        log = '\n'.join(self.g.log)
+        self.assertEqual((b.x, b.z), (0.84, -29.09))     # the bed the log named
+        self.assertIn('> unplant_impl', log)
+        self.assertIn('totalPlanted.TulipSeed', log)
+        self.assertEqual(log.count('> unplant '), 1)     # the healthy bed was only looked at
+
+    def test_crop_name_from_card(self):
+        from game import garden
+        self.assertEqual(garden.crop_name('Green Bean / The unripe fruit of the / This plant has wilted.'),
+                         'Green Bean')
+
+    def test_plant_visible_needs_exactly_one_plant_bubble(self):
+        for c in self.g.crops:
+            c.update(plantState='##0', isWilted='false')
+        self._visible()
+        with self.assertRaises(game.Failed) as e:
+            game.plant_visible('Tulip')
+        self.assertIn('2 plant bubbles', str(e.exception))
+        self.assertEqual(self.g.log, [])
+
+    def test_press_refuses_space_when_only_foreign_bubbles_are_visible(self):
+        from game import affordances
+        from types import SimpleNamespace
+        old_scan = affordances.scan
+        affordances.scan = lambda: [affordances.Affordance(
+            'unplant', SimpleNamespace(kind='GardenBed', x=5.84, z=-29.09), (500, 300), True, 0.1)]
+        self.addCleanup(setattr, affordances, 'scan', old_scan)
+        with self.assertRaises(game.Failed) as e:
+            affordances.press('plant', game.bed(1))
+        self.assertIn('no plant bubble', str(e.exception))
+        self.assertEqual(self.g.log, [])
+
+    def test_plant_stops_when_the_click_opened_another_bed(self):
+        from game import affordances
+        old_press = affordances.press
+        def wrong(action, target):
+            self.g.log.append('> unplant me=Player target=GardenBed at (5.84, 0.10, -29.09)')
+            self.g.screen = 'card'
+        affordances.press = wrong
+        self.addCleanup(setattr, affordances, 'press', old_press)
+        self.g.crops[0].update(isWilted='false', plantState='##0')
+        with self.assertRaises(game.Failed) as e:
+            game.plant(1)
+        self.assertIn('another bed', str(e.exception))
+        self.assertEqual(self.g.screen, 'gameplay')        # the wrong bed's card was closed, nothing removed
+
     def test_failure_names_the_missing_proof(self):
         self.g.crops[0].update(isWilted='false', plantState='##produced')   # a ripe bed won't open a panel
         with self.assertRaises(game.Failed) as e:
             game.plant(1)
         self.assertIn('planting panel did not open', str(e.exception))
+
+    def test_pick_card_accepts_the_detail_it_opened_on_when_the_title_band_misses(self):
+        # D183: panel opened on "Green Bean Seeds"; the fixed title band read '' and count "6" was missed → 2 cards
+        self.g.crops[0].update(isWilted='false', plantState='##0')
+        self._visible()
+        self.g.ocr_image = lambda img, scale=None, offset=(0, 0): []    # the band OCR and the counts both miss
+        b = game.plant_visible('Green Bean', at=(0.84, -29.09))
+        self.assertEqual((b.x, b.z), (0.84, -29.09))
+        self.assertIn('totalPlanted.#-145752244', '\n'.join(self.g.log))
+
+    def test_pick_card_opens_the_highlighted_first_card(self):
+        # D183 (user): the panel opens with the first card HIGHLIGHTED (its name on screen, no Select yet) and its
+        # count "6" isn't read → it must still click the first slot (planting-panel.md ≈110,540)
+        self.g.crops[0].update(isWilted='false', plantState='##0')
+        self._visible()
+        self.g.CARDS = {110: 'Green Bean Seeds', 260: 'Carrot Seeds', 400: 'Tulip Bulbs'}
+        old_space, old_state = self.g._space, self.g.state
+        def space():
+            if self.g.screen == 'gameplay' and self.g._crop()['plantState'] == '##0':
+                self.g.log.append('> plant_open')       # not a real log line; the real `> plant` comes on close
+                self.g.screen = 'panel'
+            else:
+                old_space()
+        def state():
+            st = old_state()
+            if self.g.screen == 'panel':
+                st['text'].append('9) Green Bean Seeds')  # the highlighted card's name
+            return st
+        self.g._space, self.g.state = space, state
+        self.g.ocr_image = lambda img, scale=None, offset=(0, 0): (
+            [{'text': n, 'cx': x, 'cy': 600} for x, n in ((260, '10'), (400, '4'))]
+            if self.g.screen == 'panel' else [])        # counts: "6" missed, 10 and 4 read
+        b = game.plant_visible('Green Bean', at=(0.84, -29.09))
+        self.assertEqual((b.x, b.z), (0.84, -29.09))
+        self.assertIn('totalPlanted.#-145752244', '\n'.join(self.g.log))
+
+    def test_any_failure_asks_vision_once_with_the_innermost_frame(self):   # user, D183: uncertainty → vision
+        from game import core
+        n = len(core.VISION_ASKS)
+        self.g.crops[0].update(isWilted='false', plantState='##produced')   # a ripe bed won't open a panel
+        with self.assertRaises(game.Failed) as e:
+            game.replant(1)                                                   # replant → unplant fails inside
+        self.assertEqual(str(e.exception).count('NEED_VISION'), 1)
+        self.assertEqual(len(core.VISION_ASKS), n + 1)
 
     def test_press_prefers_the_exact_button(self):
         self.g.screen = 'prompt'

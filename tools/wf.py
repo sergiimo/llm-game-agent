@@ -15,6 +15,7 @@ Requires macOS permissions for the host terminal (System Settings > Privacy & Se
 import argparse
 import re
 import json
+import math
 import os
 import subprocess
 import sys
@@ -235,15 +236,20 @@ def grab(crop=True):
     Q = _quartz()
     if screen_locked():
         sys.exit('ERROR: the Mac screen is LOCKED; captures are black and input is blocked. Ask the user to unlock.')
+    import objc
     w = require_window()
-    cg = Q.CGWindowListCreateImage(Q.CGRectNull, Q.kCGWindowListOptionIncludingWindow, w['id'],
-                                   Q.kCGWindowImageBoundsIgnoreFraming | Q.kCGWindowImageNominalResolution)
-    if cg is None:
-        sys.exit('ERROR: capture failed (Screen Recording permission? sandbox?)')
-    cw, ch = Q.CGImageGetWidth(cg), Q.CGImageGetHeight(cg)
-    bpr = Q.CGImageGetBytesPerRow(cg)
-    data = Q.CGDataProviderCopyData(Q.CGImageGetDataProvider(cg))
-    img = Image.frombuffer('RGBA', (cw, ch), bytes(data), 'raw', 'BGRA', bpr, 1).convert('RGB')
+    with objc.autorelease_pool():
+        cg = Q.CGWindowListCreateImage(Q.CGRectNull, Q.kCGWindowListOptionIncludingWindow, w['id'],
+                                       Q.kCGWindowImageBoundsIgnoreFraming | Q.kCGWindowImageNominalResolution)
+        if cg is None:
+            sys.exit('ERROR: capture failed (Screen Recording permission? sandbox?)')
+        cw, ch = Q.CGImageGetWidth(cg), Q.CGImageGetHeight(cg)
+        bpr = Q.CGImageGetBytesPerRow(cg)
+        data = Q.CGDataProviderCopyData(Q.CGImageGetDataProvider(cg))
+        # memoryview, NOT bytes(data): bytes() of the CFData leaked the whole frame (~8 MB) per call, so a long
+        # bubble-scan loop grew the daemon without bound (D183 replant run hang; measured +8 MB/call → +0)
+        img = Image.frombuffer('RGBA', (cw, ch), memoryview(data), 'raw', 'BGRA', bpr, 1).convert('RGB')
+        del cg, data
     if img.size != (w['w'], w['h']):
         img = img.resize((w['w'], w['h']), Image.BILINEAR)
     return _to_frame(img, w) if crop else img
@@ -774,7 +780,7 @@ def _bubble_refs():
             d = os.path.join(BUBBLE_DIR, kind)
             for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
                 if f.endswith('.png'):
-                    _BUBBLE_REFS.append((kind, f, _featureprint(Image.open(os.path.join(d, f)))))
+                    _BUBBLE_REFS.append((kind, f, bubble_featureprint(Image.open(os.path.join(d, f)))))
     return _BUBBLE_REFS
 
 
@@ -782,10 +788,29 @@ def bubble_crop(img, b):
     return img.crop((b[0] - 70, b[1] - 70, b[0] + 70, b[1] + 70))
 
 
+def bubble_icon(crop):
+    """Semantic icon only: exclude the outer orange selection ring, which exists solely for human Space-key UX."""
+    from PIL import Image, ImageDraw
+    crop = crop.convert('RGB')
+    cx, cy = crop.width // 2, crop.height // 2
+    radius = max(1, int(min(crop.width, crop.height) * 0.30))  # 42 px for 140 crops; ring begins near radius 48
+    box = (cx - radius, cy - radius, cx + radius, cy + radius)
+    icon = crop.crop(box)
+    mask = Image.new('L', icon.size, 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, icon.width - 1, icon.height - 1), fill=255)
+    out = Image.new('RGB', icon.size, 'white')
+    out.paste(icon, mask=mask)
+    return out
+
+
+def bubble_featureprint(crop):
+    return _featureprint(bubble_icon(crop))
+
+
 def bubble_kind(img, b, exclude=None):
     """(kind, distance) of the bubble at b in a 1920x1080 frame; kind 'unknown' if nothing is close."""
     import numpy as np
-    fp = _featureprint(bubble_crop(img, b))
+    fp = bubble_featureprint(bubble_crop(img, b))
     best = ('unknown', 9.0)
     for kind, name, ref in _bubble_refs():
         if name != exclude:
@@ -811,7 +836,8 @@ def bubble_highlighted(img, b):
 # That performance is the ground truth for the bubble Space was pressed at; an unseen one becomes a NEW kind (its name).
 PERF = re.compile(r'\] > (\w+?) me=Player target=([\w#()-]+)')
 PERF_IGNORE = re.compile(r'^(goal_notification|enter_scene|stamina_fail|advance_day|trigger_startday_events|day_start_intro|'
-                         r'SaveGameUpgrade|Mining_|scene_change|quest_complete|sleep_transition|grab_item_auto)')
+                         r'SaveGameUpgrade|Mining_|scene_change|quest_complete|sleep_transition|grab_item_auto|'
+                         r'unplant_impl)')  # unplant_impl = the Remove dialog button, not a bubble
 PERF_ALIAS = [(r'^grab_item$', 'pickup'), (r'^hit_rock$', 'pickaxe'), (r'^PlayerGardening', 'axe'), (r'^water$', 'water'),
               (r'^fill_watering_can$', 'fill_can'), (r'^plant$', 'plant'), (r'^sleep\d*$', 'sleep'), (r'^routine_sign$', 'info'),
               (r'_trade', 'talk')]
@@ -837,7 +863,7 @@ def learn_bubble(crop, kind, seen):
     """Add a crop to tools/bubbles/<kind>/ unless it's a near duplicate or the kind is full. Returns True if stored."""
     import numpy as np
     global _BUBBLE_REFS
-    fp = _featureprint(crop)
+    fp = bubble_featureprint(crop)
     same = [ref for k, _, ref in _bubble_refs() if k == kind]
     if len(same) >= BUBBLE_CAP or any(float(np.linalg.norm(fp - r)) < BUBBLE_DUP for r in same):
         return False
@@ -1408,15 +1434,16 @@ def objects_cmd(args):
 
 
 def graph_cmd(args):
-    """wf graph show [region] | where | path <Kind> [key=value ...] | view-add <region> | sync: the object graph with nested regions
+    """wf graph show [region] | where | path <Kind> [key=value ...] | view-add <region> | sync |
+    map-seed <map.png> | map-heatmap <node> <map.png> [out.png]: the object graph with nested regions
     (tools/objects/graph). Reads the current frame only (WF_FRAME=<img> uses a saved one); no focus change, no input.
-    Env: WF_GRAPH=<json>, WF_VIEWS=<dir>, WF_SCENE=<scene> (tests), WF_OBJECTS_DB=<dir>."""
+    Env: WF_GRAPH=<json>, WF_VIEWS=<dir>, WF_SCENE=<scene> (tests), WF_OBJECTS_DB=<dir>, WF_MAP_DB=<dir>."""
     if os.path.join(ROOT, 'tools') not in sys.path:
         sys.path.insert(0, os.path.join(ROOT, 'tools'))
     from objects import graph as OG, query as OQ, regions as OR, views as OV, store as OS, detect as OD
     g = OG.Graph()
     g.load(os.environ.get('WF_GRAPH') or os.path.join(OG.DEFAULT_DIR, 'Farm.json'))
-    if not args or args[0] not in ('show', 'where', 'path', 'view-add', 'sync'):
+    if not args or args[0] not in ('show', 'where', 'path', 'view-add', 'sync', 'map-seed', 'map-heatmap'):
         sys.exit(graph_cmd.__doc__)
     cmd, rest = args[0], args[1:]
     if cmd == 'sync':   # game log since the last sync mark -> node states (plant / water / unplant / can), then save
@@ -1434,6 +1461,33 @@ def graph_cmd(args):
         for nid, key, val, when in changes:
             print(f'{nid} {key}={val} @{when}')
         return print(f'synced {len(lines)} log lines since {mark}: {len(changes)} state changes')
+    if cmd in ('map-seed', 'map-heatmap'):
+        from PIL import Image
+        from objects import map_vectors as OM
+        map_store = OS.Store(os.environ.get('WF_MAP_DB') or OM.DEFAULT_ROOT)
+        if cmd == 'map-seed':
+            if len(rest) != 1:
+                sys.exit(graph_cmd.__doc__)
+            import nav
+            image = Image.open(rest[0]).convert('RGB')
+            rows = OM.seed(g, image, nav.map_load().get('places', {}), store=map_store,
+                           source=os.path.basename(rest[0]))
+            for row in rows:
+                status = row['id'] or 'duplicate'
+                print(f"{row['node']} -> {row['kind']} label={row['label']} {status}")
+            return print(f'seeded {sum(r["id"] is not None for r in rows)}/{len(rows)} map examples')
+        if len(rest) not in (2, 3):
+            sys.exit(graph_cmd.__doc__)
+        node_id, image_path = rest[:2]
+        safe = re.sub(r'[^A-Za-z0-9_-]+', '-', node_id)
+        output = rest[2] if len(rest) == 3 else os.path.join(SHOTS, f'map-heatmap-{safe}.png')
+        image = Image.open(image_path).convert('RGB')
+        match = OM.locate(g, node_id, image, store=map_store)
+        if match is None:
+            return print(f'{node_id}: no map representation')
+        OM.render(image, match, output)
+        return print(f'{node_id} -> {match.representation.node_id}/{match.representation.kind}: '
+                     f'peak={match.point[0]},{match.point[1]} z={match.score:.2f} raw={match.raw:.3f} wrote {output}')
 
     def frame():
         from PIL import Image
@@ -1703,7 +1757,9 @@ def wait_settle(before=None, timeout=3.0, interval=0.1, still=1.5, min_wait=0.25
 
 
 MENU_WORDS = ('game paused', 'resume game', 'settings', 'volume', 'return to menu', 'exit game', 'inventory',
-              'select', 'buy', 'sell', 'not yet', 'remove', 'cancel', 'confirm')
+              'select', 'buy', 'sell', 'not yet', 'remove', 'cancel', 'confirm',
+              'пауза', 'продолжить игру', 'настройки', 'громкость', 'вернуться в меню', 'выйти из игры', 'инвентарь',
+              'выбрать', 'купить', 'продать', 'удалить', 'отмена', 'подтвердить')
 
 
 def menu_open(s):
@@ -3472,7 +3528,8 @@ def map_walk(place, goal, max_hops=30):
 
 def is_paused(s=None):
     s = s or state()
-    return s['mode'] == 'overlay' and any('Game Paused' in t for t in s['text'])
+    return s['mode'] == 'overlay' and any(any(word in t.casefold() for word in ('game paused', 'пауза'))
+                                          for t in s['text'])
 
 
 def set_paused(want):
@@ -3526,7 +3583,13 @@ def run_action_inner(spec):
 
     elif kind == 'click':
         x, y = arg.split(':')
-        click(int(x), int(y))
+        x, y = int(x), int(y)
+        img = _frame()
+        bubbles = find_bubbles(img)
+        b = min(bubbles, key=lambda p: math.dist(p, (x, y))) if bubbles else None
+        if b and math.dist(b, (x, y)) <= 70:
+            _PENDING.append((bubble_crop(img, b), bubble_kind(img, b)[0]))
+        click(x, y)
     elif kind == 'text':
         hits = find_text(arg)
         if not hits:
@@ -3744,6 +3807,9 @@ LOG_NOISE = re.compile(r'\[(SHELL|CLOUD|SAVE|MSG|DEVICE|VIEW)\]|no applicable pe
 _NAMES = None
 
 
+EXTRA_NAMES = ('BeanSeed',)  # D183: #-145752244 = Green Bean Seeds (inventory x6, totalPlanted)
+
+
 def _names():
     """CRC32(internal name) -> name. The game stores ids as signed CRC32 of names like 'GrandmaFaveFood'; the
     candidate names are the identifier strings in the app's asset files (cached in .shots, ~20 s to build)."""
@@ -3771,6 +3837,9 @@ def _names():
         for line in fh:
             h, n = line.rstrip('\n').split('\t')
             _NAMES.setdefault(int(h), n)
+    for n in EXTRA_NAMES:  # ids the asset scan misses, found by hand (CRC32 of the guessed name matched)
+        h = zlib.crc32(n.encode())
+        _NAMES.setdefault(h - (1 << 32) if h >= 1 << 31 else h, n)
     return _NAMES
 
 
@@ -4065,7 +4134,7 @@ def main(argv=None):
     p.add_argument('args', nargs='*')
     p = sub.add_parser('objects', help='object examples + detection: wf objects list | add <kind> x0 y0 x1 y1 [state] | detect [kind..] | find <kind> | eval [dir] | calibrate [dir] | reembed')
     p.add_argument('args', nargs='*')
-    p = sub.add_parser('graph', help='object graph with nested regions: wf graph show [region] | where | path <Kind> [key=value..] | view-add <region>')
+    p = sub.add_parser('graph', help='object graph: show/where/path/view-add/sync/map-seed/map-heatmap')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('eval', help='hits/misses of predictions: wf eval [all] | pending | mark <id> hit|miss')
     p.add_argument('args', nargs='*')

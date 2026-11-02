@@ -114,6 +114,11 @@ class BubbleTest(unittest.TestCase):
         c = det(210, 330)
         self.assertIs(B.owner((205, 250), [a, c]), c)           # nearest
 
+    def test_screen_relative_direction(self):
+        self.assertEqual(L._direction((500, 500), (500, 300)), 'north')
+        self.assertEqual(L._direction((500, 500), (700, 700)), 'south-east')
+        self.assertEqual(L._direction((500, 500), (510, 510)), 'overlapping')
+
 
 
 
@@ -179,6 +184,8 @@ class LoopTest(unittest.TestCase):
         self.g = G.Graph()
         self.g.load(SEED)
         self.tmp = tempfile.mkdtemp()
+        L.ACTIVE = frozenset()
+        L.OBSERVED_GRAPH = None
         L.STATE.update(goal=None, asks=0)
 
     def tearDown(self):
@@ -213,7 +220,7 @@ class LoopTest(unittest.TestCase):
         b = well.box
         self.assertTrue(b[0] <= x <= b[2] and b[1] <= y <= b[3])
         self.assertEqual((arr.node.id, arr.region), ('Well', 'Farm'))
-        self.assertEqual(L.ACTIVE, ('Well', 'Farm'))
+        self.assertEqual(L.ACTIVE, frozenset({('Well', 'Farm')}))
 
     def test_enter_garden_then_bed(self):
         n1, z2 = self.img['normal-1'], self.img['zoom-2']
@@ -288,18 +295,110 @@ class LoopTest(unittest.TestCase):
         self.assertNotIn((960, 540), wf2.clicks)
         self.assertTrue(os.path.exists(os.path.join(self.tmp, 'ask-1.answer.json')))
 
-    def test_neighbours_bubble_is_not_arrival_and_is_avoided(self):
+    def test_neighbours_matching_bubble_is_arrival(self):
         q = L.Q(kind='GardenBed', offers='plant')
         cp = self.first_click('zoom-2', q)
         nb = [d for d in self.dets('zoom-2', 'GardenBed', 'Garden') if 100 < d.point[1] - cp[1] <= 260 and abs(d.point[0] - cp[0]) <= 80]
         self.assertTrue(nb)
         bub = (cp[0], cp[1] + 50)          # 50 px below the target's point, above its southern neighbour: owned by the neighbour
         wf = FakeWf([self.img['zoom-2']] * 3, {i: [(bub, 'plant')] for i in range(3)}, run_dir=self.tmp)
-        with self.assertRaises(L.Failed):                          # never "arrived" at the target
-            self.run_goto(q, wf, max_clicks=2)
-        self.assertEqual(len(wf.clicks), 2)
-        self.assertLess(L._dist(wf.clicks[0], cp), 25)             # still the target bed
-        self.assertGreaterEqual(L._dist(wf.clicks[0], bub), 60)
+        arr = self.run_goto(q, wf, max_clicks=2)
+        self.assertEqual(wf.clicks, [])                            # the neighbouring matching bed is already active
+        self.assertEqual(arr.point, bub)
+        self.assertIn((arr.node.id, arr.region), L.ACTIVE)
+
+    def test_any_matching_bed_with_a_bubble_is_arrival_and_all_are_active(self):
+        """Reach is a property of every object whose bubble is available, not one preselected graph member."""
+        q = L.Q(kind='GardenBed')
+        img = self.img['zoom-2']
+        probe = FakeWf([img], run_dir=self.tmp)
+        fr = L._Frame(probe, self.g, self.st, self.fn())
+        cands = q.run(self.g, 'Garden')
+        vis = L._visible(fr, cands)
+        order = q.run(self.g, 'Garden', visible=set(vis))
+        preselected = next(n for n in order if n.id in vis)
+        active = []
+        for n in order:
+            d = vis.get(n.id)
+            if d is None or n.id == preselected.id:
+                continue
+            bp = (d.point[0], d.point[1] - 120)
+            if B.owner(bp, list(vis.values())) is d:
+                active.append((n, bp))
+            if len(active) == 2:
+                break
+        self.assertEqual(len(active), 2)
+        wf = FakeWf([img], {0: [(bp, 'unknown') for _, bp in active]}, run_dir=self.tmp)
+        arr = self.run_goto(q, wf)
+        self.assertEqual(wf.clicks, [])                            # already in range: do not walk to member #1
+        self.assertIn(arr.node.id, {n.id for n, _ in active})
+        self.assertEqual(L.ACTIVE, frozenset((n.id, arr.region) for n, _ in active))
+        for n, bp in active:
+            self.assertEqual(self.g.state_value(n.id, 'bubble'), {'kind': 'unknown', 'point': list(bp)})
+        self.assertIsNone(self.g.state_value(preselected.id, 'bubble'))
+        tara = self.g.node('Tara')
+        self.assertIsNotNone(tara)
+        self.assertEqual(tara.region, arr.region)
+        near = self.g.edges('Tara', 'near')
+        self.assertEqual({e['b'] for e in near}, {n.id for n, _ in active})
+        self.assertTrue(all(e['basis'] == 'screen' and e['direction'] in
+                            {'north', 'south', 'east', 'west', 'north-east', 'north-west',
+                             'south-east', 'south-west', 'overlapping'} for e in near))
+        listed = L.available()
+        self.assertEqual({x['id'] for x in listed}, {n.id for n, _ in active})
+        self.assertTrue(all(x['bubble'] == 'unknown' and x['point'] and x['direction'] for x in listed))
+
+    def test_hive_owns_its_bubble_before_bed_query_is_applied(self):
+        q = L.Q(kind='GardenBed')
+        bed, hive = self.g.node('GardenBed#1'), self.g.node('BeeHive#1')
+        context = L._context_candidates(self.g, 'Garden', q.run(self.g, 'Garden'))
+        self.assertIn(hive.id, {n.id for n in context})
+        bed_det = det(500, 700, kind='GardenBed')
+        hive_det = det(500, 600, kind='BeeHive')
+        bubble = (500, 480)                                     # stacked above both; nearer the hive
+        active = L._active_candidates(self.g, [bed, hive], q,
+                                      {bed.id: bed_det, hive.id: hive_det}, [(bubble, 'unknown')], 1)
+        self.assertEqual(set(active), {hive.id})
+        self.assertEqual(self.g.state_value(hive.id, 'bubble'),
+                         {'kind': 'unknown', 'point': list(bubble)})
+        self.assertIsNone(self.g.state_value(bed.id, 'bubble'))
+
+    def test_classified_hive_bubble_cannot_activate_a_bed_even_if_geometry_owns_it(self):
+        q = L.Q(kind='GardenBed')
+        bed = self.g.node('GardenBed#1')
+        bed_det = det(500, 700, kind='GardenBed')
+        active = L._active_candidates(self.g, [bed], q, {bed.id: bed_det},
+                                      [((500, 500), 'beehive_progress')], 1)
+        self.assertEqual(active, {})
+        self.assertIsNone(self.g.state_value(bed.id, 'bubble'))
+
+    def log_after_click(self, wf, line):
+        wf.game_log = []
+        wf.log_mark = lambda: len(wf.game_log)
+        wf.log_since = lambda mark: '\n'.join(wf.game_log[mark:])
+        click = wf.run_action
+        def run_action(action):
+            click(action)
+            wf.game_log.append(line)
+        wf.run_action = run_action
+        return wf
+
+    def test_target_interaction_log_proves_arrival_after_one_click(self):
+        img = self.img['zoom-2']
+        wf = self.log_after_click(FakeWf([img] * 2, run_dir=self.tmp),
+                                  '> out_of_water me=Player target=GardenBed(Clone) at (-1.66, 0.10, -25.34)')
+        arr = self.run_goto(L.Q(kind='GardenBed'), wf)
+        self.assertEqual(len(wf.clicks), 1)
+        self.assertEqual(arr.node.kind, 'GardenBed')
+        self.assertIn('out_of_water', self.g.state_value(arr.node.id, 'interaction')['line'])
+        self.assertEqual(L.ACTIVE, frozenset())
+
+    def test_other_kind_interaction_does_not_prove_bed_arrival(self):
+        img = self.img['zoom-2']
+        wf = self.log_after_click(FakeWf([img] * 2, run_dir=self.tmp),
+                                  '> beehive_progress me=Player target=BeeHive(Clone) at (-1.03, 0.10, -23.46)')
+        with self.assertRaises(L.Failed):
+            self.run_goto(L.Q(kind='GardenBed'), wf, max_clicks=1)
 
     def test_bubble_kind_names_map_to_offers(self):
         well = WELL
@@ -335,6 +434,9 @@ class LoopTest(unittest.TestCase):
             L.SCENE_POLL, L.SCENE_WAIT = old
         self.assertEqual(wf.clicks, [(420, 330)])
         self.assertEqual((arr.node.id, arr.region), ('HouseDoor', 'House'))
+        self.assertEqual(L.ACTIVE, frozenset())                    # scene arrival is not a showing interaction bubble
+        self.assertIsNone(self.g.node('Tara'))                     # the old frame was invalidated by the scene change
+        self.assertEqual(L.available(), [])
 
     def test_door_without_scene_change_keeps_going(self):
         door = Detection('HouseDoor', (400, 300, 440, 360), 6.0, None, (420, 330))
@@ -452,7 +554,6 @@ class LoopTest(unittest.TestCase):
         with self.assertRaises(L.NeedVision):
             self.run_goto(L.Q(kind='Stove'), wf, detect_fn=self.fn({id(self.img['normal-1']): ('HouseDoor',)}))
         self.assertEqual(wf.clicks, [])
-
 
 if __name__ == '__main__':
     unittest.main()

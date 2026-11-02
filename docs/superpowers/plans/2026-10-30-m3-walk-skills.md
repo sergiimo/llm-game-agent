@@ -1,5 +1,7 @@
 # M3: Walk and Skills on the World Model Implementation Plan
 
+**Status (2026-11-02):** implemented; `game/walk.py` geometry is **superseded** by the object-graph spec (§10 step 5: removal). Skills structure (`@action`, proofs) stays.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** Skills and walking act through the world model: `walk(goal)` picks a mode by evidence (in reach / on

@@ -1,7 +1,7 @@
 """Actuators (spec 2026-10-30 §4): the only code that sends input to the game. Clicks are refused while a menu is
 open (S13); pause and resume look at the screen before and after, never a blind Escape."""
 WF = None
-PAUSE_WORD = 'game paused'
+PAUSE_WORDS = ('game paused', 'пауза')
 
 
 def bind(wf):
@@ -10,7 +10,7 @@ def bind(wf):
 
 
 def _paused(s):
-    return any(PAUSE_WORD in t.lower() for t in s.get('text', []))
+    return any(any(word in t.casefold() for word in PAUSE_WORDS) for t in s.get('text', []))
 
 
 def click(x, y):

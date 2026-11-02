@@ -1,0 +1,35 @@
+{"t": 1793549715.98, "type": "start", "quest": "replant-wilted-flowers", "goal": "D183 remove and replant all 8 wilted flower beds with Tulips; verify no wilted beds remain"}
+{"t": 1793549721.42, "type": "call", "start": 1793549721.42, "end": 1793549723.03, "cmd": "py import pprint; pprint.pp(core.WF.farm_status()['crops'])"}
+{"t": 1793549725.27, "type": "call", "start": 1793549725.27, "end": 1793549731.84, "cmd": "pause"}
+{"t": 1793549777.67, "type": "call", "start": 1793549777.67, "end": 1793549779.55, "cmd": "resume"}
+{"t": 1793549781.75, "type": "call", "start": 1793549781.75, "end": 1793549781.87, "cmd": "look"}
+{"t": 1793549816.27, "type": "call", "start": 1793549816.27, "end": 1793549816.43, "cmd": "state"}
+{"t": 1793549818.71, "type": "plan_step", "n": "1", "state": "start", "text": "", "hour": null}
+{"t": 1793549829.91, "type": "call", "start": 1793549829.91, "end": 1793549831.89, "cmd": "resume"}
+{"t": 1793549840.81, "type": "gap", "text": "[tool] ./wf resume reported running but did not dismiss the Russian pause overlay (Пауза / Продолжить игру); Step 1 stopped before any removal"}
+{"t": 1793549939.81, "type": "call", "start": 1793549939.81, "end": 1793549942.91, "cmd": "resume"}
+{"t": 1793549952.7, "type": "nav", "what": "pos", "scene": "Farm", "x": -16.53, "z": -60.9, "fresh": false, "secs": 4.3}
+{"t": 1793549954.02, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 8, 14]}
+{"t": 1793549958.32, "type": "activity", "what": "go", "target": "go:1447:596", "start": 1793549956.4988348, "end": 1793549958.3146849, "moved": true}
+{"t": 1793549963.32, "type": "activity", "what": "go", "target": "go:1174:450", "start": 1793549961.149485, "end": 1793549963.320243, "moved": true}
+{"t": 1793549969.37, "type": "activity", "what": "go", "target": "go:1685:433", "start": 1793549966.103722, "end": 1793549969.3697522, "moved": true}
+{"t": 1793549976.97, "type": "activity", "what": "go", "target": "go:1411:524", "start": 1793549975.180531, "end": 1793549976.9737458, "moved": true}
+{"t": 1793549981.4, "type": "nav", "what": "pos", "scene": "Farm", "x": 18.08, "z": -29.39, "fresh": true, "secs": 1.5}
+{"t": 1793549982.58, "type": "nav", "what": "fill-pin", "skip": "not on a road", "cell": ["map", 20, 13]}
+{"t": 1793549989.98, "type": "activity", "what": "go", "target": "go:255:558", "start": 1793549987.005915, "end": 1793549989.9786088, "moved": true}
+{"t": 1793549995.5, "type": "activity", "what": "go", "target": "go:545:605", "start": 1793549994.08638, "end": 1793549995.503166, "moved": true}
+{"t": 1793550004.75, "type": "activity", "what": "go", "target": "go:932:590", "start": 1793550002.8588061, "end": 1793550004.745713, "moved": false}
+{"t": 1793550009.73, "type": "activity", "what": "go", "target": "go:946:630", "start": 1793550008.214428, "end": 1793550009.7296262, "moved": false}
+{"t": 1793550013.68, "type": "activity", "what": "go", "target": "go:946:630", "start": 1793550011.855927, "end": 1793550013.6821592, "moved": false}
+{"t": 1793550017.16, "type": "activity", "what": "go", "target": "go:953:651", "start": 1793550015.635971, "end": 1793550017.164245, "moved": false}
+{"t": 1793550019.66, "type": "activity", "what": "go", "target": "go:957:662", "start": 1793550018.074101, "end": 1793550019.658535, "moved": false}
+{"t": 1793550020.06, "type": "stuck", "at": ["Farm", 7.78, -25.32], "moves": 3}
+{"t": 1793549947.47, "type": "call", "start": 1793549947.47, "end": 1793550020.06, "cmd": "goto farm-garden"}
+{"t": 1793550025.36, "type": "nav", "what": "pos", "scene": "Farm", "x": 5.41, "z": -22.51, "fresh": false, "secs": 4.2}
+{"t": 1793550032.39, "type": "activity", "what": "go", "target": "go:342:964", "start": 1793550030.833029, "end": 1793550032.392854, "moved": false}
+{"t": 1793550044.72, "type": "nav", "what": "pos", "scene": "Farm", "x": 0.84, "z": -27.34, "fresh": true, "secs": 1.4}
+{"t": 1793550073.25, "type": "game", "line": "[D183 11:27:01 AM] > beehive_progress me=Player target=BeeHive(Clone) at (5.22, 0.10, -23.46)"}
+{"t": 1793550073.25, "type": "game", "line": "[D183 11:28:53 AM] > beehive_progress me=Player target=BeeHive(Clone) at (5.22, 0.10, -23.46)"}
+{"t": 1793550080.71, "type": "attempt", "text": "resume succeeded; map command and replant batch were invoked but wf produced no output; paused pending inspection"}
+{"t": 1793550081.17, "type": "issue", "text": "wf commands returned blank output after daemon reload; action completion and bed state unobservable"}
+{"t": 1793550081.2, "type": "end", "result": "need-help", "text": "Could not verify replant execution; paused safely"}

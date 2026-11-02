@@ -1,5 +1,7 @@
 # M1+M2: Runtime Evidence and World Model Implementation Plan
 
+**Status (2026-11-02):** implemented. `tools/runtime/` stays; the `tools/world/` coordinate model (belief, costmap, view, zoom) is **superseded** by `specs/2026-10-31-object-graph-navigation-design.md` and scheduled for removal there (§10 step 5). Do not extend it.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** One parser turns the game log (and our own clicks) into typed evidence; one world model (entities, scene

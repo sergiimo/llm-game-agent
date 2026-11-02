@@ -13,6 +13,8 @@
 | Journal button (J) | ≈(1660,110) (≈(1828,110) early) | start | template `hud_journal3` |
 | Inventory button (I) + coin badge → [money](../mechanics/money-and-shops.md) | ≈(1815,110), coins ≈(1815,166) | after farm arrival | `money` (OCR misses it indoors ❓) |
 | Prompt bubble | above its object, y > 230; several at once when several objects are in reach | standing next to interactables; **click a bubble = its action**, the highlighted one = Space (mechanics/basic-actions.md) | `bubble@x,y` |
+| Empty-can instruction modal: **“Fill watering can at the Well”** + grey water-drop icon | top-left, directly below/overlapping the clock panel; live frame ≈x80–660, y105–220 | after interacting with a dry planted bed while the watering can is empty; gameplay continues, no button | log `> out_of_water … target=GardenBed`; OCR text may appear in `state` |
+| Filled-can success notification: **“Rusty Watering Can”** | top-left notification area | immediately after filling the can at the well; non-blocking | state text `Rusty Watering Can`; log `> fill_watering_can … target=Well` is exact proof |
 
 Changes over time break templates: recalibrate with `./wf save-template <name>` from a clean gameplay frame (L22).
 Day 1 = Monday, starts ~10:00. ~02:00 → pass-out ([screens/pass-out.md](screens/pass-out.md)).

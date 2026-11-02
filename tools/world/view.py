@@ -32,7 +32,10 @@ def click_point(H, b, target, solids=None, box=OBJ_BOX):
     the game refuses it (refused clicks in the costmap). None without calibration or off screen."""
     if H is None:
         return None
-    xz = (getattr(target, 'state', None) or {}).get('click_xz')  # where clicking the object's sprite worked (D150)
+    state = getattr(target, 'state', None)
+    # World Entity.state is a dict, but game-domain targets may use `state` for their own scalar status
+    # (Garden Bed.state = "growing"). Only world entities can carry a learned click point.
+    xz = state.get('click_xz') if isinstance(state, dict) else None
     sx, sy = _scr(H, b, *(xz if xz else (target.x, target.z)))
     if box[0] <= sx <= box[2] and box[1] <= sy <= box[3]:
         return int(sx), int(sy)

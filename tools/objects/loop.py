@@ -8,6 +8,7 @@ A second no-progress ask for the same goal -> Failed."""
 import glob
 import json
 import os
+import re
 import time
 from collections import namedtuple
 
@@ -25,7 +26,8 @@ SCENE_POLL = 0.2
 NEAR = 300           # px: a wanted bubble this close to the clicked point = arrived
 
 Arrival = namedtuple('Arrival', 'node region point frames')
-ACTIVE = None        # (node_id, region_id) of the last arrival
+ACTIVE = frozenset()  # {(node_id, region_id), ...}: every resolved object whose bubble is currently available
+OBSERVED_GRAPH = None  # last frame's graph, including transient Tara/bubble/near observations; inspected by available()
 STATE = {'goal': None, 'asks': 0}   # no-progress asks for the current goal (reset on arrival)
 
 
@@ -33,6 +35,20 @@ class NeedVision(Exception):
     def __init__(self, path):
         super().__init__(f'NEED_VISION: look at {path}, answer with answer(n, x, y), then call goto again')
         self.path = path
+
+
+def available():
+    """Active objects in the latest observed frame: graph id/region, direction from Tara, and bubble click data."""
+    if OBSERVED_GRAPH is None:
+        return []
+    directions = {e['b']: e.get('direction') for e in OBSERVED_GRAPH.edges('Tara', 'near')}
+    out = []
+    for n in OBSERVED_GRAPH.nodes.values():
+        bubble = OBSERVED_GRAPH.state_value(n.id, 'bubble')
+        if bubble is not None:
+            out.append({'id': n.id, 'region': n.region, 'direction': directions.get(n.id),
+                        'bubble': bubble.get('kind'), 'point': bubble.get('point')})
+    return sorted(out, key=lambda x: x['id'])
 
 
 try:
@@ -214,11 +230,103 @@ def _known_kinds():
     return set().union(*KINDS.values())
 
 
+def _active_candidates(graph, candidates, q, vis, bubs, frame, target=None, last=None):
+    """{node_id: (node, bubble_point, bubble_kind)} for every contextual candidate with an available interaction bubble.
+
+    A bubble means Tara is in interaction range of its object. Several objects can therefore be active at once (for
+    example six adjacent garden beds). Ownership selects the candidate; it does not have to be the member the movement
+    loop would otherwise choose first. The old near-click fallback remains only for an unowned bubble after targeting a
+    particular object, and still requires a bubble kind that object can offer (or an as-yet unknown kind).
+    """
+    nodes = {n.id: n for n in candidates}
+    for n in nodes.values():
+        graph.set_state(n.id, 'bubble', None, frame, 'frame')
+    by_det = {id(d): nodes[node_id] for node_id, d in vis.items() if node_id in nodes}
+    dets = list(vis.values())
+    known = _known_kinds()
+    out = {}
+    unowned = []
+    for bp, kind in bubs:
+        d = owner(bp, dets)
+        n = by_det.get(id(d)) if d is not None else None
+        compatible = n is not None and (kind in _offers(graph, n) or kind not in known)
+        if compatible:
+            out.setdefault(n.id, (n, bp, kind))
+        elif n is None:
+            unowned.append((bp, kind))
+    if target is not None and target.id not in out:
+        tdet = vis[target.id]
+        offers = _offers(graph, target)
+        for bp, kind in unowned:
+            near = (last is not None and _dist(bp, last) < NEAR) or _dist(bp, tdet.point) < NEAR
+            if near and (kind in offers or (q.offers is None and kind not in known)):
+                out[target.id] = (target, bp, kind)
+                break
+    for n, bp, kind in out.values():
+        graph.set_state(n.id, 'bubble', {'kind': kind, 'point': [bp[0], bp[1]]}, frame, 'frame')
+    return out
+
+
+def _direction(a, b, dead=40):
+    """Screen-relative cardinal direction from point a to b (y decreases north)."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    ns = 'north' if dy < -dead else 'south' if dy > dead else ''
+    ew = 'west' if dx < -dead else 'east' if dx > dead else ''
+    return '-'.join(x for x in (ns, ew) if x) or 'overlapping'
+
+
+def _interaction_proof(wf, mark, target):
+    """A post-click game-log action on the selected kind proves reach even when bubble ownership was unresolved."""
+    if mark is None or target is None or not hasattr(wf, 'log_since'):
+        return None
+    try:
+        lines = wf.log_since(mark).splitlines()
+    except Exception:  # noqa: BLE001 (optional evidence must not break navigation)
+        return None
+    for line in lines:
+        m = re.search(r'>\s*\w+\b.*?target=(\w+)', line)
+        if m and m.group(1) == target.kind:
+            return line
+    return None
+
+
+def _observe_tara(graph, fr, cur, vis, active, frame):
+    """Add transient Tara node + screen-relative `near` edges to every bubble-active object in this frame."""
+    tara = next((d for d in fr.dets(cur, ('Tara',)) if d.kind == 'Tara'), None)
+    if tara is None:
+        return None
+    graph.nodes['Tara'] = G.Node('Tara', 'unique', 'Tara', cur, transient=True)
+    graph.set_state('Tara', 'screen', {'point': list(tara.point), 'box': list(tara.box), 'z': round(tara.dist, 2)},
+                    frame, 'frame')
+    for node_id, (n, _, kind) in active.items():
+        d = vis.get(node_id)
+        if d is None:
+            continue
+        graph.add_edge('Tara', n.id, 'near', direction=_direction(tara.point, d.point), basis='screen',
+                       bubble=kind, source='frame', frame=frame)
+    return graph.nodes['Tara']
+
+
 def _region_of(graph, n):
     for c in reversed(graph.chain(n.id)):
         if graph.nodes[c].type == 'region' and c != n.id:
             return c
     return None
+
+
+def _context_candidates(graph, cur, query_candidates):
+    """Query candidates plus every unique/member object in the current region, deduped in graph order.
+
+    Bubble ownership must see neighbouring object kinds before the query filters them: a beehive bubble above a bed
+    must belong to the hive, then fail a GardenBed query, rather than being assigned to the only kind we searched.
+    """
+    ids = {n.id for n in query_candidates}
+    out = list(query_candidates)
+    for n in graph.nodes.values():
+        if n.type in ('unique', 'member') and n.id not in ids and _region_of(graph, n) == cur:
+            out.append(n)
+            ids.add(n.id)
+    return out
 
 
 class _Frame:
@@ -230,7 +338,7 @@ class _Frame:
         self._d = {}
 
     def dets(self, region, extra=()):
-        kinds = list(dict.fromkeys(list(R.scope(self.graph, region)) + list(extra)))
+        kinds = list(dict.fromkeys(list(R.scope(self.graph, region)) + list(extra) + ['Tara']))
         key = (region, tuple(kinds))
         if key not in self._d:
             self._d[key] = self.fn(self.img, self.store, kinds=kinds, region=region, exclude=self.containers(region))
@@ -304,9 +412,10 @@ def _step_target(fr, cur, step, target=None):
 
 
 def goto(q, wf, max_clicks=8, graph=None, store=None, detect_fn=None):
-    """Click until `q` is reached: an offered bubble of the target shows (owned by the target's detection or near the
-    click). Returns Arrival(node, region, point, frames); raises NeedVision (a question was written) or Failed."""
-    global ACTIVE
+    """Click until `q` is reached: any matching node has a compatible owned bubble (or the targeted node has one near
+    its last click). Every showing bubble is transient graph state, so several nodes can be active simultaneously.
+    Returns Arrival(node, region, point, frames); raises NeedVision (a question was written) or Failed."""
+    global ACTIVE, OBSERVED_GRAPH
     graph = graph or _default_graph()
     store = store or S.Store()
     fn = detect_fn or D.detect
@@ -319,25 +428,25 @@ def goto(q, wf, max_clicks=8, graph=None, store=None, detect_fn=None):
         wf.wait_settle()
         clicks += 1
     while True:
+        graph.clear_frame()
         fr = _Frame(wf, graph, store, fn)
         frames += 1
         cur, _ = R.current_region(graph, wf.current_scene(), lambda r: fr.dets(r))
         cands = q.run(graph, cur)
-        vis = _visible(fr, cands)
+        context = _context_candidates(graph, cur, cands)
+        all_vis = _visible(fr, context)
+        vis = {n.id: all_vis[n.id] for n in cands if n.id in all_vis}
         order = q.run(graph, cur, visible=set(vis))
         target = next((n for n in order if n.id in vis), None)
         bubs = _bubbles(wf, fr.img)
-        wanted = []
-        if target is not None:
-            offers = _offers(graph, target)
-            tdet = vis[target.id]
-            wanted = [bp for bp, kind in bubs if kind in offers or (q.offers is None and kind not in _known_kinds())]
-            for bp in wanted:
-                o = owner(bp, list(vis.values()))
-                if (o is tdet) if o is not None else ((last and _dist(bp, last) < NEAR) or _dist(bp, tdet.point) < NEAR):
-                    ACTIVE = (target.id, cur)
-                    _set_asks(wf, goal, 0)
-                    return Arrival(target, cur, bp, frames)
+        active = _active_candidates(graph, context, q, all_vis, bubs, frames, target, last)
+        _observe_tara(graph, fr, cur, all_vis, active, frames)
+        OBSERVED_GRAPH = graph
+        ACTIVE = frozenset((n.id, cur) for n, _, _ in active.values())
+        arrived = next((n for n in order if n.id in active), None)
+        if arrived is not None:
+            _set_asks(wf, goal, 0)
+            return Arrival(arrived, cur, active[arrived.id][1], frames)
         if clicks >= max_clicks:
             raise Failed(f'goto: not reached after {max_clicks} clicks')
         if clicks:
@@ -345,8 +454,7 @@ def goto(q, wf, max_clicks=8, graph=None, store=None, detect_fn=None):
             tail = vecs[-(STALL + 1):]
             if len(tail) > STALL and all(1 - float(np.dot(a, b)) < STILL for a, b in zip(tail, tail[1:])):
                 _stuck(wf, fr, goal, 'the frame does not change', fr.dets(cur))
-        mine = [bp for bp in wanted if owner(bp, list(vis.values())) is vis[target.id]] if target is not None else []
-        others = [bp for bp, _ in bubs if bp not in mine]
+        others = [bp for bp, _ in bubs]
         dest = None
         if target is not None:
             dest = _dest_scene(graph, target)
@@ -363,12 +471,22 @@ def goto(q, wf, max_clicks=8, graph=None, store=None, detect_fn=None):
             pt = click_point(det, others)
             last = None
         before = wf.current_scene()
+        mark = wf.log_mark() if hasattr(wf, 'log_mark') else None
         wf.run_action(f'click:{pt[0]}:{pt[1]}')
         wf.wait_settle()
         clicks += 1
+        proof = _interaction_proof(wf, mark, target)
+        if proof is not None:
+            graph.clear_frame()
+            graph.set_state(target.id, 'interaction', {'line': proof}, frames, 'frame')
+            ACTIVE = frozenset()
+            OBSERVED_GRAPH = graph
+            _set_asks(wf, goal, 0)
+            return Arrival(target, cur, pt, frames)
         if dest and before != dest and _wait_scene(wf, dest):   # a door / exit is reached by the scene change (no bubble)
             if target is not None:
-                ACTIVE = (target.id, dest)
+                ACTIVE = frozenset()
+                graph.clear_frame()                              # the old frame's bubbles/near edges are invalid now
                 _set_asks(wf, goal, 0)
                 return Arrival(target, dest, pt, frames)
             vecs.clear()

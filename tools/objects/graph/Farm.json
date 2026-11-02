@@ -1,6 +1,6 @@
 {
  "area": "Farm",
- "_sync": 347645,
+ "_sync": 65721,
  "nodes": [
   {
    "id": "Farm",
@@ -15,14 +15,16 @@
    "kind": "House",
    "region": "Farm",
    "signal": "scene",
-   "exit": "HouseExit"
+   "exit": "HouseExit",
+   "map": {"label": "farmhouse", "kind": "MapHouse"}
   },
   {
    "id": "Garden",
    "type": "region",
    "kind": "Garden",
    "region": "Farm",
-   "signal": "view"
+   "signal": "view",
+   "map": {"label": "farm-garden", "kind": "MapGarden"}
   },
   {
    "id": "Well",
@@ -32,7 +34,7 @@
    "state": {
     "can": {
      "value": "full",
-     "game_time": "D150 11:28:45 PM",
+     "game_time": "D156 12:18:36 PM",
      "source": "log"
     }
    }
@@ -89,6 +91,11 @@
      "value": "planted",
      "game_time": "D149 10:46:17 AM",
      "source": "log"
+    },
+    "watered": {
+     "value": 155,
+     "game_time": "D155 7:51:30 AM",
+     "source": "log"
     }
    },
    "index": 1
@@ -102,6 +109,11 @@
     "crop": {
      "value": "planted",
      "game_time": "D150 3:23:05 PM",
+     "source": "log"
+    },
+    "watered": {
+     "value": 155,
+     "game_time": "D155 7:57:47 AM",
      "source": "log"
     }
    },
@@ -117,6 +129,11 @@
      "value": "planted",
      "game_time": "D150 3:24:57 PM",
      "source": "log"
+    },
+    "watered": {
+     "value": 155,
+     "game_time": "D155 7:54:27 AM",
+     "source": "log"
     }
    },
    "index": 3
@@ -130,6 +147,11 @@
     "crop": {
      "value": "planted",
      "game_time": "D149 11:51:47 AM",
+     "source": "log"
+    },
+    "watered": {
+     "value": 155,
+     "game_time": "D155 8:01:10 AM",
      "source": "log"
     }
    },
@@ -199,8 +221,8 @@
      "source": "log"
     },
     "watered": {
-     "value": 149,
-     "game_time": "D149 11:43:05 AM",
+     "value": 156,
+     "game_time": "D156 7:19:50 AM",
      "source": "log"
     }
    },
@@ -216,6 +238,11 @@
      "value": "planted",
      "game_time": "D150 3:19:45 PM",
      "source": "log"
+    },
+    "watered": {
+     "value": 156,
+     "game_time": "D156 7:11:27 AM",
+     "source": "log"
     }
    },
    "index": 9
@@ -229,6 +256,11 @@
     "crop": {
      "value": "planted",
      "game_time": "D150 3:17:53 PM",
+     "source": "log"
+    },
+    "watered": {
+     "value": 156,
+     "game_time": "D156 7:09:03 AM",
      "source": "log"
     }
    },
@@ -246,8 +278,8 @@
      "source": "log"
     },
     "watered": {
-     "value": 148,
-     "game_time": "D148 10:37:43 PM",
+     "value": 156,
+     "game_time": "D156 7:13:49 AM",
      "source": "log"
     }
    },
@@ -265,8 +297,8 @@
      "source": "log"
     },
     "watered": {
-     "value": 148,
-     "game_time": "D148 9:40:16 PM",
+     "value": 156,
+     "game_time": "D156 7:16:30 AM",
      "source": "log"
     }
    },

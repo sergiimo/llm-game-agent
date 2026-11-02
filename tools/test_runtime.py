@@ -111,7 +111,7 @@ class FakeWF:
         return self.s
 
     def menu_open(self, s):
-        return 'pause' if any('Game Paused' in t for t in s['text']) else None
+        return 'pause' if any('Game Paused' in t or 'Пауза' in t for t in s['text']) else None
 
     def go_to(self, x, y):
         self.clicks.append((x, y))
@@ -119,7 +119,7 @@ class FakeWF:
     def key(self, k):
         self.keys.append(k)
         if k == 'escape':
-            paused = any('Game Paused' in t for t in self.s['text'])
+            paused = any('Game Paused' in t or 'Пауза' in t for t in self.s['text'])
             self.s = {'mode': 'gameplay', 'text': []} if paused else {'mode': 'overlay', 'text': ['0) Game Paused']}
 
     def wait_settle(self):
@@ -162,6 +162,13 @@ class Act(unittest.TestCase):
         act.bind(w2)
         self.assertTrue(act.resume())
         self.assertEqual(w2.s['mode'], 'gameplay')
+
+    def test_resume_from_russian_pause_menu(self):
+        from runtime import act
+        w = FakeWF('overlay', ['Пауза', 'Продолжить игру'])
+        act.bind(w)
+        self.assertTrue(act.resume())
+        self.assertEqual(w.s['mode'], 'gameplay')
 
 
 class Save(unittest.TestCase):

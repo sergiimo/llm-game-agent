@@ -1,25 +1,27 @@
 # Progress
 
-> **Summary:** Spring Y1, **Monday 10:10 am (day 148)**, Tara at the ranch in RuralBeach (10:10, after Marty's welcome), 5 coins, ⚡200/200. Docs below this line were last updated on day 4; the save (`./wf save`) is the truth. Active (save): MartyChickens (All Cooped Up, new), AngusRecipe, BuildVegetablePatch, GrandmaGifting, IntroIncantation, MayorMeetEveryone, SpringKimMeatAlt, ThomasBeans, VioletBeehives. Routine R1: 11 garden beds WILTED, not watered.
+> **Summary:** Spring Y1 **day 183, 10:30** (save is 233 minutes old), Tara outdoors on the Farm at
+> (-17.6, 0.1, -61.6), 95 coins, ⚡185/200. The live screen is paused and the UI is Russian. User play advanced the
+> save after the D156 tests: VioletBeehives ✅ D164, BuildVegetablePatch ✅ D171, MartyChickens ✅ D183. The save
+> (`./wf save`) is the truth.
 
 ## Current goal (supervisor-owned; one at a time)
-- ▶️ **Meant To Bee (VioletBeehives)** from D148 10:10, run #14 (stopped: stuck at the ranch, L72–L75), run #15 from 5:57 pm at home. Quest file
-  `docs/quests/town/meant-to-bee.md`. Water + inspect hives → sleep until a hive gives honey → hand it to Violet
-  (Tue–Sat 9–17). Done-signal: `./wf save` lists VioletBeehives under done. Sleeping approved (user: pass the quest).
-- ✅ D148 10:10 (run #13): Give a Ranch Hand (BuildRanch).
+- ▶️ **Garden maintenance: replant 8 wilted flower beds** under supervised run
+  `runs/20261101-1815-replant-wilted-flowers/`. Start: D183 ~10:50, 8 wilted beds, only 4 TulipSeed in the last save.
+  Replant only as many as existing seeds cover; buying more or substituting vegetables requires the user's decision.
+- ✅ D183: All Cooped Up (MartyChickens).
 
 ## Goal queue
-1. Rice and Shine: 2 mushrooms (farm meadow) → cook risotto at the stove (first cooking test) → give to Gramma.
-2. Steeped in Mystery: go to the woods at night and pick a moonflower (after dark).
-3. From Bud To Spud: water daily until ripe (~day 6), harvest 4, sell to Lina (Mon–Wed 8–17, Fri–Sat 9–17).
+1. Select among active save quests: AngusRecipe, BrunoFishing, GrandmaGifting, IntroIncantation,
+   MayorMeetEveryone, MayorReplenishedSupplies, SpringKimMeatAlt, ThomasBeans.
 
 ## Current state (update after every goal)
-- Location: Hazel's farm, garden, at the planted right-hand bed (watered today).
+- Location: Farm at (-17.6, 0.1, -61.6) in the last D183 save; live pause overlay.
 - Note: each morning Tara wakes **inside the house** next to the bed; exit route is in the from-bud-to-spud quest file.
-- Money: 50. Inventory: watering can (filled on day 1; refill at the well).
-- Game is kept in the background (time frozen) between actions. Day speed: **Relaxed** (user choice, Tue d2).
-- Next actions: fill can at the well → water the bed → forage 2 mushrooms (road toward the mountain) → town: meet the
-  mayor at Town Hall.
+- Money: 95. Stamina: 185/200. Save inventory includes Rusty Watering Can and 39 wood.
+- Focus mode: **front**; game is explicitly paused between testing/actions. Day speed: **Relaxed**.
+- Next action: supervised quest agent replants safely in two-bed batches and verifies exact log proofs; stop before
+  removing a bed that cannot be replanted.
 
 ## Session log
 | Date (real) | In-game | What happened | Details |
@@ -38,3 +40,6 @@
 | 2026-10-27 | Wed d3 18:40→19:50 | Run #11 killed (blind nudges); supervisor picked mushroom 2/2 in 4 calls; added BLOCKED detection + approach procedure | agent-runs #11, L43 |
 | 2026-10-27 | Wed d3 20:00→23:30 | Run #12: meadow → house, report to Gramma, cooked risotto (first cooking), hand-in → Rice and Shine ✅ | agent-runs #12, L44 |
 | 2026-10-29 | Mon d148 07:00→10:10 | Run #13: farmhouse → RuralBeach → ranch; Marty's welcome cutscene → Give a Ranch Hand ✅ (+ Chicken Coop blueprint); new: All Cooped Up (MartyChickens) | agent-runs #13, L70 |
+| 2026-10-31 | Tue d156 08:50→09:40 | Live-tested multi-active `goto_bed()`: found three hive bubbles misowned as beds, fixed current-region ownership + hive-only `beehive_progress`; empty-can bed interaction now proves arrival after one click. Game paused beside bed | runs/20261031-1536-multi-active-live, runs/20261031-1539-bubble-owner-context; L93–L95 |
+| 2026-10-31 | Tue d156 09:40→10:05 | Live-tested `well.fill_can()`: one missing Well crop was labelled, retry filled the can once, and the top-left **“Rusty Watering Can”** message confirmed success. Fixed graph replay to accept live `fill_watering_can`; durable state is full at 10:03:34. Game paused beside Well | runs/20261031-1547-fill-can-live; L96 |
+| 2026-11-01 | d156→d183 | User continued independently: garden watering completed; VioletBeehives, BuildVegetablePatch, and MartyChickens are now done. Added optional map-image vectors to the same canonical graph and verified Garden/House heatmaps from existing labelled map points. Live screen left paused | runs/20261031-1553-water-beds-live, runs/20261101-1800-map-navigator-spaces; L106 |

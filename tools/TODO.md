@@ -21,3 +21,5 @@
 - [ ] (run #12) `walk:left:1` reported nothing while Tara didn't move: the camera may pan/re-frame or NPCs animate → diff > 3. Maybe compare a centre crop around Tara vs background, or detect Tara's position.
 - [ ] (run #12) `bubble@` in the state line looked stale after walking away from the bed bubble; check find_bubble runs on the fresh settled frame.
 - `./wf advance` auto-picked a dialogue choice in Kim's intro (run #15). It should stop on choice lists (or at least log the option it picked).
+- Farm projection is ~2x off at the bed grid on D183 (bed 7 projects to 788,728, bubble at 636,708): recalibrate H/zoom (L116).
+- ui.card_spots misses single-digit card counts (Green Bean 6 on D183): find cards by grid/icon (tools/items) instead of count OCR (L117).

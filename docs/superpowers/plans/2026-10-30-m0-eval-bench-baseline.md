@@ -1,5 +1,7 @@
 # M0: Eval, Benchmark, Baseline Implementation Plan
 
+**Status (2026-11-02):** implemented (`tools/evals/`, `tools/bench/`); kept by the object-graph spec §9. Checkboxes were not ticked during execution.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Count hits and misses of every prediction the toolkit makes, run three fixed benchmark tasks as normal

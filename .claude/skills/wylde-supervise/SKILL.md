@@ -8,8 +8,8 @@ description: Supervise playing Wylde Flowers — keep a current goal, pick the n
 You are the supervisor (main conversation). You don't press keys yourself except for quick checks (`./wf state`).
 The hierarchy:
 ```
-supervisor (you)  ──spawns──▶  wylde-quest (Sonnet): one goal, loads relevant docs, plans, records
-                                   └──spawns──▶  wylde-runner (Haiku): one concrete step via ./wf, text-only
+supervisor (you)  ──spawns──▶  wylde-quest (cheapest model): one goal, loads relevant docs, plans, records
+                                   └──spawns──▶  wylde-runner (cheapest model): one concrete step via ./wf, text-only
 ```
 
 ## 0. Purpose
@@ -47,6 +47,15 @@ basic-actions, an unknown place, a new screen) (time of day, weekday shop hours 
 Write it to `docs/progress.md` → **Current goal** (goal, quest file, done-signal, constraints) before dispatching.
 
 ## 3. Dispatch: give the child EVERYTHING it needs (the manifest)
+**Model rule (user, 2026-11-01): always use the cheapest available model for every spawned gameplay agent**, both
+quest and runner, unless the user explicitly overrides it. In Codex collaboration this is `gpt-6-luna` with low
+reasoning; in Claude agent definitions it is `haiku`. Never inherit the supervisor's more expensive model by default.
+
+**Fast-start rule (user, 2026-11-01): routine navigation must not become an analysis phase.** When the target has a
+known map place, the runner resumes, runs one direct map route (`./wf goto <place>`), then invokes the verified game
+function. The supervisor's fresh preflight is passed in the manifest so the child does not repeat it. Do not add local
+object-search, screenshots, or route deliberation before trying the direct map route once.
+
 The child should finish the quest from the manifest alone. Before dispatching, complete the quest file:
 - `## Quest brief` fields: Why · Steps (▶️ current) · How-to · Where · Progress signal · Done when · Next · Tips ·
   **Actions** (tags for `./wf actions`: the DB rows with expected outcomes the agent checks each step against) · Gotchas.

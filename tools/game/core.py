@@ -17,6 +17,28 @@ class Failed(Exception):
     """An action could not prove it happened; the message says which and why."""
 
 
+VISION_ASKS = []   # questions asked of vision (tests read it)
+
+
+def ask_vision(question):
+    """Uncertainty → model vision, always (user, D183): the frame at the innermost failure (before callers close
+    menus) as the shared vision ask (`wf.ask_vision`: gridded frame + run-log `vision` event)."""
+    VISION_ASKS.append(question)
+    try:
+        return WF.ask_vision('game', question, WF.grab())
+    except Exception:  # noqa: BLE001 (fakes have no frame)
+        return f'NEED_VISION game: {question} (no frame saved: ./wf look)'
+
+
+_AT = re.compile(r' at \((-?[\d.]+), (-?[\d.]+), (-?[\d.]+)\)')
+
+
+def log_pos(line):
+    """(x, z) of a log line's `… at (x, y, z)`, or None."""
+    m = _AT.search(line or '')
+    return (float(m.group(1)), float(m.group(3))) if m else None
+
+
 def bind(wf):
     global WF
     WF = wf
@@ -35,8 +57,8 @@ def seen(pattern, mark, wait=LOG_WAIT, at=None):
             if re.search(pattern, line):
                 if at is None:
                     return line
-                m = re.search(r' at \((-?[\d.]+), (-?[\d.]+), (-?[\d.]+)\)', line)
-                if m and abs(float(m.group(1)) - at[0]) < 0.5 and abs(float(m.group(3)) - at[1]) < 0.5:
+                p = log_pos(line)
+                if p and abs(p[0] - at[0]) < 0.5 and abs(p[1] - at[1]) < 0.5:
                     return line
         if time.time() >= end:
             return None
@@ -74,7 +96,10 @@ def action(fn):
             return fn(*a, **kw)
         except Failed as e:
             ok, why = False, str(e)
-            raise
+            if 'NEED_VISION' in why:  # an inner action already saved the frame of the failure
+                raise
+            why = f'{why}; ' + ask_vision(f'{name}({args}) is unsure: what is on screen, what should be clicked?')
+            raise Failed(why) from e
         except Exception as e:  # noqa: BLE001
             ok, why = False, f'{type(e).__name__}: {e}'
             if type(e).__name__ in ('Stuck', 'NeedVision'):  # a vision question goes to the agent as it is (Stuck: move.goto turns it into one)

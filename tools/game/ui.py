@@ -46,6 +46,7 @@ def press(label):
 
 PICKER = (0, 260, 680, 560)   # x, y, w, h: the inventory-style picker on the left (planting panel, D148)
 CARD_UP = 60                  # px from a card's count number up to the card's icon
+FIRST_CARD = (110, 540)       # the first card's slot (planting-panel.md); the panel opens with it HIGHLIGHTED (D183)
 
 
 DETAIL_TITLE = (180, 315, 500, 80)   # x, y, w, h: the title band of a picker's detail card ("Green Bean Seeds")
@@ -78,29 +79,36 @@ def pick_card(name, box=PICKER):
     by their icon (tools/items, L78) are tried first; every card opened teaches its icon under its detail title, so
     the next pick is one click. The picker opens on the first card's detail (D148): if that's `name`, done."""
     from . import items
-    if shows('Select', wait=0.5):
-        if _named(detail_title(), name):
+    if shows('Select', wait=1.0):
+        # the list cards carry no names, so a name anywhere on screen is the open detail card's title (D183: the
+        # fixed title band read '' while the screen said "Green Bean Seeds" → Escape, then the count "6" was missed)
+        if _named(detail_title(), name) or any(_named(t, name) for t in texts()):
             return name
         core.WF.run_action('key:escape')  # back to the list
         _settle()
     img = core.WF.grab()
     spots = card_spots(box, img)
-    if not spots:
-        raise Failed(f'no picker cards on screen; on screen: {" / ".join(texts())[:160]}')
+    if not any(abs(s[0] - FIRST_CARD[0]) < 70 and abs(s[1] - FIRST_CARD[1]) < 70 for s in spots):
+        spots = [FIRST_CARD] + spots  # a single-digit count isn't read by OCR (Green Bean 6, D183): the slot is fixed
     known = {s: items.match(items.crop(img, s))[0] for s in spots}
     order = ([s for s in spots if known[s] and _named(known[s], name)] + [s for s in spots if not known[s]] +
              [s for s in spots if known[s] and not _named(known[s], name)])
+    if any(_named(t, name) for t in texts()):  # the highlighted first card names `name`: open it first
+        order = [FIRST_CARD] + [s for s in order if s != FIRST_CARD]
     for x, y in order:
         core.WF.run_action(f'click:{x}:{y}')
         _settle()
-        title = detail_title() if shows('Select', wait=1.0) else ''
+        title = ''
+        if shows('Select', wait=1.0):  # the title band can read '' (D183): a name on screen is the detail's title
+            title = detail_title() or next((t for t in texts() if _named(t, name)), '')
         if title:
             items.learn(items.crop(img, (x, y)), title)
         if _named(title, name):
             return title
         core.WF.run_action('key:escape')  # wrong card: its detail closes, the list stays
         _settle()
-    raise Failed(f'no "{name}" among {len(spots)} cards')
+    raise Failed(f'no "{name}" among {len(spots)} cards; ' + core.ask_vision(f'which card in the picker is {name}?'))
+
 
 
 @action

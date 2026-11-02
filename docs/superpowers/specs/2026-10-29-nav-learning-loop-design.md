@@ -1,5 +1,7 @@
 # Navigation learning loop: design (2026-10-29)
 
+**Status (2026-11-02):** historical. Navigation parts superseded by `2026-10-30-agent-system-refactor-design.md`, then by `2026-10-31-object-graph-navigation-design.md`.
+
 > **Summary:** navigation joins the self-improvement loop (docs/self-improvement.md). Every checkpoint appends one
 > fact (predicted vs measured world position) to `tools/nav/facts.jsonl`. Calibration, place positions, blocked spots
 > and edge reliability are **computed from the facts** and used immediately. `./wf learn nav` reports them, and only

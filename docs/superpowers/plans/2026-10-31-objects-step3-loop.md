@@ -1,5 +1,7 @@
 # Objects Step 3: The Loop, Member Identity, Interaction Implementation Plan
 
+**Status (2026-11-02):** implemented (`loop.py`, `identity.py`, `bubbles.py`). Next: spec §10 step 4 (survey run) and step 5 (removals).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development (user: "use subagents").
 > Steps use checkbox (`- [ ]`) syntax.
 
@@ -8,7 +10,7 @@ otherwise the next region step; know which group member is which; take the targe
 action from the log and update the graph; ask model vision when stuck.
 
 **Architecture:** `tools/objects/identity.py` (dedupe a group's detections, assign pattern indices; log line → member),
-`tools/objects/loop.py` (`goto(q)` frame loop, active object `(node, region)`, no-progress check, ASK),
+`tools/objects/loop.py` (`goto(q)` frame loop, active object set `{(node, region)…}`, no-progress check, ASK),
 `tools/objects/bubbles.py` (bubble owner = the detected object right below the bubble, in frame px).
 Skills: `game/well.fill_can` and a new `game/garden.goto_bed(**state)` run on the loop.
 
@@ -69,9 +71,11 @@ from the fixtures and the live run images, fake clicks recorded).
 `NeedVision(question_path)` or `Failed`. Each frame: `img = wf.grab()`; region via `regions.current_region` (scene from
 `wf.current_scene()`, detections per candidate region); detect `scope(region)` + the target kind (target region's
 thresholds); bubbles via `wf.find_bubbles(img)` + `bubble_kind`.
-- Target candidate visible (q ordering, identity) → click its point (avoid other bubbles) → arrived when one of
-  its offered bubbles shows with `owner` = that detection, or a bubble of the target's offers shows within 300 px →
-  `Arrival`.
+- Every compatible owned bubble writes transient `bubble={kind, point}` state on its graph node. Any active node that
+  matches q is an `Arrival`; otherwise the first visible candidate is clicked (avoiding all bubbles). Ownership sees
+  all current-region object candidates before q is applied, so stacked neighbour bubbles keep their real owner kind.
+- After a target click, a game-log action whose `target` kind matches that selected node is fallback arrival proof
+  (`out_of_water target=GardenBed` counts; `beehive_progress target=BeeHive` cannot prove a bed arrival).
 - Else first `path()` step: `enter R` → click R's detection point; `exit R` → click R's exit node detection; not
   detected → ASK.
 - `ASK`: write `runs/<current>/ask-<n>.png` (frame with detections drawn) + `.json` (goal, step, detections) and raise
@@ -79,7 +83,9 @@ thresholds); bubbles via `wf.find_bubbles(img)` + `bubble_kind`.
   the next call (`wf.teach_answer()` or a json file `ask-<n>.answer.json`; choose the simplest that fits existing
   teach code) and clicks it once.
 - No progress (Global Constraints) → ASK once; a second time → `Failed('stuck: …')`.
-- Active object: on arrival, `loop.ACTIVE = (node_id, region_id)`.
+- Active objects: each frame, `loop.ACTIVE = frozenset({(node_id, region_id), ...})`; selecting one for arrival or an
+  action does not deactivate its neighbours. A transient Tara node has `near` edges to them with screen-relative
+  direction; active nodes carry transient `bubble={kind, point}` state.
 - [ ] tests (fake wf): target visible from outside → one click on it, no region click; not visible → click Garden,
   then (next frame inside) click bed; frames identical 3× → NeedVision; bubble of another object near the target →
   click point moved away (≥ 60 px from it).

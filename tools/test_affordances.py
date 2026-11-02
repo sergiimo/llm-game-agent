@@ -34,7 +34,7 @@ class Fake:
             e = self.ents[name]
             sx, sy = view._scr(H_FARM, self.w.belief, e.x, e.z)
             self.bubbles.append(((int(sx), int(sy) - 120), kind, hl))
-        self.clicks = []
+        self.clicks, self.logs = [], []
 
     def world(self):
         return self.w
@@ -60,14 +60,21 @@ class Fake:
     def run_action(self, spec):
         self.clicks.append(spec)
 
+    def log_mark(self):
+        return len(self.clicks)
+
     def wait_settle(self):
         pass
 
     def run_log(self, *a, **k):
-        pass
+        self.logs.append((a, k))
 
     def state(self):
         return {'mode': 'gameplay', 'text': []}
+
+    def checkpoint(self, fill=False):   # a save reading fixes the belief exactly
+        self.readings = getattr(self, 'readings', 0) + 1
+        self.w.belief._set(*self.true_pos, 0.05)
 
 
 class Affordances(unittest.TestCase):
@@ -77,6 +84,24 @@ class Affordances(unittest.TestCase):
         got = {(a.kind, a.entity.kind if a.entity else None, round(a.entity.x, 2) if a.entity else None)
                for a in aff.scan()}
         self.assertEqual(got, {('water', 'GardenBed', 3.34), ('water', 'GardenBed', 5.84), ('fill_can', 'Well', -1.09)})
+
+    def test_scan_takes_a_reading_when_belief_is_stale(self):   # replant-visible-beds: ±5 → every owner unknown
+        f = Fake((3.34, -27.34), [('bed7', 'unplant', True), ('bed8', 'water', False)])
+        f.true_pos = (3.34, -27.34)
+        f.w.belief._set(0.84, -27.34, 5.0)   # stale: needs_fix()
+        game.bind(f)
+        got = {(a.kind, a.entity.kind if a.entity else None) for a in aff.scan()}
+        self.assertEqual(f.readings, 1)
+        self.assertEqual(got, {('unplant', 'GardenBed'), ('water', 'GardenBed')})
+
+    def test_use_for_a_target_reads_position_when_belief_is_loose(self):   # replant-wilted-3: after unplant the
+        f = Fake((3.34, -27.34), [('bed7', 'unknown', False), ('bed8', 'unknown', True)])   # belief was ±1 at the
+        f.true_pos = (3.34, -27.34)                                     # old spot → bed8's bubble matched bed7
+        f.w.belief._set(0.84, -27.34, 1.0)
+        game.bind(f)
+        self.assertTrue(aff.use('plant', f.ents['bed7']))
+        self.assertEqual(f.readings, 1)
+        self.assertEqual(f.clicks, [f'click:{f.bubbles[0][0][0]}:{f.bubbles[0][0][1]}'])
 
     def test_use_clicks_the_relevant_bubble_not_the_highlighted_one(self):
         f = Fake((3.34, -27.34), [('bed7', 'water', True), ('bed8', 'water', False)])
@@ -115,6 +140,15 @@ class Affordances(unittest.TestCase):
         game.bind(f)
         self.assertFalse(aff.use('fill_can'))
         self.assertEqual(f.clicks, [])
+
+    def test_unknown_bubble_with_exact_owner_is_resolved_from_context_then_clicked(self):
+        f = Fake((3.34, -27.34), [('bed7', 'unknown', True)])
+        game.bind(f)
+        self.assertTrue(aff.use('unplant', f.ents['bed7']))
+        self.assertEqual(len(f.clicks), 1)
+        self.assertEqual(f.logs[-1][0], ('bubble_resolve',))
+        self.assertEqual(f.logs[-1][1]['inferred'], 'unplant')
+        self.assertEqual(f.logs[-1][1]['owner'], 'GardenBed')
 
 
 if __name__ == '__main__':

@@ -1,5 +1,7 @@
 # Objects Step 2: Object Graph with Nested Regions + Goal Queries Implementation Plan
 
+**Status (2026-11-02):** implemented (`graph.py`, `regions.py`, `query.py`, `views.py`, `graph/Farm.json`).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development (user: "use subagents").
 > Steps use checkbox (`- [ ]`) syntax.
 
@@ -15,7 +17,7 @@ written by hand (supervisor) from what the game shows. CLI `./wf graph show|wher
 recorded log lines).
 
 **Spec:** `docs/superpowers/specs/2026-10-31-object-graph-navigation-design.md` §3.1, §3.1b, §3.3, §4 (Scope), §5
-(region steps), §6 (active object with parent).
+(region steps), §6 (active object set with parent regions and one selected interaction object).
 
 ## Global Constraints
 - No coordinates in the graph: identity by kind, region and pattern index; scene names from the log are the only
@@ -25,7 +27,8 @@ recorded log lines).
   their thresholds, e.g. `Garden`).
 - From outside, a region is one detectable kind (its name, e.g. `Garden`); inside, only its children's kinds + the
   parent's exits are searched (spec §4 Scope).
-- States are hints with an age: `{value, game_time, source}`; writers: log action on the active object, model, save.
+- States are hints with an age: `{value, game_time, source}`; durable writers: log action on the selected object,
+  model, save. Frame-only bubble/Tara/near observations are transient.
 - Active object = `(node_id, region_id)`.
 - Commits only on the user's request; never git stash/checkout/reset.
 

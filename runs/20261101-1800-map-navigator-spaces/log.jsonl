@@ -1,0 +1,6 @@
+{"t": 1793548816.89, "type": "start", "quest": "map-navigator-spaces", "goal": "link object graph space to map vector space with Tara as a dynamic node and compass fallback"}
+{"t": 1793548898.07, "type": "plan_step", "n": "1", "state": "start", "text": "", "hour": null}
+{"t": 1793549027.55, "type": "plan_step", "n": "1", "state": "done", "text": "linked object/map vector space implemented; explicit Garden/House landmark bridges; transient Tara/map nodes and compass plan; 69 graph/loop/mapspace tests pass", "hour": null}
+{"t": 1793549030.26, "type": "plan_step", "n": "2", "state": "start", "text": "", "hour": null}
+{"t": 1793549530.96, "type": "plan_step", "n": "3", "state": "done", "text": "documented one-graph map vectors; 68 focused tests pass; real Garden and House heatmaps peak on their labels", "hour": null}
+{"t": 1793549535.42, "type": "end", "result": "done", "text": "canonical graph nodes now support optional labelled map vectors and verified similarity heatmaps; navigator integration intentionally left as the next step"}

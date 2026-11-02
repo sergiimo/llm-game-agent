@@ -1,0 +1,8 @@
+{"t": 1793453262.2, "type": "start", "quest": "multi-active-arrival", "goal": "represent all bubble-active objects and let goto_bed arrive at any matching active bed"}
+{"t": 1793453287.93, "type": "plan_step", "n": "1", "state": "start", "text": "", "hour": null}
+{"t": 1793453375.44, "type": "plan_step", "n": "1", "state": "done", "text": "regression reproduced single-target failure; active set test now passes", "hour": null}
+{"t": 1793453377.13, "type": "plan_step", "n": "2", "state": "start", "text": "", "hour": null}
+{"t": 1793453723.05, "type": "plan_step", "n": "2", "state": "done", "text": "multi-active bubbles, transient Tara node/near edges, available() API; 58 relevant tests pass", "hour": null}
+{"t": 1793453725.57, "type": "plan_step", "n": "3", "state": "start", "text": "", "hour": null}
+{"t": 1793453744.18, "type": "plan_step", "n": "3", "state": "done", "text": "docs now define transient bubble state, active set, dynamic Tara node, screen-relative near edges, and available()", "hour": null}
+{"t": 1793453748.08, "type": "end", "result": "done", "text": "multi-active arrival and transient Tara-relative graph observations implemented; 58 relevant tests pass"}

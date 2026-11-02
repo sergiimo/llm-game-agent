@@ -1,5 +1,7 @@
 # Objects: DINOv2 patch detection Implementation Plan
 
+**Status (2026-11-02):** implemented (`tools/objects/detect.py`, `dino.py`).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development (user: "use subagents").
 > Steps use checkbox (`- [ ]`) syntax.
 

@@ -1,5 +1,7 @@
 # Agent system refactor: integrated world model, skills, questions, eval
 
+**Status (2026-11-02):** partly superseded. §3 (coordinate world model) and its navigation are replaced by `2026-10-31-object-graph-navigation-design.md`; eval/bench, skills structure, plans/runs still apply.
+
 > **Summary:** replace the separate, fragile pieces of the Wylde Flowers toolkit (straight-line navigation, save readings
 > after most walks, pixel heuristics as triggers, a 3,700-line `wf.py`) with one integrated **world model** (scene
 > graph + per-area costmap + a belief about Tara's position), **skills** that only query and act through it, one

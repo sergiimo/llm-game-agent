@@ -57,6 +57,26 @@ class GraphTest(unittest.TestCase):
         self.assertEqual(h.chain('GardenBed#7'), self.g.chain('GardenBed#7'))
         self.assertEqual(len(h.edges()), len(self.g.edges()))
 
+    def test_frame_state_is_available_now_but_not_persisted(self):
+        bubble = {'kind': 'water', 'point': [640, 510]}
+        self.g.set_state('GardenBed#3', 'bubble', bubble, 7, 'frame')
+        self.g.nodes['Tara'] = G.Node('Tara', 'unique', 'Tara', 'Garden', transient=True)
+        self.g.add_edge('Tara', 'GardenBed#3', 'near', direction='north', source='frame', frame=7)
+        self.assertEqual(self.g.state_value('GardenBed#3', 'bubble'), bubble)
+        self.assertEqual(self.g.edges('Tara', 'near')[0]['direction'], 'north')
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'x.json')
+            self.g.save(p)
+            h = G.Graph()
+            h.load(p)
+        self.assertIsNone(h.state_value('GardenBed#3', 'bubble'))
+        self.assertIsNone(h.node('Tara'))
+        self.assertEqual(h.edges('Tara', 'near'), [])
+        self.g.clear_frame()
+        self.assertIsNone(self.g.state_value('GardenBed#3', 'bubble'))
+        self.assertIsNone(self.g.node('Tara'))
+        self.assertEqual(self.g.edges('Tara', 'near'), [])
+
     def test_unknown_keys_preserved(self):
         with open(SEED) as f:
             data = json.load(f)
@@ -210,7 +230,7 @@ class ApplyLogTest(unittest.TestCase):
         self.assertEqual(len(ch), 2)
 
     def test_well_and_unplant(self):
-        ln = ['[D148 7:57:24 PM] > full_watering_can me=Player target=Well',
+        ln = ['[D148 7:57:24 PM] > fill_watering_can me=Player target=Well',
               '[D148 8:00:00 PM] > plant me=Player target=GardenBed (4) at (5.84, 0.10, -31.59)',
               '[D148 8:10:00 PM] > unplant_impl me=Player target=GardenBed (4) at (5.84, 0.10, -31.59)',
               '[D148 8:11:00 PM] > water me=Player target=GardenBed(Clone) at (50.0, 0.10, 50.0)',
@@ -220,6 +240,11 @@ class ApplyLogTest(unittest.TestCase):
         self.assertIsNone(self.g.state_value('GardenBed#12', 'crop'))
         self.assertIn('crop', self.g.node('GardenBed#12').state)       # explicitly None, with a time
         self.assertEqual(len(ch), 3)                                    # unknown bed / beehive lines change nothing
+
+    def test_legacy_full_watering_can_alias(self):
+        ln = ['[D148 7:57:24 PM] > full_watering_can me=Player target=Well']
+        ch = G.apply_log(self.g, ln, self.beds)
+        self.assertEqual(ch, [('Well', 'can', 'full', 'D148 7:57:24 PM')])
 
     def test_sync_mark_survives_save(self):
         self.g.extra['_sync'] = 123

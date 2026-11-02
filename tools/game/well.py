@@ -33,6 +33,14 @@ def _click(pt):
         pass
 
 
+FILLED = r'> (?:fill_watering_can|full_watering_can) '
+
+
+def _filled(mark):
+    """The log line proving the can is full since `mark` (filled now, or already full), else None."""
+    return core.seen(FILLED, mark, 0.5) or None
+
+
 @action
 def fill_can(graph=None):
     """Fill the watering can at the well (an already full can counts as done); sets the graph's Well can=full. With `graph`
@@ -41,12 +49,24 @@ def fill_can(graph=None):
     if g is None:
         g = G.Graph()
         g.load(GRAPH)
+    start = core.WF.log_mark()
+    line = None
     pt = _can_bubble()
     if pt is None:
-        pt = loop.goto(Q(kind='Well'), core.WF, graph=g).point
-    mark = core.WF.log_mark()
-    _click(pt)
-    line = prove('fill the can', PROOF, mark)
+        # Law 2/3 (L126): a click on the visible well walks there AND fills the can, so the log may prove success while
+        # goto still waits for the well's bubble; the log event wins over goto's own arrival check.
+        try:
+            pt = loop.goto(Q(kind='Well'), core.WF, graph=g).point
+        except (loop.NeedVision, core.Failed):
+            line = _filled(start)
+            if line is None:
+                raise
+        else:
+            line = _filled(start)
+    if line is None:
+        mark = core.WF.log_mark()
+        _click(pt)
+        line = prove('fill the can', PROOF, mark)
     changes = G.apply_log(g, [line], at=None)
     if not changes and 'already full' in line:
         g.set_state('Well', 'can', 'full', line.split(']')[0].lstrip('[') if line.startswith('[') else None, 'event')

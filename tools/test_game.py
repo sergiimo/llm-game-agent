@@ -260,6 +260,22 @@ class Game(unittest.TestCase):
         with self.assertRaises(loop.NeedVision):
             game.fill_can()
 
+    def test_fill_can_goto_fills_then_asks_counts_as_done(self):
+        """L126 live: the click on the well walked there and filled the can (log event), but goto still waited for the
+        bubble and asked vision; the log event is the proof, no NeedVision, no extra clicks."""
+        from objects import loop
+        from game import well
+        self.graph_copy()
+        old = well.loop.goto
+        def fills_then_asks(q, wf, **kw):
+            self.g.log.append('[D184 8:45:20 AM] > fill_watering_can me=Player target=Well')
+            raise loop.NeedVision('/x/ask-1.png')
+        well.loop.goto = fills_then_asks
+        self.addCleanup(setattr, well.loop, 'goto', old)
+        line = game.fill_can()
+        self.assertIn('fill_watering_can', line)
+        self.assertEqual(getattr(self.g, 'clicks_at_well', 0), 0)
+
     def test_goto_bed_queries_the_state_and_returns_the_arrival(self):
         from objects import loop
         from game import garden

@@ -334,7 +334,7 @@ class Runner(unittest.TestCase):
         for obj, name, fn in ((self.mods[0], 'texts', f.texts), (self.mods[0], 'shows', f.shows),
                               (self.mods[0], 'press', f.press), (self.mods[0], 'pick_card', f.pick_card),
                               (self.mods[0], 'close', f.close), (self.mods[1], 'fill_can', f.fill_can),
-                              (self.mods[2], 'scan', f.scan), (self.core, 'log_pos', f._pos_reader)):
+                              (self.mods[2], 'scan', f.scan)):
             pa = p.patch.object(obj, name, fn)
             pa.start()
             self.addCleanup(pa.stop)
@@ -577,6 +577,25 @@ class Runner(unittest.TestCase):
         self.assertEqual(len(f.asked), 1)
         self.assertEqual(f.log[n:], [])
         self.assertEqual(self.g.state_value('Tara', 'at'), self.node(2, 1))
+
+
+class NoPositionCode(unittest.TestCase):
+    FORBIDDEN = ('log_pos', '_bed_at', '_WATER_AT', 'member_from_log', 'calib_load', 'checkpoint(', '.world()')
+    # walk.py is the old position walker, removed in the follow-up plan (spec 2026-11-02 §7); nothing here calls it
+    EXEMPT = {os.path.join('game', 'walk.py')}
+
+    def test_game_and_objects_have_no_position_code(self):
+        root = os.path.dirname(os.path.abspath(__file__))
+        bad = []
+        for sub in ('game', 'objects'):
+            for dp, _, fs in os.walk(os.path.join(root, sub)):
+                for f in fs:
+                    path = os.path.join(dp, f)
+                    if not f.endswith('.py') or os.path.relpath(path, root) in self.EXEMPT:
+                        continue
+                    text = open(path).read()
+                    bad += [f'{os.path.relpath(path, root)}: {w}' for w in self.FORBIDDEN if w in text]
+        self.assertEqual(bad, [])
 
 
 if __name__ == '__main__':

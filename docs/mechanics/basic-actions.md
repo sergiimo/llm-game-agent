@@ -23,8 +23,8 @@ interaction model: approaching targets, gotchas, movement.
   roof walked her round the hives to the well and turned her to it; the can bubble showed). Clicking a spot near it
   (where she stood last time) can land on something in front of it (a hive).
 - Proof is the game log line (`> water … at (x, y, z)`, `> fill_watering_can … target=Well`), not the screen.
-- Tools: `game/affordances.py` (`scan` = every bubble with its kind and object, `use(action, target)` = click the
-  relevant one), used by the game functions (`./wf py "water(b)"`).
+- Tools: `game/affordances.py` (`scan` = every bubble with its kind, point, highlight and drop sub-icon, from the
+  frame only), used by the chain garden functions (`./wf py "water_all()"`, `replant_all()`, `harvest_all()`).
 
 ## Camera zoom (verified, user 2026-10-30)
 - The camera **zooms in** in some places — the **garden** by the farmhouse is one. The same screen distance is then a

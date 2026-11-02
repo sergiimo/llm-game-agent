@@ -1,8 +1,8 @@
-"""Game functions for agents (L77). `./wf py "<code>"` runs code with these names in scope; `./wf call garden.water 3`
+"""Game functions for agents (L77). `./wf py "<code>"` runs code with these names in scope; `./wf call garden.water_all`
 runs one. Add behaviour by adding a function to the module of its area."""
 from . import affordances, core, garden, move, track, ui, walk, well  # noqa: F401
 from .core import Failed, bind  # noqa: F401
-from .garden import Bed, bed, beds, beds_due, goto_bed, harvest, harvest_all, plant, plant_visible, water_visible, replant, replant_all, replant_visible, unplant, water, water_all, water_next  # noqa: F401
+from .garden import goto_bed, harvest_all, replant_all, water_all  # noqa: F401
 from .move import goto  # noqa: F401
 from .ui import close, press, press_bubble, shows  # noqa: F401
 from .well import fill_can  # noqa: F401

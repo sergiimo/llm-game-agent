@@ -1,5 +1,5 @@
-"""Game functions (L77): medium-size, self-contained functions (`garden.plant(bed, 'Tulip')`) that agents compose
-like code (`./wf py "for b in beds(wilted=True): replant(b)"`). Each one does its inputs, handles its own
+"""Game functions (L77): medium-size, self-contained functions (`garden.water_all()`) that agents compose
+like code (`./wf py "replant_all()"`). Each one does its inputs, handles its own
 confirmations, and checks the game log for the line that proves it happened; `@action` logs every call (args,
 time, screen, result) as a tree into the run log. All game access goes through `WF` (the wf module, bound by
 wf.py; tests bind a fake)."""
@@ -30,15 +30,6 @@ def ask_vision(question):
         return f'NEED_VISION game: {question} (no frame saved: ./wf look)'
 
 
-_AT = re.compile(r' at \((-?[\d.]+), (-?[\d.]+), (-?[\d.]+)\)')
-
-
-def log_pos(line):
-    """(x, z) of a log line's `… at (x, y, z)`, or None."""
-    m = _AT.search(line or '')
-    return (float(m.group(1)), float(m.group(3))) if m else None
-
-
 def bind(wf):
     global WF
     WF = wf
@@ -48,18 +39,13 @@ def log_text(mark):
     return WF._unhash(WF.log_since(mark))
 
 
-def seen(pattern, mark, wait=LOG_WAIT, at=None):
-    """The regex `pattern` in the game log since `mark` (waiting up to `wait` s). at=(x, z): the line's position
-    must be within 0.5 of it (`… at (x, y, z)`), so the proof is for this target, not a neighbour."""
+def seen(pattern, mark, wait=LOG_WAIT):
+    """The regex `pattern` in the game log since `mark` (waiting up to `wait` s); the line, or None."""
     end = time.time() + wait
     while True:
         for line in log_text(mark).splitlines():
             if re.search(pattern, line):
-                if at is None:
-                    return line
-                p = log_pos(line)
-                if p and abs(p[0] - at[0]) < 0.5 and abs(p[1] - at[1]) < 0.5:
-                    return line
+                return line
         if time.time() >= end:
             return None
         time.sleep(0.3)
@@ -119,10 +105,9 @@ def action(fn):
     return run
 
 
-def prove(what, pattern, mark, at=None, wait=LOG_WAIT):
-    """Raise Failed unless `pattern` shows in the game log since `mark` (for target position `at`)."""
-    line = seen(pattern, mark, wait, at)
+def prove(what, pattern, mark, wait=LOG_WAIT):
+    """Raise Failed unless `pattern` shows in the game log since `mark`."""
+    line = seen(pattern, mark, wait)
     if not line:
-        raise Failed(f'{what}: no `{pattern}` in the game log' + (f' at {at}' if at else '') +
-                     f' (screen: {screen()})')
+        raise Failed(f'{what}: no `{pattern}` in the game log (screen: {screen()})')
     return line

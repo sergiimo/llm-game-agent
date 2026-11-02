@@ -1,49 +1,21 @@
-"""Offline tests for game.affordances (bubbles as actions, M3/M4): every visible bubble is matched to its entity and
-kind; a skill clicks the bubble relevant to its goal (a click works on any bubble; the highlight only marks Space).
+"""Offline tests for game.affordances (bubbles as actions): `scan()` lists every visible bubble from the frame only
+(kind, point, highlight, water-drop sub-icon; no positions); `no_click_zones` / `in_reach` build on it.
 Run: .venv/bin/python tools/test_affordances.py"""
 import os
 import sys
-import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import nav  # noqa: E402
-
-nav.OBJECTS = os.path.join(tempfile.mkdtemp(), 'none.json')
 import game  # noqa: E402
 from game import affordances as aff  # noqa: E402
-from world import model, view  # noqa: E402
-
-H_FARM = [[8.659732, -0.005814, -0.001597], [0.074748, -21.414692, 5.617554], [-0.005491, 0.509604, 1.0]]
 
 
 class Fake:
-    """Bubbles drawn BUBBLE_UP px above each listed entity's ground point."""
+    """Bubbles given as (point, kind, highlighted)."""
 
-    def __init__(self, tara, shown):
-        from evals import store
-        store.PATH = os.path.join(tempfile.mkdtemp(), 'p.jsonl')
-        self.w = model.World(facts=[], cache=os.devnull)
-        self.w.belief.scene('Farm', *tara)
-        self.ents = {}
-        for name, kind, x, z in (('well', 'Well', -1.09, -21.05), ('bed7', 'GardenBed', 3.34, -29.09),
-                                 ('bed8', 'GardenBed', 5.84, -29.09)):
-            self.ents[name] = self.w.ents.add(kind, 'Farm', x, z, 'test')
-        self.bubbles = []
-        for name, kind, hl in shown:
-            e = self.ents[name]
-            sx, sy = view._scr(H_FARM, self.w.belief, e.x, e.z)
-            self.bubbles.append(((int(sx), int(sy) - 120), kind, hl))
-        self.clicks, self.logs = [], []
-
-    def world(self):
-        return self.w
-
-    def world_sync(self):
-        pass
-
-    def calib_load(self, area):
-        return {'H': H_FARM}
+    def __init__(self, shown):
+        self.bubbles = list(shown)
+        self.clicks = []
 
     def grab(self):
         return 'img'
@@ -66,89 +38,32 @@ class Fake:
     def wait_settle(self):
         pass
 
-    def run_log(self, *a, **k):
-        self.logs.append((a, k))
-
-    def state(self):
-        return {'mode': 'gameplay', 'text': []}
-
-    def checkpoint(self, fill=False):   # a save reading fixes the belief exactly
-        self.readings = getattr(self, 'readings', 0) + 1
-        self.w.belief._set(*self.true_pos, 0.05)
-
 
 class Affordances(unittest.TestCase):
-    def test_scan_matches_bubbles_to_entities(self):
-        f = Fake((3.34, -27.34), [('bed7', 'water', True), ('bed8', 'water', False), ('well', 'fill_can', False)])
-        game.bind(f)
-        got = {(a.kind, a.entity.kind if a.entity else None, round(a.entity.x, 2) if a.entity else None)
-               for a in aff.scan()}
-        self.assertEqual(got, {('water', 'GardenBed', 3.34), ('water', 'GardenBed', 5.84), ('fill_can', 'Well', -1.09)})
+    def test_scan_lists_kind_point_highlight_and_no_owner(self):
+        game.bind(Fake([((500, 300), 'water', True), ((700, 320), 'fill_can', False)]))
+        got = aff.scan()
+        self.assertEqual([(a.kind, a.pt, a.highlighted, a.entity, a.drop) for a in got],
+                         [('water', (500, 300), True, None, False), ('fill_can', (700, 320), False, None, False)])
 
-    def test_scan_takes_a_reading_when_belief_is_stale(self):   # replant-visible-beds: ±5 → every owner unknown
-        f = Fake((3.34, -27.34), [('bed7', 'unplant', True), ('bed8', 'water', False)])
-        f.true_pos = (3.34, -27.34)
-        f.w.belief._set(0.84, -27.34, 5.0)   # stale: needs_fix()
-        game.bind(f)
-        got = {(a.kind, a.entity.kind if a.entity else None) for a in aff.scan()}
-        self.assertEqual(f.readings, 1)
-        self.assertEqual(got, {('unplant', 'GardenBed'), ('water', 'GardenBed')})
+    def test_scan_without_bubble_finder_is_empty(self):
+        game.bind(object())
+        self.assertEqual(aff.scan(), [])
 
-    def test_use_for_a_target_reads_position_when_belief_is_loose(self):   # replant-wilted-3: after unplant the
-        f = Fake((3.34, -27.34), [('bed7', 'unknown', False), ('bed8', 'unknown', True)])   # belief was ±1 at the
-        f.true_pos = (3.34, -27.34)                                     # old spot → bed8's bubble matched bed7
-        f.w.belief._set(0.84, -27.34, 1.0)
+    def test_click_clicks_the_point_and_returns_the_mark(self):
+        f = Fake([((500, 300), 'water', True)])
         game.bind(f)
-        self.assertTrue(aff.use('plant', f.ents['bed7']))
-        self.assertEqual(f.readings, 1)
-        self.assertEqual(f.clicks, [f'click:{f.bubbles[0][0][0]}:{f.bubbles[0][0][1]}'])
-
-    def test_use_clicks_the_relevant_bubble_not_the_highlighted_one(self):
-        f = Fake((3.34, -27.34), [('bed7', 'water', True), ('bed8', 'water', False)])
-        game.bind(f)
-        self.assertTrue(aff.use('water', f.ents['bed8']))
-        b8 = next(b for b, _, _ in f.bubbles if not _ is None and b == f.bubbles[1][0])
-        self.assertEqual(f.clicks, [f'click:{b8[0]}:{b8[1]}'])
-
-    def test_use_the_well_bubble_already_shown(self):   # the case that blocked M3: no walking needed
-        f = Fake((3.34, -27.34), [('well', 'fill_can', False)])
-        game.bind(f)
-        self.assertTrue(aff.use('fill_can', f.ents['well']))
-        self.assertEqual(len(f.clicks), 1)
-
-    def test_no_relevant_bubble(self):
-        f = Fake((3.34, -27.34), [('bed7', 'plant', True)])
-        game.bind(f)
-        self.assertFalse(aff.use('water', f.ents['bed8']))
-        self.assertEqual(f.clicks, [])
+        self.assertEqual(aff.click(aff.scan()[0]), 0)
+        self.assertEqual(f.clicks, ['click:500:300'])
 
     def test_bubble_points_to_avoid_when_walking(self):
-        f = Fake((3.34, -27.34), [('bed7', 'plant', True), ('well', 'fill_can', False)])
-        game.bind(f)
-        self.assertEqual(len(aff.no_click_zones()), 2)
+        game.bind(Fake([((500, 300), 'plant', True), ((700, 320), 'fill_can', False)]))
+        self.assertEqual(aff.no_click_zones(), [(500, 300), (700, 320)])
 
-    def test_unique_kind_means_its_object_is_in_reach(self):   # zoom-walk-2: at the well, can bubble up, belief off
-        f = Fake((-7.0, -30.0), [('well', 'fill_can', True)])      # belief 9 units off: geometry can't match
-        game.bind(f)
+    def test_unique_kind_means_its_object_is_in_reach(self):   # zoom-walk-2: at the well, can bubble up
+        game.bind(Fake([((500, 300), 'fill_can', True)]))
         self.assertTrue(aff.in_reach('Well'))
         self.assertFalse(aff.in_reach('Bed'))
-        self.assertTrue(aff.use('fill_can'))                     # no target needed: only the well offers it
-        self.assertEqual(len(f.clicks), 1)
-
-    def test_unknown_bubble_is_not_used_without_a_target(self):   # day-walk rev 3: hive's honey bubble = "unknown"
-        f = Fake((4.16, -22.51), [('bed7', 'unknown', True)])
-        game.bind(f)
-        self.assertFalse(aff.use('fill_can'))
-        self.assertEqual(f.clicks, [])
-
-    def test_unknown_bubble_with_exact_owner_is_resolved_from_context_then_clicked(self):
-        f = Fake((3.34, -27.34), [('bed7', 'unknown', True)])
-        game.bind(f)
-        self.assertTrue(aff.use('unplant', f.ents['bed7']))
-        self.assertEqual(len(f.clicks), 1)
-        self.assertEqual(f.logs[-1][0], ('bubble_resolve',))
-        self.assertEqual(f.logs[-1][1]['inferred'], 'unplant')
-        self.assertEqual(f.logs[-1][1]['owner'], 'GardenBed')
 
 
 if __name__ == '__main__':

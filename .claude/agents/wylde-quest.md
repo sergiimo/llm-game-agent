@@ -47,8 +47,8 @@ When asked a question mid-run, answer from the manifest first and say "unverifie
 The plan's steps are your plan; this section is how to check each one.
 **Game functions first (L77):** when a function exists for the step, call it instead of keys/clicks: it walks there,
 answers its own confirmations, proves the result from the game log and logs itself.
-`./wf py "beds()"` · `./wf py "for b in beds(wilted=True): replant(b)"` · `./wf call garden.water 7` ·
-`plant(b, 'Tulip')`, `unplant(b)`, `water(b)`, `harvest(b)`, `fill_can()`, `goto(place)`, `press('Select')`,
+`./wf routines` · `./wf py "replant_all()"` · `./wf call garden.water_all` ·
+`harvest_all()`, `fill_can()`, `goto(place)`, `press('Select')`,
 `close()` (tools/game/). Output is the action tree (✓/✗ per action, seconds); `FAILED: <which proof is missing>` → fix
 that one thing (e.g. learn a place) and re-run. Missing function for a repeated job → report it as a `[tool]` gap.
 **Actions DB:** run `./wf actions <tags>` from the brief's **Actions:** field. Every row has **Expect** (hits, drops,

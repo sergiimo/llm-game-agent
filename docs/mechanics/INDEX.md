@@ -4,6 +4,7 @@ Load order: this index → only the mechanic you need. "(wiki)" sections are unv
 
 | Mechanic | Summary |
 |---|---|
+| [interaction-laws](interaction-laws.md) | **Read first for any task that acts on objects:** Tara is at the frame centre; vision gives one click point for the first node; record every click result (some feedback vanishes in ~1–2 s); click fitting bubbles until none, then ask again |
 | [basic-actions](basic-actions.md) | **How to do things:** interact model (bubble → Space), which tool for which target (axe/can/pickaxe/rod), forage, talk, sleep, eat. Start here for any verb |
 | [time-and-calendar](time-and-calendar.md) | Clock runs in 10-min ticks; weekdays gate shop hours; the day ends by sleeping or by passing out at ~02:00. |
 | [energy](energy.md) | Stamina for tools/foraging; restore by eating/coffee; sleep refills; starts low. |

@@ -33,7 +33,7 @@ def log_call(argv):
     """Append each call to .shots/actions.log (`<unix time>\t<args>`); tools/record.py shows it as a caption.
     Returns the start time (None if not logged); log_end() then writes `<start>\t<end>` to actions_done.log."""
     if argv and argv[0] not in ('stop', 'status', 'log', 'save', 'wiki', 'tips', 'actions', 'run', 'learn', 'routines',
-                                'eval', 'bench', 'objects', 'graph', '-h', '--help'):
+                                'eval', 'bench', 'objects', 'graph', 'anchor', '-h', '--help'):
         try:
             import time
             t = round(time.time(), 2)
@@ -64,7 +64,7 @@ def log_end(start, argv):
             pass
 
 
-READ_ONLY = {'log', 'save', 'state', 'look', 'shot', 'objects', 'graph', 'run', 'eval', 'bench', 'wiki', 'tips', 'actions',
+READ_ONLY = {'log', 'save', 'state', 'look', 'shot', 'objects', 'graph', 'anchor', 'run', 'eval', 'bench', 'wiki', 'tips', 'actions',
              'routines', 'learn', 'status', 'focus-mode', 'coverage', 'world'}
 _CALL = re.compile(r'(?:^|[\s;&|(\'"`])(?:\./wf|\S*wf\.py|\S*wfc\.py)(?=\s|$)')
 _JOIN = re.compile(r';|&&|\|\||\n')

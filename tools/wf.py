@@ -1433,6 +1433,23 @@ def objects_cmd(args):
     sys.exit(objects_cmd.__doc__)
 
 
+def anchor_cmd(text):
+    """wf anchor "<answer>": parse the vision answer, set Tara.at + states in the graph, check wilted count vs the save. No input."""
+    if os.path.join(ROOT, 'tools') not in sys.path:
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from objects import anchor as OA
+    counts = None
+    try:
+        crops = farm_status()['crops']
+        counts = {'wilted': sum(1 for c in crops if c.get('isWilted') == 'true')}
+    except Exception:
+        pass
+    try:
+        print(OA.answer(text, save_counts=counts))
+    except OA.AnchorError as e:
+        sys.exit(f'REJECTED: {e}')
+
+
 def graph_cmd(args):
     """wf graph show [region] | where | path <Kind> [key=value ...] | view-add <region> | sync |
     map-seed <map.png> | map-heatmap <node> <map.png> [out.png]: the object graph with nested regions
@@ -4139,6 +4156,8 @@ def main(argv=None):
     p.add_argument('args', nargs='*')
     p = sub.add_parser('graph', help='object graph: show/where/path/view-add/sync/map-seed/map-heatmap')
     p.add_argument('args', nargs='*')
+    p = sub.add_parser('anchor', help='apply a structured vision answer to the object graph (no game input): wf anchor "<answer>"')
+    p.add_argument('answer')
     p = sub.add_parser('eval', help='hits/misses of predictions: wf eval [all] | pending | mark <id> hit|miss')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('py', help='run game functions (tools/game, L77): wf py "for b in beds(wilted=True): replant(b)"')
@@ -4216,6 +4235,8 @@ def main(argv=None):
         return objects_cmd(a.args)
     if a.cmd == 'graph':
         return graph_cmd(a.args)
+    if a.cmd == 'anchor':
+        return anchor_cmd(a.answer)
     if a.cmd == 'eval':
         return eval_cmd(a.args)
     if a.cmd == 'learn':

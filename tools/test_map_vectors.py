@@ -24,7 +24,7 @@ class MapVectorsTest(unittest.TestCase):
         shutil.rmtree(self.tmp)
 
     def test_target_inherits_nearest_represented_ancestor(self):
-        self.assertEqual(M.representation(self.g, 'GardenBed#1'),
+        self.assertEqual(M.representation(self.g, 'GardenBed@Garden#r1c1'),
                          M.Representation('Garden', 'farm-garden', 'MapGarden'))
         self.assertEqual(M.representation(self.g, 'Stove'),
                          M.Representation('House', 'farmhouse', 'MapHouse'))
@@ -55,7 +55,7 @@ class MapVectorsTest(unittest.TestCase):
         image = Image.new('RGB', (300, 200), (20, 30, 40))
         features = np.array([[[0, 1], [1, 0], [.2, .8]],
                              [[.3, .7], [.4, .6], [.5, .5]]], np.float32)
-        match = M.locate(self.g, 'GardenBed#1', image, store=object(),
+        match = M.locate(self.g, 'GardenBed@Garden#r1c1', image, store=object(),
                          feature_fn=lambda _: features,
                          vector_fn=lambda _store, kind: np.array([[1, 0]], np.float32))
         self.assertEqual(match.representation.node_id, 'Garden')

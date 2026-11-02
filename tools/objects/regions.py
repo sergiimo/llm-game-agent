@@ -8,7 +8,9 @@ def scope(graph, region_id):
     itself. A region's exit node (e.g. House -> HouseExit) is a child of the region, so it is in the scope."""
     out = []
     for n in graph.children(region_id):
-        if n.type == 'member' or n.id == region_id:
+        if n.type == 'member' or n.id == region_id or n.kind == 'Tara':   # Tara is the chain's cursor, not a detectable object
+            continue
+        if n.type == 'group' and n.extra.get('pattern') is None:   # a group without a pattern yet (GardenBed@FarGarden)
             continue
         if n.type == 'region' and n.extra.get('signal') != 'view':
             continue

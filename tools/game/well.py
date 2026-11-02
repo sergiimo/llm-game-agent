@@ -44,7 +44,7 @@ def fill_can():
     mark = core.WF.log_mark()
     _click(pt)
     line = prove('fill the can', PROOF, mark)
-    changes = G.apply_log(g, [line], [])
+    changes = G.apply_log(g, [line], at=None)
     if not changes and 'already full' in line:
         g.set_state('Well', 'can', 'full', line.split(']')[0].lstrip('[') if line.startswith('[') else None, 'log')
     g.save(GRAPH)

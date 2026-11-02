@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from objects import bubbles as B, graph as G, identity as I, loop as L  # noqa: E402
 from objects.detect import Detection  # noqa: E402
 
+CELLS = ['GardenBed@Garden#r%dc%d' % (r, c) for r in (1, 2, 3) for c in (1, 2, 3, 4)]
 T = os.path.dirname(os.path.abspath(__file__))
 SEED = os.path.join(T, 'fixtures', 'graph_seed.json')   # the seed without live states (objects/graph/Farm.json is the live graph)
 BEDS = json.load(open(os.path.join(T, 'fixtures', 'beds.json')))['beds']
@@ -27,8 +28,8 @@ class IdentityTest(unittest.TestCase):
     def setUp(self):
         self.g = G.Graph()
         self.g.load(SEED)
-        self.grp = self.g.node('GardenBed')
-        self.mem = self.g.members('GardenBed')
+        self.grp = self.g.node('GardenBed@Garden')
+        self.mem = self.g.members('GardenBed@Garden')
 
     def test_assign_full(self):
         dets = grid()
@@ -36,13 +37,13 @@ class IdentityTest(unittest.TestCase):
         self.assertFalse(unc)
         self.assertEqual(len(out), 12)
         for i in range(12):
-            self.assertIs(out['GardenBed#%d' % (i + 1)], dets[i])
+            self.assertIs(out[CELLS[i]], dets[i])
 
     def test_assign_shuffled(self):
         dets = grid()[::-1]
         out, unc = I.assign(self.grp, self.mem, dets)
-        self.assertEqual(out['GardenBed#1'].point, (100, 300))
-        self.assertEqual(out['GardenBed#12'].point, (100 + 450 + 20, 540))
+        self.assertEqual(out['GardenBed@Garden#r1c1'].point, (100, 300))
+        self.assertEqual(out['GardenBed@Garden#r3c4'].point, (100 + 450 + 20, 540))
 
     def test_missing_column_always_uncertain(self):
         dets = grid(skip_col=3)
@@ -50,13 +51,13 @@ class IdentityTest(unittest.TestCase):
         self.assertTrue(unc)
         out, unc = I.assign(self.grp, self.mem, dets, anchor_y=190)
         self.assertTrue(unc)                                    # partial columns stay uncertain even anchored
-        self.assertEqual(out['GardenBed#1'].point, (100, 300))
+        self.assertEqual(out['GardenBed@Garden#r1c1'].point, (100, 300))
 
     def test_missing_row_anchored_by_hive_row(self):
         dets = grid()[:8]   # north two rows only
         out, unc = I.assign(self.grp, self.mem, dets, anchor_y=190)
         self.assertFalse(unc)
-        self.assertEqual(out['GardenBed#5'].point, (110, 420))
+        self.assertEqual(out['GardenBed@Garden#r2c1'].point, (110, 420))
         out, unc = I.assign(self.grp, self.mem, grid()[4:], anchor_y=190)   # south rows only: anchor is too far
         self.assertTrue(unc)
 
@@ -64,16 +65,6 @@ class IdentityTest(unittest.TestCase):
         pairs = [det(100 + 160 * i + 15 * j, 700 - 100 * j, 4 - j / 10, 'BeeHive') for i in range(4) for j in (0, 1)]
         self.assertEqual(len(I.dedupe_for(self.g.node('BeeHive'), pairs)), 4)
         self.assertEqual(len(I.dedupe_for(self.grp, pairs)), 8)
-
-    def test_member_from_log(self):
-        lines = open(os.path.join(T, 'fixtures', 'game_log_actions.txt')).read().splitlines()
-        self.assertEqual(I.member_from_log(lines[0], BEDS), 'GardenBed#12')
-        self.assertEqual(I.member_from_log(lines[2], BEDS), 'GardenBed#11')
-        self.assertIsNone(I.member_from_log('[D1 1:00:00 AM] > plant me=Player target=GardenBed(Clone) at (50.0, 0.10, 50.0)', BEDS))
-        self.assertEqual(I.member_from_log('[D1 1:00:00 AM] > water me=Player target=GardenBed(Clone) at (-1.60, 0.10, -25.30)', BEDS), 'GardenBed#1')
-        self.assertIsNone(I.member_from_log(lines[-1] if 'BeeHive' in lines[-1] else
-                                            '[D1 1:00:00 AM] > beehive_progress me=Player target=BeeHive(Clone) at (1.47, 0.10, -23.46)', BEDS))
-        self.assertIsNone(I.member_from_log('nothing', BEDS))
 
     def test_dedupe_synthetic(self):
         dets = [det(100, 100, 6), det(105, 102, 5), det(300, 100, 5), det(500, 100, 5)]
@@ -350,7 +341,7 @@ class LoopTest(unittest.TestCase):
 
     def test_hive_owns_its_bubble_before_bed_query_is_applied(self):
         q = L.Q(kind='GardenBed')
-        bed, hive = self.g.node('GardenBed#1'), self.g.node('BeeHive#1')
+        bed, hive = self.g.node('GardenBed@Garden#r1c1'), self.g.node('BeeHive#1')
         context = L._context_candidates(self.g, 'Garden', q.run(self.g, 'Garden'))
         self.assertIn(hive.id, {n.id for n in context})
         bed_det = det(500, 700, kind='GardenBed')
@@ -365,7 +356,7 @@ class LoopTest(unittest.TestCase):
 
     def test_classified_hive_bubble_cannot_activate_a_bed_even_if_geometry_owns_it(self):
         q = L.Q(kind='GardenBed')
-        bed = self.g.node('GardenBed#1')
+        bed = self.g.node('GardenBed@Garden#r1c1')
         bed_det = det(500, 700, kind='GardenBed')
         active = L._active_candidates(self.g, [bed], q, {bed.id: bed_det},
                                       [((500, 500), 'beehive_progress')], 1)
@@ -435,7 +426,7 @@ class LoopTest(unittest.TestCase):
         self.assertEqual(wf.clicks, [(420, 330)])
         self.assertEqual((arr.node.id, arr.region), ('HouseDoor', 'House'))
         self.assertEqual(L.ACTIVE, frozenset())                    # scene arrival is not a showing interaction bubble
-        self.assertIsNone(self.g.node('Tara'))                     # the old frame was invalidated by the scene change
+        self.assertIsNone(self.g.state_value('Tara', 'screen'))    # the old frame was invalidated by the scene change
         self.assertEqual(L.available(), [])
 
     def test_door_without_scene_change_keeps_going(self):

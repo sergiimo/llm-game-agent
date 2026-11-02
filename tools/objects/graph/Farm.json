@@ -16,7 +16,10 @@
    "region": "Farm",
    "signal": "scene",
    "exit": "HouseExit",
-   "map": {"label": "farmhouse", "kind": "MapHouse"}
+   "map": {
+    "label": "farmhouse",
+    "kind": "MapHouse"
+   }
   },
   {
    "id": "Garden",
@@ -24,7 +27,10 @@
    "kind": "Garden",
    "region": "Farm",
    "signal": "view",
-   "map": {"label": "farm-garden", "kind": "MapGarden"}
+   "map": {
+    "label": "farm-garden",
+    "kind": "MapGarden"
+   }
   },
   {
    "id": "Well",
@@ -70,7 +76,7 @@
    "region": "House"
   },
   {
-   "id": "GardenBed",
+   "id": "GardenBed@Garden",
    "type": "group",
    "kind": "GardenBed",
    "region": "Garden",
@@ -82,10 +88,18 @@
    }
   },
   {
-   "id": "GardenBed#1",
+   "id": "GardenBed@FarGarden",
+   "type": "group",
+   "kind": "GardenBed",
+   "region": "Farm",
+   "cover": false,
+   "pattern": null
+  },
+  {
+   "id": "GardenBed@Garden#r1c1",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
+   "region": "GardenBed@Garden",
    "state": {
     "crop": {
      "value": "planted",
@@ -97,14 +111,13 @@
      "game_time": "D155 7:51:30 AM",
      "source": "log"
     }
-   },
-   "index": 1
+   }
   },
   {
-   "id": "GardenBed#2",
+   "id": "GardenBed@Garden#r1c2",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
+   "region": "GardenBed@Garden",
    "state": {
     "crop": {
      "value": "planted",
@@ -116,14 +129,13 @@
      "game_time": "D155 7:57:47 AM",
      "source": "log"
     }
-   },
-   "index": 2
+   }
   },
   {
-   "id": "GardenBed#3",
+   "id": "GardenBed@Garden#r1c3",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
+   "region": "GardenBed@Garden",
    "state": {
     "crop": {
      "value": "planted",
@@ -135,14 +147,13 @@
      "game_time": "D155 7:54:27 AM",
      "source": "log"
     }
-   },
-   "index": 3
+   }
   },
   {
-   "id": "GardenBed#4",
+   "id": "GardenBed@Garden#r1c4",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
+   "region": "GardenBed@Garden",
    "state": {
     "crop": {
      "value": "planted",
@@ -154,28 +165,26 @@
      "game_time": "D155 8:01:10 AM",
      "source": "log"
     }
-   },
-   "index": 4
+   }
   },
   {
-   "id": "GardenBed#5",
+   "id": "GardenBed@Garden#r2c1",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
+   "region": "GardenBed@Garden",
    "state": {
     "crop": {
      "value": "planted",
      "game_time": "D149 12:11:49 PM",
      "source": "log"
     }
-   },
-   "index": 5
+   }
   },
   {
-   "id": "GardenBed#6",
+   "id": "GardenBed@Garden#r2c2",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
+   "region": "GardenBed@Garden",
    "state": {
     "crop": {
      "value": "planted",
@@ -187,14 +196,13 @@
      "game_time": "D148 9:01:04 PM",
      "source": "log"
     }
-   },
-   "index": 6
+   }
   },
   {
-   "id": "GardenBed#7",
+   "id": "GardenBed@Garden#r2c3",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
+   "region": "GardenBed@Garden",
    "state": {
     "crop": {
      "value": "planted",
@@ -206,14 +214,13 @@
      "game_time": "D149 11:22:18 AM",
      "source": "log"
     }
-   },
-   "index": 7
+   }
   },
   {
-   "id": "GardenBed#8",
+   "id": "GardenBed@Garden#r2c4",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
+   "region": "GardenBed@Garden",
    "state": {
     "crop": {
      "value": "planted",
@@ -225,14 +232,13 @@
      "game_time": "D156 7:19:50 AM",
      "source": "log"
     }
-   },
-   "index": 8
+   }
   },
   {
-   "id": "GardenBed#9",
+   "id": "GardenBed@Garden#r3c1",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
+   "region": "GardenBed@Garden",
    "state": {
     "crop": {
      "value": "planted",
@@ -244,14 +250,13 @@
      "game_time": "D156 7:11:27 AM",
      "source": "log"
     }
-   },
-   "index": 9
+   }
   },
   {
-   "id": "GardenBed#10",
+   "id": "GardenBed@Garden#r3c2",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
+   "region": "GardenBed@Garden",
    "state": {
     "crop": {
      "value": "planted",
@@ -263,14 +268,13 @@
      "game_time": "D156 7:09:03 AM",
      "source": "log"
     }
-   },
-   "index": 10
+   }
   },
   {
-   "id": "GardenBed#11",
+   "id": "GardenBed@Garden#r3c3",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
+   "region": "GardenBed@Garden",
    "state": {
     "crop": {
      "value": "planted",
@@ -282,14 +286,13 @@
      "game_time": "D156 7:13:49 AM",
      "source": "log"
     }
-   },
-   "index": 11
+   }
   },
   {
-   "id": "GardenBed#12",
+   "id": "GardenBed@Garden#r3c4",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
+   "region": "GardenBed@Garden",
    "state": {
     "crop": {
      "value": "planted",
@@ -301,8 +304,7 @@
      "game_time": "D156 7:16:30 AM",
      "source": "log"
     }
-   },
-   "index": 12
+   }
   },
   {
    "id": "BeeHive",
@@ -370,6 +372,13 @@
    "kind": "BeeHive",
    "region": "BeeHive",
    "index": 8
+  },
+  {
+   "id": "Tara",
+   "type": "unique",
+   "kind": "Tara",
+   "region": "Farm",
+   "state": {}
   }
  ],
  "edges": [

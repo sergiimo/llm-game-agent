@@ -1455,7 +1455,7 @@ def graph_cmd(args):
         if mark > size:   # the log was rotated
             mark = 0
         lines = _unhash(log_since(mark)).splitlines()
-        changes = OG.apply_log(g, lines, [vars(b) for b in game.garden.beds()])
+        changes = OG.apply_log(g, lines, at=g.state_value('Tara', 'at'))
         g.extra['_sync'] = size
         g.save(gpath)
         for nid, key, val, when in changes:
@@ -1507,7 +1507,7 @@ def graph_cmd(args):
         if offers:
             extra.append('offers ' + offers)
         print(line + '  ' + ' '.join(extra))
-        for c in sorted(g.children(id), key=lambda c: (c.type == 'member', c.extra.get('index', 0))):
+        for c in sorted(g.children(id), key=lambda c: (c.type == 'member', OG.order(c))):
             if c.id != id:
                 tree(c.id, depth + 1)
 

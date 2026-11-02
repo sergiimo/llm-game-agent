@@ -1,4 +1,4 @@
-"""Object graph with nested regions (no coordinates: identity = kind, region, pattern index). Nodes are regions,
+"""Object graph with nested regions (no coordinates: identity = kind, region, pattern cell `Group#r<row>c<col>`). Nodes are regions,
 uniques, groups and group members; `in` is the node's `region` field (a member's region is its group); edges carry
 `offers` (node, action), `leads_to` (door, region) and the like. States are hints with an age:
 {key: {value, game_time, source}}. Frame observations (source `frame`, such as a currently showing bubble) are transient;
@@ -12,6 +12,25 @@ import networkx as nx
 DEFAULT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'graph')
 TYPES = ('region', 'unique', 'group', 'member')
 NODE_KEYS = ('id', 'type', 'kind', 'region', 'state', 'vec', 'seen')   # known fields; the rest goes to Node.extra
+
+
+_CELL = re.compile(r'#r(\d+)c(\d+)$')
+_DAY = re.compile(r'D(\d+)')
+DIRS = {'N': (-1, 0), 'S': (1, 0), 'W': (0, -1), 'E': (0, 1)}
+
+
+def cell(member_id):
+    """(row, col), 1-based, from a pattern-cell member id such as `GardenBed@Garden#r2c3`."""
+    m = _CELL.search(member_id)
+    if not m:
+        raise ValueError(f'not a pattern cell id: {member_id}')
+    return int(m.group(1)), int(m.group(2))
+
+
+def order(node):
+    """Sort key of a member: its pattern cell (row, col) when the id is one, else its stored `index`."""
+    m = _CELL.search(node.id)
+    return (int(m.group(1)), int(m.group(2))) if m else (0, node.extra.get('index', 0))
 
 
 class Node:
@@ -88,7 +107,7 @@ class Graph:
         return out[::-1]
 
     def members(self, group_id):
-        return sorted((n for n in self.children(group_id) if n.type == 'member'), key=lambda n: n.extra.get('index', 0))
+        return sorted((n for n in self.children(group_id) if n.type == 'member'), key=order)
 
     def add_edge(self, a, b, rel, **attrs):
         e = {'a': a, 'b': b, 'rel': rel, **attrs}
@@ -98,13 +117,59 @@ class Graph:
     def edges(self, a=None, rel=None):
         return [e for e in self._edges if (a is None or e['a'] == a) and (rel is None or e['rel'] == rel)]
 
-    def set_state(self, id, key, value, game_time, source):
-        self.nodes[id].state[key] = {'value': value, 'game_time': game_time, 'source': source}
+    def set_state(self, id, key, value, game_time, source, conf=1.0):
+        self.nodes[id].state[key] = {'value': value, 'game_time': game_time, 'source': source, 'conf': conf}
 
     def state_value(self, id, key):
         n = self.nodes.get(id)
         s = n.state.get(key) if n else None
         return s['value'] if s else None
+
+    def member_at(self, group_id, row, col):
+        return self.nodes.get(f'{group_id}#r{row}c{col}')
+
+    def neighbours(self, member_id):
+        """{'E'|'W'|'N'|'S': member_id} of the existing grid neighbours; generated from the group pattern, not stored."""
+        n = self.nodes.get(member_id)
+        if n is None or not _CELL.search(member_id):
+            return {}
+        r, c = cell(member_id)
+        out = {}
+        for d, (dr, dc) in DIRS.items():
+            m = self.member_at(n.region, r + dr, c + dc)
+            if m is not None:
+                out[d] = m.id
+        return out
+
+    def hops(self, a, b):
+        """[(direction, member_id)] steps from a to b inside one group: columns first, then rows. [] if a == b;
+        None if either is unknown, the groups differ or a step has no member."""
+        na, nb = self.nodes.get(a), self.nodes.get(b)
+        if na is None or nb is None or na.region != nb.region or not (_CELL.search(a) and _CELL.search(b)):
+            return None
+        (r, c), (r2, c2) = cell(a), cell(b)
+        out, cur = [], a
+        for d, count in (('E' if c2 > c else 'W', abs(c2 - c)), ('S' if r2 > r else 'N', abs(r2 - r))):
+            for _ in range(count):
+                cur = self.neighbours(cur).get(d)
+                if cur is None:
+                    return None
+                out.append((d, cur))
+        return out
+
+    def phase(self, id):
+        return self.state_value(id, 'phase')
+
+    def needs(self, group_id, pred):
+        return [n.id for n in self.members(group_id) if pred(n)]
+
+    def new_day(self, day):
+        """Yesterday's watered_today hints (game_time day != `day`) -> False, source 'event'."""
+        for n in self.nodes.values():
+            s = n.state.get('watered_today')
+            m = _DAY.search(str(s.get('game_time'))) if isinstance(s, dict) else None
+            if s and s.get('value') is True and m and int(m.group(1)) != day:
+                self.set_state(n.id, 'watered_today', False, f'D{day}', 'event')
 
     def view(self):
         """networkx DiGraph: `in` edges (node -> region) plus the stored edges."""
@@ -122,13 +187,13 @@ _STAMP = re.compile(r'^\[(D(\d+)) ([^\]]+)\]')
 _ACT = re.compile(r'>\s*(\w+)\b[^\n]*?target=(\w+)')
 
 
-def apply_log(graph, lines, beds):
-    """Update node states from game-log lines (source 'log', game_time = the line's stamp 'D148 9:36:36 PM'):
+def apply_log(graph, lines, at):
+    """Update node states from game-log lines (source 'log', game_time = the line's stamp 'D148 9:36:36 PM'). Only the
+    event type is read, never a position:
     `> fill_watering_can|full_watering_can ... target=Well` -> Well can=full;
-    `> plant|water|unplant_impl ... target=GardenBed ... at (x, y, z)`
-    -> that bed member (identity.member_from_log) crop=planted | watered=<game day> | crop=None. Returns
-    [(node_id, key, value, game_time)] of the changes in order."""
-    from .identity import member_from_log
+    `> plant|water|unplant_impl ... target=GardenBed` -> the member `at` (the chain's current node; None = unknown,
+    skipped): plant phase=growing | water watered_today=True | unplant_impl phase=empty + crop=None.
+    Returns [(node_id, key, value, game_time)] of the changes in order."""
     out = []
     for line in lines:
         st, m = _STAMP.match(line), _ACT.search(line)
@@ -137,15 +202,15 @@ def apply_log(graph, lines, beds):
         act, target = m.group(1), m.group(2)
         when = f'{st.group(1)} {st.group(3)}'
         if act in ('fill_watering_can', 'full_watering_can') and target == 'Well' and 'Well' in graph.nodes:
-            ch = ('Well', 'can', 'full')
+            chs = [('Well', 'can', 'full')]
         elif target == 'GardenBed' and act in ('plant', 'water', 'unplant_impl'):
-            mid = member_from_log(line, beds)
-            if mid is None or mid not in graph.nodes:
+            if at is None or at not in graph.nodes:
                 continue
-            ch = (mid, 'crop', 'planted') if act == 'plant' else (mid, 'watered', int(st.group(2))) \
-                if act == 'water' else (mid, 'crop', None)
+            chs = [(at, 'phase', 'growing')] if act == 'plant' else [(at, 'watered_today', True)] \
+                if act == 'water' else [(at, 'phase', 'empty'), (at, 'crop', None)]
         else:
             continue
-        graph.set_state(ch[0], ch[1], ch[2], when, 'log')
-        out.append((*ch, when))
+        for ch in chs:
+            graph.set_state(*ch, when, 'log')
+            out.append((*ch, when))
     return out

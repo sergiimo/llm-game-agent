@@ -3,6 +3,8 @@ path() lists the region steps to reach one: exit each region up to the common an
 one), enter each region down, then reach the node."""
 from collections import namedtuple
 
+from .graph import order
+
 Step = namedtuple('Step', 'action node')   # action: exit | enter | reach; node: graph Node
 
 
@@ -62,5 +64,5 @@ class Q:
             if any(graph.state_value(n.id, k) != v for k, v in self.state.items()):
                 continue
             out.append(n)
-        key = lambda n: (n.id not in visible, len(path(graph, current_region, n)), n.extra.get('index', 0))  # noqa: E731
+        key = lambda n: (n.id not in visible, len(path(graph, current_region, n)), order(n))  # noqa: E731
         return sorted(out, key=key)

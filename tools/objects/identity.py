@@ -1,9 +1,9 @@
 """Group member identity from frame points only (no coordinates stored): dedupe detections of one kind, assign pattern
-indices to members, and map a game-log action line to a member through the save's bed numbering."""
-import re
+cells to members."""
 from statistics import median
 
 from .detect import Detection
+from .graph import order
 
 
 def _dist(a, b, axis):
@@ -77,9 +77,12 @@ def assign(group, members, dets, anchor_y=None):
     elif anchor_y is not None:
         anchored = True
     out = {}
-    by_idx = {m.index: m for m in members}
+    def pos(m):   # (row, col) 1-based: the cell id, or the legacy `index` (hives) row-major
+        return order(m) if '#r' in m.id else (divmod(m.index - 1, cols)[0] + 1, divmod(m.index - 1, cols)[1] + 1)
+
+    by_cell = {pos(m): m for m in members}
     for d, r, c in zip(dets, ry, cx):
-        m = by_idx.get(r * cols + c + 1)
+        m = by_cell.get((r + 1, c + 1))
         if m is not None and (m.id not in out or d.dist > out[m.id].dist):
             out[m.id] = d
     return out, not ((nr == rows or anchored) and nc == cols)
@@ -89,18 +92,3 @@ def dedupe_for(group, dets, min_frac=0.5):
     """dedupe with the axis its pattern implies: 'x' for one row, 'y' for one column, else euclidean."""
     p = group.pattern
     return dedupe(dets, min_frac, axis='x' if p['rows'] == 1 else 'y' if p['cols'] == 1 else None)
-
-
-_LOG = re.compile(r'>\s*\w+\b.*?target=(\w+)\b.*?\bat \((-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+)\)')
-
-
-def member_from_log(line, beds, tol=0.6):
-    """`> <action> ... target=GardenBed... at (x, y, z)` -> `GardenBed#<save bed id>` whose (x, z) is within tol."""
-    m = _LOG.search(line)
-    if not m or m.group(1) != 'GardenBed':
-        return None
-    x, z = float(m.group(2)), float(m.group(4))
-    best = min(beds, key=lambda b: ((b['x'] - x) ** 2 + (b['z'] - z) ** 2) ** .5, default=None)
-    if best is None or ((best['x'] - x) ** 2 + (best['z'] - z) ** 2) ** .5 > tol:
-        return None
-    return 'GardenBed#%d' % best['id']

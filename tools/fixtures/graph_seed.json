@@ -15,7 +15,10 @@
    "region": "Farm",
    "signal": "scene",
    "exit": "HouseExit",
-   "map": {"label": "farmhouse", "kind": "MapHouse"}
+   "map": {
+    "label": "farmhouse",
+    "kind": "MapHouse"
+   }
   },
   {
    "id": "Garden",
@@ -23,7 +26,10 @@
    "kind": "Garden",
    "region": "Farm",
    "signal": "view",
-   "map": {"label": "farm-garden", "kind": "MapGarden"}
+   "map": {
+    "label": "farm-garden",
+    "kind": "MapGarden"
+   }
   },
   {
    "id": "Well",
@@ -62,7 +68,7 @@
    "region": "House"
   },
   {
-   "id": "GardenBed",
+   "id": "GardenBed@Garden",
    "type": "group",
    "kind": "GardenBed",
    "region": "Garden",
@@ -74,88 +80,84 @@
    }
   },
   {
-   "id": "GardenBed#1",
-   "type": "member",
+   "id": "GardenBed@FarGarden",
+   "type": "group",
    "kind": "GardenBed",
-   "region": "GardenBed",
-   "index": 1
+   "region": "Farm",
+   "cover": false,
+   "pattern": null
   },
   {
-   "id": "GardenBed#2",
+   "id": "GardenBed@Garden#r1c1",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
-   "index": 2
+   "region": "GardenBed@Garden"
   },
   {
-   "id": "GardenBed#3",
+   "id": "GardenBed@Garden#r1c2",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
-   "index": 3
+   "region": "GardenBed@Garden"
   },
   {
-   "id": "GardenBed#4",
+   "id": "GardenBed@Garden#r1c3",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
-   "index": 4
+   "region": "GardenBed@Garden"
   },
   {
-   "id": "GardenBed#5",
+   "id": "GardenBed@Garden#r1c4",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
-   "index": 5
+   "region": "GardenBed@Garden"
   },
   {
-   "id": "GardenBed#6",
+   "id": "GardenBed@Garden#r2c1",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
-   "index": 6
+   "region": "GardenBed@Garden"
   },
   {
-   "id": "GardenBed#7",
+   "id": "GardenBed@Garden#r2c2",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
-   "index": 7
+   "region": "GardenBed@Garden"
   },
   {
-   "id": "GardenBed#8",
+   "id": "GardenBed@Garden#r2c3",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
-   "index": 8
+   "region": "GardenBed@Garden"
   },
   {
-   "id": "GardenBed#9",
+   "id": "GardenBed@Garden#r2c4",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
-   "index": 9
+   "region": "GardenBed@Garden"
   },
   {
-   "id": "GardenBed#10",
+   "id": "GardenBed@Garden#r3c1",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
-   "index": 10
+   "region": "GardenBed@Garden"
   },
   {
-   "id": "GardenBed#11",
+   "id": "GardenBed@Garden#r3c2",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
-   "index": 11
+   "region": "GardenBed@Garden"
   },
   {
-   "id": "GardenBed#12",
+   "id": "GardenBed@Garden#r3c3",
    "type": "member",
    "kind": "GardenBed",
-   "region": "GardenBed",
-   "index": 12
+   "region": "GardenBed@Garden"
+  },
+  {
+   "id": "GardenBed@Garden#r3c4",
+   "type": "member",
+   "kind": "GardenBed",
+   "region": "GardenBed@Garden"
   },
   {
    "id": "BeeHive",
@@ -223,6 +225,13 @@
    "kind": "BeeHive",
    "region": "BeeHive",
    "index": 8
+  },
+  {
+   "id": "Tara",
+   "type": "unique",
+   "kind": "Tara",
+   "region": "Farm",
+   "state": {}
   }
  ],
  "edges": [

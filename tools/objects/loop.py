@@ -291,11 +291,13 @@ def _interaction_proof(wf, mark, target):
 
 
 def _observe_tara(graph, fr, cur, vis, active, frame):
-    """Add transient Tara node + screen-relative `near` edges to every bubble-active object in this frame."""
+    """Add the Tara node (transient when the graph has none) + screen-relative `near` edges to every bubble-active object in this frame."""
     tara = next((d for d in fr.dets(cur, ('Tara',)) if d.kind == 'Tara'), None)
     if tara is None:
         return None
-    graph.nodes['Tara'] = G.Node('Tara', 'unique', 'Tara', cur, transient=True)
+    if 'Tara' not in graph.nodes:   # the stored Tara node (the chain cursor) stays; only its frame states / edges are transient
+        graph.nodes['Tara'] = G.Node('Tara', 'unique', 'Tara', cur, transient=True)
+    graph.nodes['Tara'].region = cur
     graph.set_state('Tara', 'screen', {'point': list(tara.point), 'box': list(tara.box), 'z': round(tara.dist, 2)},
                     frame, 'frame')
     for node_id, (n, _, kind) in active.items():

@@ -906,6 +906,45 @@ class Runner(RunnerBase):
         self.assertAlmostEqual(lay['ref_offset'][1], OFF[1], delta=1)
 
 
+class EventsAreTruth(RunnerBase):
+    """Live run B (L123): vision misread growing beds as wilted; the click's event is ground truth - correct the node
+    from it and move on, no vision question, no CHAIN_STUCK count."""
+
+    def test_growing_misread_as_wilted_is_corrected_and_the_run_continues(self):
+        f = self.fake(states={(2, 3): {'phase': 'growing', 'wet': True}, (2, 1): {'phase': 'wilted', 'crop': 'Carrot'}})
+        f.reach = True
+        self.preset(self.node(2, 2), hints={(2, 3): {'phase': 'wilted', 'crop': 'Tulip'}})   # vision got r2c3 wrong
+        res = self.run_('replant')
+        self.assertEqual(f.asked, [])
+        self.assertEqual(self.g.phase(self.node(2, 3)), 'growing')
+        self.assertEqual(self.g.nodes[self.node(2, 3)].state['phase']['source'], 'event')
+        self.assertIn(self.node(2, 1), res['done'])
+        self.assertNotIn(self.node(2, 3), res['done'])
+        self.assertEqual(res['corrected'], [self.node(2, 3)])
+        self.assertEqual(f.st[(2, 3)]['phase'], 'growing')            # nothing removed there
+
+    def test_dry_bed_misread_as_wilted_is_watered_by_the_click_and_recorded(self):
+        f = self.fake(states={(2, 3): {'phase': 'growing', 'wet': False}})
+        f.reach = True
+        self.preset(self.node(2, 2), hints={(2, 3): {'phase': 'wilted', 'crop': 'Tulip'}})
+        res = self.run_('replant')
+        self.assertEqual(f.asked, [])
+        self.assertEqual(self.g.phase(self.node(2, 3)), 'growing')
+        self.assertIs(self.g.state_value(self.node(2, 3), 'watered_today'), True)
+        self.assertEqual(res['corrected'], [self.node(2, 3)])
+        self.assertEqual(self.g.state_value('Tara', 'asks') or 0, 0)
+
+
+    def test_pending_water_on_a_bed_that_turns_out_watered_is_corrected(self):
+        f = self.fake(states={(2, 3): {'phase': 'growing', 'wet': True}})
+        f.reach = True
+        self.preset(self.node(2, 2), hints={(2, 3): {'watered_today': False}})
+        self.g.set_state('Tara', 'pending_water', self.node(2, 3), 'D5 9:00:00 AM', 'event')
+        res = self.run_('water')
+        self.assertEqual((f.asked, res['corrected']), ([], [self.node(2, 3)]))
+        self.assertIsNone(self.g.state_value('Tara', 'pending_water'))
+
+
 class Reach(RunnerBase):
     """Ruling 28-31: the click goes straight to the target; a bed in reach interacts (that is the arrival)."""
 
@@ -966,15 +1005,17 @@ class Reach(RunnerBase):
         self.assertAlmostEqual(off[0], OFF[0] + 20, delta=6)   # ruling 30: layout point (2 x 250) + shift (2 x -240) - CENTRE
         self.assertAlmostEqual(off[1], OFF[1], delta=6)
 
-    def test_other_event_than_expected_is_one_question(self):
-        f = self.fake(states={(2, 3): {'wet': False}})   # really a dry growing bed ...
+    def test_event_with_no_known_meaning_is_one_question(self):
+        # a known contradicting event corrects the bed (EventsAreTruth); one with no meaning for a bed still asks
+        f = self.fake(states={(2, 3): {'phase': 'wilted', 'crop': 'Tulip'}})
         f.reach = True
-        self.preset(self.node(2, 2), hints={(2, 3): {'phase': 'wilted'}})   # ... the graph thinks wilted
+        self.preset(self.node(2, 2))
         from objects.loop import NeedVision
-        with self.assertRaises(NeedVision):
-            self.run_('replant')
+        with self.mock.patch.object(C, 'click_target', lambda *a, **k: ('event', 'beehive_progress', 0)):
+            with self.assertRaises(NeedVision):
+                self.run_('replant')
         self.assertEqual(len(f.asked), 1)
-        self.assertIn('logged water', f.asked[0])
+        self.assertIn('logged beehive_progress', f.asked[0])
 
     def test_no_event_and_no_shift_is_one_question(self):
         f = self.fake(states={(2, 3): {'phase': 'empty', 'crop': None, 'wet': False}})   # in reach: opens the planting panel

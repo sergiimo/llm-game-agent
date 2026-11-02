@@ -14,6 +14,15 @@ from .query import Q
 
 
 EXPECT = {'replant': {'unplant'}, 'water': {'water', 'out_of_water'}, 'harvest': {'grab_item'}}   # click interactions per task
+# What a click's event proves about the bed (L123: events are ground truth; vision misreads wilted vs growing at night)
+# plant_growing: no water action happened, so the bed did not need water (a dry one would have been watered)
+EVENT_STATE = {'plant_growing': {'phase': 'growing', 'watered_today': True}, 'water': {'phase': 'growing', 'watered_today': True},
+               'out_of_water': {'phase': 'growing', 'watered_today': False}, 'unplant': {'phase': 'wilted'},
+               'grab_item': {'phase': None}}
+
+
+class Corrected(Exception):
+    """The click's event contradicted the predicted state: the node was corrected from the event; skip to the next."""
 EVENTS = {'unplant': r'> unplant ', 'removed': r'> unplant_impl ', 'plant': r'> plant ', 'planted': r'totalPlanted\.',
           'water': r'> water ', 'dry_can': r'> out_of_water ', 'pickup': r'> grab_item '}
 
@@ -207,7 +216,14 @@ def _goto_node(r, at, target, task):
         kind, val, mark = click_target(g, at, target, [a.pt for a in affordances.scan()])
         if kind == 'event':
             if val not in EXPECT[task]:
-                raise Unexpected(f'clicking {target} logged {val}, {task} expects {sorted(EXPECT[task])}')
+                if val not in EVENT_STATE:
+                    raise Unexpected(f'clicking {target} logged {val}, {task} expects {sorted(EXPECT[task])}')
+                for k, v in EVENT_STATE[val].items():
+                    g.set_state(target, k, v, _now(), 'event')
+                if val == 'out_of_water':
+                    g.set_state('Tara', 'can', 'empty', _now(), 'event')
+                ensure_gameplay()   # e.g. the Remove card a misread bed opened: close it, never confirm
+                raise Corrected(target)
             r.arrival, r.tile_pt = mark, layout_point(g, at, target)
             return None, at
         g.nodes[g.nodes[target].region].extra['layout']['ref_offset'] = [round(v, 1) for v in val]   # ruling 30
@@ -273,7 +289,7 @@ def run(task, group, graph, seed=None, max_steps=40, wf=None):
     Tara.at is unknown or anything is unexpected - answer with ./wf anchor and call again: the run continues from the graph."""
     t, g = TASKS[task], graph
     r = _Run(g, seed)
-    res = r.res = {'done': [], 'skipped': r.skipped, 'unknown': [], 'vision': 0, 'steps': 0}
+    res = r.res = {'done': [], 'skipped': r.skipped, 'unknown': [], 'corrected': [], 'vision': 0, 'steps': 0}
     blocked = None
     try:
         ensure_gameplay()
@@ -302,18 +318,25 @@ def run(task, group, graph, seed=None, max_steps=40, wf=None):
         pw = g.state_value('Tara', 'pending_water')
         if pw:
             if pw in g.nodes and g.phase(pw) == 'growing' and g.state_value(pw, 'watered_today') is not True:
-                b, at = _goto_node(r, at, pw, 'water')
-                _perform(r, TASKS['water'], 'water', pw, b)
-                res['done'].append(pw)
+                try:
+                    b, at = _goto_node(r, at, pw, 'water')
+                    _perform(r, TASKS['water'], 'water', pw, b)
+                    res['done'].append(pw)
+                except Corrected:
+                    res['corrected'].append(pw)
             g.set_state('Tara', 'pending_water', None, _now(), 'event')
         while not r.stop and res['steps'] < max_steps:
             todo = [(len(h), i) for i in g.needs(group, lambda n: t.needs(g, n.id))
-                    if (h := g.hops(at, i)) is not None]
+                    if i not in res['corrected'] and (h := g.hops(at, i)) is not None]   # never re-target a corrected bed
             if not todo:
                 break
             res['steps'] += 1
             target = min(todo)[1]
-            b, at = _goto_node(r, at, target, task)
+            try:
+                b, at = _goto_node(r, at, target, task)
+            except Corrected:
+                res['corrected'].append(target)
+                continue
             if _perform(r, t, task, target, b) == 'stop':
                 break
             res['done'].append(target)

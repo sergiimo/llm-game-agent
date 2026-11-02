@@ -1626,6 +1626,13 @@ def eval_cmd(args):
     print(('since the start of the open run\n' if since else 'all predictions\n') + evals.format_report(evals.report(since)))
 
 
+def _NeedVision():
+    if os.path.join(ROOT, 'tools') not in sys.path:
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from objects.loop import NeedVision
+    return NeedVision
+
+
 def game_cmd(kind, args):
     """`wf py "<code>"` / `wf call <module.fn> [args…]`: game functions (tools/game, L77), each proven by the game log
     and tracked as an action tree in the run log."""
@@ -1647,6 +1654,11 @@ def game_cmd(kind, args):
             res = f(*[int(a) if re.fullmatch(r'-?\d+', a) else a for a in args[1:]])
     except game.Failed as e:
         err = str(e)
+    except _NeedVision() as e:   # a vision question is an answer request, not a crash: print just its prompt
+        for line in game.track.LINES:
+            print(line)
+        print(e.args[0] if e.args else str(e))
+        return 2
     for line in game.track.LINES:
         print(line)
     if err:
@@ -3087,6 +3099,13 @@ def ask_vision(kind, question, img, **ctx):
     """Save a small gridded frame + context and return the NEED_VISION prompt for the agent."""
     from PIL import ImageDraw
     img.save(ASK_FRAME)
+    if kind == 'anchor':   # tile labels must stay readable: full-size frame, no grid overlay, the structured answer format
+        json.dump({'kind': kind, 'question': question, **ctx}, open(ASK_CTX, 'w'))
+        run_log('vision', what='ask', kind=kind, question=question)
+        return (f'NEED_VISION {kind}: {question}\n  look: {ASK_FRAME} (full size {img.size[0]}x{img.size[1]}, tiles labelled '
+                f'A, B, ...; no grid)\n  answer: ./wf anchor "group: GardenBed@Garden   at: B=r2c1   A=r1c1 empty   '
+                f'B=r2c1 wilted(Green Bean)   C=r2c2 growing dry   E=?"   (at = the tile nearest the magenta marker; '
+                f'E=? = cannot tell; you may name only some tiles)')
     small = img.resize((768, 432))
     d = ImageDraw.Draw(small)
     cw, ch = 768 / GRID_COLS, 432 / GRID_ROWS

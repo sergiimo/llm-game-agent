@@ -148,6 +148,7 @@ class FakeGarden:
         self.tara, self.can, self.log, self.screen = (2, 2), can, [], 'gameplay'
         self.cur, self.picked, self.seed_limit = None, None, 99
         self.position_reads, self.closed, self.asked, self.fills, self.save_override = 0, 0, [], 0, None
+        self.fill_graph = None
         self.save_n, self.move = 1, 'ok'   # move: 'ok' | 'none' (click does not move Tara) | 'far' (moves her two tiles)
         for n in self.POS:
             setattr(self, n, self._pos_reader)
@@ -222,7 +223,9 @@ class FakeGarden:
         for rc in sorted(self.st):
             tx, ty = self.tile_pt(rc)
             if abs(x - tx) < 45 and abs(y - ty) < 45:
-                if self.move == 'ok':
+                if self.move == 'opens':
+                    self.cur, self.screen = rc, 'panel'
+                elif self.move == 'ok':
                     self.tara = rc
                 elif self.move == 'far':
                     self.tara = (rc[0], min(4, rc[1] + 1)) if rc[1] >= self.tara[1] else (rc[0], max(1, rc[1] - 1))
@@ -286,9 +289,10 @@ class FakeGarden:
         self.closed += 1
         self.screen = 'gameplay'
 
-    def fill_can(self):
+    def fill_can(self, graph=None):
         self.fills += 1
         self.can = True
+        self.fill_graph = graph
 
     # --- scripted anchor answer from the truth
     def truth_answer(self, pending):
@@ -374,6 +378,13 @@ class Runner(unittest.TestCase):
     def node(self, r, c):
         return f'{self.GB}#r{r}c{c}'
 
+    def complete(self):
+        """Make the graph cover every bed (the farm-wide count check needs it): a FarGarden member with a known phase."""
+        far = 'GardenBed@FarGarden'
+        self.g.nodes[far].extra['pattern'] = {'rows': 1, 'cols': 1, 'order': 'x'}
+        self.g.nodes[far + '#r1c1'] = G.Node(far + '#r1c1', 'member', kind='GardenBed', region=far)
+        self.g.set_state(far + '#r1c1', 'phase', 'empty', 'D5 9:00:00 AM', 'vision')
+
     def test_first_call_asks_anchor(self):
         self.fake()
         from objects.loop import NeedVision
@@ -458,6 +469,8 @@ class Runner(unittest.TestCase):
 
     def test_count_mismatch_asks_once(self):
         f = self.fake()
+        self.complete()
+        f.save_n = 0   # no newer save yet: the first call only anchors
         res, visions = self.drive('water')     # nothing to water: only the anchor
         self.assertEqual(visions, 1)
         f.save_override = {'wilted': 1, 'ripe': 0, 'empty': 0, 'dry': 0}
@@ -467,6 +480,7 @@ class Runner(unittest.TestCase):
             self.run_('water')
         self.assertIn('wilted', f.asked[-1])
         self.assertEqual(len([q for q in f.asked if 'wilted=' in q]), 1)
+        self.assertIn('Run so far: done 0', f.asked[-1])   # the summary is not lost
 
     def test_garden_wrappers_run_the_tasks(self):
         from game import garden
@@ -517,6 +531,7 @@ class Runner(unittest.TestCase):
     def test_stale_save_skips_count_check(self):
         f = self.fake(states={(2, 2): {'wet': False}})
         self.preset(self.node(2, 2))
+        self.complete()
         f.save_override = {'wilted': 5, 'ripe': 0, 'empty': 0, 'dry': 0}   # would mismatch, but the save is old
         res = self.run_('water')
         self.assertEqual(res['count_check'], 'skipped (save older than run)')
@@ -525,6 +540,7 @@ class Runner(unittest.TestCase):
     def test_newer_save_checks_once_per_stamp(self):
         f = self.fake()
         self.preset(self.node(2, 2))
+        self.complete()
         f.save_override = {'wilted': 1, 'ripe': 0, 'empty': 0, 'dry': 0}
         f.save_n = 2
         from objects.loop import NeedVision
@@ -577,6 +593,164 @@ class Runner(unittest.TestCase):
         self.assertEqual(len(f.asked), 1)
         self.assertEqual(f.log[n:], [])
         self.assertEqual(self.g.state_value('Tara', 'at'), self.node(2, 1))
+
+    # ---- final-review fixes
+    def test_incomplete_graph_skips_count_check(self):
+        f = self.fake()
+        self.preset(self.node(2, 2))                    # FarGarden has no members: incomplete
+        f.save_override = {'wilted': 5, 'ripe': 0, 'empty': 0, 'dry': 0}
+        f.save_n = 2
+        res = self.run_('water')
+        self.assertEqual(res['count_check'], 'skipped (graph incomplete)')
+        self.assertEqual(f.asked, [])
+
+    def test_unknown_phase_member_skips_check_and_is_listed(self):
+        f = self.fake()
+        self.preset(self.node(2, 2))
+        self.complete()
+        self.g.set_state(self.node(1, 1), 'phase', None, 'D5 9:00:00 AM', 'event', 0.0)
+        f.save_n = 2
+        res = self.run_('water')
+        self.assertEqual(res['unknown'], [self.node(1, 1)])
+        self.assertEqual(res['count_check'], 'skipped (graph incomplete)')
+
+    def test_stale_at_other_day_with_no_tiles_walks_to_garden_then_asks_once(self):
+        f = self.fake()
+        self.preset(self.node(2, 2))
+        self.g.set_state('Tara', 'at', self.node(2, 2), 'D4 9:00:00 AM', 'vision')   # yesterday
+        f.detect = lambda img: []
+        from objects.loop import NeedVision
+        with self.mock.patch.object(self.loop, 'goto') as go:
+            with self.assertRaises(NeedVision):
+                self.run_('water')
+        self.assertEqual(go.call_count, 1)
+        self.assertEqual(go.call_args.args[0].kind, 'GardenBed')
+        self.assertEqual(len(f.asked), 1)
+        self.assertIsNone(self.g.state_value('Tara', 'at'))
+
+    def test_stale_at_other_scene_is_dropped(self):
+        f = self.fake()
+        self.preset(self.node(2, 2))
+        self.g.set_state('Tara', 'at_scene', 'Farm', 'D5 9:00:00 AM', 'event')
+        f.current_scene = lambda: 'House'
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(len(f.asked), 1)
+        self.assertIsNone(self.g.state_value('Tara', 'at'))
+
+    def test_fresh_at_with_tiles_does_not_walk(self):
+        f = self.fake(states={(2, 2): {'wet': False}})
+        self.preset(self.node(2, 2))
+        with self.mock.patch.object(self.loop, 'goto') as go:
+            self.run_('water')
+        self.assertEqual(go.call_count, 0)
+
+    def test_click_that_opens_a_card_is_one_question_and_closes_it(self):
+        f = self.fake(states={(2, 3): {'wet': False}})
+        self.preset(self.node(2, 2))
+        f.move = 'opens'
+        from objects.loop import NeedVision
+        n, closed = len(f.log), f.closed
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(len(f.asked), 1)
+        self.assertIn('opened', f.asked[0])
+        self.assertGreater(f.closed, closed)
+        self.assertEqual(f.log[n:], [])
+        self.assertEqual(self.g.state_value('Tara', 'at'), self.node(2, 2))
+
+    def test_failed_action_is_one_question(self):
+        f = self.fake(states={(2, 2): {'phase': 'wilted', 'crop': 'Tulip'}})
+        self.preset(self.node(2, 2))
+        def boom(label):
+            raise core.Failed('no "Remove"; NEED_VISION game: what now')
+        self.mock.patch.object(self.mods[0], 'press', boom).start()
+        self.addCleanup(self.mock.patch.stopall)
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('replant')
+        self.assertEqual(len(f.asked), 1)
+        self.assertNotIn('NEED_VISION game', f.asked[0])
+        self.assertGreater(f.closed, 0)
+
+    def test_no_tiles_at_current_tile_is_one_question_not_valueerror(self):
+        f = self.fake(states={(2, 2): {'wet': False}})
+        self.preset(self.node(2, 2))
+        f.detect = lambda img: []
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(len(f.asked), 1)
+
+    def test_unreadable_card_crop_does_not_remove_the_bed(self):
+        f = self.fake(states={(2, 2): {'phase': 'wilted', 'crop': 'Tulip'}})
+        self.preset(self.node(2, 2))
+        f.texts = lambda: ['', 'This plant has wilted', 'Remove'] if f.screen == 'card' else []
+        self.mock.patch.object(self.mods[0], 'texts', f.texts).start()
+        self.addCleanup(self.mock.patch.stopall)
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('replant')
+        self.assertEqual(f.st[(2, 2)]['phase'], 'wilted')
+        self.assertFalse(any('unplant_impl' in l for l in f.log))
+        self.assertEqual(len(f.asked), 1)
+        self.assertIsNone(f.picked)
+
+    def test_chain_passes_its_graph_to_fill_can(self):
+        f = self.fake(states={(2, 2): {'wet': False}}, can=False)
+        self.preset(self.node(2, 2))
+        try:
+            self.run_('water')
+        except Exception:   # noqa: BLE001 (the re-anchor question)
+            pass
+        self.assertIs(f.fill_graph, self.g)
+
+    def test_harvest_leaves_phase_unknown(self):
+        f = self.fake(states={(1, 4): {'phase': 'ripe'}})
+        self.preset(self.node(2, 2))
+        res = self.run_('harvest')
+        s = self.g.node(self.node(1, 4)).state['phase']
+        self.assertEqual((s['value'], s['conf']), (None, 0.0))
+        self.assertEqual(res['unknown'], [self.node(1, 4)])
+
+    def test_answer_naming_non_centre_tile_sets_centre_member(self):
+        f = self.fake()
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        import json
+        pend = json.load(open(self.anchor.PENDING))
+        lab = {tuple(d['point']): l for l, d in pend['labels'].items()}
+        left = lab[(960 - 200, 540)]   # r2c1: the vision answer names this one as `at`
+        self.anchor.answer(f'group: {self.GB}   at: {left}=r2c1', graph=self.g, gpath=self.gpath)
+        self.assertEqual(self.g.state_value('Tara', 'at'), self.node(2, 2))
+
+
+class WellGraph(unittest.TestCase):
+    def test_fill_can_with_graph_does_not_touch_farm_json(self):
+        import tempfile
+        from unittest import mock
+        from game import well
+
+        class WF:
+            n = 0
+            log = []
+
+            def log_mark(self): return 0
+            def log_since(self, m): return '[D5 10:00:00 AM] > fill_watering_can Thing target=Well at (1.0, 0.0, 2.0)'
+            def _unhash(self, t): return t
+            def run_action(self, a): pass
+            def wait_settle(self): pass
+        g = G.Graph()
+        g.load(SEED)
+        with tempfile.TemporaryDirectory() as d:
+            core.bind(WF())
+            with mock.patch.object(well, 'GRAPH', os.path.join(d, 'Farm.json')), \
+                    mock.patch.object(well, '_can_bubble', return_value=(5, 5)):
+                well.fill_can(graph=g)
+                self.assertFalse(os.path.exists(os.path.join(d, 'Farm.json')))
+        self.assertEqual(g.state_value('Well', 'can'), 'full')
 
 
 class NoPositionCode(unittest.TestCase):

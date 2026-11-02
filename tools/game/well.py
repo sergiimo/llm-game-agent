@@ -34,10 +34,13 @@ def _click(pt):
 
 
 @action
-def fill_can():
-    """Fill the watering can at the well (an already full can counts as done); sets the graph's Well can=full."""
-    g = G.Graph()
-    g.load(GRAPH)
+def fill_can(graph=None):
+    """Fill the watering can at the well (an already full can counts as done); sets the graph's Well can=full. With `graph`
+    (the chain's) the state goes into that graph and the caller saves it; without, Farm.json is loaded and saved here."""
+    g = graph
+    if g is None:
+        g = G.Graph()
+        g.load(GRAPH)
     pt = _can_bubble()
     if pt is None:
         pt = loop.goto(Q(kind='Well'), core.WF, graph=g).point
@@ -47,5 +50,6 @@ def fill_can():
     changes = G.apply_log(g, [line], at=None)
     if not changes and 'already full' in line:
         g.set_state('Well', 'can', 'full', line.split(']')[0].lstrip('[') if line.startswith('[') else None, 'event')
-    g.save(GRAPH)
+    if graph is None:
+        g.save(GRAPH)
     return line

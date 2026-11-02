@@ -1,86 +1,16 @@
 """Graph chain strategy (spec 2026-11-02): locate a neighbour tile on screen by pattern fit (no positions: frame pixels
 only), and `run` a garden task over a group chain: tile by tile, the log read for event TYPE only, every unexpected
-situation = one vision question (anchor), never a guess."""
+situation = one vision question (anchor), never a guess. Helpers (pattern fit, expectations, move proof): chain_step."""
 import re
 from collections import namedtuple
 
 from game import affordances, core, ui, well
 
-from . import anchor, detect as D, identity, loop, store as S
-from .graph import apply_log, cell
+from . import anchor, detect as D, loop, store as S
+from .chain_step import (CENTRE, SHIFT, Unexpected, _implies_bubble, _lines, _pitch, _prove_shift, bubble_near,  # noqa: F401
+                         click_tile, expected_bubble, locate, opened_screen)
+from .graph import apply_log
 from .query import Q
-
-CENTRE = (960, 540)   # frame centre in the 1920x1080 virtual frame: the camera follows Tara, so the `at` tile is nearest it
-
-
-class Unexpected(Exception):
-    def __init__(self, why):
-        super().__init__(why)
-        self.why = why
-
-
-def _lines(vals, sizes):
-    """Cluster index per value (input order): split sorted values only at gaps > half the median tile size, so pixel
-    jitter never makes phantom rows/columns even when fewer lines than the pattern has are visible."""
-    lim = .5 * sorted(sizes)[len(sizes) // 2]
-    order = sorted(range(len(vals)), key=lambda i: vals[i])
-    lab, c = [0] * len(vals), 0
-    for k, i in enumerate(order):
-        if k and vals[i] - vals[order[k - 1]] > lim:
-            c += 1
-        lab[i] = c
-    return lab
-
-
-def locate(graph, at, target, dets):
-    """The detection of `target`, fitted to the group grid relative to `at` (the tile nearest the frame centre)."""
-    group = graph.nodes[graph.nodes[at].region]
-    dets = identity.dedupe_for(group, list(dets))
-    if len(dets) < 2:
-        raise Unexpected(f'pattern fit: only {len(dets)} tile(s) visible')
-    ry = _lines([d.point[1] for d in dets], [d.box[3] - d.box[1] for d in dets])
-    cx = _lines([d.point[0] for d in dets], [d.box[2] - d.box[0] for d in dets])
-    cells = list(zip(ry, cx))
-    if len(set(cells)) < len(cells):
-        raise Unexpected('pattern fit: ambiguous (two tiles in one grid cell)')
-    i0 = min(range(len(dets)), key=lambda i: (dets[i].point[0] - CENTRE[0]) ** 2 + (dets[i].point[1] - CENTRE[1]) ** 2)
-    (ar, ac), (tr, tc) = cell(at), cell(target)
-    want = (ry[i0] + tr - ar, cx[i0] + tc - ac)
-    for d, rc in zip(dets, cells):
-        if rc == want:
-            return d
-    raise Unexpected(f'pattern fit: target not visible (offset {tr - ar},{tc - ac} from {at})')
-
-
-def click_tile(det, bubbles):
-    """Pixel to click on a tile, kept away from unwanted bubbles."""
-    return loop.click_point(det, bubbles)
-
-
-def expected_bubble(graph, node_id):
-    """Predicate on an Affordance: does it look like what the predicted state of the node shows?"""
-    ph = graph.phase(node_id)
-    if ph == 'wilted' or (ph == 'growing' and not graph.state_value(node_id, 'watered_today')):
-        return lambda a: bool(a.drop)
-    if ph == 'growing':   # watered: the crop icon, no water drop
-        return lambda a: not a.drop
-    if ph == 'empty':
-        return lambda a: a.kind == 'plant'
-    if ph == 'ripe':
-        return lambda a: a.kind == 'pickup'
-    return lambda a: True
-
-
-def bubble_near(affs, tile_pt, max_dx=110, max_up=(40, 260)):
-    """The bubble above the clicked tile (screen-relative), closest one; None if none qualifies."""
-    best, bd = None, None
-    for a in affs:
-        dx, up = abs(a.pt[0] - tile_pt[0]), tile_pt[1] - a.pt[1]
-        if dx <= max_dx and max_up[0] <= up <= max_up[1]:
-            d = dx * dx + up * up
-            if bd is None or d < bd:
-                best, bd = a, d
-    return best
 
 
 EVENTS = {'unplant': r'> unplant ', 'removed': r'> unplant_impl ', 'plant': r'> plant ', 'planted': r'totalPlanted\.',
@@ -90,6 +20,8 @@ EVENTS = {'unplant': r'> unplant ', 'removed': r'> unplant_impl ', 'plant': r'> 
 def event(mark, name, wait):
     """The log line of event `name` since `mark` (no position check: the click already pinned the target)."""
     return core.seen(EVENTS[name], mark, wait)
+
+
 
 
 # ---- the runner -------------------------------------------------------------------------------------------------
@@ -102,14 +34,12 @@ class _Run:
     def __init__(self, graph, seed):
         self.graph, self.seed, self.mark, self.stop, self.skipped = graph, seed, 0, False, []
         self.tile_pt = CENTRE
+        self.res = None   # the run summary (for the vision prompt)
         self.final = []   # (id, key, value, conf) set after the log replay (apply_log would overwrite them)
 
 
 def _now():
-    try:
-        return core.WF.game_stamp() or 'vision'
-    except Exception:   # noqa: BLE001
-        return 'vision'
+    return anchor._clock(core)
 
 
 def _water(run, aff):
@@ -119,7 +49,7 @@ def _water(run, aff):
         return 'ok'
     if line:
         ui.close()
-        well.fill_can()
+        well.fill_can(graph=run.graph)   # the chain's graph, so a later save cannot overwrite Well.can
         return 'refill'
     raise Unexpected('the water bubble produced neither a water nor an out_of_water event')
 
@@ -132,9 +62,9 @@ def _act_harvest(run, nid, aff):
     mark = affordances.click(aff)
     if not event(mark, 'pickup', 2.0):
         raise Unexpected('the pickup bubble produced no grab_item event')
-    # the plant stays and regrows: hint only (conf .5), the next anchor settles it
-    run.graph.set_state(nid, 'phase', 'growing', _now(), 'event', 0.5)
-    run.graph.set_state(nid, 'watered_today', False, _now(), 'event', 0.5)
+    # the plant regrows into an unknown stage: phase unknown (conf 0) until the next anchor settles it
+    run.graph.set_state(nid, 'phase', None, _now(), 'event', 0.0)
+    run.graph.set_state(nid, 'watered_today', None, _now(), 'event', 0.0)
     return 'ok'
 
 
@@ -145,6 +75,9 @@ def _act_replant(run, nid, aff):
     if not event(mark, 'unplant', 2.0):
         raise Unexpected('the wilted bubble did not open the Remove card')
     crop = crop_name(' / '.join(ui.texts())) or None
+    if not (run.seed or crop):   # nothing to replant with: do not empty the bed first
+        ui.close()
+        raise Unexpected('card crop unreadable')
     for _ in range(2):   # card -> (confirmation) -> exact Remove button, as garden._finish_unplant but position-free
         if ui.shows('remove', wait=0.5) and not event(mark, 'removed', 0):
             ui.press('Remove')
@@ -197,8 +130,16 @@ def _need_vision(prompt):
     return e
 
 
-def _ask(graph, task, why, detect_fn):
+def _summary(res):
+    if not res:
+        return ''
+    return (f' Run so far: done {len(res["done"])} {[d.split("#")[-1] for d in res["done"]]}, '
+            f'skipped {[(i.split("#")[-1], w[:40]) for i, w in res["skipped"]]}, unknown {len(res.get("unknown", []))}.')
+
+
+def _ask(graph, task, why, detect_fn, res=None):
     """One fresh anchor question about the current frame (a stale pending answer is cleared first); raises NeedVision."""
+    why += _summary(res)
     anchor.clear_pending()
     img = core.WF.grab()
     prompt, _ = anchor.question(img, detect_fn(img), task, graph, why, core=core)
@@ -213,45 +154,14 @@ def _default_detect(graph, group):
 
 
 def _centre(dets):
+    if not dets:
+        raise Unexpected('no tiles visible on the frame')
     return min(dets, key=lambda d: (d.point[0] - CENTRE[0]) ** 2 + (d.point[1] - CENTRE[1]) ** 2)
 
 
-def _pitch(dets, axis):
-    """Tile pitch along axis 0 (x) / 1 (y): median gap between adjacent tile lines; one line -> the tile's own size."""
-    sizes = [d.box[axis + 2] - d.box[axis] for d in dets]
-    lab = _lines([d.point[axis] for d in dets], sizes)
-    by = {}
-    for l, d in zip(lab, dets):
-        by.setdefault(l, []).append(d.point[axis])
-    ms = sorted(sum(v) / len(v) for v in by.values())
-    gaps = sorted(b - a for a, b in zip(ms, ms[1:]))
-    return gaps[len(gaps) // 2] if gaps else sorted(sizes)[len(sizes) // 2]
-
-
-SHIFT = {'E': (-1, 0), 'W': (1, 0), 'S': (0, -1), 'N': (0, 1)}   # grid shift (in pitches) after Tara moves one tile that way
-
-
-def _prove_shift(group, dets0, dets1, d):
-    """Screen geometry (frame pixels only): after a one-tile move toward `d` the camera follows, so the whole visible grid
-    shifts by one pitch the opposite way. The shift is the whole-pitch displacement k that best maps the tiles seen
-    before onto the tiles seen after; it must be exactly the expected one (a tie or any other k = not proved)."""
-    d0, d1 = identity.dedupe_for(group, list(dets0)), identity.dedupe_for(group, list(dets1))
-    px, py = _pitch(d0, 0), _pitch(d0, 1)
-    scores = {}
-    for kx in range(-3, 4):
-        for ky in range(-3, 4):
-            scores[(kx, ky)] = sum(1 for p in d0 if any(abs(p.point[0] + kx * px - q.point[0]) < .3 * px and
-                                                        abs(p.point[1] + ky * py - q.point[1]) < .3 * py for q in d1))
-    top = max(scores.values())
-    best = [k for k, v in scores.items() if v == top]
-    if top < 1 or len(best) != 1 or best[0] != SHIFT[d]:
-        raise Unexpected(f'move not proved: grid shifted {best[0] if len(best) == 1 else "ambiguously"} pitches '
-                         f'(expected {SHIFT[d]} for {d})')
-
-
-def _implies_bubble(g, nid):
-    ph = g.phase(nid)
-    return ph in ('wilted', 'empty', 'ripe') or (ph == 'growing' and g.state_value(nid, 'watered_today') is not True)
+def _set_at(g, nid):
+    g.set_state('Tara', 'at', nid, _now(), 'event')
+    g.set_state('Tara', 'at_scene', anchor._scene(core), _now(), 'event')
 
 
 def _step(run, cur, nid, detect_fn, last, d=None):
@@ -259,20 +169,21 @@ def _step(run, cur, nid, detect_fn, last, d=None):
     Tara's tile against the predicted state. Tara.at is set only after the proof (a click that did not move her, or
     moved her elsewhere, is Unexpected)."""
     g = run.graph
-    img, dets = core.WF.grab(), None
-    dets = detect_fn(img)
+    dets = detect_fn(core.WF.grab())
     if cur != nid:
-        det, prev = locate(g, cur, nid, dets), locate(g, cur, cur, dets)
-        pt = click_tile(det, [a.pt for a in affordances.scan()])
+        pt = click_tile(locate(g, cur, nid, dets), [a.pt for a in affordances.scan()])
         core.WF.run_action(f'click:{pt[0]}:{pt[1]}')
         core.WF.wait_settle()
-        img1 = core.WF.grab()
-        dets1 = detect_fn(img1)
-        _prove_shift(g.nodes[nid].region and g.nodes[g.nodes[nid].region], dets, dets1, d)
+        scr = opened_screen()
+        if scr:   # a click on an adjacent bed can open its panel/card instead of walking
+            ui.close()
+            raise Unexpected(f'the click opened {scr}')
+        dets1 = detect_fn(core.WF.grab())
+        _prove_shift(g.nodes[g.nodes[nid].region], dets, dets1, d)
         locate(g, nid, cur, dets1)   # secondary: the previous tile is visible one step back from Tara's tile
-        img, dets = img1, dets1
+        dets = dets1
     run.tile_pt = _centre(dets).point
-    g.set_state('Tara', 'at', nid, _now(), 'event')
+    _set_at(g, nid)
     b = bubble_near(affordances.scan(), run.tile_pt)
     if b is None:
         if last or _implies_bubble(g, nid):
@@ -312,7 +223,7 @@ def _perform(r, t, task, target, b, detect_fn):
     g.set_state('Tara', 'last_action_save', _save_stamp(), _now(), 'event')
     if out == 'refill':
         g.set_state('Tara', 'at', None, _now(), 'event')
-        _ask(g, task, 'the can ran dry; refilled at the well, Tara moved: re-anchor', detect_fn)
+        _ask(g, task, 'the can ran dry; refilled at the well, Tara moved: re-anchor', detect_fn, r.res)
     if out == 'stop':
         return 'stop'
     text = '\n'.join(lines)
@@ -322,21 +233,41 @@ def _perform(r, t, task, target, b, detect_fn):
     return 'ok'
 
 
+_DAY = re.compile(r'D(\d+)')
+
+
+def _at_stale(g):
+    """Tara.at is stale when set on another game day or in another scene than now (she walked, slept or left meanwhile)."""
+    st = g.nodes['Tara'].state.get('at')
+    if not st:
+        return False
+    then, now = _DAY.match(str(st.get('game_time'))), _DAY.match(_now())
+    if then and now and then.group(1) != now.group(1):
+        return True
+    was, cur = g.state_value('Tara', 'at_scene'), anchor._scene(core)
+    return bool(was and cur and was != cur)
+
+
 def run(task, group, graph, seed=None, max_steps=40, detect_fn=None, wf=None):
     """Do `task` on every needing member of `group`, nearest first (a pending water from an interrupted replant first).
-    Returns {'done','skipped','vision','steps','count_check'}; raises loop.NeedVision (an anchor question) when Tara.at
-    is unknown or anything is unexpected - answer with ./wf anchor and call again: the run continues from the graph."""
+    Returns {'done','skipped','unknown','vision','steps','count_check'}; raises loop.NeedVision (an anchor question) when
+    Tara.at is unknown or anything is unexpected - answer with ./wf anchor and call again: the run continues from the graph."""
     t, g = TASKS[task], graph
     detect_fn = detect_fn or _default_detect(g, group)
     r = _Run(g, seed)
-    res = {'done': [], 'skipped': r.skipped, 'vision': 0, 'steps': 0}
+    res = r.res = {'done': [], 'skipped': r.skipped, 'unknown': [], 'vision': 0, 'steps': 0}
     at = g.state_value('Tara', 'at')
     if at in g.nodes and g.nodes[at].region != group:
         loop.goto(Q(kind=g.nodes[group].kind), core.WF, graph=g)
         g.set_state('Tara', 'at', None, _now(), 'event')
         at = None
+    elif at in g.nodes and _at_stale(g):
+        g.set_state('Tara', 'at', None, _now(), 'event')
+        at = None
     if at not in g.nodes:
-        _ask(g, task, 'Tara.at is unknown', detect_fn)
+        if not detect_fn(core.WF.grab()):   # outside the garden (or nothing seen): walk there first, then ask
+            loop.goto(Q(kind=g.nodes[group].kind), core.WF, graph=g)
+        _ask(g, task, 'Tara.at is unknown', detect_fn, res)
     try:
         pw = g.state_value('Tara', 'pending_water')
         if pw:
@@ -357,7 +288,14 @@ def run(task, group, graph, seed=None, max_steps=40, detect_fn=None, wf=None):
                 break
             res['done'].append(target)
     except Unexpected as e:
-        _ask(g, task, e.why, detect_fn)
+        _ask(g, task, e.why, detect_fn, res)
+    except core.Failed as e:   # fill_can / Remove / Select failed: close any menu, then exactly one question
+        try:
+            ui.close()
+        except Exception:   # noqa: BLE001
+            pass
+        _ask(g, task, str(e).split('NEED_VISION')[0].rstrip('; ') or 'an action failed', detect_fn, res)
+    res['unknown'] = [m.id for m in g.members(group) if g.phase(m.id) is None]
     _count_check(g, res, task, detect_fn)
     res['vision'] = g.state_value('Tara', 'asks') or 0
     g.set_state('Tara', 'asks', 0, _now(), 'event')
@@ -365,7 +303,12 @@ def run(task, group, graph, seed=None, max_steps=40, detect_fn=None, wf=None):
 
 
 def _count_check(g, res, task, detect_fn):
-    """Graph vs save counts, only on a save newer than the run's last action and at most once per save stamp."""
+    """Graph vs save counts, only on a save newer than the run's last action, at most once per save stamp, and only when the
+    graph covers every bed (a group without members/pattern or an unknown phase makes the farm-wide sums meaningless)."""
+    why = anchor.incomplete(g)
+    if why:
+        res['count_check'] = 'skipped (graph incomplete)'
+        return
     stamp = _save_stamp()
     if stamp is None:
         res['count_check'] = 'skipped (no save)'
@@ -380,7 +323,7 @@ def _count_check(g, res, task, detect_fn):
     mm = _save_mismatch(g)
     res['count_check'] = 'ok' if not mm else 'mismatch'
     if mm:
-        _ask(g, task, 'graph vs save counts differ (graph, save): ' + ', '.join(f'{k}={v}' for k, v in mm.items()), detect_fn)
+        _ask(g, task, 'graph vs save counts differ (graph, save): ' + ', '.join(f'{k}={v}' for k, v in mm.items()), detect_fn, res)
 
 
 def _save_mismatch(graph):

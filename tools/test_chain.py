@@ -810,9 +810,28 @@ class Runner(unittest.TestCase):
         f = self.fake()
         self.preset(self.node(2, 2))
         self.g.set_state('Tara', 'need_goto', True, 'D5 9:00:00 AM', 'vision')
-        self.run_('water')
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
         self.assertEqual(self.go.call_count, 1)
         self.assertIsNone(self.g.state_value('Tara', 'need_goto'))
+        self.assertIsNone(self.g.state_value('Tara', 'at'))
+        self.assertEqual(len(f.asked), 1)
+
+    def test_unclosable_card_at_start_with_unknown_at_goes_then_asks_once(self):
+        f = self.fake()
+        f.screen = 'card'
+
+        def stuck(*a, **k):
+            raise core.Failed('Escape did not close the card')
+        self.mock.patch.object(self.mods[0], 'close', stuck).start()
+        self.addCleanup(self.mock.patch.stopall)
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(self.go.call_count, 1)
+        self.assertEqual(len(f.asked), 1)
+        self.assertIn('Escape did not close', f.asked[0])
 
     def test_open_card_closed_before_a_step(self):
         f = self.fake(states={(2, 2): {'wet': False}})

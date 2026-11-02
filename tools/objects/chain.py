@@ -152,9 +152,11 @@ def _ask(graph, task, why, res=None):
 
 
 def _goto_garden(g, group):
-    """Walk to the group's beds (ruling 27) and clear a pending `none` answer's need_goto flag."""
+    """Walk to the group's beds (ruling 27): clears a pending `none` answer's need_goto flag and Tara.at (every walk
+    forces a re-anchor)."""
     loop.goto(Q(kind=g.nodes[group].kind), core.WF, graph=g)
     g.set_state('Tara', 'need_goto', None, _now(), 'event')
+    g.set_state('Tara', 'at', None, _now(), 'event')
 
 
 def _set_at(g, nid):
@@ -222,7 +224,6 @@ def _perform(r, t, task, target, b):
     r.final.clear()
     g.set_state('Tara', 'last_action_save', _save_stamp(), _now(), 'event')
     if out == 'refill':
-        g.set_state('Tara', 'at', None, _now(), 'event')
         _goto_garden(g, g.nodes[target].region)   # she stands at the well: back to the beds before vision looks
         _ask(g, task, 'the can ran dry; refilled at the well, Tara moved: re-anchor', r.res)
     if out == 'stop':
@@ -256,16 +257,16 @@ def run(task, group, graph, seed=None, max_steps=40, wf=None):
     t, g = TASKS[task], graph
     r = _Run(g, seed)
     res = r.res = {'done': [], 'skipped': r.skipped, 'unknown': [], 'vision': 0, 'steps': 0}
+    blocked = None
     try:
         ensure_gameplay()
     except core.Failed as e:
-        _ask(g, task, str(e).split('NEED_VISION')[0].rstrip('; ') or 'could not close the open screen', res=res)
+        blocked = str(e).split('NEED_VISION')[0].rstrip('; ') or 'could not close the open screen'
     at = g.state_value('Tara', 'at')
     went = False
     if at in g.nodes and g.nodes[at].region != group:
         went = True
         _goto_garden(g, group)
-        g.set_state('Tara', 'at', None, _now(), 'event')
         at = None
     elif at in g.nodes and _at_stale(g):
         g.set_state('Tara', 'at', None, _now(), 'event')
@@ -273,10 +274,13 @@ def run(task, group, graph, seed=None, max_steps=40, wf=None):
     if g.state_value('Tara', 'need_goto') and not went:   # the last anchor answer was `none`
         went = True
         _goto_garden(g, group)
+        at = None
     if at not in g.nodes:
         if not went:
             _goto_garden(g, group)
-        _ask(g, task, 'Tara.at is unknown', res=res)
+        _ask(g, task, blocked or 'Tara.at is unknown', res=res)
+    if blocked:   # Tara.at is known, but a card/panel would not close
+        _ask(g, task, blocked, res=res)
     try:
         pw = g.state_value('Tara', 'pending_water')
         if pw:

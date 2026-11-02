@@ -23,7 +23,7 @@ MIN_PITCH = 40                              # px: a smaller (or non-positive) pi
 RESIDUAL_LIMIT = 0.35                       # of the pitch
 SHAPE = ('group: <group>   ref: r<R>c<C>@<cell>\n'
          'r<R>c<C>@<cell> <phase>[(<crop>)][ dry|watered]   r<R>c<C>@<cell> ?   ... '
-         '(cell = grid cell A1-X16 nearest the bed centre; phase: empty|growing|ripe|wilted; ? = state unknown; '
+         '(no bed visible at all: "group: <group>   none"; cell = grid cell A1-X16 nearest the bed centre; phase: empty|growing|ripe|wilted; ? = state unknown; '
          'e.g. "group: GardenBed@Garden   ref: r1c2@L8\nr1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   '
          'r2c2@L12 wilted(Tulip)   r3c1@F15 ?"; name >= 2 beds in different rows and columns)')
 PHASES = ('empty', 'growing', 'ripe', 'wilted')

@@ -1919,6 +1919,11 @@ def save_pos(path=None):
             'count': s.get('saveCount'), 'age': time.time() - os.path.getmtime(path), 'path': path}
 
 
+def save_stamp():
+    """Monotonic stamp of the latest save (its saveCount): a save newer than an action has a higher one."""
+    return read_save()[1].get('saveCount')
+
+
 def pos(refocus=None, timeout=3.5):
     """Exact world position now: game to the background -> wait for the autosave -> read it -> focus back
     (refocus default: focus-mode front). 'fresh' False = no new save came (nothing changed since the last one,

@@ -148,6 +148,7 @@ class FakeGarden:
         self.tara, self.can, self.log, self.screen = (2, 2), can, [], 'gameplay'
         self.cur, self.picked, self.seed_limit = None, None, 99
         self.position_reads, self.closed, self.asked, self.fills, self.save_override = 0, 0, [], 0, None
+        self.save_n, self.move = 1, 'ok'   # move: 'ok' | 'none' (click does not move Tara) | 'far' (moves her two tiles)
         for n in self.POS:
             setattr(self, n, self._pos_reader)
 
@@ -179,8 +180,16 @@ class FakeGarden:
 
     # --- the game / wf surface
     def grab(self, crop=True):
-        from PIL import Image
-        return Image.new('RGB', (1920, 1080), (40, 40, 40))
+        from PIL import Image, ImageDraw
+        img = Image.new('RGB', (1920, 1080), (40, 40, 40))
+        dr = ImageDraw.Draw(img)
+        for rc in self.st:   # every tile has its own colour: the runner can tell which tile it is looking at
+            x, y = self.tile_pt(rc)
+            dr.rectangle((x - 40, y - 30, x + 40, y + 30), fill=(30 + rc[0] * 90, 30 + rc[1] * 50, 40 + rc[1] * 50 + rc[0] * 30))
+        return img
+
+    def save_stamp(self):
+        return self.save_n
 
     def wait_settle(self):
         pass
@@ -213,7 +222,10 @@ class FakeGarden:
         for rc in sorted(self.st):
             tx, ty = self.tile_pt(rc)
             if abs(x - tx) < 45 and abs(y - ty) < 45:
-                self.tara = rc
+                if self.move == 'ok':
+                    self.tara = rc
+                elif self.move == 'far':
+                    self.tara = (rc[0], min(4, rc[1] + 1)) if rc[1] >= self.tara[1] else (rc[0], max(1, rc[1] - 1))
                 return
 
     def bubble(self, rc):
@@ -449,6 +461,7 @@ class Runner(unittest.TestCase):
         res, visions = self.drive('water')     # nothing to water: only the anchor
         self.assertEqual(visions, 1)
         f.save_override = {'wilted': 1, 'ripe': 0, 'empty': 0, 'dry': 0}
+        f.save_n = 2   # a newer save than the run's last action
         from objects.loop import NeedVision
         with self.assertRaises(NeedVision):
             self.run_('water')
@@ -473,6 +486,75 @@ class Runner(unittest.TestCase):
         res = self.run_('harvest')
         self.assertEqual(res['done'], [self.node(1, 4)])
         self.assertEqual(f.st[(1, 4)]['phase'], 'growing')
+
+    def test_click_that_does_not_move_is_one_question_and_no_action(self):
+        f = self.fake(states={(r, c): {'wet': False} for r in (1, 2, 3) for c in (1, 2, 3, 4)})
+        f.st[(2, 2)]['wet'] = True
+        self.preset(self.node(2, 2))
+        f.move = 'none'
+        from objects.loop import NeedVision
+        n = len(f.log)
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(len(f.asked), 1)
+        self.assertEqual(f.log[n:], [])
+        self.assertEqual(self.g.state_value('Tara', 'at'), self.node(2, 2))
+
+    def test_overshoot_to_wrong_neighbour_is_one_question_and_no_action(self):
+        f = self.fake(states={(r, c): {'wet': False} for r in (1, 2, 3) for c in (1, 2, 3, 4)})
+        self.preset(self.node(2, 1))
+        f.st[(2, 1)]['wet'] = True
+        self.g.set_state(self.node(2, 1), 'watered_today', True, 'D5 9:00:00 AM', 'vision')
+        f.move = 'far'
+        from objects.loop import NeedVision
+        n = len(f.log)
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(len(f.asked), 1)
+        self.assertEqual(f.log[n:], [])
+        self.assertEqual(self.g.state_value('Tara', 'at'), self.node(2, 1))
+
+    def test_stale_save_skips_count_check(self):
+        f = self.fake(states={(2, 2): {'wet': False}})
+        self.preset(self.node(2, 2))
+        f.save_override = {'wilted': 5, 'ripe': 0, 'empty': 0, 'dry': 0}   # would mismatch, but the save is old
+        res = self.run_('water')
+        self.assertEqual(res['count_check'], 'skipped (save older than run)')
+        self.assertEqual(f.asked, [])
+
+    def test_newer_save_checks_once_per_stamp(self):
+        f = self.fake()
+        self.preset(self.node(2, 2))
+        f.save_override = {'wilted': 1, 'ripe': 0, 'empty': 0, 'dry': 0}
+        f.save_n = 2
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(len(f.asked), 1)
+        res = self.run_('water')                       # same save stamp: no second question
+        self.assertEqual(len(f.asked), 1)
+        self.assertIn('already checked', res['count_check'])
+        f.save_n = 3                                   # a newer save is checked again
+        with self.assertRaises(NeedVision):
+            self.run_('water')
+        self.assertEqual(len(f.asked), 2)
+
+    def test_replant_interrupted_by_dry_can_waters_first_next_run(self):
+        f = self.fake(states={(2, 2): {'phase': 'wilted', 'crop': 'Tulip'}, (2, 3): {'wet': False}}, can=False)
+        self.preset(self.node(2, 2))
+        from objects.loop import NeedVision
+        with self.assertRaises(NeedVision):
+            self.run_('replant')
+        self.assertEqual(f.fills, 1)
+        self.assertEqual(self.g.state_value('Tara', 'pending_water'), self.node(2, 2))
+        self.assertFalse(f.st[(2, 2)]['wet'])
+        import json
+        self.anchor.answer(f.truth_answer(json.load(open(self.anchor.PENDING))), graph=self.g, gpath=self.gpath)
+        res = self.run_('water')                       # any task: the pending bed first
+        self.assertEqual(res['done'][0], self.node(2, 2))
+        self.assertTrue(f.st[(2, 2)]['wet'])
+        self.assertIsNone(self.g.state_value('Tara', 'pending_water'))
+        self.assertEqual(f.fills, 1)
 
 
 if __name__ == '__main__':

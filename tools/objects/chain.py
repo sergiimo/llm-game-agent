@@ -101,6 +101,7 @@ class _Run:
 
     def __init__(self, graph, seed):
         self.graph, self.seed, self.mark, self.stop, self.skipped = graph, seed, 0, False, []
+        self.tile_pt = CENTRE
         self.final = []   # (id, key, value, conf) set after the log replay (apply_log would overwrite them)
 
 
@@ -109,11 +110,6 @@ def _now():
         return core.WF.game_stamp() or 'vision'
     except Exception:   # noqa: BLE001
         return 'vision'
-
-
-def _bubble_here(run, rc_id):
-    """The bubble above Tara's tile (after a move the camera puts it at the frame centre)."""
-    return bubble_near(affordances.scan(), CENTRE)
 
 
 def _water(run, aff):
@@ -158,7 +154,7 @@ def _act_replant(run, nid, aff):
         raise Unexpected('Remove was pressed but the game logged no unplant_impl')
     g.set_state(nid, 'phase', 'empty', _now(), 'event')
     g.set_state(nid, 'crop', None, _now(), 'event')
-    plant = bubble_near(affordances.scan(), CENTRE)
+    plant = bubble_near(affordances.scan(), run.tile_pt)
     if plant is None or plant.kind != 'plant':
         raise Unexpected('no plant bubble after the bed was cleared')
     pmark = affordances.click(plant)
@@ -177,10 +173,13 @@ def _act_replant(run, nid, aff):
     g.set_state(nid, 'phase', 'growing', _now(), 'event')
     g.set_state(nid, 'watered_today', False, _now(), 'event')
     run.final.append((nid, 'crop', want))
-    drop = bubble_near(affordances.scan(), CENTRE)
+    drop = bubble_near(affordances.scan(), run.tile_pt)
     if drop is None or not drop.drop:
         raise Unexpected('no water bubble on the freshly planted bed')
-    return _water(run, drop)
+    out = _water(run, drop)
+    if out == 'refill':
+        g.set_state('Tara', 'pending_water', nid, _now(), 'event')
+    return out
 
 
 TASKS = {
@@ -213,30 +212,103 @@ def _default_detect(graph, group):
     return lambda img: D.detect(img, store, kinds=[node.kind], region=node.region)
 
 
+def _centre(dets):
+    return min(dets, key=lambda d: (d.point[0] - CENTRE[0]) ** 2 + (d.point[1] - CENTRE[1]) ** 2)
+
+
+def _look(img, box, size=(8, 8)):
+    import numpy as np
+    return np.asarray(img.crop(tuple(int(v) for v in box)).convert('RGB').resize(size), dtype=int)
+
+
+def _differs(a, b, tol=1.5):
+    """The two frames are not the same picture (the view scrolled)."""
+    import numpy as np
+    sa, sb = (np.asarray(i.convert('L').resize((32, 18)), dtype=int) for i in (a, b))
+    return float(np.abs(sa - sb).mean()) > tol
+
+
+def _implies_bubble(g, nid):
+    ph = g.phase(nid)
+    return ph in ('wilted', 'empty', 'ripe') or (ph == 'growing' and g.state_value(nid, 'watered_today') is not True)
+
+
 def _step(run, cur, nid, detect_fn, last):
-    """Click tile `nid` (a neighbour of `cur`), check the bubble above it against the predicted state."""
+    """Move one chain step onto `nid` (a neighbour of `cur`) and prove it from the frames, then check the bubble above
+    Tara's tile against the predicted state. Tara.at is set only after the proof (a click that did not move her, or
+    moved her elsewhere, is Unexpected)."""
     g = run.graph
+    img, dets = core.WF.grab(), None
+    dets = detect_fn(img)
     if cur != nid:
-        img = core.WF.grab()
-        det = locate(g, cur, nid, detect_fn(img))
+        det, prev = locate(g, cur, nid, dets), locate(g, cur, cur, dets)
         pt = click_tile(det, [a.pt for a in affordances.scan()])
         core.WF.run_action(f'click:{pt[0]}:{pt[1]}')
         core.WF.wait_settle()
-        g.set_state('Tara', 'at', nid, _now(), 'event')
-    b = _bubble_here(run, nid)
+        img1 = core.WF.grab()
+        dets1 = detect_fn(img1)
+        if not _differs(img, img1):
+            raise Unexpected(f'the click toward {nid} did not move the view')
+        back = locate(g, nid, cur, dets1)   # the previous tile must now sit one step back from Tara's tile
+        import numpy as np
+        if float(np.abs(_look(img, prev.box) - _look(img1, back.box)).mean()) > 30:
+            raise Unexpected(f'after the click the tile one step back from {nid} is not the one Tara left ({cur})')
+        img, dets = img1, dets1
+    run.tile_pt = _centre(dets).point
+    g.set_state('Tara', 'at', nid, _now(), 'event')
+    b = bubble_near(affordances.scan(), run.tile_pt)
     if b is None:
-        if last:
-            raise Unexpected(f'no bubble above {nid}')
+        if last or _implies_bubble(g, nid):
+            raise Unexpected(f'no bubble above {nid}, predicted {g.phase(nid)}')
         return None
     if not expected_bubble(g, nid)(b):
         raise Unexpected(f'bubble {b.kind}{" +drop" if b.drop else ""} above {nid} does not match predicted {g.phase(nid)}')
     return b
 
 
+def _goto_node(r, at, target, detect_fn):
+    """Walk the chain from `at` to `target`; returns (bubble at target, new at)."""
+    b = None
+    for _, nid in r.graph.hops(at, target) + [(None, target)] * (at == target):
+        b = _step(r, at, nid, detect_fn, nid == target)
+        at = nid
+    return b, at
+
+
+def _save_stamp():
+    try:
+        return core.WF.save_stamp()
+    except Exception:   # noqa: BLE001
+        return None
+
+
+def _perform(r, t, task, target, b, detect_fn):
+    """Act on `target`, replay the log into the graph, check the task's events. 'ok' | 'stop'."""
+    g = r.graph
+    r.mark = core.WF.log_mark()
+    out = t.act(r, target, b)
+    lines = core.log_text(r.mark).splitlines()
+    apply_log(g, lines, target)
+    for nid, key, val in r.final:
+        g.set_state(nid, key, val, _now(), 'event')
+    r.final.clear()
+    g.set_state('Tara', 'last_action_save', _save_stamp(), _now(), 'event')
+    if out == 'refill':
+        g.set_state('Tara', 'at', None, _now(), 'event')
+        _ask(g, task, 'the can ran dry; refilled at the well, Tara moved: re-anchor', detect_fn)
+    if out == 'stop':
+        return 'stop'
+    text = '\n'.join(lines)
+    missing = [e for e in t.done_events if not re.search(EVENTS[e], text)]
+    if missing:
+        raise Unexpected(f'after {task} on {target} the log lacks {missing}')
+    return 'ok'
+
+
 def run(task, group, graph, seed=None, max_steps=40, detect_fn=None, wf=None):
-    """Do `task` on every needing member of `group`, nearest first. Returns {'done','skipped','vision','steps'};
-    raises loop.NeedVision (an anchor question) when Tara.at is unknown or anything is unexpected - answer with
-    ./wf anchor and call again: the run continues from the graph state."""
+    """Do `task` on every needing member of `group`, nearest first (a pending water from an interrupted replant first).
+    Returns {'done','skipped','vision','steps','count_check'}; raises loop.NeedVision (an anchor question) when Tara.at
+    is unknown or anything is unexpected - answer with ./wf anchor and call again: the run continues from the graph."""
     t, g = TASKS[task], graph
     detect_fn = detect_fn or _default_detect(g, group)
     r = _Run(g, seed)
@@ -249,6 +321,13 @@ def run(task, group, graph, seed=None, max_steps=40, detect_fn=None, wf=None):
     if at not in g.nodes:
         _ask(g, task, 'Tara.at is unknown', detect_fn)
     try:
+        pw = g.state_value('Tara', 'pending_water')
+        if pw:
+            if pw in g.nodes and g.phase(pw) == 'growing' and g.state_value(pw, 'watered_today') is not True:
+                b, at = _goto_node(r, at, pw, detect_fn)
+                _perform(r, TASKS['water'], 'water', pw, b, detect_fn)
+                res['done'].append(pw)
+            g.set_state('Tara', 'pending_water', None, _now(), 'event')
         while not r.stop and res['steps'] < max_steps:
             todo = [(len(h), i) for i in g.needs(group, lambda n: t.needs(g, n.id))
                     if (h := g.hops(at, i)) is not None]
@@ -256,36 +335,35 @@ def run(task, group, graph, seed=None, max_steps=40, detect_fn=None, wf=None):
                 break
             res['steps'] += 1
             target = min(todo)[1]
-            cur, b = at, None
-            for _, nid in g.hops(at, target) + [(None, target)] * (at == target):
-                last = nid == target
-                b = _step(r, cur, nid, detect_fn, last)
-                cur = at = nid
-            r.mark = core.WF.log_mark()
-            out = t.act(r, target, b)
-            lines = core.log_text(r.mark).splitlines()
-            apply_log(g, lines, target)
-            for nid, key, val in r.final:
-                g.set_state(nid, key, val, _now(), 'event')
-            r.final.clear()
-            if out == 'refill':
-                g.set_state('Tara', 'at', None, _now(), 'event')
-                _ask(g, task, 'the can ran dry; refilled at the well, Tara moved: re-anchor', detect_fn)
-            if out == 'stop':
+            b, at = _goto_node(r, at, target, detect_fn)
+            if _perform(r, t, task, target, b, detect_fn) == 'stop':
                 break
-            text = '\n'.join(lines)
-            missing = [e for e in t.done_events if not re.search(EVENTS[e], text)]
-            if missing:
-                raise Unexpected(f'after {task} on {target} the log lacks {missing}')
             res['done'].append(target)
     except Unexpected as e:
         _ask(g, task, e.why, detect_fn)
-    mm = _save_mismatch(g)
-    if mm:
-        _ask(g, task, 'graph vs save counts differ (graph, save): ' + ', '.join(f'{k}={v}' for k, v in mm.items()), detect_fn)
+    _count_check(g, res, task, detect_fn)
     res['vision'] = g.state_value('Tara', 'asks') or 0
     g.set_state('Tara', 'asks', 0, _now(), 'event')
     return res
+
+
+def _count_check(g, res, task, detect_fn):
+    """Graph vs save counts, only on a save newer than the run's last action and at most once per save stamp."""
+    stamp = _save_stamp()
+    if stamp is None:
+        res['count_check'] = 'skipped (no save)'
+        return
+    if stamp <= (g.state_value('Tara', 'last_action_save') or 0):
+        res['count_check'] = 'skipped (save older than run)'
+        return
+    if stamp == g.state_value('Tara', 'count_checked'):
+        res['count_check'] = 'skipped (this save already checked)'
+        return
+    g.set_state('Tara', 'count_checked', stamp, _now(), 'event')
+    mm = _save_mismatch(g)
+    res['count_check'] = 'ok' if not mm else 'mismatch'
+    if mm:
+        _ask(g, task, 'graph vs save counts differ (graph, save): ' + ', '.join(f'{k}={v}' for k, v in mm.items()), detect_fn)
 
 
 def _save_mismatch(graph):

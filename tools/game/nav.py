@@ -35,7 +35,7 @@ class Target:
     kind: str = 'GardenBed'          # appearance vectors (objects/db/<kind>)
     region: str = 'Garden'           # map picture of the region (objects/map_db)
     node: str = 'GardenBed@Garden'   # the graph node: where she must be
-    soil: bool = False               # light-brown soil marks the targets (water)
+    marker: str = None               # a frame marker of the targets nav can walk to ('dry_soil': light-brown soil)
 
 
 def new_res(name):
@@ -72,6 +72,8 @@ def walked(c, target=None, res=None):
     if c.mode != 'gameplay' or (c.node and not arrived):
         A.gameplay()
     ok = arrived or (not c.node and c.moved is True)
+    if ok and c.moved and res is not None and res.get('area'):
+        res['area'] = None   # she walked: the area known from the last event may be left behind
     if res is not None:
         res['still'] = 0 if (ok or c.moved is True) else res.get('still', 0) + 1
     return ok
@@ -184,7 +186,9 @@ def seek(t, res):
     if stuck(res):
         res['still'] = 0
         return None
-    here = O.closest_node() or res.get('here')   # the frame first; the last event only when the frame shows no node
+    # the area known from the last event (engine) first: look-alike bubbles (beds in two gardens) can't tell; then the
+    # frame; the last event only when the frame shows no node
+    here = res.get('area') or O.closest_node() or res.get('here')
     if here and here.startswith('GardenBed@') and (res.get('here') or '').startswith('GardenBed@'):
         here = res['here']   # bed bubbles look alike in every garden: the last bed event's position says which (L137)
     res['inside'] = inside(t, here) if here else res.get('inside')
@@ -202,7 +206,7 @@ def seek(t, res):
         if c is not None:
             res['here'] = c.node
             return c
-    if t.soil and res.get('light') in ('day', None):
+    if t.marker == 'dry_soil' and res.get('light') in ('day', None):
         for x, y, n in dry_spots(tried)[:2]:
             c = A.click((x, y), 'soil')
             res['clicks'] += 1
@@ -213,7 +217,7 @@ def seek(t, res):
                 return c
             if stuck(res):
                 return None
-    if t.soil and res.get('inside'):   # inside the region the targets are marked (drop, dry soil), not just beds
+    if t.marker and res.get('inside'):   # inside the region the targets are marked (drop, dry soil), not just beds
         return explore(t, res)
     for det in O.see(t.kind, tried)[:2]:
         img = core.WF.grab()
@@ -264,13 +268,13 @@ def search(t, res, rounds=SEEK_TURNS):
     return None
 
 
-def reach(fits=lambda a: True, kind='GardenBed', node=None, region='Garden', soil=False, target=None,
+def reach(fits=lambda a: True, kind='GardenBed', node=None, region='Garden', marker=None, target=None,
           rounds=SEEK_TURNS):
     """The low-level navigation (L133): get Tara in reach of ANY node of `kind` whose bubble `fits`. Returns the nearest
     fitting Affordance (not clicked: the caller acts). Raises Failed with NEED_VISION (the trace) when the search gives
     nothing. E.g. `reach(lambda a: a.kind == 'plant')` = an empty bed; `reach(lambda a: a.kind == 'fill_can',
     kind='Well', node='Well')` = the well."""
-    t = Target('reach', fits, target or f'a {kind}', None, kind, region, node or f'{kind}@{region}', soil)
+    t = Target('reach', fits, target or f'a {kind}', None, kind, region, node or f'{kind}@{region}', marker)
     res = new_res('reach')
     L.open_memory()
     try:

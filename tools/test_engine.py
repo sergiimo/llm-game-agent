@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, ask, core, learn, nav, observe, plan, steps, ui, world  # noqa: E402
+from game import act, affordances, ask, core, engine, learn, nav, observe, plan, steps, ui, world  # noqa: E402
 from objects.loop import NeedVision  # noqa: E402
 from objects import graph as OG  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
@@ -627,6 +627,124 @@ class Ask(Base):
         self.assertIs(laws.parse_point, ask.parse_point)
         self.assertIs(laws.draw_grid, ask.draw_grid)
         self.assertEqual(laws.parse_point('Q14'), (1320, 911))
+
+
+def beds(prefix, xs, zs, zone, x0, y0, **state):
+    """A garden of beds with distinct bubble points in `zone`."""
+    out = []
+    for i, z in enumerate(zs):
+        for j, x in enumerate(xs):
+            out.append(obj(f'{prefix}{i}{j}', pos=(x, z), zone=zone, bubble=(x0 + 110 * j, y0 + 90 * i), **state))
+    return out
+
+
+NX, NZ = (-1.66, 0.84, 3.34, 5.84), (-25.34, -29.09, -31.59)
+SX, SZ = (2.64, 6.39, 10.14, 13.89), (-59.36, -63.11, -66.86)
+
+
+class Loop(Base):
+    """One loop for every goal: targets from the world graph, a path from the table, nav, steps, verify, learn."""
+
+    def setUp(self):
+        super().setUp()
+        for mod, name, path in ((ask, 'STATE', 'ask.json'), (steps, 'OBSERVED', 'obs.jsonl'), (plan, 'DB', 'actions.json')):
+            if name == 'DB':
+                shutil.copy(plan.DB, os.path.join(self.tmp.name, path))
+            p = mock.patch.object(mod, name, os.path.join(self.tmp.name, path))
+            p.start()
+            self.addCleanup(p.stop)
+
+    def graph(self):
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        return g
+
+    def test_water_goal_waters_every_dry_bed_and_stops_on_empty_query(self):
+        f = self.use(FakeGame(beds('n', NX[:3], NZ[:1], 'near', 500, 300, stage='growing', watered=False, wilted=False)
+                              + beds('w', NX[3:], NZ[:1], 'near', 900, 300, stage='growing', watered=True, wilted=False),
+                              GAME))
+        res = engine.achieve('water')
+        self.assertEqual(res['stop'], 'done: query empty')
+        self.assertEqual(len(res['done']), 3)
+        self.assertTrue(all(o['state']['watered'] for o in f.objects.values()))
+        self.assertEqual((res['vision'], f.asks), (0, []))
+
+    def test_refill_subgoal_then_resume_without_double_count(self):
+        f = self.use(FakeGame(beds('n', NX[:2], NZ[:1], 'near', 500, 300, stage='growing', watered=False, wilted=False)
+                              + [obj('well', kind='Well', pos=(1.0, -27.0), bubble=(1500, 300))], GAME))
+        f.tara['can'] = 'empty'
+        res = engine.achieve('water')
+        self.assertEqual(len(res['done']), 2)
+        self.assertEqual(res['subgoals'], 1)
+        self.assertEqual(res['stop'], 'done: query empty')
+        self.assertEqual(f.tara['can'], 'full')
+
+    def test_plant_goal_finds_the_south_garden_and_plants_12(self):
+        f = self.use(FakeGame(beds('n', NX, NZ, 'near', 500, 300, stage='growing', watered=True, wilted=False)
+                              + beds('s', SX, SZ, 'south', 500, 300, stage='empty', watered=False, wilted=False),
+                              GAME, inventory={'TulipSeed': 18}))
+        f.step_zone = 'south'
+        res = engine.achieve('plant', seed='Tulip', region='GardenSouth')
+        self.assertEqual(res['stop'], 'done: query empty', res)
+        self.assertEqual(len(res['done']), 12)
+        self.assertEqual(res['vision'], 0)
+        self.assertTrue(all(o['state']['crop'] == 'Tulip' for o in f.objects.values() if o['zone'] == 'south'))
+        g = self.graph()
+        self.assertEqual(g.nodes['GardenSouth'].extra['area'], True)
+        self.assertEqual(world.count(g, {'kind': 'GardenBed', 'region': 'GardenSouth', 'crop': 'Tulip'}), 12)
+        self.assertEqual(f.inventory['TulipSeed'], 6)
+
+    def test_a_bubble_in_another_garden_is_not_a_target(self):
+        f = self.use(FakeGame(beds('n', NX, NZ[:1], 'near', 500, 300, stage='empty', watered=False, wilted=False)
+                              + beds('s', SX[:2], SZ[:1], 'south', 500, 600, stage='empty', watered=False, wilted=False),
+                              GAME, inventory={'TulipSeed': 18}))
+        f.step_zone = 'south'
+        res = engine.achieve('plant', seed='Tulip', region='GardenSouth')
+        self.assertEqual(len(res['done']), 2, res)
+        self.assertTrue(all(o['state']['stage'] == 'empty' for o in f.objects.values() if o['zone'] == 'near'))
+
+    def test_replant_keeps_the_crop_read_from_the_card(self):
+        f = self.use(FakeGame([obj('a', pos=NX[0:1] + NZ[0:1], bubble=(700, 400), stage='growing', wilted=True,
+                                   watered=False, crop='Carrot')], GAME, inventory={'CarrotSeed': 2}))
+        res = engine.achieve('replant')
+        self.assertEqual(f.objects['a']['state'], {'stage': 'growing', 'wilted': False, 'watered': True, 'crop': 'Carrot'})
+        self.assertEqual(res['stop'], 'done: query empty')
+
+    def test_missing_required_param_asks_with_the_values_seen(self):
+        f = self.use(FakeGame(beds('n', NX, NZ, 'near', 500, 300, stage='growing', watered=True, wilted=False)
+                              + beds('s', SX, SZ, 'south', 500, 300, stage='empty', watered=False, wilted=False), GAME))
+        res = engine.achieve('plant', seed='Tulip')
+        self.assertTrue(res['stop'].startswith('NEED_INPUT plant: region?'), res['stop'])
+        self.assertIn('GardenSouth', res['stop'])
+        self.assertEqual(f.clicks, [])
+
+    def test_missing_seed_stops(self):
+        f = self.use(FakeGame(beds('n', NX, NZ, 'near', 500, 300, stage='growing', watered=True, wilted=False)
+                              + beds('s', SX[:1], SZ[:1], 'south', 500, 300, stage='empty', watered=False, wilted=False),
+                              GAME, inventory={'CarrotSeed': 3}))
+        res = engine.achieve('plant', seed='Tulip', region='GardenSouth')
+        self.assertEqual(res['stop'], 'missing TulipSeed')
+        self.assertEqual(f.clicks, [])
+
+    def test_late_stops_before_any_click(self):
+        f = self.use(FakeGame(beds('n', NX, NZ[:1], 'near', 500, 300, stage='growing', watered=False, wilted=False), GAME))
+        f.hour = 23.5
+        res = engine.achieve('water')
+        self.assertTrue(res['stop'].startswith('late'))
+        self.assertEqual(f.clicks, [])
+
+    def test_click_cap_stops(self):
+        f = self.use(FakeGame(beds('n', NX, NZ[:1], 'near', 500, 300, stage='growing', watered=False, wilted=False), GAME))
+        res = engine.achieve('water', max_clicks=2)
+        self.assertEqual(res['clicks'], 2)
+        self.assertTrue(res['stop'].startswith('click cap'))
+
+    def test_a_raw_query_goal_works_like_a_library_goal(self):
+        f = self.use(FakeGame(beds('n', NX[:2], NZ[:1], 'near', 500, 300, stage='growing', watered=False, wilted=False),
+                              GAME))
+        res = engine.achieve({'kind': 'GardenBed', 'where': {'watered': False, 'stage': 'growing'},
+                              'make': {'watered': True}})
+        self.assertEqual(len(res['done']), 2)
 
 
 if __name__ == '__main__':

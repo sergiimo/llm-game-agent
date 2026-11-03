@@ -1,0 +1,10 @@
+{
+  "_doc": "Goal library (spec 2026-11-03 §5): kind + where (the filter of targets; $param from the call) + make (the state to reach; $same = keep the object's value) + required params (asked when missing, never defaulted). Raw goals have the same shape.",
+  "water": {"kind": "GardenBed", "where": {"stage": "growing|producing", "watered": false, "wilted": false},
+            "make": {"watered": true}},
+  "replant": {"kind": "GardenBed", "where": {"wilted": true}, "make": {"crop": "$same", "watered": true}},
+  "plant": {"kind": "GardenBed", "where": {"region": "$region", "stage": "empty"}, "make": {"crop": "$seed"},
+            "required": ["seed", "region"]},
+  "harvest": {"kind": "GardenBed", "where": {"ready": true, "crop": "$crops"}, "make": {"ready": false},
+              "required": ["crops"]}
+}

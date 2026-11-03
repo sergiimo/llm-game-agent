@@ -79,7 +79,7 @@ def place(node, at, events=()):
         return node
     from objects import graph as OG
     mid = OG.node_at(g, at[0], at[1])
-    if mid is None:
+    if mid is None or '@' not in mid:   # world objects (engine) carry their own state (game/world.place)
         return node
     for e in events:
         if e in BED_STATE_OF:

@@ -11,6 +11,7 @@ import re
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'actions.json')
 PRIMITIVES = ('click_bubble', 'click_object', 'press', 'press_space', 'pick_card', 'close', 'read_card')
 TRUST = 2            # a learned row is used by `path` after this many agreeing sightings
+SAME = '$same'       # keep the object's own value (replant: the same crop)
 _PARAM = re.compile(r'\$(\w+)')
 
 
@@ -92,8 +93,10 @@ def _trusted(r):
 
 
 def goal_values(state, make, params):
-    """The goal's `make` with `$same` = the object's current value and `$x` = params."""
-    return {k: state.get(k) if v == '$same' else _sub(v, params) for k, v in make.items()}
+    """The goal's `make` with `$same` = the object's current value (kept as '$same' while unknown: the path is planned
+    with it and the value is read on the way, e.g. the wilted card names the crop) and `$x` = params."""
+    return {k: (state.get(k) if state.get(k) is not None else SAME) if v == SAME else _sub(v, params)
+            for k, v in make.items()}
 
 
 def path(kind, state, make, params, depth=3):
@@ -119,7 +122,7 @@ def path(kind, state, make, params, depth=3):
                         if name not in bind and k in want:
                             bind[name] = want[k]
                 rr = resolve(r, bind)
-                if any(isinstance(v, str) and '$' in v for v in rr['effect'].values()):
+                if any(isinstance(v, str) and '$' in v and v != SAME for v in rr['effect'].values()):
                     continue   # a parameter nobody gave
                 st2 = dict(st)
                 st2.update({k: v for k, v in rr['effect'].items() if not k.startswith('Tara.')})

@@ -33,7 +33,7 @@ TASKS = {
                     'wilted'),
     'water': Task('water', lambda a: bool(a.drop),
                   'a garden bed that needs water (light-brown dry soil; its bubble has the pale-blue water drop)', 'dry',
-                  soil=True),
+                  marker='dry_soil'),
     'harvest': Task('harvest', lambda a: a.kind == 'pickup', 'a RIPE garden bed (full-grown crop ready to pick)', 'ripe'),
 }
 DONE_ON = {'replant': ('unplant',), 'water': ('water',), 'harvest': ('grab_item',)}
@@ -308,7 +308,7 @@ def _late(res):
 def _done_looking(task, res):
     """Soil tasks (water) are done when the search found nothing more: every explore direction used, not stuck, no dry
     soil in view (daylight). The run ends with a summary instead of a vision question."""
-    if not (task.soil and res.get('explored_all') and res.get('light') in ('day', None)):
+    if not (task.marker and res.get('explored_all') and res.get('light') in ('day', None)):
         return False
     if res.get('still', 0) >= STUCK_CLICKS or res.get('stuck_traced'):
         return False

@@ -156,6 +156,8 @@ def _bubble_miss(row, area, mine, res):
                                                                        'light': res.get('light')})
         except Exception:   # noqa: BLE001
             pass
+        N.log('predict', component='engine', what='bubble', expected=row['bubble'], got=got, hit=False,
+              row=row['id'], area=area)
     if res.get('light') not in (None, 'day'):
         res['stop'] = (f'dark ({res["light"]}): the bubbles in {area} ({", ".join(got)}) contradict the world '
                        f'({row["id"]} expected); icons are unreliable outside daylight - suggest sleeping (ask the '
@@ -197,6 +199,8 @@ def _reach(g, name, params, row, kind, area, res, marker):
             evals.record('engine', 'bubble', row['bubble'], str(a), True, {'row': row['id'], 'area': area})
         except Exception:   # noqa: BLE001
             pass
+        N.log('predict', component='engine', what='bubble', expected=row['bubble'], got=str(a), hit=True,
+              row=row['id'], area=area)
     if a is None and res.get('area') is None and amb and any(free(b) for b in O.scan()):
         areas = sorted({world.area_of(g, n) for n in _ambiguous(g, row, kind, area)} | {area})
         ask.ask('name', f'Tara (the frame centre) sees {kind} bubbles that fit "{row["id"]}", but they look the same '

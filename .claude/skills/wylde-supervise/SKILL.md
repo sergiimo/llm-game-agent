@@ -99,6 +99,21 @@ its `run end`: wait for its task notification (retro 2026-10-28: my Escapes foug
 **Hand-in mechanics:** read the wiki quest page's completion text; if how the hand-in works isn't verified in
 `docs/actions.md`, mark that step ❓ in the brief instead of guessing (retro 2026-10-28: "!" topic vs Build button).
 
+## 3c. Watch every live run (user D186: "the supervisor was meant to control the execution and see a detailed log")
+Never let a child run the game blind. For every dispatch that touches the game:
+1. **Start the watcher before the child:** Monitor tool on `.venv/bin/python tools/runwatch.py --follow` (the open run).
+   It prints one line per click (what, point, walked/still, events, screen, bubbles) and flags rules from the live
+   failures: **STOP** = a click or close with the pause menu on screen, the game process gone; **ALERT** = a graph step
+   from a look-alike node, a prediction miss, a failed `pick_card`, a junk icon name, an engine stop that isn't done;
+   **NOTE** = `> plant` without `totalPlanted`, STUCK, every vision question.
+2. **STOP → `TaskStop` the child at once**, then `./wf pause` only if the game is running and not on a menu. **ALERT →**
+   Read the click's saved frame (`<run>/clicks/`) yourself and decide (continue / stop / fix).
+3. **Gated steps:** the child makes ONE `./wf achieve` call per dispatch and returns its summary line; you read the
+   watcher lines and decide the next instruction (continue via SendMessage). A `NEED_VISION` answer comes back to you
+   with the image path before it is used: check the image yourself.
+4. **After the run:** `.venv/bin/python tools/runwatch.py <run> --report` writes `<run>/watch.md` (a table per attempt:
+   clicks, walks, still, predictions hit/miss, alerts, stops); put it in the debrief.
+
 ## 3a. When the child escalates (`RESULT: escalate step N`)
 1. `./wf run status` (progress.md: step timestamps, budget use) + `./wf run report`.
 2. **Stuck retro** (AGENTS.md rule 7): read `retros/stuck-ledger.md` first, score earlier fixes, add the row, write

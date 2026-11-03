@@ -259,12 +259,13 @@ def _predicted_arrival(t, c):
     """A click on a seen object of the target kind predicts she arrives at one: its bubble shows (or its event)."""
     own = O.NODE_OF.get(t.kind)
     hit = c.node == t.node or any(O.node_of_bubble(a) == own for a in c.after)
+    got = c.node or [str(a) for a in c.after][:4]
     try:
         import evals
-        evals.record('nav', 'arrive', t.kind, c.node or [str(a) for a in c.after][:4], hit,
-                     {'pt': list(c.pt), 'target': t.node})
+        evals.record('nav', 'arrive', t.kind, got, hit, {'pt': list(c.pt), 'target': t.node})
     except Exception:   # noqa: BLE001 (scoring never breaks play)
         pass
+    log('predict', component='nav', what='arrive', expected=t.kind, got=got, hit=hit, pt=list(c.pt))
     return hit
 
 

@@ -1277,7 +1277,13 @@ def run_cmd(sub_, args):
 
 
 def world_cmd(args):
-    """wf world [entities [kind] | tara | route X Z | explain ID]."""
+    """wf world kinds | nodes (the engine's graph) | entities [kind] | tara | route X Z | explain ID."""
+    if args and args[0] in ('kinds', 'nodes'):
+        from game import world as WD
+        g = world_graph()
+        if args[0] == 'kinds':
+            return print(WD.catalogue(g))
+        return print('\n'.join(json.dumps(r, sort_keys=True) for r in WD.nodes(g)))
     w = world()
     world_sync()
     sub_ = args[0] if args else 'entities'
@@ -1446,32 +1452,29 @@ def save_bed_counts(crops):
                        and not wilted(c) for c in crops)}
 
 
-DONE_AT = {'dry': r'> (?:water|hazel_waterplant) me=Player target=GardenBed[^\n]*? at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)',
-           'wilted': r'> unplant_impl me=Player target=GardenBed[^\n]*? at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)',
-           'empty': r'> plant me=Player target=GardenBed[^\n]*? at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)'}
-SAME_BED = 0.8   # world units: a log position this close to a save crop is that bed
+BEDS_LEFT = {'dry': {'stage': 'growing|producing', 'watered': False, 'wilted': False}, 'wilted': {'wilted': True},
+             'empty': {'stage': 'empty'}}
 
 
-def beds_left(key, beds=None):
-    """Beds still to do for `key` ('dry' | 'wilted' | 'empty'), optionally only `beds` [(x, z)]: the save's beds in that state minus the beds today's log already
-    did (by position: save crop x/z vs the log line's `at (x, y, z)`). Exact even when the save is old (L136)."""
-    crops = farm_status()['crops']
-    def st(c):
-        return c.get('plantState')
-    pick = {'dry': lambda c: st(c) in ('##growing', '##producing') and c.get('isWatered') != 'true'
-                   and c.get('isWilted') != 'true',
-            'wilted': lambda c: c.get('isWilted') == 'true',
-            'empty': lambda c: (st(c) or '').strip('#') in ('', '0')}[key]
-    if beds is not None:   # only these beds (a region's bed positions)
-        crops = [c for c in crops if any(abs(float(c['x']) - x) < SAME_BED and abs(float(c['z']) - z) < SAME_BED
-                                         for x, z in beds)]
-    done = []
-    for l in today_log()[0]:
-        m = re.search(DONE_AT[key], l)
-        if m:
-            done.append((float(m.group(1)), float(m.group(2))))
-    return sum(1 for c in crops if pick(c) and not any(abs(float(c['x']) - x) < SAME_BED and abs(float(c['z']) - z) < SAME_BED
-                                                       for x, z in done))
+def world_graph(save=None, today=None):
+    """The engine's world graph (game/world.py) refreshed from the save + today's log, in memory (not saved)."""
+    from objects import graph as OG
+    from game import learn as L, world as WD
+    g = OG.Graph()
+    try:
+        g.load(L.graph_path())
+    except (OSError, ValueError):
+        pass
+    WD.refresh(g, save if save is not None else read_save()[1], today if today is not None else today_log()[0])
+    return g
+
+
+def beds_left(key, region=None):
+    """Beds still to do for `key` ('dry' | 'wilted' | 'empty'), optionally only in the area `region`: the world graph's
+    count (save state + today's log events newer than the save, by position; L136, L138)."""
+    from game import world as WD
+    flt = dict(BEDS_LEFT[key], kind='GardenBed', **({'region': region} if region else {}))
+    return WD.count(world_graph(), flt)
 
 
 def game_stamp():
@@ -1660,7 +1663,11 @@ def game_cmd(kind, args):
     ns = game.namespace()
     res, err = None, None
     try:
-        if kind == 'py':
+        if kind == 'achieve':
+            from game import engine
+            goal, params, answer = engine.parse_cli(args)
+            res = engine.summary(game.achieve(goal, answer=answer, **params))
+        elif kind == 'py':
             code = ' '.join(args)
             try:
                 res = eval(compile(code, '<wf py>', 'eval'), ns)
@@ -4227,7 +4234,8 @@ def main(argv=None):
     p.add_argument('--go', action='store_true')
     p.add_argument('--calibrate', action='store_true')
     sub.add_parser('tara-box', help="Tara's box on screen (tracker): the zoom gauge (L85), no game input")
-    p = sub.add_parser('world', help='the world model (shadow, M2): wf world [entities [kind]|tara|route X Z|explain ID]')
+    p = sub.add_parser('world', help='the world: wf world kinds | nodes (engine graph from save + log); '
+                                     'entities [kind]|tara|route X Z|explain ID (old shadow model)')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('bench', help='benchmark runs: wf bench start A|B|C | report [run dir] | compare [A|B|C]')
     p.add_argument('args', nargs='*')
@@ -4237,6 +4245,9 @@ def main(argv=None):
     p.add_argument('args', nargs='*')
     p = sub.add_parser('eval', help='hits/misses of predictions: wf eval [all] | pending | mark <id> hit|miss')
     p.add_argument('args', nargs='*')
+    p = sub.add_parser('achieve', help='the engine (L138): wf achieve <goal|json> [k=v ...] [answer=X]; goals in '
+                                       'tools/game/goals.json, e.g. wf achieve plant seed=Tulip region=GardenSouth')
+    p.add_argument('args', nargs='+')
     p = sub.add_parser('py', help='run game functions (tools/game, L77): wf py "replant_all()"')
     p.add_argument('args', nargs='+')
     p = sub.add_parser('call', help='run one game function: wf call garden.water_all')
@@ -4462,7 +4473,7 @@ def _dispatch_input(a):
         img = grab()
         print(calibrate_road(img) if a.calibrate else to_road() if a.go else
               f'on road: {on_road(img):.0%} around her feet [{road_key(img)}]')
-    elif a.cmd in ('py', 'call'):
+    elif a.cmd in ('py', 'call', 'achieve'):
         if game_cmd(a.cmd, a.args):
             sys.exit(1)
         return

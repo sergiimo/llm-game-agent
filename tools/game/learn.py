@@ -2,18 +2,17 @@
 
 - memory (law 6, a hint, never a gate): the group's tally per game day, crops, can, soil view (objects/graph)
 - bubble kinds: a clicked bubble is labelled by the event the game logs next (wf.learn_bubble)
-- the actions DB (chains.json): every click checked against its step; surprises; gaps fill from 2 agreeing observations
+- the transition table (actions.json): rows learned from play (new_row/add_row); gaps fill from 2 agreeing
+  observations, expectations revised after 3 agreeing contradictions (settle_rows)
 - graph directions: a graph step that reached its node moves the edge toward the direction that worked"""
 import os
 
-from . import chains, core, observe as O
+from . import core, observe as O
 
 GRAPH = None        # Farm.json path (None = objects/graph/Farm.json)
 GROUP = 'GardenBed@Garden'
 MEMORY = {'graph': None}
-SURPRISES = []      # this run's mismatches vs chains.json (reset by a run)
-STEP_OF = {'unplant': ('replant', 0), 'water': ('water', 0), 'out_of_water': ('water', 1), 'grab_item': ('harvest', 0),
-           'plant_growing': ('bed', 0)}   # a bubble-loop click's chain step, known only from its event
+SURPRISES = []      # this run's surprises (steps.run reports its own)
 
 
 # ---- memory --------------------------------------------------------------------------------------------------
@@ -65,27 +64,6 @@ def remember_soil(counts):
     if g is None or not counts:
         return
     g.set_state(GROUP, 'soil_seen', {'dry_cells': counts[0], 'wet_cells': counts[1]}, stamp(), 'frame', 0.6)
-
-
-BED_STATE_OF = {'plant': 'planted', 'water': 'watered', 'plant_growing': 'growing', 'unplant_impl': 'empty',
-                'grab_item': 'picked', 'unplant': 'wilted'}
-
-
-def place(node, at, events=()):
-    """A bed event's world position -> its bed's group ('GardenBed@GardenSouth'), and the bed member's state from the
-    event (L137: the graph of beds inside a garden). Other nodes pass through."""
-    g = MEMORY['graph']
-    if g is None or at is None or not node or not node.startswith('GardenBed'):
-        return node
-    from objects import graph as OG
-    mid = OG.node_at(g, at[0], at[1])
-    if mid is None or '@' not in mid:   # world objects (engine) carry their own state (game/world.place)
-        return node
-    for e in events:
-        if e in BED_STATE_OF:
-            g.set_state(mid, 'plant' if e in ('plant', 'unplant_impl', 'plant_growing', 'unplant') else e,
-                        BED_STATE_OF[e], stamp(), 'event')
-    return g.nodes[mid].region
 
 
 def memory_hint():
@@ -147,43 +125,14 @@ def learn_bubble(c, img0):
         return None
 
 
-# ---- actions DB ------------------------------------------------------------------------------------------------
+# ---- the transition table ---------------------------------------------------------------------------------------
 def text_gaps():
-    """OCR the burst only while some step's short-lived text is still a gap or expected (costly)."""
+    """OCR the burst only while some row expects a short-lived text that is still a gap (costly)."""
     try:
-        db = chains.load()
+        from . import plan
+        return any((s.get('expect') or {}).get('text') == '?' for r in plan.rows() for s in r['steps'])
     except (OSError, ValueError):
         return False
-    return any(s['expect'].get('text', '?') is not None for k, v in db.items() if not k.startswith('_') for s in v)
-
-
-def check(c, chain=None, idx=None):
-    """Check a click against its chains.json step (by event when not given); surprises go on the click."""
-    if chain is None:
-        hit = next((STEP_OF[e] for e in c.events if e in STEP_OF), None)
-        if hit is None:
-            return c
-        chain, idx = hit
-    try:
-        c.surprises = chains.observe(chain, idx, c)
-    except Exception:   # noqa: BLE001 (the DB never breaks play)
-        pass
-    SURPRISES.extend(f'{chain}[{idx}] {f}: expected {w!r}, got {g!r}' for f, w, g in c.surprises)
-    return c
-
-
-def settle_db():
-    """After every run: the actions DB learns from what the game showed - '?' gaps with 2 agreeing observations are
-    filled, expectations contradicted 3+ times in a row (and never confirmed since) are revised. Logged."""
-    try:
-        filled = [g for g in chains.gaps(apply=True) if g[4]]
-        revised = [r for r in chains.revise(apply=True) if r[6]]
-    except Exception:   # noqa: BLE001 (the DB never breaks play)
-        return
-    for g in filled:
-        log_db('filled', f'{g[0]}[{g[1]}] {g[2]}')
-    for r in revised:
-        log_db('revised', f'{r[0]}[{r[1]}] {r[2]} -> {r[4]!r} (x{r[5]})')
 
 
 def log_db(what, msg):

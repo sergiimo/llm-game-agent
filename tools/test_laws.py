@@ -1,4 +1,5 @@
-"""Offline tests for tools/game/laws.py (interaction laws, L124). Run: .venv/bin/python tools/test_laws.py"""
+"""Offline tests for the interaction-laws framework pieces (observe/act/nav/ask; L124-L134). Goals and the engine:
+tools/test_engine.py. Run: .venv/bin/python tools/test_laws.py"""
 import os
 import re
 import sys
@@ -7,12 +8,13 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, chains, core, garden, laws, learn, nav, observe, ui, well  # noqa: E402
+from game import act, affordances, ask, core, laws, learn, nav, observe, ui, well  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
 from objects.loop import NeedVision  # noqa: E402
 
 core.LOG_WAIT = 0.0
 SEED = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures', 'graph_seed.json')
+
 
 
 class Fake:
@@ -203,9 +205,7 @@ class Base(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        ps = [mock.patch.object(laws, 'STATE', os.path.join(self.tmp.name, 'laws.json')),
-              mock.patch.object(chains, 'OBSERVED', os.path.join(self.tmp.name, 'observed.jsonl')),
-              mock.patch.object(chains, 'DB', self._db_copy()),   # settle_db after a run writes the DB: a copy
+        ps = [mock.patch.object(ask, 'STATE', os.path.join(self.tmp.name, 'ask.json')),
               mock.patch.object(learn, 'GRAPH', self._graph_copy()),
               mock.patch.object(act, 'BURST', (0.0, 0.0)), mock.patch.object(act, 'EVENT_WAIT', 0.0),
               # default: no vector match on screen and no map (the vision path); Seek tests override these
@@ -214,12 +214,6 @@ class Base(unittest.TestCase):
         for p in ps:
             p.start()
             self.addCleanup(p.stop)
-
-    def _db_copy(self):
-        import shutil
-        p = os.path.join(self.tmp.name, 'chains-db.json')
-        shutil.copy(chains.DB, p)
-        return p
 
     def _graph_copy(self):
         import shutil
@@ -239,171 +233,6 @@ class Base(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)
         return f
-
-
-class Seek(Base):
-    """User D185: no fitting bubble -> the node's vector on screen -> click; not seen -> map direction -> a few steps."""
-    Det = __import__('collections').namedtuple('Det', 'point')
-    Box = __import__('collections').namedtuple('Box', 'point box')
-
-    def test_a_bed_seen_by_its_vector_is_clicked_without_vision(self):
-        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(1500, 300))}))
-        with mock.patch.object(observe, 'see', lambda kind, tried=(): [self.Det((1500, 300))] if f.zone == 'near' else []):
-            with self.assertRaises(NeedVision):   # all watered: only then vision is asked (is anything left?)
-                laws.run('water')
-        self.assertEqual(len(f.asks), 1)
-        self.assertEqual(f.beds['a']['state'], 'wet')
-        self.assertEqual(f.clicks[0], (1500, 300))
-
-    def test_not_seen_map_direction_steps_then_the_loop_runs(self):
-        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
-        f.step_zone = 'far'
-        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
-            self.assertIsNotNone(laws.run('water')['stop'])   # watered, nothing more found: a summary
-        self.assertEqual(f.asks, [])
-        self.assertEqual(f.clicks[0], (960 + laws.STEP_R[0], 540))   # straight toward the garden on the map
-        self.assertEqual(f.beds['a']['state'], 'wet')
-
-    def test_a_blocked_step_turns_a_little(self):
-        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
-        f.step_zone, f.step_ok = 'far', (lambda x, y: y != 540)   # straight ahead is a fence
-        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
-            self.assertIsNotNone(laws.run('water')['stop'])   # watered, nothing more found: a summary
-        self.assertEqual(f.clicks[0][1], 540)
-        self.assertNotEqual(f.clicks[1][1], 540)
-        self.assertEqual(f.beds['a']['state'], 'wet')
-
-    def test_an_unknown_bubble_without_a_drop_is_never_clicked(self):
-        """D185 user: only the drop sub-icon means "needs water"; a tulip / honey icon without it is not clicked."""
-        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
-        f.honey = f.hives = [(800, 532)]
-        f.step_zone = 'far'
-        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
-            self.assertIsNotNone(laws.run('water')['stop'])   # watered, nothing more found: a summary
-        self.assertNotIn((800, 532), f.clicks)
-        self.assertEqual(f.beds['a']['state'], 'wet')
-
-    def test_a_clicked_drop_bubble_of_unknown_kind_is_learned_from_its_event(self):
-        f = self.use(Fake({'a': bed('dry', bubble=(900, 400))}))
-        f.kind_of = {(900, 400): 'unknown'}
-        with self.assertRaises(NeedVision):
-            laws.run('water')
-        self.assertEqual(f.learned, [('water', 'unknown')])
-
-    def test_a_hive_seen_as_a_bed_is_not_clicked_again_and_the_graph_leads_down(self):
-        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
-        f.hives = [(1300, 890)]
-        f.step_zone, f.step_ok = 'far', (lambda x, y: (x, y) != (1300, 890))
-        learned = []
-        def relabel(img, box, kind):
-            learned.append((box, kind))
-            return True
-        def see(kind, tried=()):   # the detector stops matching a look once it is relabelled
-            return [self.Box((1300, 890), (1250, 840, 1350, 940))] if not learned else []
-        with mock.patch.object(observe, 'see', see), mock.patch.object(learn, 'relabel', relabel):
-            self.assertIsNotNone(laws.run('water')['stop'])   # watered, nothing more found: a summary
-        self.assertEqual(learned, [((1250, 840, 1350, 940), 'BeeHive')])
-        self.assertEqual(f.clicks.count((1300, 890)), 1, f.clicks)
-        self.assertEqual(f.clicks[1], (960, 540 + laws.STEP_R[0]))   # BeeHive -> beds: straight down
-        self.assertEqual(f.beds['a']['state'], 'wet')
-
-    def test_after_the_refill_she_is_at_the_well_and_the_graph_leads_to_the_beds(self):
-        f = self.use(Fake({'a': bed('dry', zone='near', bubble=(900, 400)),
-                           'b': bed('dry', zone='far', bubble=(700, 300), body=(5000, 5000))}, can=False))
-        f.well_zone = 'well'   # clicking the well's bubble walks her there: no bed in reach
-        f.step_zone = 'far'
-        self.assertIsNotNone(laws.run('water')['stop'])   # watered, nothing more found: a summary
-        from objects import graph as OG
-        dx, dy = OG.TOWARD[('Well', 'GardenBed@Garden')]
-        self.assertIn((int(960 + dx * laws.STEP_R[0]), int(540 + dy * laws.STEP_R[0])), f.clicks)
-        self.assertEqual(f.beds['b']['state'], 'wet')
-
-    def test_inside_the_garden_explores_free_ground_not_the_map(self):
-        """D185: after watering, inside the Garden the map kept pointing at the garden; explore free ground instead."""
-        f = self.use(Fake({'a': bed('dry', zone='near', bubble=(900, 400)),
-                           'b': bed('dry', zone='far', bubble=(700, 300), body=(5000, 5000))}))
-        f.step_zone = 'far'
-        def no_map(node):
-            raise AssertionError('map used inside the region')
-        with mock.patch.object(nav, 'map_direction', no_map):
-            self.assertIsNotNone(laws.run('water')['stop'])   # watered, nothing more found: a summary
-        self.assertEqual((f.beds['a']['state'], f.beds['b']['state']), ('wet', 'wet'))
-        self.assertIn((960 + laws.EXPLORE_R, 540), f.clicks)
-
-    def test_a_step_onto_a_hive_is_blocked_and_vision_gets_the_trace(self):
-        f = self.use(Fake({'b': bed('dry', zone='far', bubble=(700, 300), body=(5000, 5000))}, can=True))
-        f.hives = [(960, 540 + laws.STEP_R[0])]          # straight down from the well is a hive
-        f.step_zone, f.step_ok = None, None              # nothing walks
-        with mock.patch.object(nav, 'map_direction', lambda node: None):
-            st = laws._load_state('water')
-            res = {'here': 'BeeHive', 'clicks': 0, 'trace': []}
-            self.assertIsNone(laws._step((0.0, 1.0), res, 'graph'))
-        self.assertTrue(any('blocked by BeeHive' in t for t in res['trace']))
-        with self.assertRaises(NeedVision):
-            laws.run('water')
-        self.assertIn('already tried, in order', f.asks[-1][1])
-
-    def test_water_walks_to_the_nearest_dry_soil_first(self):
-        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
-        f.step_zone = 'far'
-        def no_map(node):
-            raise AssertionError('map used while dry soil is in view')
-        with mock.patch.object(nav, 'dry_spots', lambda tried=(): [(1500, 900, 40), (400, 300, 80)]), \
-                mock.patch.object(nav, 'map_direction', no_map):
-            with self.assertRaises(NeedVision):
-                laws.run('water')
-        self.assertEqual(f.clicks[0], (1500, 900))
-        self.assertEqual(f.beds['a']['state'], 'wet')
-
-    def test_bubble_flicker_without_movement_is_not_a_walk_and_three_still_clicks_are_stuck(self):
-        """D185 live: a step 'walked' because the bubble set changed while she stood still; stuck never fired."""
-        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
-        f.step_zone = None
-        f.honey = [(800, 532)]   # a bubble that comes and goes (flicker)
-        flick = iter(range(1000))
-        real_scan = f.scan
-        f.scan = lambda: real_scan() if next(flick) % 2 else []
-        mock.patch.object(affordances, 'scan', f.scan).start()
-        self.addCleanup(mock.patch.stopall)
-        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
-            with self.assertRaises(NeedVision):
-                laws.run('water')
-        self.assertLessEqual(len(f.clicks), laws.STUCK_CLICKS + 1)
-        self.assertIn('STUCK', f.asks[-1][1])
-
-    def test_a_step_that_lands_on_the_target_is_arrival_not_blocked(self):
-        f = self.use(Fake({'a': bed('wet', zone='near', bubble=(900, 400), body=(960, 860)),
-                           'b': bed('dry', zone='far', bubble=(700, 300), body=(5000, 5000))}))
-        res = {'clicks': 0, 'trace': []}
-        c = laws._step((0.0, 1.0), res, 'graph', 'GardenBed@Garden')   # down from the hives lands on a bed
-        self.assertIsNotNone(c)
-        self.assertIn('arrived at GardenBed@Garden', res['trace'][0])
-
-    def test_limited_turns_then_vision(self):
-        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
-        f.step_zone, f.step_ok = None, None   # steps never bring it in reach (and never move her)
-        with mock.patch.object(nav, 'map_direction', lambda node: (0.0, -1.0)):
-            with self.assertRaises(NeedVision):
-                laws.run('water')
-        self.assertEqual(len(f.asks), 1)
-        self.assertLessEqual(len(f.clicks), len(laws.STEP_R) * len(nav.STEP_TURN))
-
-
-class Language(Base):
-    def test_russian_ui_stops_before_any_click(self):
-        f = self.use(Fake({'a': bed('dry', bubble=(900, 400))}))
-        f.state = lambda: {'mode': 'gameplay', 'text': ['0) Среда 09:40', '1) 100']}
-        with self.assertRaises(laws.WrongLanguage) as e:
-            laws.run('water')
-        self.assertIn('WRONG_LANGUAGE', str(e.exception))
-        self.assertEqual(f.clicks, [])
-
-    def test_english_ui_runs(self):
-        f = self.use(Fake({'a': bed('dry', bubble=(900, 400))}))
-        f.state = lambda: {'mode': 'gameplay', 'text': ['0) Wednesday 9:40 am']}
-        with self.assertRaises(NeedVision):
-            laws.run('water')
-        self.assertEqual(f.beds['a']['state'], 'wet')
 
 
 class Mechanics(unittest.TestCase):
@@ -453,47 +282,13 @@ class Reach(Base):
 
 
 class Framework(Base):
-    """L134: observe / act / learn / nav, tasks on top."""
+    """L134: observe / act / learn / nav (goals on top: game/engine.py)."""
     def test_closest_node_is_the_owner_of_the_bubble_nearest_tara(self):
         A = Affordance
         affs = [A('fill_can', None, (1000, 500), False, 0.0), A('water', None, (1400, 800), False, 0.0, True)]
         self.assertEqual(observe.closest_node(affs), 'Well')
         affs = [A('beehive_progress', None, (1500, 300), False, 0.0), A('plant', None, (980, 560), False, 0.0)]
         self.assertEqual(observe.closest_node(affs), 'GardenBed@Garden')
-
-    def test_late_game_time_stops_before_any_click(self):
-        f = self.use(Fake({'a': bed('dry', bubble=(900, 400))}))
-        with mock.patch.object(observe, 'clock', lambda: (23.5, 'night')):
-            res = laws.run('water')
-        self.assertIn('late', res['stop'])
-        self.assertEqual(f.clicks, [])
-
-    def test_water_ends_with_a_summary_when_nothing_is_left_after_exploring(self):
-        f = self.use(Fake({'a': bed('dry', bubble=(900, 400))}))
-        f.step_zone = 'near'   # explore walks, but there is no other bed
-        f.walk_always = True
-        with mock.patch.object(nav, 'dry_spots', lambda tried=(): []), \
-                mock.patch.object(observe, 'clock', lambda: (13.0, 'day')):
-            res = laws.run('water')
-        self.assertEqual(f.beds['a']['state'], 'wet')
-        self.assertIn('no dry soil', res['stop'])
-        self.assertEqual(f.asks, [])
-
-    def test_the_trace_goes_to_the_next_call(self):
-        f = self.use(Fake({}))
-        with mock.patch.object(nav, 'map_direction', lambda region: None):
-            with self.assertRaises(NeedVision):
-                laws.run('water')
-            with self.assertRaises(NeedVision):
-                laws.run('water', click='Q14')
-        self.assertIn('(before the answer) map: no direction', f.asks[-1][1])
-
-    def test_harvest_ready_bubbles_only_when_asked(self):
-        f = self.use(Fake({}))
-        ready = Affordance('unknown', None, (900, 400), False, 0.0, False, True)
-        self.assertFalse(laws.harvest_task().fits(ready))
-        self.assertTrue(laws.harvest_task(ready=True).fits(ready))
-        del f
 
     def test_a_graph_direction_that_reached_the_target_is_learned(self):
         from objects import graph as OG
@@ -503,113 +298,6 @@ class Framework(Base):
         dx, dy = OG.toward(g, 'Well', 'GardenBed@Garden')
         self.assertGreater(dx, OG.TOWARD[('Well', 'GardenBed@Garden')][0])
         self.assertLess(dy, OG.TOWARD[('Well', 'GardenBed@Garden')][1])
-
-
-class Retest(Base):
-    """D185 framework retest: seeing growing beds over and over; the save count; a contradicted expectation."""
-    def test_inside_the_garden_water_explores_instead_of_clicking_seen_beds(self):
-        f = self.use(Fake({'a': bed('dry', bubble=(900, 400)), 'g': bed('wet', zone='near', bubble=(5000, 5000))}))
-        f.walk_always = True
-        seen = []
-        def see(kind, tried=()):
-            seen.append(kind)
-            return [Seek.Det((1300, 800))]
-        with mock.patch.object(observe, 'see', see), mock.patch.object(nav, 'dry_spots', lambda tried=(): []):
-            res = laws.run('water')
-        self.assertEqual(seen, [])
-        self.assertIn('no dry soil', res['stop'])
-
-    def test_water_stops_on_the_save_count(self):
-        f = self.use(Fake({'a': bed('dry', bubble=(900, 400)), 'b': bed('dry', bubble=(1100, 400))}))
-        f.save_left = 1
-        res = laws.run('water')
-        self.assertEqual(len(res['done']), 1)
-        self.assertIn('save: all 1 dry', res['stop'])
-
-    def test_a_contradicted_expectation_is_revised_after_three(self):
-        import json, shutil
-        db = os.path.join(self.tmp.name, 'chains.json')
-        shutil.copy(chains.DB, db)
-        obs = os.path.join(self.tmp.name, 'obs.jsonl')
-        with open(obs, 'w') as fh:
-            for _ in range(3):
-                fh.write(json.dumps({'chain': 'bed', 'step': 0, 'field': 'bubble', 'expected': 'same', 'got': 'gone',
-                                     'verdict': 'surprise'}) + '\n')
-        out = chains.revise(apply=True, path=db, observed=obs)
-        self.assertEqual([(r[0], r[2], r[4]) for r in out], [('bed', 'bubble', 'gone')])
-        self.assertEqual(chains.load(db)['bed'][0]['expect']['bubble'], 'gone')
-
-    def test_one_ok_after_surprises_keeps_the_expectation(self):
-        import json
-        obs = os.path.join(self.tmp.name, 'obs.jsonl')
-        with open(obs, 'w') as fh:
-            for v in ('surprise', 'surprise', 'surprise', 'ok'):
-                fh.write(json.dumps({'chain': 'bed', 'step': 0, 'field': 'bubble', 'got': 'gone' if v == 'surprise'
-                                     else 'same', 'verdict': v}) + '\n')
-        self.assertEqual(chains.revise(observed=obs), [])
-
-
-class CardText(unittest.TestCase):
-    def test_a_cards_own_lines_are_not_short_lived_text(self):
-        c = laws.Click((1, 1), 'bubble', 0, mode='overlay', texts=['Green Bean', 'This plant has wilted.'],
-                       burst_texts=['Green Bean', 'This plant has wilted.', '+1 Honey'])
-        self.assertEqual(chains.actual(c)['text'], '+1 Honey')
-
-
-class BedsLeft(unittest.TestCase):
-    """L136: beds left = the save's beds in that state minus today's log, by position (an old save over-counts)."""
-    def test_watered_since_the_save_are_not_left(self):
-        import wf
-        crops = [{'x': '1.0', 'z': '-25.0', 'plantState': '##growing', 'isWatered': 'false', 'isWilted': 'false'},
-                 {'x': '3.5', 'z': '-25.0', 'plantState': '##growing', 'isWatered': 'false', 'isWilted': 'false'},
-                 {'x': '6.0', 'z': '-25.0', 'plantState': '##growing', 'isWatered': 'true', 'isWilted': 'false'},
-                 {'x': '8.5', 'z': '-25.0', 'plantState': '##0', 'isWatered': 'false', 'isWilted': 'false'}]
-        log = ['[D185 9:00:00 AM] > water me=Player target=GardenBed(Clone) at (1.02, 0.10, -25.01)']
-        with mock.patch.object(wf, 'farm_status', lambda: {'crops': crops}), \
-                mock.patch.object(wf, 'today_log', lambda: (log, '185', log)):
-            self.assertEqual(wf.beds_left('dry'), 1)
-            self.assertEqual(wf.beds_left('wilted'), 0)
-
-
-class NewGarden(Base):
-    """L137: find a new garden south of the house - a new region node with a graph of its beds - and plant it."""
-    NORTH = [{'x': str(x), 'z': str(z), 'plantState': '##growing', 'isWatered': 'true', 'isWilted': 'false'}
-             for z in (-25.34, -29.09, -31.59) for x in (-1.66, 0.84, 3.34, 5.84)]
-    SOUTH = [{'x': str(x), 'z': str(z), 'plantState': '##0', 'isWatered': 'false', 'isWilted': 'false'}
-             for z in (-59.36, -63.11, -66.86) for x in (2.64, 6.39, 10.14, 13.89)]
-
-    def _farm(self, f):
-        f.farm_status = lambda: {'crops': self.NORTH + self.SOUTH}
-
-    def test_discover_adds_the_south_garden_with_a_graph_of_its_beds(self):
-        from objects import graph as OG
-        f = self.use(Fake({}))
-        self._farm(f)
-        out = garden.discover()
-        self.assertEqual(len(out['GardenSouth']), 2 + 12)   # region + bed group + 12 beds
-        g = OG.Graph()
-        g.load(learn.GRAPH)
-        self.assertEqual(g.nodes['GardenSouth'].region, 'Farm')
-        self.assertEqual(g.nodes['GardenBed@GardenSouth'].extra['pattern']['rows'], 3)
-        b = g.nodes['GardenBed@GardenSouth#r1c1']
-        self.assertEqual((b.region, b.extra['pos'], b.state['plant']['value']), ('GardenBed@GardenSouth', [2.64, -59.36], 'empty'))
-        self.assertEqual(len([e for e in g.edges(rel='next_to') if e['a'].startswith('GardenBed@GardenSouth')]), 17)
-        dx, dy = OG.toward(g, 'GardenBed@Garden', 'GardenBed@GardenSouth')
-        self.assertGreater(dy, 0.9)   # south = screen down
-        self.assertEqual(garden.discover()['GardenSouth'], [])   # idempotent
-
-    def test_plant_all_walks_south_and_plants_every_empty_bed(self):
-        f = self.use(Fake({'n': bed('wet', zone='near', bubble=(900, 400)),
-                           's1': bed('empty', zone='south', bubble=(800, 500), body=(5000, 5000)),
-                           's2': bed('empty', zone='south', bubble=(1100, 500), body=(5000, 5000))}))
-        self._farm(f)
-        f.step_zone = 'south'
-        f.save_left = 2
-        res = garden.plant_all(seed='Tulip')
-        self.assertEqual((f.beds['s1']['crop'], f.beds['s2']['crop']), ('Tulip', 'Tulip'))
-        self.assertEqual(len(res['done']), 2)
-        self.assertEqual(f.asks, [])
-        self.assertTrue(any('graph GardenBed@Garden->GardenBed@GardenSouth' in t for t in res.get('trace', [])))
 
 
 class Points(unittest.TestCase):
@@ -633,124 +321,10 @@ class Points(unittest.TestCase):
     def test_tara_is_the_centre(self):
         self.assertEqual(laws.CENTRE, (960, 540))
 
-
-class BubbleLoop(Base):
-    def test_replants_every_wilted_bed_in_reach_with_the_same_crop_and_waters_it(self):
-        f = self.use(Fake({'a': bed('wilted', 'Tulip', bubble=(1100, 600)), 'b': bed('wilted', 'Green Bean', bubble=(800, 600)),
-                           'c': bed('wet', bubble=(960, 400))}))
-        f.save_left = 2
-        res = garden.replant_all()
-        self.assertEqual(len(res['done']), 2)
-        self.assertEqual((f.beds['a']['crop'], f.beds['a']['state']), ('Tulip', 'wet'))
-        self.assertEqual((f.beds['b']['crop'], f.beds['b']['state']), ('Green Bean', 'wet'))
-        self.assertEqual(res['vision'], 0)
-        self.assertEqual(f.asks, [])
-        self.assertEqual(f.beds['c']['state'], 'wet')   # a bubble without a drop is never clicked
-        self.assertNotIn((960, 400), f.clicks)
-
-    def test_seed_overrides_the_crop(self):
-        f = self.use(Fake({'a': bed('wilted', 'Green Bean', bubble=(1100, 600))}))
-        f.save_left = 1
-        garden.replant_all(seed='Carrot')
-        self.assertEqual(f.beds['a']['crop'], 'Carrot')
-
-    def test_a_dry_bed_misread_as_wilted_is_watered_and_noted(self):
-        f = self.use(Fake({'a': bed('dry', bubble=(1100, 600)), 'b': bed('wilted', bubble=(800, 600))}))
-        f.save_left = 1
-        res = garden.replant_all()
-        self.assertEqual(len(res['done']), 1)
-        self.assertEqual(f.beds['a']['state'], 'wet')
-        self.assertTrue(any('was dry' in o for o in res['other']))
-
-    def test_no_seeds_stops_and_leaves_the_bed_empty(self):
-        f = self.use(Fake({'a': bed('wilted', 'Tulip', bubble=(1100, 600))}, seeds={'Tulip': 0}))
-        f.save_left = 1
-        res = garden.replant_all()
-        self.assertIn('no seeds for Tulip', res['stop'])
-        self.assertEqual(f.screen, 'gameplay')
-
-    def test_save_says_none_left_does_nothing(self):
-        f = self.use(Fake({'a': bed('wet', bubble=(1100, 600))}))
-        f.save_left = 0
-        res = garden.replant_all()
-        self.assertEqual((res['clicks'], f.asks), (0, []))
-
-    def test_water_refills_an_empty_can_and_continues(self):
-        f = self.use(Fake({'a': bed('dry', bubble=(1100, 600)), 'b': bed('dry', bubble=(800, 600))}, can=False))
-        with self.assertRaises(NeedVision):   # all watered, no drop bubble left: ask for the next node
-            garden.water_all()
-        self.assertEqual((f.beds['a']['state'], f.beds['b']['state']), ('wet', 'wet'))
-        self.assertTrue(f.can)
-
-    def test_harvest_picks_only_ripe(self):
-        f = self.use(Fake({'a': bed('ripe', bubble=(1100, 600)), 'b': bed('dry', bubble=(800, 600))}))
-        res = garden.harvest_all(click=None) if False else None
-        with self.assertRaises(NeedVision):
-            garden.harvest_all()
-        self.assertEqual((f.beds['a']['state'], f.beds['b']['state']), ('wet', 'dry'))
-        del res
-
-
-class Vision(Base):
-    def test_no_bubble_asks_one_click_point_then_the_answer_walks_and_the_loop_runs(self):
-        f = self.use(Fake({'far': bed('wilted', 'Tulip', zone='far', bubble=(1000, 500), body=(1320, 911))}))
-        f.save_left = 1
-        with self.assertRaises(NeedVision) as cm:
-            garden.replant_all()
-        self.assertEqual(len(f.asks), 1)
-        self.assertEqual(f.asks[0][0], 'click')
-        self.assertIn('magenta circle', f.asks[0][1])
-        self.assertIn("replant_all(click=", str(f.asks))
-        res = garden.replant_all(click='Q14')
-        self.assertEqual(len(res['done']), 1)
-        self.assertEqual(f.beds['far']['state'], 'wet')
-
-    def test_a_vision_click_on_a_bed_in_reach_interacts_and_is_used(self):
-        f = self.use(Fake({'a': bed('wilted', 'Carrot', bubble=(1200, 700), body=(1320, 911))}))
-        f.save_left = 1
-        f.beds['a']['zone'] = 'near'
-        res = garden.replant_all(click='Q14')
-        self.assertEqual(len(res['done']), 1)
-        self.assertEqual(f.beds['a']['crop'], 'Carrot')
-
-    def test_misread_growing_bed_is_told_back_to_vision(self):
-        f = self.use(Fake({'g': bed('wet', bubble=(1200, 700), body=(1320, 911))}))
-        f.save_left = 1
-        with self.assertRaises(NeedVision):
-            garden.replant_all(click='Q14')
-        self.assertIn('plant_growing', f.asks[-1][1])
-
-    def test_none_answer_ends_the_run(self):
-        f = self.use(Fake({}))
-        res = garden.replant_all(click='none')
-        self.assertEqual(res['stop'], 'vision: none left')
-        self.assertEqual(f.clicks, [])
-
-    def test_bad_answer_is_rejected_without_a_click(self):
-        f = self.use(Fake({}))
-        with self.assertRaises(core.Failed) as cm:
-            garden.replant_all(click='B2')
-        self.assertIn('HUD', str(cm.exception))
-        self.assertEqual(f.clicks, [])
-
-    def test_stuck_after_max_asks_without_progress(self):
-        f = self.use(Fake({}))
-        for _ in range(laws.MAX_ASKS):
-            with self.assertRaises(NeedVision):
-                garden.replant_all(click='M12')
-        with self.assertRaises(laws.LawsStuck) as cm:
-            garden.replant_all(click='M12')
-        self.assertIn('LAWS_STUCK', str(cm.exception))
-
-    def test_progress_resets_the_counter(self):
-        f = self.use(Fake({'far': bed('wilted', 'Tulip', zone='far', bubble=(1000, 500), body=(1320, 911))}))
-        f.save_left = 2
-        for _ in range(laws.MAX_ASKS - 1):
-            with self.assertRaises(NeedVision):
-                garden.replant_all(click='M12')
-        with self.assertRaises(NeedVision):   # the far bed done, the save still says 1 more: ask again, not stuck
-            garden.replant_all(click='Q14')
-        self.assertEqual(laws._load_state('replant')['asks'], 1)
+    def test_draw_grid_marks_tara(self):
+        from PIL import Image
+        pic = laws.draw_grid(Image.new('RGB', (1920, 1080), (0, 0, 0)))
+        self.assertEqual(pic.getpixel((960, 540 - 26)), (255, 0, 255))
 
 
 class Record(Base):
@@ -777,122 +351,6 @@ class Record(Base):
         a, b = Image.new('RGB', (1920, 1080), (10, 10, 10)), Image.new('RGB', (1920, 1080), (200, 200, 200))
         self.assertTrue(observe.view_changed(a, b))
         self.assertFalse(observe.view_changed(a, a.copy()))
-
-
-class ChainsDB(Base):
-    def db(self):
-        import json
-        p = os.path.join(self.tmp.name, 'chains.json')
-        with open(chains.DB) as fh, open(p, 'w') as out:
-            out.write(fh.read())
-        self.addCleanup(lambda: None)
-        mock.patch.object(chains, 'DB', p).start()
-        self.addCleanup(mock.patch.stopall)
-        return p, json
-
-    def test_every_step_has_all_fields_and_a_source(self):
-        db = chains.load()
-        for name, steps in db.items():
-            if name.startswith('_'):
-                continue
-            for s in steps:
-                self.assertEqual(set(s['expect']), set(chains.FIELDS), s['step'])
-                self.assertTrue(s.get('source'), s['step'])
-
-    def test_replant_run_checks_every_step_and_matches_the_db(self):
-        self.db()
-        f = self.use(Fake({'a': bed('wilted', 'Tulip', bubble=(1100, 600))}))
-        f.save_left = 1
-        res = garden.replant_all()
-        self.assertEqual(len(res['done']), 1)
-        import json
-        rows = [json.loads(line) for line in open(chains.OBSERVED)]
-        self.assertEqual(sorted({(r['chain'], r['step']) for r in rows}), [('replant', i) for i in range(5)])
-        self.assertEqual([r for r in rows if r['verdict'] == 'surprise'], [])
-
-    def test_a_different_result_is_a_surprise(self):
-        self.db()
-        f = self.use(Fake({'a': bed('wilted', 'Tulip', bubble=(1100, 600))}))
-        c = laws.record_click((1100, 600), 'bubble', chain='water', idx=0)
-        self.assertIn(('events', ['water'], ['unplant']), c.surprises)
-        del f
-
-    def test_gaps_fill_only_after_two_agreeing_observations(self):
-        p, json = self.db()
-        f = self.use(Fake({'a': bed('ripe', bubble=(1100, 600))}))
-        laws.record_click((1100, 600), 'bubble')   # grab_item -> harvest[0], bubble after: no-drop (regrowing, watered)
-        self.assertFalse(any(x[4] for x in chains.gaps(apply=True)))
-        self.assertEqual(chains.load()['harvest'][0]['expect']['bubble'], '?')
-        f.beds['a']['state'] = 'ripe'
-        laws.record_click((1100, 600), 'bubble')
-        filled = [x for x in chains.gaps(apply=True) if x[4]]
-        self.assertIn(('harvest', 0, 'bubble'), [x[:3] for x in filled])
-        self.assertEqual(chains.load()['harvest'][0]['expect']['bubble'], 'no-drop')
-        self.assertIn('observed x2', chains.load()['harvest'][0]['source'])
-
-    def test_disagreeing_observations_stay_a_gap(self):
-        self.db()
-        ripe = Affordance('pickup', None, (1100, 600), False, 0.0, False)
-        regrow = Affordance('water', None, (1100, 600), False, 0.0, False)
-        for after in ([regrow], [], [regrow]):   # no-drop, gone, no-drop
-            chains.observe('harvest', 0, laws.Click((1100, 600), 'bubble', 0, events=['grab_item'], before=[ripe], after=after))
-        chains.gaps(apply=True)
-        self.assertEqual(chains.load()['harvest'][0]['expect']['bubble'], '?')
-
-class Memory(Base):
-    def graph(self):
-        from objects import graph as G
-        g = G.Graph()
-        g.load(learn.GRAPH)
-        return g
-
-    def test_a_replant_run_is_remembered_per_group(self):
-        f = self.use(Fake({'a': bed('wilted', 'Tulip', bubble=(1100, 600)), 'b': bed('dry', bubble=(800, 600))}))
-        f.save_left = 1
-        f.game_stamp = lambda: 'D184 7:30:00 AM'
-        garden.replant_all()
-        g = self.graph()
-        t = g.state_value(learn.GROUP, 'today')
-        self.assertEqual(t['day'], 184)
-        self.assertEqual((t['removed'], t['planted']), (1, 1))
-        self.assertEqual(t['watered'], 1)   # the new seedling; the save's 1 wilted is done, so the run stops there
-        self.assertEqual(g.state_value(learn.GROUP, 'crops'), ['Tulip'])
-
-    def test_memory_goes_into_the_vision_question(self):
-        f = self.use(Fake({}))
-        f.game_stamp = lambda: 'D184 7:30:00 AM'
-        g = self.graph()
-        g.set_state(learn.GROUP, 'crops', ['Tulip', 'Carrot'], 'D184 7:00:00 AM', 'event')
-        g.save(learn.GRAPH)
-        with self.assertRaises(NeedVision):
-            garden.replant_all()
-        self.assertIn('crops grown here: Tulip, Carrot', f.asks[-1][1])
-        self.assertIn('Well', f.asks[-1][1])
-
-    def test_a_new_day_resets_the_tally(self):
-        from objects import graph as G
-        g = self.graph()
-        G.note_click(g, learn.GROUP, ['water'], 'D183 9:00:00 PM')
-        G.note_click(g, learn.GROUP, ['water'], 'D184 7:00:00 AM')
-        self.assertEqual(g.state_value(learn.GROUP, 'today'), {'day': 184, 'watered': 1})
-
-    def test_can_state_from_events(self):
-        from objects import graph as G
-        g = self.graph()
-        G.note_click(g, learn.GROUP, ['out_of_water'], 'D184 7:00:00 AM')
-        self.assertEqual(g.state_value('Tara', 'can'), 'empty')
-        G.note_click(g, learn.GROUP, ['full_watering_can'], 'D184 7:01:00 AM')
-        self.assertEqual(g.state_value('Tara', 'can'), 'full')
-
-    def test_no_positions_or_layouts_in_the_runner(self):
-        src = open(laws.__file__).read()
-        for word in ('ref_offset', 'pitch', 'camera_shift', 'Tara.at', 'log_pos'):
-            self.assertNotIn(word, src)
-
-    def test_draw_grid_marks_tara(self):
-        from PIL import Image
-        pic = laws.draw_grid(Image.new('RGB', (1920, 1080), (0, 0, 0)))
-        self.assertEqual(pic.getpixel((960, 540 - 26)), (255, 0, 255))
 
 
 if __name__ == '__main__':

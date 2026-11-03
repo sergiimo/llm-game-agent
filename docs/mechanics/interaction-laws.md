@@ -64,29 +64,19 @@ bad state carried over to the next call. These laws keep one guess per click and
 same crop → water) or something else (growing/dry: record it, close the card) → next drop bubble. No drop bubble →
 vision: "click point of the nearest wilted bed" → click → its bubble or card appears → continue the loop.
 
-## Framework: observe → act → learn → nav, tasks on top (L134)
+## Framework: observe → act → learn → nav, goals on top (L134, L138: the generic engine)
 | Module | Job | Never |
 |---|---|---|
-| `game/observe.py` | Read the frame: bubbles (kind, `drop`, `ready`), soil heat map, **the closest node** (where she is: the owner of the bubble nearest the centre, else the nearest detection), detections, screen mode/texts, clock + light, language | act; carry anything between frames |
-| `game/act.py` | One click + its full record (`Click`: burst frames, moved, log events, the event's node, bubbles before/after, screen, short-lived text); close cards | decide |
-| `game/learn.py` | Memory (group tally, crops, can, soil view); bubble kinds from the event after a click; **object looks relabelled** when the game proves a detection was another object (a "bed" whose click logs `beehive_progress` becomes a BeeHive example); chains check + gaps; **graph directions** that reached their node | gate a click (law 6) |
-| `game/nav.py` | `reach(fits, kind)` / `search` / `seek`: any node whose bubble fits — closest node → graph direction; dry soil; vectors; explore free ground inside the region / map outside; walk = frames moved or arrived; stuck after 3 still clicks; the trace | click a bubble without the target's sub-icon |
-| `game/laws.py` | Tasks (`TASKS`: replant / water / harvest, `harvest_task(ready=)`), what each event means (`_handle`), replant chain, refill (by `nav.search` for the well), the one vision question (with the trace, carried to the next call), the run loop, stops (clock, language, LAWS_STUCK), done (save count; water: nothing left after exploring) | — |
-A new task = a `Target` (what fits, kind, node, region, soil?) + which events mean done; navigation, recording and learning come for free.
-
-## Actions DB as chains (user, D183)
-Each game function is a chain of steps; each step = an action and the result it should leave on screen. The DB is
-`tools/game/chains.json` (code: `game/chains.py`): per step `events` (log event types), `card` (text on the card/panel
-that opens, `null` = stays in gameplay), `bubble` (the clicked object's bubble after: `gone | plant | drop | no-drop | same`),
-`text` (short-lived message, OCR'd from the burst frames) and its `source` (game day, wiki). `"?"` = a gap.
-- Every recorded click is checked against its step (`laws.record_click(..., chain, idx)`, or by its event for bubble-loop
-  clicks): a mismatch is a **surprise** (run summary `surprises`, run log `click` row); every field goes to
-  `tools/game/observed.jsonl`.
-- **Gaps fill from the game:** `./wf py "from game import chains; chains.gaps()"` lists each gap with what was seen;
-  `chains.gaps(apply=True)` writes a value once **2 observations agree** and none differ (never from one sighting). The
-  wiki has no UI-level detail for beds (Garden Bed page: only "water each day, 4 crops"), so the game is the source.
-- A new function adds its chain to the DB first (steps + what is known, `?` for the rest), then passes `chain`/`idx` to
-  `record_click`.
+| `game/observe.py` | Read the frame: bubbles (kind, `drop`, `ready`), soil heat map, **the closest node** (where she is), detections, screen mode/texts, clock + light, language | act; carry anything between frames |
+| `game/act.py` | One click + its full record (`Click`: burst frames, moved, log events, the event's node and position, bubbles before/after, screen, short-lived text); close cards | decide |
+| `game/world.py` + `kinds.json` | **The world graph** from the save (every positioned object; kind by `save_has`, or named by a log event on it), today's log (`target=Kind at (x, y, z)`, newer than the save wins) and click results. **Places are grouped only by distance** (areas over objects of every kind: `Garden` = 12 beds + 8 hives, `GardenSouth` = 12 beds); kind and state are filters (`query`, `count`) | group by kind |
+| `game/plan.py` + `actions.json` | **The transition table**: per action `when` / `bubble` / `steps` / `effect` / `needs`, seeded (water, fill_can, remove_wilted, plant, pick, out_of_water) + learned; `path` = BFS over effects | use a learned row before 2 agreeing sightings |
+| `game/steps.py` | Run a row's steps (click_bubble, press, press_space, pick_card, read_card, close) with checked expectations; every field observed (`observed-steps.jsonl`) | — |
+| `game/ask.py` | The ONE vision question (`click` cell / `button` / `name` key=value) with a pending record; the grid; the clock stop; LAWS_STUCK after 4 | guess |
+| `game/learn.py` | Memory hints; bubble kinds from the event after a click; object looks relabelled; **new rows from play** (frame change / event / vision's name) and `settle_rows` (gaps after 2 agreeing, revisions after 3 agreeing contradictions); graph directions that reached their node | gate a click (law 6) |
+| `game/nav.py` | `search` / `seek`: any bubble that fits — the area known from the last event (look-alike beds), else the closest node → graph/position direction; marker (dry soil); vectors; explore free ground inside the area / map outside; stuck after 3 still clicks; the trace | click a bubble without the target's sub-icon |
+| `game/engine.py` + `goals.json` | `achieve(goal, answer=None, **params)`: refresh → targets (filter) → nearest → path → needs (missing item = stop; can = sub-goal from the table) → nav in the target's area → steps → events update the world → done = filter empty. Missing required params → `NEED_INPUT` with the values seen | goal or kind names in code |
+A new chore = one goal line (`{kind, where, make}`) or a raw query; an unknown bubble is learned once and replayed.
 
 ## Tool status
 | Piece | Status |
@@ -95,9 +85,10 @@ that opens, `null` = stays in gameplay), `bubble` (the clicked object's bubble a
 | Click-result record (burst frames + new log lines + bubbles before/after + screen + burst OCR) | ✅ `laws.record_click` → `Click` (run log `click`, frames in `<run>/clicks/`) |
 | See → map → step before vision (`laws._seek`: `_see` detect, `_map_direction` map pin + MapGarden + road route, `_step`) | ✅ offline tests `Seek`; map direction checked on `.shots/map_last.png`; live check pending |
 | Vision "click point of the next node" (one grid cell) | ✅ `NEED_VISION click` (`wf.ask_vision('click', …)`), answer `click='Q14'`; `LAWS_STUCK` after 4 asks without progress |
-| `replant_all()` / `water_all()` / `harvest_all()` on these laws | ✅ `game/laws.py` (offline tests `tools/test_laws.py`); live check pending |
-| Actions DB as chains, surprises, gap filling | ✅ `game/chains.py` + `chains.json` |
+| `./wf achieve <goal> k=v [answer=X]`; `water_all` / `replant_all` / `harvest_all(crops)` / `plant_all(seed, region)` = one-line goals | ✅ `game/engine.py` (offline `tools/test_engine.py`); live: south-garden planting (Task 9) |
+| Transition table, surprises, gap filling, revisions, learned rows | ✅ `game/plan.py` + `actions.json`, `learn.settle_rows` (chains.json removed, L138) |
+| World graph (areas by distance, filters, `./wf world kinds|nodes`) | ✅ `game/world.py`, `kinds.json` |
 | Graph memory (law 6): per group today's tally per event (removed/planted/watered/harvested/growing_seen/can_ran_dry), crops grown, last event, the can; read back as a hint in the vision question | ✅ `objects/graph.note_click` / `hint`, fed by every recorded click and press; saved in `graph/Farm.json` |
-| Framework split (observe / act / learn / nav, tasks in laws) | ✅ L134, tests `Framework`, `Reach`, `Seek` |
-| `laws.reach(fits, kind=…)` (= `nav.reach`): the low-level navigation — any node of a kind whose bubble fits (the same search), returns the bubble, doesn't click; replaces `goto_bed` (L133) | ✅ offline tests `Reach` |
+| Framework split (observe / act / learn / nav, goals in the engine) | ✅ L134/L138, tests `test_laws` (Framework, Reach, Record, Points), `test_engine` (Nav, Loop, Learning) |
+| `nav.reach(fits, kind=…)` (also `laws.reach`): the low-level navigation — any node of a kind whose bubble fits (the same search), returns the bubble, doesn't click; replaces `goto_bed` (L133) | ✅ offline tests `Reach` |
 | Old graph-chain runner (anchor question, layout fit, camera-shift proof, `./wf anchor`) | ❌ removed (L124) |

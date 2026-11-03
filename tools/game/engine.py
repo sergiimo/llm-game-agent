@@ -406,3 +406,18 @@ def _loop(g, name, spec, params, save, max_clicks, res):
         if res['fails'][tid] >= FAILS:
             res['skip'].append(tid)
             res['notes'].append(f'{tid}: {FAILS} failed attempts')
+
+
+def parse_cli(args):
+    """`./wf achieve <goal|json> [k=v ...] [answer=X]` -> (goal, params, answer); `a,b` values become lists."""
+    goal = args[0]
+    if goal.strip().startswith('{'):
+        goal = json.loads(goal)
+    params, answer = {}, None
+    for a in args[1:]:
+        k, _, v = a.partition('=')
+        if k == 'answer':
+            answer = v
+        else:
+            params[k] = v.split(',') if ',' in v else v
+    return goal, params, answer

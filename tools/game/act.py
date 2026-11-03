@@ -1,7 +1,7 @@
 """ACT: one click and its full record (framework: observe -> act -> learn -> nav; law 3).
 
 `click(pt, what)` clicks, catches a burst of frames (short-lived text, bubble changes, movement), waits for the late log
-line, reads the screen, and hands the result to LEARN (bubble kind, chains check, memory). State comes from the record:
+line, reads the screen, and hands the result to LEARN (bubble kind, memory). State comes from the record:
 log event > card > bubble change > text > vision."""
 import os
 import re
@@ -31,7 +31,6 @@ class Click:
     moved: object = None                        # True/False: the view changed during the burst; None = unknown
     frames: list = field(default_factory=list)  # saved burst frame paths
     burst_texts: list = field(default_factory=list)  # short-lived texts OCR'd from the burst frames
-    surprises: list = field(default_factory=list)    # [(field, expected, got)] vs its chains.json step
     node: str = None                            # the graph node the logged interaction names (target=...)
     at: tuple = None                            # world (x, z) of the logged interaction (`at (x, y, z)`), if any
 
@@ -87,8 +86,8 @@ def events_of(lines):
     return [m.group(1) for m in map(EVENT.search, lines) if m]
 
 
-def click(pt, what='point', before=None, chain=None, idx=None):
-    """Click `pt` and record everything it did; LEARN gets it (bubble kind, chains check, memory). Returns a Click."""
+def click(pt, what='point', before=None):
+    """Click `pt` and record everything it did; LEARN gets it (bubble kind, memory). Returns a Click."""
     W = core.WF
     before = O.scan() if before is None else before
     x, y = round(pt[0]), round(pt[1])
@@ -110,14 +109,12 @@ def click(pt, what='point', before=None, chain=None, idx=None):
     from objects import graph as OG
     c.node = next((n for n in map(OG.node_of_line, lines) if n), None)
     c.at = next((p for p in map(position_of, lines) if p), None)
-    c.node = L.place(c.node, c.at, c.events)   # a bed event's position says WHICH garden (and bed) it was
     learned = L.learn_bubble(c, img0)
-    L.check(c, chain, idx)
     L.remember(c.events)
     try:
         W.run_log('click', node=c.node, learned=learned, pt=[x, y], what=what, events=c.events, mode=mode,
                   texts=ts[:4], before=[str(a) for a in before], after=[str(a) for a in c.after], moved=c.moved,
-                  frames=c.frames, burst_texts=c.burst_texts[:6], surprises=[list(s) for s in c.surprises])
+                  frames=c.frames, burst_texts=c.burst_texts[:6])
     except Exception:   # noqa: BLE001
         pass
     return c

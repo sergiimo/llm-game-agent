@@ -16,8 +16,21 @@ HUD = ((0, 0, 520, 230), (1440, 0, 1920, 230))   # clock / map-journal-inventory
 MOVED = 6.0          # mean abs grey difference (0-255) between first and last burst frame = the view changed
 SEE_NEAR = 160       # px: a detection this close to Tara is where she already is (its bubble would show)
 NEAR_NODE = 420      # px: a detected object this close to Tara is the node she stands at
-NODE_OF = {'Well': 'Well', 'BeeHive': 'BeeHive', 'GardenBed': 'GardenBed@Garden'}   # detection kind -> graph node
-CROP_KINDS = ('water', 'plant', 'unplant', 'plant_growing', 'pickup')               # bubbles only a bed shows
+
+
+def _kinds():
+    import json
+    import os
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'kinds.json')) as f:
+            return {k: v for k, v in json.load(f).items() if not k.startswith('_')}
+    except (OSError, ValueError):
+        return {}
+
+
+NODE_OF = {k: v['node'] for k, v in _kinds().items() if v.get('node')}       # detection kind -> graph node (kinds.json)
+CROP_KINDS = tuple(b for v in _kinds().values() for b in v.get('bubbles', []))   # bubbles only a bed shows (kinds.json)
+BED_NODE = next((v['node'] for v in _kinds().values() if v.get('bubbles')), None)
 CYRILLIC = re.compile('[Ѐ-ӿ]{3,}')
 
 
@@ -146,7 +159,7 @@ def node_of_bubble(a):
     if k:
         return NODE_OF.get(k, k)
     if a.drop or a.kind in CROP_KINDS:
-        return 'GardenBed@Garden'
+        return BED_NODE
     return None
 
 

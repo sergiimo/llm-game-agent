@@ -851,5 +851,117 @@ class Report(EngineBase):
         self.assertIn('unnamed save objects: 1', cat)
 
 
+class Wrappers(EngineBase):
+    """Task functions are one-line goals; the CLI parses goal, params and the answer; routines count from the world."""
+
+    def test_wrappers_call_achieve(self):
+        from game import garden
+        calls = []
+        with mock.patch.object(engine, 'achieve', lambda goal, answer=None, **kw: calls.append((goal, answer, kw)) or {}):
+            self.use(FakeGame([], GAME))
+            garden.water_all(click='Q14')
+            garden.plant_all(seed='Tulip', region='GardenSouth')
+            garden.harvest_all()
+            garden.replant_all()
+        self.assertEqual(calls, [('water', 'Q14', {}), ('plant', None, {'seed': 'Tulip', 'region': 'GardenSouth'}),
+                                 ('harvest', None, {}), ('replant', None, {})])
+
+    def test_cli_parses_goal_params_and_answer(self):
+        self.assertEqual(engine.parse_cli(['plant', 'seed=Tulip', 'region=GardenSouth', 'answer=Q14']),
+                         ('plant', {'seed': 'Tulip', 'region': 'GardenSouth'}, 'Q14'))
+        self.assertEqual(engine.parse_cli(['harvest', 'crops=Carrot,Tulip']), ('harvest', {'crops': ['Carrot', 'Tulip']}, None))
+        goal, _, _ = engine.parse_cli(['{"kind": "BeeHive", "where": {"ready": true}, "make": {"ready": false}}'])
+        self.assertEqual(goal['kind'], 'BeeHive')
+
+    def test_routines_counts_from_world(self):
+        import wf
+        f = FakeGame(beds('n', NX[:3], NZ[:1], 'near', 500, 300, stage='growing', watered=False, wilted=False)
+                     + beds('w', NX[3:], NZ[:1], 'near', 900, 300, stage='growing', watered=False, wilted=True), GAME)
+        log = [L('9:00:00 AM', 'water', 'GardenBed', NX[0], NZ[0])]
+        with mock.patch.object(wf, 'read_save', f.read_save), mock.patch.object(wf, 'today_log', lambda: (log, '185', log)):
+            self.assertEqual((wf.beds_left('dry'), wf.beds_left('wilted'), wf.beds_left('empty')), (2, 1, 0))
+
+
+class Nav(EngineBase):
+    """Navigation through the engine (ported from test_laws Seek/Vision/Language, L130-L135)."""
+    FAR = [(40.0, -60.0), (42.5, -60.0)]   # a garden far from Tara's area: the map leads there
+
+    def far(self, zone='far', body=None):
+        return [obj(f'f{i}', pos=p, zone=zone, bubble=(700 + 200 * i, 300), body=body, stage='growing', watered=False,
+                    wilted=False) for i, p in enumerate(self.FAR)]
+
+    def test_far_garden_map_direction_steps_then_the_loop_runs(self):
+        f = self.use(FakeGame(self.far(), GAME))
+        f.step_zone = 'far'
+        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+            res = engine.achieve('water')
+        self.assertEqual((len(res['done']), f.asks), (2, []))
+        self.assertEqual(f.clicks[0], (960 + nav.STEP_R[0], 540))
+
+    def test_a_blocked_step_turns_a_little(self):
+        f = self.use(FakeGame(self.far(), GAME))
+        f.step_zone, f.step_ok = 'far', (lambda x, y: y != 540)   # straight ahead is a fence
+        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+            res = engine.achieve('water')
+        self.assertEqual(f.clicks[0][1], 540)
+        self.assertNotEqual(f.clicks[1][1], 540)
+        self.assertEqual(len(res['done']), 2)
+
+    def test_an_unknown_bubble_without_a_drop_is_never_clicked(self):
+        hive = obj('h', kind='BeeHive', pos=(1.5, -23.5), bubble=(800, 532), save={'pollen': '0'}, ready=True)
+        f = self.use(FakeGame(self.far() + [hive], GAME + [HIVE]))
+        f.step_zone = 'far'
+        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+            res = engine.achieve('water')
+        self.assertNotIn((800, 532), f.clicks)
+        self.assertEqual(len(res['done']), 2)
+
+    def test_inside_the_area_explores_free_ground_not_the_map(self):
+        near = [obj('a', pos=(NX[0], NZ[0]), bubble=(900, 400), stage='growing', watered=False, wilted=False),
+                obj('b', pos=(NX[1], NZ[0]), zone='far', bubble=(700, 300), stage='growing', watered=False, wilted=False)]
+        f = self.use(FakeGame(near, GAME))
+        f.step_zone = 'far'
+
+        def no_map(node):
+            raise AssertionError('map used inside the area')
+        with mock.patch.object(nav, 'map_direction', no_map), mock.patch.object(nav, 'dry_spots', lambda tried=(): []):
+            res = engine.achieve('water')
+        self.assertEqual(len(res['done']), 2, res)
+
+    def test_three_still_clicks_are_stuck_and_vision_gets_the_trace(self):
+        f = self.use(FakeGame(self.far(), GAME))
+        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+            with self.assertRaises(NeedVision) as cm:
+                engine.achieve('water')
+        self.assertIn('STUCK', str(cm.exception))
+        self.assertLessEqual(len(f.clicks), nav.STUCK_CLICKS + 1)
+
+    def test_no_bubble_asks_one_click_then_the_answer_walks_and_the_loop_runs(self):
+        f = self.use(FakeGame(self.far(body=(1500, 300))[:1], GAME))
+        with self.assertRaises(NeedVision) as cm:
+            engine.achieve('water')
+        self.assertIn('./wf achieve water answer=', str(cm.exception))
+        res = engine.achieve('water', answer='S5')   # the cell on the far bed's body: she walks there
+        self.assertEqual(len(res['done']), 1, res)
+
+    def test_none_answer_ends_the_run(self):
+        f = self.use(FakeGame(self.far(), GAME))
+        res = engine.achieve('water', answer='none')
+        self.assertEqual((res['stop'], f.clicks), ('vision: none left', []))
+
+    def test_bad_answer_is_rejected_without_a_click(self):
+        f = self.use(FakeGame(self.far(), GAME))
+        with self.assertRaises(core.Failed):
+            engine.achieve('water', answer='Z99')
+        self.assertEqual(f.clicks, [])
+
+    def test_russian_ui_stops_before_any_click(self):
+        f = self.use(FakeGame(beds('n', NX, NZ[:1], 'near', 500, 300, stage='growing', watered=False, wilted=False), GAME))
+        f.state = lambda: {'mode': 'gameplay', 'text': ['0) Понедельник 9:00']}
+        with self.assertRaises(observe.WrongLanguage):
+            engine.achieve('water')
+        self.assertEqual(f.clicks, [])
+
+
 if __name__ == '__main__':
     unittest.main()

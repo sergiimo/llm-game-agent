@@ -25,15 +25,21 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
   <question>` (the frame saved at the moment of failure, before menus were closed). Read that PNG, describe what you
   see, answer the question in your report (e.g. "the panel shows 3 cards, Green Bean first, highlighted"). Never
   report a cause or guess ("seeds not owned?") without having looked. No path → `./wf look` and Read it.
-- **Click round trip (`replant_all()` / `water_all()` / `harvest_all()` print `NEED_VISION click: …`; interaction laws,
-  docs/mechanics/interaction-laws.md):** they click every fitting bubble on screen by themselves and ask only when none is
-  left. (1) `./wf pause`; (2) Read the full-size image on the `look:` line (grid A-X × 1-16, magenta circle = Tara, always the
-  centre); (3) pick ONE grid cell on the target bed itself (its soil/plants, not a bubble; nearest to Tara), or a cell of open
-  ground toward the garden when no bed is visible; (4) `./wf resume`, then call again with it: `./wf py "replant_all(click='Q14')"`.
-  Nothing left of the target anywhere: `replant_all(click='none')` ends the run. The question says what your last cell led to
-  (events, bubbles): a cell that led to `plant_growing` was a growing bed, pick another. **`WRONG_LANGUAGE: …`** = the game UI is not English: stop, ask the user to switch it (never change it yourself). **`LAWS_STUCK: …`** (4 questions
-  without progress) is terminal: stop, `./wf pause`, report. The summary's `surprises` (results that differ from
-  `tools/game/chains.json`) go into your report as `[docs]` gaps.
+- **Goals on the engine (L138; interaction laws, docs/mechanics/interaction-laws.md):** chores and object goals are one
+  call: `./wf achieve <goal> k=v` with a library goal (`water`, `replant`, `plant seed=Tulip region=GardenSouth`,
+  `harvest crops=Carrot`; `tools/game/goals.json`) or a raw query `./wf achieve '{"kind": "BeeHive", "where": {"ready":
+  true}, "make": {"ready": false}}'`. `./wf world kinds` / `./wf world nodes` list the areas (e.g. `Garden`, `GardenSouth`),
+  kinds, states and known actions: route the user's words ("the garden south of the house") to an area name from there.
+  The engine clicks every fitting bubble by itself and asks only when stuck:
+  `NEED_VISION click` → (1) `./wf pause`; (2) Read the image on the `look:` line (grid A-X × 1-16, magenta circle = Tara,
+  always the centre); (3) ONE grid cell on the target object (not a bubble), or open ground toward it; (4) `./wf resume`,
+  then the printed `answer:` line, e.g. `./wf achieve water answer=Q14` (`answer=none` = nothing left).
+  `NEED_VISION button` → answer the exact on-screen text to press; `NEED_VISION name` → answer `key=value` (what changed
+  on the object, e.g. `ready=false`). `NEED_INPUT <goal>: <param>? (seen: …)` → never guess: take it from the task text or
+  return `need-help` to ask the user. **`WRONG_LANGUAGE: …`** = the game UI is not English: stop, ask the user to switch it
+  (never change it yourself). **`LAWS_STUCK: …`** (4 questions without progress) is terminal: stop, `./wf pause`, report.
+  The summary's `learned` rows and `surprises` go into your report as `[docs]` gaps (the supervisor reviews
+  `tools/game/actions.json`).
 - **One game command per tool call** (AGENTS.md rule 8): never chain `./wf …; ./wf …` — a rejected call may already have run its first commands (objects-seed batched several with `;`).
 - **The call budget is a hard stop:** count your `./wf` calls; at the budget, `./wf pause` and report partial with what is left (objects-relabel ran 55 of 45 and skipped its last checks).
 - Also, one line each as it happens: `./wf run attempt <what you try now>` · `issue` · `gap` · `decision`.

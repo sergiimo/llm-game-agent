@@ -64,6 +64,11 @@ def close():
         return read()
     if s.kind not in ('card', 'picker'):
         return s
+    if s.kind == 'card' and len(s.texts) <= 2:   # a short hint ("Fill watering can at the / Well", D186) fades
+        _settle()
+        after = read()
+        if after.kind == 'gameplay':
+            return after
     core.WF.run_action('key:escape')
     _settle()
     after = read()

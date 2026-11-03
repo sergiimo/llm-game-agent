@@ -1462,5 +1462,18 @@ class SmokeDrop(Base):
         self.assertEqual(f.clicks, [])
 
 
+class ScreenHint(Base):
+    def test_close_waits_out_a_short_hint_instead_of_escaping(self):
+        """Live D186: "Fill watering can at the / Well" isn't closed by Escape (the pause menu opened)."""
+        f = self.use(FakeGame([], GAME))
+        f.blank_overlay, f.overlay_texts = True, ['Fill watering can at the', 'Well']
+        keys = []
+        run = f.run_action
+        f.run_action = lambda a: (keys.append(a), run(a))[1]
+        f.wait_settle = lambda: setattr(f, 'blank_overlay', False)   # the hint fades
+        self.assertEqual(screen.close().kind, 'gameplay')
+        self.assertEqual(keys, [])
+
+
 if __name__ == '__main__':
     unittest.main()

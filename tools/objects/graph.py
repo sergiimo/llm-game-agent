@@ -279,3 +279,29 @@ def hint(graph, group):
 
 
 _DAY_OF = re.compile(r'D(\d+)')
+
+
+# Screen directions between neighbouring nodes (user D185: "graph navigation": after filling the can she is at the Well,
+# next to the hives, not at the beds). Fixed camera looking north, so a direction holds at any zoom. (dx, dy) unit vectors
+# in frame px, read from the D185 frame of the farm (well top-left, hives in a row below it, beds below the hives).
+TOWARD = {('Well', 'BeeHive'): (0.83, 0.55), ('Well', 'GardenBed@Garden'): (0.69, 0.73),
+          ('BeeHive', 'GardenBed@Garden'): (0.0, 1.0), ('GardenBed@Garden', 'Well'): (-0.69, -0.73),
+          ('BeeHive', 'Well'): (-0.83, -0.55), ('GardenBed@Garden', 'BeeHive'): (0.0, -1.0)}
+
+
+def toward(graph, a, b):
+    """Screen direction from node `a` to node `b`: a `toward` edge in the graph, else the TOWARD default; None if unknown."""
+    for e in graph.edges(a, 'toward') if graph is not None else []:
+        if e['b'] == b and e.get('dir'):
+            return tuple(e['dir'])
+    return TOWARD.get((a, b))
+
+
+def node_of_line(line):
+    """The graph node a game-log interaction line is about: `target=GardenBed (4)` -> GardenBed@Garden, `target=Well` ->
+    Well, `target=BeeHive(Clone)` -> BeeHive. None when it names no target."""
+    m = re.search(r'target=([A-Za-z]+)', line)
+    if not m:
+        return None
+    k = m.group(1)
+    return {'GardenBed': 'GardenBed@Garden'}.get(k, k)

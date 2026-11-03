@@ -50,6 +50,7 @@ class Click:
     frames: list = field(default_factory=list)  # saved burst frame paths
     burst_texts: list = field(default_factory=list)  # short-lived texts OCR'd from the burst frames (outside the HUD)
     surprises: list = field(default_factory=list)    # [(field, expected, got)] vs its chains.json step
+    node: str = None                            # the graph node the logged interaction names (target=...): where she is now
 
     def has(self, *names):
         return any(e in names for e in self.events)
@@ -163,6 +164,7 @@ def record_click(pt, what='point', before=None, chain=None, idx=None):
     W = core.WF
     before = affordances.scan() if before is None else before
     x, y = round(pt[0]), round(pt[1])
+    img0 = W.grab() if what == 'bubble' else None   # the clicked bubble's crop, to learn its kind from the event
     mark = W.log_mark()
     W.run_action(f'click:{x}:{y}')
     t0, imgs = time.monotonic(), []
@@ -177,15 +179,34 @@ def record_click(pt, what='point', before=None, chain=None, idx=None):
     c = Click((x, y), what, mark, lines, [m.group(1) for m in map(EVENT.search, lines) if m], before,
               affordances.scan(), mode, texts, _view_changed(imgs[0], imgs[-1]) if len(imgs) > 1 else None,
               _save_frames(imgs, time.strftime('%H%M%S') + f'-{x}-{y}'), _burst_texts(imgs) if _text_gaps() else [])
+    from objects import graph as OG
+    c.node = next((n for n in map(OG.node_of_line, lines) if n), None)
+    learned = _learn_bubble(c, img0)
     check(c, chain, idx)
     remember(c.events)
     try:
-        W.run_log('click', pt=[x, y], what=what, events=c.events, mode=mode, texts=texts[:4],
+        W.run_log('click', node=c.node, learned=learned, pt=[x, y], what=what, events=c.events, mode=mode, texts=texts[:4],
                   before=[str(a) for a in before], after=[str(a) for a in c.after], moved=c.moved, frames=c.frames,
                   burst_texts=c.burst_texts[:6], surprises=[list(x) for x in c.surprises])
     except Exception:   # noqa: BLE001
         pass
     return c
+
+
+def _learn_bubble(c, img0):
+    """Gap filling for bubble kinds (D185: the honey bubble stayed 'unknown'): a clicked bubble is labelled by the
+    interaction the game logged next; a wrong/unknown kind is stored as a new reference (wf.learn_bubble). The label or None."""
+    W = core.WF
+    if c.what != 'bubble' or not hasattr(W, 'event_kind') or not hasattr(W, 'learn_bubble'):
+        return None
+    b = _nearest(c.before, c.pt, max_d=60)
+    label = W.event_kind(c.lines)
+    if b is None or not label or b.kind == label:
+        return None
+    try:
+        return label if W.learn_bubble(W.bubble_crop(img0, b.pt), label, b.kind) else None
+    except Exception:   # noqa: BLE001
+        return None
 
 
 FONTS = ('/System/Library/Fonts/Supplemental/Arial Bold.ttf', '/System/Library/Fonts/Helvetica.ttc',
@@ -334,6 +355,7 @@ class Task:
     save_key: str       # save_bed_counts key: how many are left (a hint, law 6)
     kind: str = 'GardenBed'   # the graph node kind to reach (its appearance vectors: objects/db/<kind>)
     region: str = 'Garden'    # the node whose map picture gives the direction (objects/map_db)
+    node: str = 'GardenBed@Garden'   # the graph node of the target: where she must be (graph navigation)
 
 
 TASKS = {
@@ -372,6 +394,7 @@ def _fill_can(res):
     ui.close()
     well.fill_can()
     res['refills'] += 1
+    res['here'] = 'Well'   # graph navigation: after the refill she stands at the well, next to the hives
 
 
 def _after_press(pt, mark, before, after):
@@ -445,6 +468,8 @@ def _replant(c, res, seed):
 
 def _handle(task, c, res, seed):
     """Update the run from one click's result. 'done' | 'progress' | 'none' | 'stop'."""
+    if c.node:
+        res['here'] = c.node   # the logged interaction says which node she is at
     if task.name == 'replant' and c.has('unplant'):
         out = _replant(c, res, seed)
         if out == 'done':
@@ -533,19 +558,43 @@ def _step(d):
 
 
 def _seek(task, res):
-    """One round when no fitting bubble shows (user D185): the node's vector on screen -> click it; not seen -> the map's
-    direction -> a few steps. The Click that changed something (the bubble loop looks again), or None (then vision).
-    The caller allows SEEK_TURNS rounds without progress."""
-    tried = []
-    for _ in range(2):   # a seen node that did nothing is skipped once
-        dets = _see(task.kind, tried)
-        if not dets:
-            break
-        c = record_click(dets[0].point, 'object')
+    """One round when no fitting bubble shows (user D185). In order: (0) an unknown bubble not tried yet -> click it once
+    (its event teaches its kind: gap filling); (1) she is at another node (the last event's target, e.g. the Well after a
+    refill) -> the graph's direction from there to the target node -> a few steps; (2) the target's vectors on screen ->
+    click the nearest (a click that lands on another node, e.g. a hive, is never repeated and tells where she is);
+    (3) the map's direction -> a few steps. The Click that changed something, or None (then vision)."""
+    from objects import graph as OG
+    tried = res.setdefault('tried', [])   # points that led elsewhere: never clicked again this call
+
+    def fresh(pt):
+        return not any(_d(pt, p) < 80 for p in tried)
+
+    unk = [a for a in affordances.scan() if a.kind == 'unknown' and fresh(a.pt)]
+    if unk:
+        a = _nearest(unk, CENTRE)
+        tried.append(a.pt)
+        c = record_click(a.pt, 'bubble')
         res['clicks'] += 1
         if _changed(c):
             return c
-        tried.append(dets[0].point)
+    here = res.get('here')
+    if here and here != task.node:
+        d = OG.toward(MEMORY['graph'], here, task.node)
+        if d:
+            _log('seek', what='graph', here=here, to=task.node, dir=list(d))
+            c = _step(d)
+            res['clicks'] += 1
+            if c is not None:
+                res['here'] = c.node   # she left that node: unknown until the next event names one
+                return c
+    for det in _see(task.kind, tried)[:2]:
+        c = record_click(det.point, 'object')
+        res['clicks'] += 1
+        tried.append(det.point)
+        if c.node and c.node != task.node:   # a hive seen as a bed: she is there now; the graph leads on
+            return c
+        if _changed(c):
+            return c
     d = _map_direction(task.region)
     if d is None:
         return None

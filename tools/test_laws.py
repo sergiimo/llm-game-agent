@@ -67,9 +67,24 @@ class Fake:
     def emit(self, ev, b):
         self.log.append(f'21:00 > {ev} {self.beds[b]["crop"]} at (1.0, 0.0, 2.0) target=GardenBed')
 
+    def event_kind(self, lines):
+        m = next((re.search(r'> (\w+)', l) for l in lines if re.search(r'> (\w+)', l)), None)
+        return m.group(1) if m else None
+
+    def learn_bubble(self, crop, kind, seen):
+        self.learned = getattr(self, 'learned', []) + [(kind, seen)]
+        return True
+
+    def bubble_crop(self, img, b):
+        return ('crop', b)
+
     def run_action(self, a):
         x, y = (int(v) for v in re.match(r'click:(-?\d+):(-?\d+)', a).groups())
         self.clicks.append((x, y))
+        for hx, hy in getattr(self, 'hives', ()):   # a hive (its body or its honey bubble) in reach
+            if abs(hx - x) < 40 and abs(hy - y) < 40:
+                self.log.append('21:00 > beehive_progress me=Player target=BeeHive(Clone) at (0.2, 0.1, -23.5)')
+                return
         for n, b in self.beds.items():
             if b['zone'] == self.zone and abs(b['bubble'][0] - x) < 30 and abs(b['bubble'][1] - y) < 30:
                 return self.interact(n)
@@ -104,8 +119,11 @@ class Fake:
 
     def scan(self):
         kind = {'wilted': 'unplant', 'dry': 'water', 'wet': 'water', 'ripe': 'pickup', 'empty': 'plant'}
-        return [Affordance(kind[b['state']], None, b['bubble'], False, 0.0, b['state'] in ('wilted', 'dry'))
-                for b in self.beds.values() if b['zone'] == self.zone]
+        learned = dict(getattr(self, 'learned', []))
+        honey = [Affordance('beehive_progress' if 'beehive_progress' in learned else 'unknown', None, p, False, 0.0, False)
+                 for p in getattr(self, 'honey', ()) if self.zone == 'near']
+        return honey + [Affordance(kind[b['state']], None, b['bubble'], False, 0.0, b['state'] in ('wilted', 'dry'))
+                        for b in self.beds.values() if b['zone'] == self.zone]
 
     # -- ui
     def texts(self):
@@ -224,6 +242,45 @@ class Seek(Base):
         self.assertEqual(f.clicks[0][1], 540)
         self.assertNotEqual(f.clicks[1][1], 540)
         self.assertEqual(f.beds['a']['state'], 'wet')
+
+    def test_an_unknown_bubble_is_clicked_once_and_learned_from_its_event(self):
+        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
+        f.honey = f.hives = [(800, 532)]
+        f.step_zone = 'far'
+        with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
+            with self.assertRaises(NeedVision):
+                laws.run('water')
+        self.assertEqual(f.learned, [('beehive_progress', 'unknown')])
+        self.assertEqual(f.clicks.count((800, 532)), 1)
+        self.assertEqual(f.beds['a']['state'], 'wet')
+
+    def test_a_hive_seen_as_a_bed_is_not_clicked_again_and_the_graph_leads_down(self):
+        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
+        f.hives = [(1300, 890)]
+        f.step_zone, f.step_ok = 'far', (lambda x, y: (x, y) != (1300, 890))
+        with mock.patch.object(laws, '_see', lambda kind, tried=(): [self.Det(p) for p in [(1300, 890)]
+                                                                     if not any(laws._d(p, t) < 80 for t in tried)]):
+            with self.assertRaises(NeedVision):
+                laws.run('water')
+        self.assertEqual(f.clicks.count((1300, 890)), 1)
+        self.assertEqual(f.clicks[1], (960, 540 + laws.STEP_R[0]))   # BeeHive -> beds: straight down
+        self.assertEqual(f.beds['a']['state'], 'wet')
+
+    def test_after_the_refill_she_is_at_the_well_and_the_graph_leads_to_the_beds(self):
+        f = self.use(Fake({'a': bed('dry', zone='near', bubble=(900, 400)),
+                           'b': bed('dry', zone='far', bubble=(700, 300), body=(5000, 5000))}, can=False))
+        def fill(graph=None):
+            f.can, f.zone = True, 'well'   # the well: no bed in reach
+        f.fill_can = fill
+        mock.patch.object(well, 'fill_can', fill).start()
+        self.addCleanup(mock.patch.stopall)
+        f.step_zone = 'far'
+        with self.assertRaises(NeedVision):
+            laws.run('water')
+        from objects import graph as OG
+        dx, dy = OG.TOWARD[('Well', 'GardenBed@Garden')]
+        self.assertIn((int(960 + dx * laws.STEP_R[0]), int(540 + dy * laws.STEP_R[0])), f.clicks)
+        self.assertEqual(f.beds['b']['state'], 'wet')
 
     def test_limited_turns_then_vision(self):
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))

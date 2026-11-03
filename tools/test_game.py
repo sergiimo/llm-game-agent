@@ -276,6 +276,23 @@ class Game(unittest.TestCase):
         self.assertIn('fill_watering_can', line)
         self.assertEqual(getattr(self.g, 'clicks_at_well', 0), 0)
 
+    def test_fill_can_late_fill_line_no_second_click(self):
+        """D185 live: the fill line came ~1-3 s after goto's click; a 0.5 s wait missed it -> a 2nd click ("already full")."""
+        import threading
+        from game import well
+        self.graph_copy()
+        old = well.loop.goto
+        def fills_late(q, wf, **kw):
+            threading.Timer(1.0, lambda: self.g.log.append('[D185 9:24:58 AM] > fill_watering_can me=Player target=Well')).start()
+            return loop_arrival()
+        from collections import namedtuple
+        loop_arrival = lambda: namedtuple('A', 'point')((500, 300))
+        well.loop.goto = fills_late
+        self.addCleanup(setattr, well.loop, 'goto', old)
+        line = game.fill_can()
+        self.assertIn('fill_watering_can', line)
+        self.assertEqual(getattr(self.g, 'clicks_at_well', 0), 0)
+
     def test_goto_bed_queries_the_state_and_returns_the_arrival(self):
         from objects import loop
         from game import garden

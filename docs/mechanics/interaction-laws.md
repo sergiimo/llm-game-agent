@@ -22,8 +22,12 @@ bad state carried over to the next call. These laws keep one guess per click and
 1. **Never locate Tara.** She is at the centre (M1). Describe everything as an offset from the centre ("the bed
    up-right of her"). Questions never ask "which bed is she at".
 2. **First node: see → map → step, then vision (user D185).** If a bubble that fits the task is visible, go to rule 4.
-   Otherwise, at most `SEEK_TURNS` (6) rounds: (a) **see** the target node by its appearance vectors (`objects/db/<kind>`,
-   e.g. GardenBed) on the frame → click the nearest match (not the one under Tara) → rule 4; (b) not seen → **map**: open
+   Otherwise, at most `SEEK_TURNS` (6) rounds: (0) an **unknown bubble** not tried yet → click it once: its event labels
+   it (`wf.learn_bubble`, gap filling for bubble kinds); (1) **graph**: the last event's target says which node she is at
+   (`target=Well` after a refill, `target=BeeHive` after a hive click) → the graph's screen direction from that node to the
+   target node (`graph.toward`, edges `toward` or `TOWARD` defaults: Well → hives → beds) → a step; (a) **see** the target node by its appearance vectors (`objects/db/<kind>`,
+   e.g. GardenBed) on the frame → click the nearest match (not the one under Tara; a match whose click names another node,
+   e.g. a hive, is never clicked again this call) → rule 4; (b) not seen → **map**: open
    it, Tara's pin + the node's map picture (`objects/map_db`, e.g. MapGarden) + the road route between them give a
    direction → (c) **step**: click 320 px from the centre in that direction (camera looks north like the map); she didn't
    move → turn ±35°, then a shorter step → back to rule 4. Only when these give nothing, ask vision **one** question on the

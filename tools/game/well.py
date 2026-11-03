@@ -34,11 +34,12 @@ def _click(pt):
 
 
 FILLED = r'> (?:fill_watering_can|full_watering_can) '
+FILL_WAIT = 3.0   # s: the fill line is written ~1-3 s after the click (D185: a 0.5 s wait missed it -> a 2nd click, "already full")
 
 
 def _filled(mark):
     """The log line proving the can is full since `mark` (filled now, or already full), else None."""
-    return core.seen(FILLED, mark, 0.5) or None
+    return core.seen(FILLED, mark, FILL_WAIT) or None
 
 
 @action

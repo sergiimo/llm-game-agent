@@ -6,7 +6,7 @@
 > library or written by the quest agent. The LLM orchestrates (picks/writes goals, answers questions); the engine
 > decides clicks from the table.
 
-Status: approved 2026-11-03 (D185); rev. 2 after the plan review (kinds.json, one state vocabulary, read_card, pending record). Supersedes the task layer of `game/laws.py` (L124–L137).
+Status: approved 2026-11-03 (D185); rev. 2 after the plan review (kinds.json, one state vocabulary, read_card, pending record); rev. 3 (user): places grouped only by distance, kind/state are filters; a missing goal parameter is asked, never guessed. Supersedes the task layer of `game/laws.py` (L124–L137).
 
 ## 1. Purpose and success
 User (D185): "why are you so specific with my tasks? can't come up with generic game play engine?" — and "find a new
@@ -43,28 +43,39 @@ node, search order, stuck), `learn` (memory, bubble/object labels, DB settle). N
 
 ## 3. World graph (`game/world.py`, data in `objects/graph/Farm.json`)
 **Sources, no per-object code:**
-1. **Save:** every entity with a position (crops/beds today; any list with `x`/`z` later) → a node of its kind with `pos`
-   and its saved state.
-2. **Game log:** every `target=Kind at (x, y, z)` line → create/update the node of that kind at that position; its
-   event changes its state (via the table's effects).
+1. **Save:** the whole save is walked; any record with numeric `x`/`z` is an **object** (kind = `kinds.json` name for
+   its list, else the list's own name; a name/type field wins when present). All its scalar fields are kept as raw state.
+2. **Game log:** every `target=Kind at (x, y, z)` line → create/update the object of that kind at that position; its
+   event changes its state (via the table's effects). Tara's position = today's last positioned event.
 3. **Frames:** bubbles + detections → the closest node (where she is), objects in view. Look-alike bubbles (beds in two
    gardens) are resolved by the last event's position.
 4. **Seeded:** nodes without positions (House, Well, Bed …) and hand-taught directions, marked `source: seed`; learned
    values replace them.
 
-**Structure derived:** nodes of one kind are clustered by position (gap 6 units). A cluster inside no known region →
-new region node `<Area><Compass>` (e.g. `GardenSouth`: kind of the area, compass from the nearest known region), a
-group node `<Kind>@<Region>` with a grid pattern, one member per object (`#r<row>c<col>`, rows north→south), `next_to`
-edges with screen directions. Directions between any two nodes: learned `toward` edge → else from their positions
-(camera looks north: world +x = screen right, +z = screen up) → else unknown (nav explores).
+**Places are grouped only by distance (user D185, rev. 3); kind and state are filters, not nodes.**
+- All objects, of every kind, are clustered by distance into **area** nodes (single linkage; gap = 2 × the median
+  nearest-neighbour spacing, at least 4 and at most 12 world units). Objects of different kinds that stand together
+  (beds + well + hives) are one area. A lone object is an area of one.
+- **Object ids are stable** (`<Kind>#<x>,<z>` at 0.1 units; an existing node within 1.2 units of the same kind is
+  reused), so re-running is idempotent and learned state/edges survive.
+- **Area names:** a known area within 2 × gap of the cluster centre keeps its name; else the cluster's main kind's
+  `area` stem (`kinds.json`, default the kind) if free, else stem + compass from the nearest named area
+  (`GardenSouth`). Names do not matter beyond being stable: the agent routes a chat request to a node from
+  `./wf world nodes`.
+- `next_to` edges between each object and its neighbours within 1.5 × its nearest-neighbour distance, with screen
+  directions. Directions between any two nodes: learned `toward` edge → else from their positions (camera looks north:
+  world +x = screen right, +z = screen up) → else unknown (nav explores).
+- **Navigation = graph + filter:** a goal's filter (`kind`, state, `region`) selects objects → the areas that hold
+  them → the nearest area by learned direction, else by position → walk there through the area graph → inside, the
+  bubble loop clicks any visible object that passes the filter → when the area has no match left, the next area.
 
-**Kinds as data** (`game/kinds.json`, review rev. 2): per kind its save list and field → state map, clustering gap,
-area name stem, frame markers (`watered=false` → dry soil), and nodes for position-less kinds. No kind names in code.
+**Kinds as data** (`game/kinds.json`, optional overrides only): per kind the save list name, field → state map,
+`area` stem, frame markers (`watered=false` → dry soil). The engine works without an entry (raw fields only).
 
 **State** = key/value per node, one vocabulary: `stage` (`empty|growing|producing|produced`), `watered`, `wilted`,
 `ready`, `crop` (from cards/events only: the save has no crop type), `Tara.can` (hint only), each with `source` (event > save >
-frame) and game time. Queries read it; `beds_left` generalises to `count(query)` = save state minus today's log events
-by position.
+frame) and game time; unknown save fields are kept raw under their own names. Queries read it; `beds_left`
+generalises to `count(filter)` = save state minus today's log events by position.
 
 ## 4. Transition table (`game/actions.json`, replaces `chains.json`)
 One row per action an object offers:
@@ -102,7 +113,10 @@ A goal = `{kind, where, make, params, order?, limit?}`:
 - **Raw queries**: the agent writes the same shape (`./wf achieve '{"kind": "BeeHive", "where": {"ready": true},
   "make": {"ready": false}}'`). `./wf world kinds` prints the catalogue the agent picks from: kinds, their state keys
   and values seen, regions, known transitions per kind.
-- `$same` = keep the crop read from the object (replant); `$crops` = an explicit list, no default (open question 1).
+- `$same` = keep the crop read from the object (replant).
+- **A missing `required` parameter is asked, never guessed** (user D185): `achieve` returns `NEED_INPUT <goal>: <param>?`
+  with the choices seen (e.g. `crops? ready now: Carrot x3, Tulip x5`); the agent asks the user or answers from the
+  task text and calls again. Harvest has no default crop list.
 
 ## 6. The loop (`game/engine.py`)
 ```
@@ -163,7 +177,8 @@ missing item → stop (never buy); no seeds/can → sub-goal or stop; clock/lang
 - Live (one plan, reused while testing): plant the south garden with tulips (12 beds, 18 TulipSeed): region node added,
   beds graph built, all 12 planted, vision calls ≤ 2.
 
-## 12. Open questions
-1. Harvest default: which crops are collected and which are left for the bees? (Until answered, `crops` must be given.)
-2. Does the save list other positioned entities (hives, trees, fences) to seed more of the graph? To check in the save.
-3. Region names: `GardenSouth` style (compass from the nearest known region) — OK, or should the agent/user name them?
+## 12. Decisions on the open questions (user D185)
+1. Harvest default: none. `crops` is required; when missing the agent is asked (§5).
+2. Other positioned save entities: the generic save walk (§3) takes any record with `x`/`z`; Task 2 reports what the
+   real save holds.
+3. Region names: automatic (`<stem><Compass>`); the agent routes chat requests to nodes via `./wf world nodes`.

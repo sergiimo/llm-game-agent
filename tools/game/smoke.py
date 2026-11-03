@@ -221,6 +221,10 @@ def plant_garden(seed='Tulip', region=None, rounds=12, answer=None):
         print(f'answer: clicked {answer}: {"walked" if c.moved else "no move"}, events {c.events}')
         A.gameplay()
     for _ in range(rounds):
+        ok, h, light = daylight()
+        if not ok:
+            total['stop'] = dark_stop(h, light)
+            break
         r = plant_visible(seed, can=total['can'])
         total['can'] = r['can']
         total['planted'] += r['planted']
@@ -336,3 +340,151 @@ def walk_to_area(goal, arrive=6.0, kind='plant', max_steps=14):
                      f'({"; ".join(res["trace"][-4:]) or "her position is unknown"}). Give the grid cell of free '
                      f'ground toward it (a road, a gap in the fence), or none.',
             {'goal': 'walk', 'params': {'to': list(goal)}}, res)
+
+
+# ---- the morning chores: plant the rest, refill, water (daylight only; user D186 "run all at morning") ----------
+def daylight():
+    """(ok, hour, light): bubble icons are read reliably only in daylight (D186: none found at 5:40 pm)."""
+    h, light = O.clock()
+    return light in ('day', None), h, light
+
+
+def dark_stop(h, light):
+    return (f'dark ({light}, {h if h is None else round(h, 1)} h): bubble icons are unreliable outside daylight - '
+            f'suggest sleeping (ask the user), then run in the morning')
+
+
+def water_visible(max_beds=12):
+    """Click every drop bubble in view (dry beds); `> water` proves each. Stops on out_of_water (can empty)."""
+    from . import ask
+    res = {'watered': 0, 'can': None, 'stop': None}
+    tried = []
+    for _ in range(max_beds):
+        screen.require_world()
+        drops = [a for a in O.scan() if a.drop and not any(O.d(a.pt, p) < 60 for p in tried)]
+        if not drops:
+            res['stop'] = 'no drop bubble in view'
+            break
+        a = O.nearest(drops, O.CENTRE)
+        mark = core.WF.log_mark()
+        A.click(a.pt, 'bubble')
+        line = core.seen(r'> (?:water|hazel_waterplant|out_of_water) ', mark, WAIT)
+        print(f'water: {a} -> {line or "no water line"}')
+        if line and 'out_of_water' in line:
+            res['can'], res['stop'] = 'empty', 'out_of_water'
+            A.gameplay()
+            break
+        if line:
+            res['watered'] += 1
+            ask.progress('morning')
+        else:   # not a dry bed after all (a wilted card, another object): skip it
+            tried.append(a.pt)
+            A.gameplay()
+    return res
+
+
+def fill_can(attempts=4):
+    """The well's bubble in view -> click -> `fill_watering_can` proves it; else walk to the well's area (each step
+    closer) or click the well by its look; else ONE vision question."""
+    import math
+    from . import ask, where
+    res = {'ok': False, 'trace': []}
+    for _ in range(attempts):
+        screen.require_world()
+        wells = [a for a in O.scan() if a.kind in ('fill_can', 'full_watering_can')]
+        if wells:
+            mark = core.WF.log_mark()
+            A.click(O.nearest(wells, O.CENTRE).pt, 'bubble')
+            line = core.seen(r'> (?:fill_watering_can|full_watering_can) ', mark, WAIT)
+            print(f'fill_can: {line or "no fill line"}')
+            res['ok'] = bool(line)
+            return res
+        g = core.WF.world_graph() if hasattr(core.WF, 'world_graph') else None
+        area = g.nodes['Well'].region if g is not None and 'Well' in g.nodes else None
+        apos = tuple(g.nodes[area].extra.get('pos') or ()) if area and area in g.nodes else ()
+        src, pos = where.position()
+        if apos and pos and math.dist(pos, apos) > AREA_NEAR:
+            res['trace'].append(f'walk to {area} {apos} from {pos}')
+            walk_to_area(apos, arrive=AREA_NEAR * 0.6, kind=None)
+            continue
+        dets = O.see('Well')
+        if dets:
+            res['trace'].append(f'well seen @{dets[0].point}')
+            A.click(dets[0].point, 'object')
+            A.gameplay()
+            continue
+        break
+    ask.ask('click', f'Tara (frame centre) must fill her watering can at the Well but sees neither its bubble nor the '
+                     f'well ({res["trace"][-3:] or "nothing tried"}). Give the grid cell of the Well, or of free ground '
+                     f'toward it. Answer: ./wf py "from game import smoke; smoke.morning(answer=\'<cell>\')"',
+            {'goal': 'morning', 'params': {}}, res)
+
+
+def water_garden(region, rounds=10):
+    """water_visible; can empty -> fill_can; no drop in view and the world still has dry beds in the area -> click a
+    visible bed not tried yet. Stops when the world says no dry bed is left."""
+    from . import ask, world
+    total = {'watered': 0, 'fills': 0, 'stop': None}
+    tried = []
+    for _ in range(rounds):
+        ok, h, light = daylight()
+        if not ok:
+            total['stop'] = dark_stop(h, light)
+            break
+        r = water_visible()
+        total['watered'] += r['watered']
+        if r['can'] == 'empty':
+            if not fill_can()['ok']:
+                total['stop'] = 'fill_can failed'
+                break
+            total['fills'] += 1
+            continue
+        g, _ = _area_pos(region)
+        dry = world.query(g, {'kind': 'GardenBed', 'region': region, 'stage': 'growing|producing', 'watered': False}) \
+            if g is not None else []
+        if not dry:
+            total['stop'] = 'no dry bed left (world)'
+            break
+        dets = O.see('GardenBed', tried)
+        if not dets:
+            ask.ask('click', f'Tara (frame centre) must water the dry beds of {region} ({len(dry)} left) but sees no '
+                             f'drop bubble and no bed by its look. Give the grid cell of a dry bed (light-brown soil), '
+                             f'or none. Answer: ./wf py "from game import smoke; smoke.morning(answer=\'<cell>\')"',
+                    {'goal': 'morning', 'params': {'region': region}}, total)
+        tried.append(dets[0].point)
+        A.click(dets[0].point, 'object')
+        A.gameplay()
+    else:
+        total['stop'] = f'{rounds} rounds'
+    return total
+
+
+def morning(seed='Tulip', region='GardenSouth', answer=None):
+    """Plant the empty beds of `region`, refill the can if it ran dry, water every dry bed - daylight only, every
+    step with its log proof. {'planted', 'watered', 'fills', 'stop'}."""
+    ok, h, light = daylight()
+    if not ok:
+        res = {'planted': 0, 'watered': 0, 'fills': 0, 'stop': dark_stop(h, light)}
+        print(f"morning: {res['stop']}")
+        return res
+    if answer is not None:   # vision's cell from a morning question: click it first
+        from . import ask
+        A.click(ask.parse_point(answer), 'point')
+        A.gameplay()
+    p = plant_garden(seed, region=region)
+    res = {'planted': p['planted'], 'watered': p['watered'], 'fills': 0, 'stop': None}
+    if not str(p['stop']).startswith('no empty bed left'):
+        res['stop'] = f'plant: {p["stop"]}'
+    else:
+        if can_from_log() == 'empty':
+            f = fill_can()
+            if not f['ok']:
+                res['stop'] = 'fill_can failed'
+            res['fills'] += 1
+        if res['stop'] is None:
+            w = water_garden(region)
+            res['watered'] += w['watered']
+            res['fills'] += w['fills']
+            res['stop'] = 'done' if w['stop'] == 'no dry bed left (world)' else f'water: {w["stop"]}'
+    print(f"morning: planted {res['planted']}, watered {res['watered']}, fills {res['fills']}, stop: {res['stop']}")
+    return res

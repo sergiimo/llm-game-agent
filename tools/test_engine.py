@@ -1686,5 +1686,51 @@ class GardenProgress(Base):
         self.assertEqual(world._mapped('GardenBed', {'plantState': '##seed'})['stage'], 'growing')
 
 
+class Morning(Base):
+    """User D186: "run all at morning": plant the rest, refill the can at the well, water every dry bed - daylight only."""
+
+    def setUp(self):
+        super().setUp()
+        for mod, name in ((ask, 'STATE'), (where, 'CALIB')):
+            p = mock.patch.object(mod, name, os.path.join(self.tmp.name, name + '.json'))
+            p.start()
+            self.addCleanup(p.stop)
+
+    def game(self, objs, **kw):
+        f = self.use(FakeGame(objs, GAME, inventory={'TulipSeed': 5}, **kw))
+        f.world_graph = lambda: GardenLoop._graph(self, f)
+        f.map_snapshot, f.map_pin = (lambda: None), (lambda img: None)
+        return f
+
+    def test_outside_daylight_the_loops_stop_and_suggest_sleep(self):
+        f = self.game([obj('a', stage='empty', watered=False, wilted=False)])
+        f.light = 'dusk'
+        res = smoke.morning('Tulip', region='Garden')
+        self.assertTrue(res['stop'].startswith('dark'), res)
+        self.assertIn('sleep', res['stop'])
+        self.assertEqual(f.clicks, [])
+
+    def test_water_visible_waters_every_drop_bubble(self):
+        f = self.game(beds('n', NX[:2], NZ[:1], 'near', 500, 300, stage='growing', watered=False, wilted=False))
+        res = smoke.water_visible()
+        self.assertEqual((res['watered'], res['can']), (2, None))
+
+    def test_fill_can_clicks_the_well_bubble(self):
+        f = self.game([obj('well', kind='Well', pos=(1.0, -27.0), bubble=(1500, 300))])
+        f.tara['can'] = 'empty'
+        self.assertTrue(smoke.fill_can()['ok'])
+        self.assertEqual(f.tara['can'], 'full')
+
+    def test_morning_plants_refills_and_waters(self):
+        f = self.game([obj('e', pos=(NX[0], NZ[0]), bubble=(500, 300), stage='empty', watered=False, wilted=False),
+                       obj('d', pos=(NX[1], NZ[0]), bubble=(700, 300), stage='growing', watered=False, wilted=False),
+                       obj('well', kind='Well', pos=(1.0, -27.0), bubble=(1500, 300))])
+        f.tara['can'] = 'empty'
+        res = smoke.morning('Tulip', region='Garden')
+        self.assertEqual(f.objects['e']['state']['stage'], 'growing')
+        self.assertTrue(f.objects['e']['state']['watered'] and f.objects['d']['state']['watered'], res)
+        self.assertEqual(res['stop'], 'done')
+
+
 if __name__ == '__main__':
     unittest.main()

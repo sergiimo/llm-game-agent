@@ -1204,6 +1204,17 @@ class PlantProof(EngineBase):
         self.assertNotIn('key:escape', keys)
         self.assertEqual(learned, ['Tulip Bulbs'])
 
+    def test_an_empty_bed_with_a_stale_crop_is_still_planted(self):
+        f = self.use(FakeGame(beds('s', SX[:2], SZ[:1], 'near', 500, 300, stage='empty', watered=False, wilted=False),
+                              GAME, inventory={'TulipSeed': 5}))
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], [], None)
+        g.set_state(world.find(g, 'GardenBed', (SX[0], SZ[0])), 'crop', 'Tulip', None, 'event')   # a cancelled panel
+        g.save(learn.GRAPH)
+        res = engine.achieve('plant', seed='Tulip', region='Garden')
+        self.assertEqual(len(res['done']), 2, res)
+
     def test_a_grid_cell_answer_becomes_a_click_step(self):
         self.assertEqual(engine.button_step('Q14', {'expect': {'log': 'x'}}), {'do': 'click_cell', 'arg': 'Q14',
                                                                               'expect': {'log': 'x'}})

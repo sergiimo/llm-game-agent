@@ -3,5 +3,5 @@
 __pycache__/
 recordings/
 .DS_Store
-tools/game/observed-steps.jsonl
+tools/game/observed*.jsonl
 runs/

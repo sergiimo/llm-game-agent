@@ -31,7 +31,7 @@ def _space(pattern):
     return core.seen(pattern, mark, WAIT)
 
 
-def plant_one(seed='Tulip', kind='plant'):
+def plant_one(seed='Tulip', kind='plant', water=True):
     out = []
     try:
         s = screen.require_world()
@@ -59,28 +59,33 @@ def plant_one(seed='Tulip', kind='plant'):
     if not _step(out, 'confirm', line, line or f'no totalPlanted within {WAIT} s; screen {screen.read().kind}'):
         ui.close()
         return out
+    if not water:   # the can ran dry earlier: plant only (the beds are listed for water_all after a refill)
+        return out
     line = _space(r'> (?:water|out_of_water) ')
     _step(out, 'water', line and 'out_of_water' not in line, line or f'no water line within {WAIT} s')
     return out
 
 
-def plant_visible(seed='Tulip', kind='plant', max_beds=12):
+def plant_visible(seed='Tulip', kind='plant', max_beds=12, can=None):
     """plant_one while a `kind` bubble is in view (the bubble loop on proven primitives); stops at the first step that
     fails. {'planted', 'watered', 'stop', 'steps'}."""
-    res = {'planted': 0, 'watered': 0, 'stop': None, 'steps': []}
+    res = {'planted': 0, 'watered': 0, 'stop': None, 'steps': [], 'can': can}
     for _ in range(max_beds):
-        out = plant_one(seed, kind)
+        out = plant_one(seed, kind, water=res['can'] != 'empty')
         res['steps'].append(out)
         done = {s['step']: s['ok'] for s in out}
         res['planted'] += bool(done.get('confirm'))
         res['watered'] += bool(done.get('water'))
         failed = next((s for s in out if not s['ok']), None)
+        if failed and failed['step'] == 'water' and 'out_of_water' in str(failed['proof']):
+            res['can'] = 'empty'   # an empty can stops watering, not planting
+            continue
         if failed:
             res['stop'] = f"{failed['step']}: {failed['proof']}"
             break
     else:
         res['stop'] = f'max {max_beds} beds'
-    print(f"planted {res['planted']}, watered {res['watered']}, stop: {res['stop']}")
+    print(f"planted {res['planted']}, watered {res['watered']}, can {res['can'] or '?'}, stop: {res['stop']}")
     return res
 
 
@@ -132,9 +137,10 @@ def walk_to_need(where, kind='GardenBed', region=None):
 
 def plant_garden(seed='Tulip', region=None, rounds=8):
     """plant_visible, then walk to the nearest empty bed the world knows, until none is left or a walk fails."""
-    total = {'planted': 0, 'watered': 0, 'walks': 0, 'stop': None}
+    total = {'planted': 0, 'watered': 0, 'walks': 0, 'stop': None, 'can': None}
     for _ in range(rounds):
-        r = plant_visible(seed)
+        r = plant_visible(seed, can=total['can'])
+        total['can'] = r['can']
         total['planted'] += r['planted']
         total['watered'] += r['watered']
         if not str(r['stop']).startswith('bubble'):
@@ -150,5 +156,6 @@ def plant_garden(seed='Tulip', region=None, rounds=8):
             break
     else:
         total['stop'] = f'{rounds} rounds'
-    print(f"garden: planted {total['planted']}, watered {total['watered']}, walks {total['walks']}, stop: {total['stop']}")
+    print(f"garden: planted {total['planted']}, watered {total['watered']}, walks {total['walks']}, "
+          f"can {total['can'] or '?'}, stop: {total['stop']}")
     return total

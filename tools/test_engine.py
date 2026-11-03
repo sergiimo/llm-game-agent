@@ -1442,5 +1442,16 @@ class SmokeWalk(Base):
         self.assertEqual(smoke.px_per_unit([], 3.75), smoke.PX_PER_UNIT)
 
 
+class SmokeCan(Base):
+    def test_an_empty_can_stops_watering_not_planting(self):
+        f = self.use(FakeGame(beds('s', SX[:3], SZ[:1], 'near', 500, 300, stage='empty', watered=False, wilted=False),
+                              GAME, inventory={'TulipSeed': 5}))
+        f.tara['can'] = 'empty'
+        res = smoke.plant_visible('Tulip')
+        self.assertEqual((res['planted'], res['watered'], res['can']), (3, 0, 'empty'))
+        self.assertIn('no plant bubble in view', res['stop'])
+        self.assertEqual(sum('out_of_water' in l for l in f.log), 1)   # Space-water tried once, then skipped
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, core, learn, nav, observe, plan, ui, world  # noqa: E402
+from game import act, affordances, core, learn, nav, observe, plan, steps, ui, world  # noqa: E402
 from objects import graph as OG  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
 
@@ -236,7 +236,8 @@ class FakeGame:
 
     def texts(self):
         sc = self.screen()
-        return list(sc['texts']) if sc else []
+        crop = self.card['obj']['state'].get('crop') if self.card else None
+        return [str(crop) if t == '$crop' else t for t in sc['texts']] if sc else []
 
     def shows(self, word, wait=2.0):
         return any(word.lower() in t.lower() for t in self.texts())
@@ -528,6 +529,58 @@ class World(unittest.TestCase):
         self.assertEqual(rows['GardenSouth']['kinds'], {'GardenBed': 12})
         self.assertEqual(rows['Garden']['kinds'], {'GardenBed': 12, 'BeeHive': 8})
         self.assertIn('GardenSouth', world.catalogue(self.g))
+
+
+class Steps(Base):
+    """A row's steps run with checked expectations; each step field observed for the table's learning."""
+
+    def setUp(self):
+        super().setUp()
+        self.obs = os.path.join(self.tmp.name, 'observed-steps.jsonl')
+        p = mock.patch.object(steps, 'OBSERVED', self.obs)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def row(self, id_, **params):
+        return plan.resolve(next(r for r in plan.rows() if r['id'] == id_), params)
+
+    def test_plant_row_runs_and_reports_the_event_position(self):
+        f = self.use(FakeGame([obj('a', pos=(2.64, -59.36), stage='empty')], GAME, inventory={'TulipSeed': 3}))
+        out = steps.run(self.row('plant', seed='Tulip'), {'seed': 'Tulip'}, f.scan()[0])
+        self.assertTrue(out['ok'], out)
+        self.assertIn('plant', out['events'])
+        self.assertEqual((out['at'], out['kind']), ((2.64, -59.36), 'GardenBed'))
+        self.assertEqual(f.objects['a']['state']['crop'], 'Tulip')
+
+    def test_read_card_stores_the_crop(self):
+        f = self.use(FakeGame([obj('a', stage='growing', wilted=True, crop='Tulip')], GAME))
+        out = steps.run(self.row('remove_wilted'), {}, f.scan()[0])
+        self.assertTrue(out['ok'], out)
+        self.assertEqual(out['stored'], {'crop': 'Tulip'})
+        self.assertIn('unplant_impl', out['events'])
+
+    def test_a_failed_expect_stops_and_closes_the_card(self):
+        f = self.use(FakeGame([obj('a', stage='empty')], GAME, inventory={'TulipSeed': 3}))
+        r = self.row('plant', seed='Tulip')
+        r['steps'][0]['expect'] = {'card': 'Fishing'}
+        out = steps.run(r, {'seed': 'Tulip'}, f.scan()[0])
+        self.assertFalse(out['ok'])
+        self.assertEqual(out['failed_step'], 0)
+        self.assertIsNone(f.card)
+        self.assertEqual(out['surprises'][0][:3], (0, 'card', 'Fishing'))
+
+    def test_a_missing_item_fails_the_pick_step(self):
+        f = self.use(FakeGame([obj('a', stage='empty')], GAME, inventory={}))
+        out = steps.run(self.row('plant', seed='Tulip'), {'seed': 'Tulip'}, f.scan()[0])
+        self.assertEqual((out['ok'], out['failed_step'], out['missing']), (False, 1, 'Tulip'))
+        self.assertIsNone(f.card)
+
+    def test_observations_are_logged_per_step_field(self):
+        import json
+        f = self.use(FakeGame([obj('a', stage='growing', watered=False)], GAME))
+        steps.run(self.row('water'), {}, f.scan()[0])
+        recs = [json.loads(l) for l in open(self.obs)]
+        self.assertEqual([(r['row'], r['step'], r['field'], r['verdict']) for r in recs], [('water', 0, 'events', 'ok')])
 
 
 if __name__ == '__main__':

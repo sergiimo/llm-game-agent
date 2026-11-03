@@ -334,6 +334,14 @@ def remember(events, crop=None):
     OG.note_click(g, GROUP, list(events), _stamp(), crop=crop)
 
 
+def remember_soil(dry, wet):
+    """What the soil heat map saw on this frame (dry/wet cells): the group's latest soil view, a hint (law 6)."""
+    g = MEMORY['graph']
+    if g is None:
+        return
+    g.set_state(GROUP, 'soil_seen', {'dry_cells': dry, 'wet_cells': wet}, _stamp(), 'frame', 0.6)
+
+
 def memory_hint():
     g = MEMORY['graph']
     if g is None:
@@ -621,6 +629,22 @@ def _explore(task, res):
     return None
 
 
+def _dry_spots(tried=()):
+    """Dry-soil blobs on the frame (affordances.dry_spots), nearest to Tara first, without HUD, her own spot and tried
+    points; the soil counts go to the group's memory (what the garden looks like now)."""
+    img = core.WF.grab()
+    if img is None:
+        return []
+    try:
+        spots = affordances.dry_spots(img)
+        remember_soil(*affordances.soil_counts(img))
+    except Exception:   # noqa: BLE001
+        return []
+    spots = [t for t in spots if not _hud(t[:2]) and _d(t[:2], CENTRE) > SEE_NEAR
+             and not any(_d(t[:2], p) < 80 for p in tried)]
+    return sorted(spots, key=lambda t: _d(t[:2], CENTRE))
+
+
 def _see_all():
     """Every object the detector sees on the frame (any kind): what free ground must keep away from."""
     try:
@@ -647,8 +671,8 @@ def _inside(task, here):
 
 
 def _seek(task, res):
-    """One round when no fitting bubble shows (user D185). In order: (0) an unknown bubble not tried yet -> click it once
-    (its event teaches its kind: gap filling); (1) she is at another node (the last event's target, e.g. the Well after a
+    """One round when no fitting bubble shows (user D185). Bubbles without the task's sub-icon are never clicked (only
+    the drop means "needs water"; "!" = ready, not "collect"). In order: (1) she is at another node (the last event's target, e.g. the Well after a
     refill) -> the graph's direction from there to the target node -> a few steps; (2) the target's vectors on screen ->
     click the nearest (a click that lands on another node, e.g. a hive, is never repeated and tells where she is);
     (3) the map's direction -> a few steps. The Click that changed something, or None (then vision)."""
@@ -658,14 +682,6 @@ def _seek(task, res):
     def fresh(pt):
         return not any(_d(pt, p) < 80 for p in tried)
 
-    unk = [a for a in affordances.scan() if a.kind == 'unknown' and fresh(a.pt)]
-    if unk:
-        a = _nearest(unk, CENTRE)
-        tried.append(a.pt)
-        c = record_click(a.pt, 'bubble')
-        res['clicks'] += 1
-        if _changed(c):
-            return c
     here = res.get('here')
     if here and here != task.node:
         d = OG.toward(MEMORY['graph'], here, task.node)
@@ -676,6 +692,15 @@ def _seek(task, res):
             if c is not None:
                 res['inside'] = _inside(task, here)
                 res['here'] = None   # she left that node: unknown until the next event names one
+                return c
+    if task.name == 'water':   # user D185: light-brown soil = needs water; walk to the nearest dry bed on the soil heat map
+        for x, y, n in _dry_spots(tried)[:2]:
+            c = record_click((x, y), 'soil')
+            res['clicks'] += 1
+            tried.append((x, y))
+            ok = _walked(c) or c.has('water')
+            _trace(res, f'dry soil @{x},{y} ({n} cells): ' + ('walked' if ok else f'blocked by {c.node}' if c.node else 'no move'))
+            if ok:
                 return c
     for det in _see(task.kind, tried)[:2]:
         c = record_click(det.point, 'object')

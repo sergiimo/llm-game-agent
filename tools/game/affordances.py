@@ -25,9 +25,11 @@ class Affordance:
     highlighted: bool
     dist: float
     drop: bool = False   # the water-drop sub-icon (top right): the crop needs water or has wilted (user, D183)
+    ready: bool = False  # the orange "!" sub-icon (top right): its product is ready to collect - NOT an order to collect
+                         # (user D185: flowers serve the bees); only `drop` means "needs water"
 
     def __str__(self):
-        return f'{self.kind}{"*" if self.highlighted else ""}{" +drop" if self.drop else ""} @{self.pt[0]},{self.pt[1]}'
+        return f'{self.kind}{"*" if self.highlighted else ""}{" +drop" if self.drop else ""}{" +ready" if self.ready else ""} @{self.pt[0]},{self.pt[1]}'
 
 
 DROP_MIN = 300   # pale-blue drop pixels in the top-right corner: drop bubbles 610-750, others 0-55 (tools/bubbles)
@@ -41,6 +43,23 @@ def has_drop(crop):
     return int(((b >= 225) & (b > r + 8) & (g > 200)).sum()) >= DROP_MIN
 
 
+READY_MIN = 70   # orange px: top-right window minus the larger of the top-left/bottom-left ones (the selection ring is
+                 # symmetric: <= 44 on 40 samples; the "!" badge: 104-111 on 4 samples, D185)
+
+
+def has_ready(crop):
+    """The orange "!" sub-icon at the top right (a ready product), told from the symmetric orange selection ring."""
+    import numpy as np
+    a = np.asarray(crop.convert('RGB').resize((140, 140))).astype(int)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    orange = (r >= 200) & (g >= 100) & (g <= 190) & (b <= 110)
+    ys, xs = np.ogrid[:140, :140]
+
+    def win(cx, cy, rad=14):
+        return int((orange & ((xs - cx) ** 2 + (ys - cy) ** 2 <= rad * rad)).sum())
+    return win(105, 35) - max(win(35, 35), win(35, 105)) >= READY_MIN
+
+
 def scan():
     """Every bubble on screen: kind, point, highlighted, drop sub-icon (frame only)."""
     W = core.WF
@@ -50,8 +69,10 @@ def scan():
     out = []
     for b in W.find_bubbles(img):
         kind, d = W.bubble_kind(img, b)
-        drop = has_drop(W.bubble_crop(img, b)) if hasattr(W, 'bubble_crop') else False
-        out.append(Affordance(kind, None, tuple(b), bool(W.bubble_highlighted(img, b)), d, drop))
+        crop = W.bubble_crop(img, b) if hasattr(W, 'bubble_crop') else None
+        drop = has_drop(crop) if crop is not None else False
+        ready = has_ready(crop) if crop is not None else False
+        out.append(Affordance(kind, None, tuple(b), bool(W.bubble_highlighted(img, b)), d, drop, ready))
     return out
 
 
@@ -73,3 +94,64 @@ def click(a):
 def no_click_zones():
     """Screen points of every bubble: a walking click must stay away from them (a click there is an action)."""
     return [a.pt for a in scan()]
+
+
+# ---- soil (user D185: light-brown bed soil = needs water, dark brown = watered) ----------------------------------------
+SOIL_CELL = 24          # px cells of the soil heat map (1920x1080 frame)
+SOIL_MIN = 0.35         # share of soil-coloured pixels in a cell for it to count as bed soil
+DRY_TONE = 88           # median grey of a cell's soil pixels: >= dry (light brown) ...
+WET_TONE = 80           # ... <= watered (dark brown). D185 1:20 pm frame: dry beds 93-98, watered 73-74 (mixed 87)
+
+
+def soil_map(img):
+    """Per SOIL_CELL cell: 'dry' | 'wet' | None (not soil, or between the tones). Bed soil only (brown: r > g > b, not
+    the light wooden frames, not grass). Daylight tones; at night the tones drop and cells read 'wet' or None."""
+    import numpy as np
+    a = np.asarray(img.convert('RGB'), dtype=np.int16)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    soil = (r > g) & (g > b) & (r - b >= 40) & (r - b <= 115) & (r < 175) & (g - b >= 15) & (g < r - 20)
+    grey = (r + g + b) // 3
+    h, w = a.shape[0] // SOIL_CELL, a.shape[1] // SOIL_CELL
+    out = np.full((h, w), None, dtype=object)
+    for j in range(h):
+        for i in range(w):
+            sl = (slice(j * SOIL_CELL, (j + 1) * SOIL_CELL), slice(i * SOIL_CELL, (i + 1) * SOIL_CELL))
+            m = soil[sl]
+            if m.mean() < SOIL_MIN:
+                continue
+            t = float(np.median(grey[sl][m]))
+            out[j, i] = 'dry' if t >= DRY_TONE else 'wet' if t <= WET_TONE else None
+    return out
+
+
+def dry_spots(img, min_cells=6):
+    """Centres of dry-soil blobs (connected 'dry' cells, >= min_cells: a bed, not a speck), largest first: [(x, y, n)]."""
+    m = soil_map(img)
+    h, w = m.shape
+    seen, out = set(), []
+    for j in range(h):
+        for i in range(w):
+            if m[j, i] != 'dry' or (j, i) in seen:
+                continue
+            stack, cells = [(j, i)], []
+            seen.add((j, i))
+            while stack:
+                y, x = stack.pop()
+                cells.append((y, x))
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < h and 0 <= nx < w and (ny, nx) not in seen and m[ny, nx] == 'dry':
+                        seen.add((ny, nx))
+                        stack.append((ny, nx))
+            if len(cells) >= min_cells:
+                cy = sum(c[0] for c in cells) / len(cells)
+                cx = sum(c[1] for c in cells) / len(cells)
+                out.append((int((cx + .5) * SOIL_CELL), int((cy + .5) * SOIL_CELL), len(cells)))
+    return sorted(out, key=lambda t: -t[2])
+
+
+def soil_counts(img):
+    """(dry cells, wet cells) on the frame: the group's soil state as seen now (a hint for the graph)."""
+    m = soil_map(img)
+    flat = list(m.ravel())
+    return flat.count('dry'), flat.count('wet')

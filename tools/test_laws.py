@@ -122,7 +122,9 @@ class Fake:
         learned = dict(getattr(self, 'learned', []))
         honey = [Affordance('beehive_progress' if 'beehive_progress' in learned else 'unknown', None, p, False, 0.0, False)
                  for p in getattr(self, 'honey', ()) if self.zone == 'near']
-        return honey + [Affordance(kind[b['state']], None, b['bubble'], False, 0.0, b['state'] in ('wilted', 'dry'))
+        ko = getattr(self, 'kind_of', {})
+        return honey + [Affordance(ko.get(b['bubble'], kind[b['state']]), None, b['bubble'], False, 0.0,
+                                   b['state'] in ('wilted', 'dry'))
                         for b in self.beds.values() if b['zone'] == self.zone]
 
     # -- ui
@@ -243,16 +245,23 @@ class Seek(Base):
         self.assertNotEqual(f.clicks[1][1], 540)
         self.assertEqual(f.beds['a']['state'], 'wet')
 
-    def test_an_unknown_bubble_is_clicked_once_and_learned_from_its_event(self):
+    def test_an_unknown_bubble_without_a_drop_is_never_clicked(self):
+        """D185 user: only the drop sub-icon means "needs water"; a tulip / honey icon without it is not clicked."""
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
         f.honey = f.hives = [(800, 532)]
         f.step_zone = 'far'
         with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
             with self.assertRaises(NeedVision):
                 laws.run('water')
-        self.assertEqual(f.learned, [('beehive_progress', 'unknown')])
-        self.assertEqual(f.clicks.count((800, 532)), 1)
+        self.assertNotIn((800, 532), f.clicks)
         self.assertEqual(f.beds['a']['state'], 'wet')
+
+    def test_a_clicked_drop_bubble_of_unknown_kind_is_learned_from_its_event(self):
+        f = self.use(Fake({'a': bed('dry', bubble=(900, 400))}))
+        f.kind_of = {(900, 400): 'unknown'}
+        with self.assertRaises(NeedVision):
+            laws.run('water')
+        self.assertEqual(f.learned, [('water', 'unknown')])
 
     def test_a_hive_seen_as_a_bed_is_not_clicked_again_and_the_graph_leads_down(self):
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
@@ -308,6 +317,18 @@ class Seek(Base):
             laws.run('water')
         self.assertIn('already tried this call', f.asks[-1][1])
 
+    def test_water_walks_to_the_nearest_dry_soil_first(self):
+        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
+        f.step_zone = 'far'
+        def no_map(node):
+            raise AssertionError('map used while dry soil is in view')
+        with mock.patch.object(laws, '_dry_spots', lambda tried=(): [(1500, 900, 40), (400, 300, 80)]), \
+                mock.patch.object(laws, '_map_direction', no_map):
+            with self.assertRaises(NeedVision):
+                laws.run('water')
+        self.assertEqual(f.clicks[0], (1500, 900))
+        self.assertEqual(f.beds['a']['state'], 'wet')
+
     def test_limited_turns_then_vision(self):
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
         f.step_zone, f.step_ok = None, None   # steps never bring it in reach (and never move her)
@@ -333,6 +354,27 @@ class Language(Base):
         with self.assertRaises(NeedVision):
             laws.run('water')
         self.assertEqual(f.beds['a']['state'], 'wet')
+
+
+class Mechanics(unittest.TestCase):
+    """User D185 mechanics on real pixels (tools/fixtures): the "!" sub-icon and the soil tone."""
+    FX = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures')
+
+    def test_ready_badge_is_told_from_the_selection_ring(self):
+        from PIL import Image
+        self.assertTrue(affordances.has_ready(Image.open(os.path.join(self.FX, 'bubble_ready.png'))))
+        self.assertFalse(affordances.has_ready(Image.open(os.path.join(self.FX, 'bubble_ring.png'))))
+
+    def test_dry_soil_spots_are_the_light_beds_not_the_watered_ones(self):
+        from PIL import Image
+        img = Image.open(os.path.join(self.FX, 'soil_d185.jpg')).resize((1920, 1080))
+        spots = [(x, y) for x, y, n in affordances.dry_spots(img)]
+        self.assertTrue(any(abs(x - 433) < 60 and abs(y - 684) < 60 for x, y in spots))   # row 1, left beds: light
+        for wet in ((370, 865), (650, 865), (955, 1030)):                                 # row 2 b2/b3, row 3 b4: dark
+            self.assertFalse(any(abs(x - wet[0]) < 50 and abs(y - wet[1]) < 40 for x, y in spots), wet)
+        dry, wet = affordances.soil_counts(img)
+        self.assertGreater(wet, 300)
+        self.assertGreater(dry, 300)
 
 
 class Points(unittest.TestCase):

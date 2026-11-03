@@ -137,6 +137,8 @@ class Fake:
             self.screen, self.card_bed = 'panel', n
 
     def scan(self):
+        if self.screen != 'gameplay':   # a card/panel hides the bubbles (game D184: 'gone' after the wilted card)
+            return []
         kind = {'wilted': 'unplant', 'dry': 'water', 'wet': 'water', 'ripe': 'pickup', 'empty': 'plant'}
         learned = dict(getattr(self, 'learned', []))
         honey = [Affordance('beehive_progress' if 'beehive_progress' in learned else 'unknown', None, p, False, 0.0, False)
@@ -203,6 +205,7 @@ class Base(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         ps = [mock.patch.object(laws, 'STATE', os.path.join(self.tmp.name, 'laws.json')),
               mock.patch.object(chains, 'OBSERVED', os.path.join(self.tmp.name, 'observed.jsonl')),
+              mock.patch.object(chains, 'DB', self._db_copy()),   # settle_db after a run writes the DB: a copy
               mock.patch.object(learn, 'GRAPH', self._graph_copy()),
               mock.patch.object(act, 'BURST', (0.0, 0.0)), mock.patch.object(act, 'EVENT_WAIT', 0.0),
               # default: no vector match on screen and no map (the vision path); Seek tests override these
@@ -211,6 +214,12 @@ class Base(unittest.TestCase):
         for p in ps:
             p.start()
             self.addCleanup(p.stop)
+
+    def _db_copy(self):
+        import shutil
+        p = os.path.join(self.tmp.name, 'chains-db.json')
+        shutil.copy(chains.DB, p)
+        return p
 
     def _graph_copy(self):
         import shutil
@@ -494,6 +503,57 @@ class Framework(Base):
         dx, dy = OG.toward(g, 'Well', 'GardenBed@Garden')
         self.assertGreater(dx, OG.TOWARD[('Well', 'GardenBed@Garden')][0])
         self.assertLess(dy, OG.TOWARD[('Well', 'GardenBed@Garden')][1])
+
+
+class Retest(Base):
+    """D185 framework retest: seeing growing beds over and over; the save count; a contradicted expectation."""
+    def test_inside_the_garden_water_explores_instead_of_clicking_seen_beds(self):
+        f = self.use(Fake({'a': bed('dry', bubble=(900, 400)), 'g': bed('wet', zone='near', bubble=(5000, 5000))}))
+        f.walk_always = True
+        seen = []
+        def see(kind, tried=()):
+            seen.append(kind)
+            return [Seek.Det((1300, 800))]
+        with mock.patch.object(observe, 'see', see), mock.patch.object(nav, 'dry_spots', lambda tried=(): []):
+            res = laws.run('water')
+        self.assertEqual(seen, [])
+        self.assertIn('no dry soil', res['stop'])
+
+    def test_water_stops_on_the_save_count(self):
+        f = self.use(Fake({'a': bed('dry', bubble=(900, 400)), 'b': bed('dry', bubble=(1100, 400))}))
+        f.save_left = 1
+        res = laws.run('water')
+        self.assertEqual(len(res['done']), 1)
+        self.assertIn('save: all 1 dry', res['stop'])
+
+    def test_a_contradicted_expectation_is_revised_after_three(self):
+        import json, shutil
+        db = os.path.join(self.tmp.name, 'chains.json')
+        shutil.copy(chains.DB, db)
+        obs = os.path.join(self.tmp.name, 'obs.jsonl')
+        with open(obs, 'w') as fh:
+            for _ in range(3):
+                fh.write(json.dumps({'chain': 'bed', 'step': 0, 'field': 'bubble', 'expected': 'same', 'got': 'gone',
+                                     'verdict': 'surprise'}) + '\n')
+        out = chains.revise(apply=True, path=db, observed=obs)
+        self.assertEqual([(r[0], r[2], r[4]) for r in out], [('bed', 'bubble', 'gone')])
+        self.assertEqual(chains.load(db)['bed'][0]['expect']['bubble'], 'gone')
+
+    def test_one_ok_after_surprises_keeps_the_expectation(self):
+        import json
+        obs = os.path.join(self.tmp.name, 'obs.jsonl')
+        with open(obs, 'w') as fh:
+            for v in ('surprise', 'surprise', 'surprise', 'ok'):
+                fh.write(json.dumps({'chain': 'bed', 'step': 0, 'field': 'bubble', 'got': 'gone' if v == 'surprise'
+                                     else 'same', 'verdict': v}) + '\n')
+        self.assertEqual(chains.revise(observed=obs), [])
+
+
+class CardText(unittest.TestCase):
+    def test_a_cards_own_lines_are_not_short_lived_text(self):
+        c = laws.Click((1, 1), 'bubble', 0, mode='overlay', texts=['Green Bean', 'This plant has wilted.'],
+                       burst_texts=['Green Bean', 'This plant has wilted.', '+1 Honey'])
+        self.assertEqual(chains.actual(c)['text'], '+1 Honey')
 
 
 class Points(unittest.TestCase):

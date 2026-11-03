@@ -47,7 +47,9 @@ def bubble_after(click):
 def actual(click):
     """The click's result in the DB's terms."""
     card = ' / '.join(click.texts) if click.mode != 'gameplay' else None   # whole card: the matched line can be low
-    text = ' / '.join(getattr(click, 'burst_texts', [])[:4]) or None
+    card_lines = set(click.texts) if click.mode != 'gameplay' else set()   # a card's own lines are not short-lived text
+    short = [t for t in getattr(click, 'burst_texts', []) if t not in card_lines]
+    text = ' / '.join(short[:4]) or None
     return {'events': list(click.events), 'card': card, 'bubble': bubble_after(click), 'text': text}
 
 
@@ -115,6 +117,49 @@ def gaps(apply=False, path=None, observed=None):
                     s['source'] = s.get('source', '') + f'; {f} observed x{sum(c.values())}'
                     filled = changed = True
                 out.append((chain, i, f, c, filled))
+    if changed:
+        with open(path or DB, 'w') as fh:
+            json.dump(db, fh, indent=2)
+            fh.write('\n')
+    return out
+
+
+REVISE = 3   # agreeing observations that contradict an expectation (and none matching it) before it is revised
+
+
+def revise(apply=False, path=None, observed=None):
+    """Expectations the game keeps contradicting: a field whose last observations are all surprises with the same
+    value (>= REVISE, none 'ok' after the first surprise). apply=True rewrites them (source notes it). Returns
+    [(chain, step, field, expected, got, n, revised)]."""
+    db = load(path)
+    hist = {}
+    try:
+        with open(observed or OBSERVED) as fh:
+            for line in fh:
+                r = json.loads(line)
+                if r.get('verdict') in ('ok', 'surprise'):
+                    hist.setdefault((r['chain'], r['step'], r['field']), []).append((r['verdict'], json.dumps(r['got'])))
+    except OSError:
+        pass
+    out, changed = [], False
+    for (chain, i, f), rows in hist.items():
+        tail = []
+        for v, got in reversed(rows):   # the latest run of surprises
+            if v == 'ok':
+                break
+            tail.append(got)
+        if len(tail) < REVISE or len(set(tail)) != 1:
+            continue
+        s = db.get(chain, [None] * (i + 1))[i]
+        if s is None or f == 'events':
+            continue
+        new = json.loads(tail[0])
+        done = False
+        if apply:
+            s['expect'][f] = new
+            s['source'] = s.get('source', '') + f'; {f} revised: observed {new!r} x{len(tail)}'
+            done = changed = True
+        out.append((chain, i, f, s['expect'][f] if not done else None, new, len(tail), done))
     if changed:
         with open(path or DB, 'w') as fh:
             json.dump(db, fh, indent=2)

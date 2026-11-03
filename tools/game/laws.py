@@ -345,6 +345,7 @@ def run(task_name, click=None, seed=None, max_clicks=30, task=None):
         return _run(task or TASKS[task_name], click, seed, max_clicks)
     finally:
         L.close_memory()
+        L.settle_db()
 
 
 def _run(task, click, seed, max_clicks):
@@ -384,8 +385,9 @@ def _run(task, click, seed, max_clicks):
     while res['clicks'] < max_clicks and not res['stop']:
         if res['clicks'] and res['clicks'] % 5 == 0 and _late(res):
             break
-        if res['left_in_save'] is not None and len(res['done']) >= res['left_in_save'] > 0 and task.name == 'replant':
-            break   # every wilted bed the save knows of is replanted
+        if res['left_in_save'] is not None and len(res['done']) >= res['left_in_save'] > 0:
+            res['stop'] = f"save: all {res['left_in_save']} {task.save_key} beds done"   # the save only over-counts
+            break   # (written earlier; beds only get done since), so done >= its count = all of them
         affs = O.scan()
         fit = [a for a in affs if task.fits(a) and not any(O.d(a.pt, p) < 60 for p in tried)]
         if not fit:

@@ -149,3 +149,24 @@ def check(c, chain=None, idx=None):
         pass
     SURPRISES.extend(f'{chain}[{idx}] {f}: expected {w!r}, got {g!r}' for f, w, g in c.surprises)
     return c
+
+
+def settle_db():
+    """After every run: the actions DB learns from what the game showed - '?' gaps with 2 agreeing observations are
+    filled, expectations contradicted 3+ times in a row (and never confirmed since) are revised. Logged."""
+    try:
+        filled = [g for g in chains.gaps(apply=True) if g[4]]
+        revised = [r for r in chains.revise(apply=True) if r[6]]
+    except Exception:   # noqa: BLE001 (the DB never breaks play)
+        return
+    for g in filled:
+        log_db('filled', f'{g[0]}[{g[1]}] {g[2]}')
+    for r in revised:
+        log_db('revised', f'{r[0]}[{r[1]}] {r[2]} -> {r[4]!r} (x{r[5]})')
+
+
+def log_db(what, msg):
+    try:
+        core.WF.run_log('learn', what=what, msg=msg)
+    except Exception:   # noqa: BLE001
+        pass

@@ -204,6 +204,8 @@ def seek(t, res):
                 return c
             if stuck(res):
                 return None
+    if t.soil and res.get('inside'):   # inside the region the targets are marked (drop, dry soil), not just beds
+        return explore(t, res)
     for det in O.see(t.kind, tried)[:2]:
         img = core.WF.grab()
         c = A.click(det.point, 'object')
@@ -211,6 +213,13 @@ def seek(t, res):
         tried.append(det.point)
         ok = walked(c, t.node, res)
         trace(res, f'{t.kind} seen @{det.point[0]},{det.point[1]}: ' + outcome(c, ok, t.node))
+        if c.node == t.node and not any(t.fits(a) for a in c.after):   # a bed, but not one this target needs
+            res['still'] = res.get('still', 0) + 1
+            trace(res, f'  that {t.kind} does not need it (no fitting bubble)')
+            A.gameplay()
+            if stuck(res):
+                return None
+            continue
         if c.node and c.node != t.node:   # the game proved it is another object: learn its look as that kind
             if L.relabel(img, getattr(det, 'box', None), L.kind_of(c.node)):
                 trace(res, f'learned: the look @{det.point[0]},{det.point[1]} is a {L.kind_of(c.node)}')

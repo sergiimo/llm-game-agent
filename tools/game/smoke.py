@@ -181,25 +181,71 @@ def can_from_log():
     return None
 
 
-def plant_garden(seed='Tulip', region=None, rounds=8):
-    """plant_visible, then walk to the nearest empty bed the world knows, until none is left or a walk fails."""
+AREA_NEAR = 10.0   # world units: within this of the area's centre she is in the area (map pins are coarse)
+
+
+def calibrate_if_needed():
+    """One more map pair while the calibration is missing or narrow (a fresh event position + the pin)."""
+    from . import where
+    import math
+    ps = where.pairs()
+    if where.fit() is None or max((math.dist(a[0], b[0]) for a in ps for b in ps), default=0) < 10:
+        return where.calibrate_here()
+    return False
+
+
+def _area_pos(region):
+    g = core.WF.world_graph() if hasattr(core.WF, 'world_graph') else None
+    if g is None or region not in g.nodes:
+        return g, None
+    return g, tuple(g.nodes[region].extra.get('pos') or ()) or None
+
+
+def plant_garden(seed='Tulip', region=None, rounds=12):
+    """plant_visible; with no seedling bubble in view: away from the area -> walk_to_area (each step closer, map or
+    event position); inside it -> click a visible bed not tried yet (its event says where she is). Stops when the
+    world has no empty bed in the area left, or a step fails."""
+    import math
+    from . import where, world
     total = {'planted': 0, 'watered': 0, 'walks': 0, 'stop': None, 'can': can_from_log()}
+    tried = []
     for _ in range(rounds):
         r = plant_visible(seed, can=total['can'])
         total['can'] = r['can']
         total['planted'] += r['planted']
         total['watered'] += r['watered']
+        if r['planted']:
+            tried.clear()
+            calibrate_if_needed()
         if not str(r['stop']).startswith('bubble'):
             total['stop'] = r['stop']
             break
-        c = walk_to_need({'stage': 'empty'}, region=region)
-        if c is None:
-            total['stop'] = 'no empty bed left (world)'
+        g, apos = _area_pos(region)
+        if g is not None and not world.query(g, {'kind': 'GardenBed', 'region': region, 'stage': 'empty'}):
+            total['stop'] = f'no empty bed left in {region} (world)'
             break
+        src, pos = where.position()
+        if apos and (pos is None or math.dist(pos, apos) > AREA_NEAR):
+            walk_to_area(apos, arrive=AREA_NEAR * 0.6)
+            total['walks'] += 1
+            continue
+        dets = [d for d in O.see('GardenBed', tried)]
+        if not dets:
+            from . import ask
+            ask.ask('click', f'Tara (frame centre) is in {region} but sees no empty-bed bubble and no bed by its look. '
+                             f'Give the grid cell of an EMPTY bed (bare soil), or none.', {'goal': 'plant_garden',
+                                                                                           'params': {'region': region}},
+                    total)
+        d = dets[0]
+        tried.append(d.point)
+        c = A.click(d.point, 'object')
+        where.walked() if c.moved and not c.at else None
         total['walks'] += 1
-        if not c.moved:
-            total['stop'] = 'walk: no move'
-            break
+        print(f'bed: clicked the bed seen @{d.point[0]},{d.point[1]}: {"walked" if c.moved else "no move"}, '
+              f'events {c.events}, bubbles {[str(a) for a in c.after] or "-"}')
+        if c.at:
+            calibrate_if_needed()
+        A.gameplay()
     else:
         total['stop'] = f'{rounds} rounds'
     print(f"garden: planted {total['planted']}, watered {total['watered']}, walks {total['walks']}, "
@@ -231,3 +277,51 @@ def walk_until(direction, kind='plant', max_steps=8):
         res['stop'] = None if res['found'] else f'{max_steps} steps'
     LAST_WALK.clear()   # her position is unknown until the next positioned event
     return res
+
+
+MIN_GAIN = 1.5            # world units a step must bring her closer
+TURNS = (0, 35, -35)      # degrees off the goal direction after a step without progress
+
+
+def walk_to_area(goal, arrive=6.0, kind='plant', max_steps=14):
+    """Walk to world `goal` (an area node's position) step by step; each step must bring her closer (position from
+    the last event, else the map pin, game/where.py); no progress -> turn; all turns failed -> ONE vision question
+    with the trace. Stops when arrived or a `kind` bubble shows. {'stop', 'steps', 'trace'}."""
+    import math
+    from . import ask, where
+    res = {'stop': None, 'steps': 0, 'trace': []}
+    src, pos = where.position()
+    fails = 0
+    for _ in range(max_steps):
+        if pos is None:
+            break
+        d = math.dist(pos, goal)
+        if d <= arrive:
+            res['stop'] = 'arrived'
+            return res
+        if kind and any(a.kind == kind and not a.drop for a in O.scan()):
+            res['stop'] = 'bubble'
+            return res
+        a = math.radians(TURNS[fails % len(TURNS)])
+        dx, dy = (goal[0] - pos[0]) / d, -(goal[1] - pos[1]) / d
+        dx, dy = dx * math.cos(a) - dy * math.sin(a), dx * math.sin(a) + dy * math.cos(a)
+        pt = (round(O.CENTRE[0] + dx * STEP_PX), round(O.CENTRE[1] + dy * STEP_PX))
+        c = A.click(pt, 'step')
+        where.walked()
+        res['steps'] += 1
+        src, pos2 = where.position()
+        gain = d - math.dist(pos2, goal) if pos2 else 0.0
+        res['trace'].append(f'step @{pt[0]},{pt[1]} from {tuple(round(v, 1) for v in pos)} ({src}): '
+                            f'{"walked" if c.moved else "no move"}, {gain:+.1f} closer')
+        print('walk_to_area: ' + res['trace'][-1])
+        if gain >= MIN_GAIN:
+            fails = 0
+        else:
+            fails += 1
+            if fails >= len(TURNS):
+                break
+        pos = pos2 or pos
+    ask.ask('click', f'Tara (frame centre) must get to the area at world {goal}; the steps got her no closer '
+                     f'({"; ".join(res["trace"][-4:]) or "her position is unknown"}). Give the grid cell of free '
+                     f'ground toward it (a road, a gap in the fence), or none.',
+            {'goal': 'walk', 'params': {'to': list(goal)}}, res)

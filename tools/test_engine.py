@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, ask, core, engine, learn, nav, observe, plan, screen, smoke, steps, ui, world  # noqa: E402
+from game import act, affordances, ask, core, engine, learn, nav, observe, plan, screen, smoke, steps, ui, where, world  # noqa: E402
 from objects.loop import NeedVision  # noqa: E402
 from objects import graph as OG  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
@@ -1534,6 +1534,107 @@ class SmokeWalkDir(Base):
         f = self.use(FakeGame([], GAME))
         res = smoke.walk_until((0, 1), 'plant', max_steps=8)
         self.assertEqual((res['found'], res['stop']), (False, 'no move'))
+
+
+class Where(Base):
+    """Her position: a positioned event since the last walk (exact), else the map pin through a calibration learned
+    from (event position, pin) pairs (user D186: walking based on graph or map, each step closer to the goal)."""
+
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(where, 'CALIB', os.path.join(self.tmp.name, 'map_calib.json'))
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_the_calibration_fits_scale_and_offset_from_two_pairs(self):
+        where.add_pair((2.0, -26.0), (760, 520))
+        self.assertIsNone(where.fit())   # one pair: unknown scale
+        where.add_pair((8.0, -63.0), (772, 594))
+        s, ox, oy = where.fit()
+        self.assertAlmostEqual(s, 2.0, delta=0.05)
+        self.assertEqual(tuple(round(v) for v in where.to_world((766, 556))), (5, -44))
+
+    def test_position_is_the_event_until_a_walk_then_the_map(self):
+        f = self.use(FakeGame([], GAME))
+        where.add_pair((2.0, -26.0), (760, 520))
+        where.add_pair((8.0, -63.0), (772, 594))
+        f.log.append('[D186 1:40:00 PM] > plant me=Player target=GardenBed(Clone) at (2.64, 0.10, -59.36)')
+        self.assertEqual(where.position(), ('event', (2.64, -59.36)))
+        where.walked()
+        f.map_snapshot = lambda: 'map'
+        f.map_pin = lambda img: (766, 556)
+        src, pos = where.position()
+        self.assertEqual((src, tuple(round(v) for v in pos)), ('map', (5, -44)))
+
+    def test_a_fresh_event_and_a_pin_become_a_pair(self):
+        f = self.use(FakeGame([], GAME))
+        f.log.append('[D186 1:40:00 PM] > plant me=Player target=GardenBed(Clone) at (2.64, 0.10, -59.36)')
+        f.map_snapshot = lambda: 'map'
+        f.map_pin = lambda img: (771, 587)
+        self.assertTrue(where.calibrate_here())
+        self.assertEqual(where.pairs()[-1], [[2.64, -59.36], [771, 587]])
+
+
+class WalkCloser(Base):
+    """Each step must bring her closer to the goal node; no progress -> turn; twice -> vision with the trace."""
+
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(ask, 'STATE', os.path.join(self.tmp.name, 'ask.json'))
+        p.start()
+        self.addCleanup(p.stop)
+
+    def steps(self, positions):
+        it = iter(positions)
+        return mock.patch.object(where, 'position', lambda: ('map', next(it)))
+
+    def test_steps_toward_the_goal_until_arrived(self):
+        f = self.use(FakeGame([], GAME))
+        f.walk_frames = 0
+        f.step_zone = 'near'
+        with self.steps([(8.0, -40.0), (8.0, -46.0), (8.0, -52.0), (8.0, -58.0), (8.0, -62.0)]):
+            res = smoke.walk_to_area((8.27, -63.11), arrive=4.0)
+        self.assertEqual(res['stop'], 'arrived')
+        self.assertTrue(all(y > 540 for _, y in f.clicks))   # south = down
+
+    def test_no_progress_turns_then_asks_vision(self):
+        f = self.use(FakeGame([], GAME))
+        f.step_zone = 'near'
+        with self.steps([(8.0, -40.0)] * 10):
+            with self.assertRaises(NeedVision) as cm:
+                smoke.walk_to_area((8.27, -63.11), arrive=4.0)
+        self.assertIn('no closer', str(cm.exception))
+
+
+class GardenLoop(Base):
+    """Inside the area she moves by clicking visible beds (their events give her position); planted one by one."""
+
+    def setUp(self):
+        super().setUp()
+        for mod, name in ((ask, 'STATE'), (where, 'CALIB')):
+            p = mock.patch.object(mod, name, os.path.join(self.tmp.name, name + '.json'))
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_a_visible_bed_is_clicked_when_no_bubble_shows_then_planted(self):
+        near = obj('n', pos=(SX[0], SZ[0]), bubble=(900, 400), stage='empty', watered=False, wilted=False)
+        far = obj('f', pos=(SX[1], SZ[0]), zone='far', bubble=(900, 400), body=(1400, 700), stage='empty',
+                  watered=False, wilted=False)
+        f = self.use(FakeGame([near, far], GAME, inventory={'TulipSeed': 5}))
+        f.log.append(L('9:00:00 AM', 'plant_growing', 'GardenBed', SX[0], SZ[0]))   # she is in the garden
+        f.world_graph = lambda: self._graph(f)
+        f.map_snapshot, f.map_pin = (lambda: None), (lambda img: None)
+        Det = __import__('collections').namedtuple('Det', 'point')
+        with mock.patch.object(observe, 'see', lambda kind, tried=(): [Det((1400, 700))] if f.zone == 'near' else []):
+            res = smoke.plant_garden('Tulip', region='Garden')
+        self.assertEqual(res['planted'], 2, res)
+        self.assertEqual(f.objects['f']['state']['stage'], 'growing')
+
+    def _graph(self, f):
+        g = OG.Graph()
+        g.load(SEED)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        return g
 
 
 if __name__ == '__main__':

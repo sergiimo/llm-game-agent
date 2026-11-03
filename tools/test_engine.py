@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, core, learn, nav, observe, ui  # noqa: E402
+from game import act, affordances, core, learn, nav, observe, plan, ui  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
 
 core.LOG_WAIT = 0.0
@@ -363,6 +363,68 @@ class Fake(Base):
         self.assertEqual([a.kind for a in f.scan()], ['water', 'fill_can'])
         act.click((1500, 300), 'bubble')
         self.assertEqual(f.tara['can'], 'full')
+
+
+class Table(unittest.TestCase):
+    """The transition table (actions.json): seeded rows, fits, BFS paths over effects."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        db = os.path.join(tmp.name, 'actions.json')
+        shutil.copy(plan.DB, db)
+        p = mock.patch.object(plan, 'DB', db)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_every_seed_row_has_the_schema(self):
+        for r in plan.rows():
+            self.assertTrue({'id', 'kind', 'when', 'bubble', 'steps', 'effect', 'source', 'seen', 'ok',
+                             'surprises'} <= set(r), r.get('id'))
+            for s in r['steps']:
+                self.assertIn(s['do'], plan.PRIMITIVES)
+
+    def test_path_from_wilted_to_planted_and_watered(self):
+        p = plan.path('GardenBed', {'stage': 'growing', 'wilted': True, 'crop': 'Tulip'},
+                      {'crop': '$same', 'watered': True}, {})
+        self.assertEqual([r['id'] for r in p], ['remove_wilted', 'plant', 'water'])
+        self.assertEqual(p[1]['needs'], {'item': 'TulipSeed'})   # the seed bound by the goal ($same crop)
+
+    def test_a_wilted_bed_has_no_one_step_water_path(self):
+        p = plan.path('GardenBed', {'stage': 'growing', 'wilted': True, 'watered': False}, {'watered': True}, {})
+        self.assertTrue(p is None or p[0]['id'] != 'water')
+
+    def test_plant_needs_the_seed_item(self):
+        p = plan.path('GardenBed', {'stage': 'empty'}, {'crop': 'Tulip'}, {'seed': 'Tulip'})
+        self.assertEqual(p[0]['needs'], {'item': 'TulipSeed'})
+        self.assertEqual(p[0]['steps'][1]['arg'], 'Tulip')
+
+    def test_event_effects_and_unresolved_params(self):
+        self.assertEqual(plan.effects_of_event('out_of_water'), {'Tara.can': 'empty'})
+        self.assertEqual(plan.effects_of_event('plant'), {'stage': 'growing', 'watered': False})
+        self.assertEqual(plan.effects_of_event('plant', {'seed': 'Tulip'})['crop'], 'Tulip')
+        self.assertEqual(plan.effects_of_event('unplant'), {})   # opens the card only: no effect
+
+    def test_no_path_is_none(self):
+        self.assertIsNone(plan.path('BeeHive', {'ready': True}, {'ready': False}, {}))
+
+    def test_ready_rows_only_when_the_goal_asks_for_ready(self):
+        st = {'stage': 'produced', 'ready': True}
+        self.assertIsNone(plan.path('GardenBed', st, {'watered': True}, {}))
+        self.assertEqual(plan.path('GardenBed', st, {'ready': False}, {})[0]['id'], 'pick')
+
+    def test_fits_by_kind_and_sub_icons(self):
+        water = next(r for r in plan.rows('GardenBed') if r['id'] == 'water')
+        self.assertTrue(plan.fits(water)(Affordance('water', None, (0, 0), False, 0.0, True)))
+        self.assertFalse(plan.fits(water)(Affordance('water', None, (0, 0), False, 0.0, False)))   # no drop
+        self.assertFalse(plan.fits(next(r for r in plan.rows() if r['id'] == 'out_of_water'))(
+            Affordance('water', None, (0, 0), False, 0.0, True)))   # event-only rows fit no bubble
+
+    def test_counts_are_saved(self):
+        plan.count('water', True)
+        plan.count('water', False)
+        r = next(r for r in plan.rows() if r['id'] == 'water')
+        self.assertEqual((r['seen'], r['ok'], r['surprises']), (2, 1, 1))
 
 
 if __name__ == '__main__':

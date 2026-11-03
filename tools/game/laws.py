@@ -22,11 +22,8 @@ from .act import BURST, EVENT_WAIT, Click, click as record_click  # noqa: F401
 from .nav import (EXPLORE_R, SEEK_TURNS, STEP_R, STUCK_CLICKS, Target as Task, reach, step as _step)  # noqa: F401
 from .observe import CENTRE, HUD, LawsStuck, WrongLanguage, check_language, closest_node, d as _d  # noqa: F401
 
+from .ask import CELL_H, CELL_W, COLS, EARLY, LATE, MAX_ASKS, ROWS, draw_grid, parse_point  # noqa: F401
 W_, H_ = O.W_, O.H_
-COLS, ROWS = 24, 16                    # the vision grid (same as wf ask_vision 'click': A-X x 1-16)
-CELL_W, CELL_H = W_ / COLS, H_ / ROWS  # 80 x 67.5 px
-MAX_ASKS = 4                           # vision questions in a row without progress -> LawsStuck
-LATE, EARLY = 23.0, 6.0                # game hours: no garden work after LATE / before EARLY (AGENTS rule 0, L27)
 WELL_KINDS = ('fill_can', 'full_watering_can')
 WORK = ('water', 'grab_item', 'unplant', 'out_of_water', 'fill_watering_can', 'full_watering_can')   # task work = progress
 STATE = os.path.join(A.SHOTS, 'laws-state.json')
@@ -57,61 +54,7 @@ def harvest_task(ready=False):
     return Task('harvest', (lambda a: a.kind == 'pickup' or a.ready) if ready else t.fits, t.target, 'ripe')
 
 
-# ---- the vision grid ------------------------------------------------------------------------------------------
-FONTS = ('/System/Library/Fonts/Supplemental/Arial Bold.ttf', '/System/Library/Fonts/Helvetica.ttc',
-         '/Library/Fonts/Arial.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')
-
-
-def _font(px):
-    from PIL import ImageFont
-    for f in FONTS:
-        try:
-            return ImageFont.truetype(f, px)
-        except OSError:
-            continue
-    try:
-        return ImageFont.load_default(size=px)   # Pillow >= 10.1
-    except TypeError:
-        return ImageFont.load_default()
-
-
-def draw_grid(img):
-    """Copy of img with the A-X x 1-16 grid and Tara's magenta circle at the centre: the `NEED_VISION click` frame."""
-    from PIL import Image, ImageDraw
-    pic = img.convert('RGBA')
-    ov = Image.new('RGBA', pic.size, (0, 0, 0, 0))
-    dr = ImageDraw.Draw(ov)
-    font = _font(15)
-    for c in range(COLS + 1):
-        dr.line((c * CELL_W, 0, c * CELL_W, pic.size[1]), fill=(255, 255, 0, 150), width=1)
-    for r in range(ROWS + 1):
-        dr.line((0, r * CELL_H, pic.size[0], r * CELL_H), fill=(255, 255, 0, 150), width=1)
-    for c in range(COLS):
-        for r in range(ROWS):
-            dr.text((c * CELL_W + 3, r * CELL_H + 2), f'{chr(65 + c)}{r + 1}', fill=(255, 255, 0, 230), font=font)
-    out = Image.alpha_composite(pic, ov).convert('RGB')
-    x, y = CENTRE
-    ImageDraw.Draw(out).ellipse((x - 26, y - 26, x + 26, y + 26), outline=(255, 0, 255), width=5)
-    return out
-
-
-def parse_point(ans):
-    """A vision answer -> frame point: a grid cell 'Q14' (its centre) or (x, y). ValueError off the frame or on the HUD."""
-    if isinstance(ans, str):
-        m = re.fullmatch(r'\s*([A-Xa-x])\s*(\d{1,2})\s*', ans)
-        if not m:
-            raise ValueError(f'not a grid cell: {ans!r} (expected A1-X16, e.g. Q14)')
-        c, r = ord(m.group(1).upper()) - 65, int(m.group(2))
-        if not 1 <= r <= ROWS:
-            raise ValueError(f'no row {r} (rows 1-{ROWS})')
-        x, y = (c + 0.5) * CELL_W, (r - 0.5) * CELL_H
-    else:
-        x, y = (float(v) for v in ans)
-    if not (0 <= x < W_ and 0 <= y < H_):
-        raise ValueError(f'({x:.0f}, {y:.0f}) is off the frame')
-    if O.hud((x, y)):
-        raise ValueError(f'({x:.0f}, {y:.0f}) is on the HUD (clock or buttons), not in the world')
-    return round(x), round(y)
+# ---- the vision grid: game/ask.py (draw_grid, parse_point)
 
 
 # ---- cross-call state (vision counter + last trace) -------------------------------------------------------------
@@ -358,15 +301,8 @@ def summary(res):
 
 
 def _late(res):
-    """The HUD clock: after LATE or before EARLY -> res['stop']; sets res['light'] for the soil tones."""
-    h, light = O.clock()
-    if h is None:
-        return False
-    res['light'] = light
-    if h >= LATE or h < EARLY:
-        res['stop'] = f'late: game time {int(h):02d}:{int(h % 1 * 60):02d}; no more garden work tonight (ask about bed)'
-        return True
-    return False
+    from .ask import late
+    return late(res)
 
 
 def _done_looking(task, res):

@@ -9,7 +9,8 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, core, learn, nav, observe, plan, steps, ui, world  # noqa: E402
+from game import act, affordances, ask, core, learn, nav, observe, plan, steps, ui, world  # noqa: E402
+from objects.loop import NeedVision  # noqa: E402
 from objects import graph as OG  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
 
@@ -581,6 +582,51 @@ class Steps(Base):
         steps.run(self.row('water'), {}, f.scan()[0])
         recs = [json.loads(l) for l in open(self.obs)]
         self.assertEqual([(r['row'], r['step'], r['field'], r['verdict']) for r in recs], [('water', 0, 'events', 'ok')])
+
+
+class Ask(Base):
+    """One vision question at a time; its context (pending record) survives to the call that answers it."""
+
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(ask, 'STATE', os.path.join(self.tmp.name, 'ask.json'))
+        p.start()
+        self.addCleanup(p.stop)
+        self.use(FakeGame([], GAME))
+
+    def pending(self):
+        return {'kind': 'button', 'goal': 'plant', 'params': {'seed': 'Tulip', 'region': 'GardenSouth'},
+                'row': 'plant', 'step': 2}
+
+    def test_pending_record_survives_to_the_next_call(self):
+        with self.assertRaises(NeedVision):
+            ask.ask('button', 'which button plants it?', self.pending(), {'goal': 'plant', 'vision': 0})
+        self.assertEqual(ask.take_answer('plant'), self.pending())
+        self.assertIsNone(ask.take_answer('plant'))   # taken once
+        self.assertIsNone(ask.take_answer('water'))
+
+    def test_answer_hint_names_the_goal_not_a_task_function(self):
+        with self.assertRaises(NeedVision) as cm:
+            ask.ask('button', 'which button?', self.pending(), {'goal': 'plant', 'vision': 0})
+        msg = str(cm.exception)
+        self.assertIn('./wf achieve plant seed=Tulip region=GardenSouth answer=', msg)
+        self.assertNotIn('_all(', msg)
+
+    def test_stuck_after_max_asks_without_progress(self):
+        for _ in range(ask.MAX_ASKS):
+            with self.assertRaises(NeedVision):
+                ask.ask('click', 'where?', self.pending(), {'goal': 'plant', 'vision': 0})
+        with self.assertRaises(observe.LawsStuck):
+            ask.ask('click', 'where?', self.pending(), {'goal': 'plant', 'vision': 0})
+        ask.progress('plant')
+        with self.assertRaises(NeedVision):
+            ask.ask('click', 'where?', self.pending(), {'goal': 'plant', 'vision': 0})
+
+    def test_laws_still_uses_the_moved_helpers(self):
+        from game import laws
+        self.assertIs(laws.parse_point, ask.parse_point)
+        self.assertIs(laws.draw_grid, ask.draw_grid)
+        self.assertEqual(laws.parse_point('Q14'), (1320, 911))
 
 
 if __name__ == '__main__':

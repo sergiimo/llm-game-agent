@@ -1064,9 +1064,9 @@ class Predictions(EngineBase):
         super().setUp()
         import evals.store as ES
         self.preds = os.path.join(self.tmp.name, 'predictions.jsonl')
-        p = mock.patch.object(ES, 'PATH', self.preds)
-        p.start()
-        self.addCleanup(p.stop)
+        for p in (mock.patch.object(ES, 'PATH', self.preds), mock.patch.object(ES, 'ENABLED', True)):
+            p.start()
+            self.addCleanup(p.stop)
 
     def recs(self):
         import json

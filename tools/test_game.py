@@ -387,6 +387,8 @@ class Game(unittest.TestCase):
         import evals
         from evals import store
         store.PATH = os.path.join(__import__('tempfile').mkdtemp(), 'p.jsonl')
+        store.ENABLED = True
+        self.addCleanup(setattr, store, 'ENABLED', False)
 
         @core.action
         def good():

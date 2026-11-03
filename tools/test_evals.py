@@ -14,6 +14,18 @@ from evals import store  # noqa: E402
 class Store(unittest.TestCase):
     def setUp(self):
         store.PATH = os.path.join(tempfile.mkdtemp(), 'predictions.jsonl')
+        self._enabled = store.ENABLED
+        store.ENABLED = True   # writes are on only in the real tool (wf main); these tests write a temp file
+        self.addCleanup(setattr, store, 'ENABLED', self._enabled)
+
+    def test_writes_are_off_until_the_tool_enables_them(self):
+        """Tests importing game code must never write the real predictions file (D187: test records found in it)."""
+        store.ENABLED = False
+        evals.predict('skills', 'garden.replant_all', '')
+        self.assertFalse(os.path.exists(store.PATH))
+        store.ENABLED = True
+        evals.predict('skills', 'garden.replant_all', '')
+        self.assertTrue(os.path.exists(store.PATH))
 
     def test_predict_then_outcome_counts(self):
         ids = [evals.predict('belief', 'pos', [0, 0]) for _ in range(3)]
@@ -57,7 +69,7 @@ class Store(unittest.TestCase):
         pid = evals.predict('stuck', 'stuck', True)
         path = store.PATH
         importlib.reload(store)
-        store.PATH = path
+        store.PATH, store.ENABLED = path, True
         evals.outcome(pid, True, True)
         self.assertEqual(evals.report()['stuck']['hits'], 1)
         self.assertIn('stuck: 1/1 hits (100%)', evals.format_report(evals.report()))

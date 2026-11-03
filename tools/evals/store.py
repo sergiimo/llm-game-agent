@@ -12,7 +12,12 @@ WORST = 3                 # latest misses shown per component
 _N = itertools.count()
 
 
+ENABLED = False   # only the real tool writes (wf main sets it): tests importing game code never touch the real file
+
+
 def _append(rec):
+    if not ENABLED:
+        return
     os.makedirs(os.path.dirname(PATH), exist_ok=True)
     with open(PATH, 'a') as fh:
         fh.write(json.dumps(rec) + '\n')

@@ -4131,6 +4131,11 @@ def save_summary(path=None):
 # ---------------------------------------------------------------- CLI
 
 def main(argv=None):
+    try:   # predictions are recorded only by the real tool (CLI / daemon), never by tests importing the code
+        from evals import store as _evals_store
+        _evals_store.ENABLED = True
+    except ImportError:
+        pass
     ap = argparse.ArgumentParser(prog='wf', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
     sub.add_parser('status', help='game running? window bounds, permissions, frontmost')

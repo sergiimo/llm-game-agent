@@ -264,6 +264,8 @@ class WorldModel(unittest.TestCase):
         import tempfile
         from evals import store
         store.PATH = os.path.join(tempfile.mkdtemp(), 'p.jsonl')
+        store.ENABLED = True
+        self.addCleanup(setattr, store, 'ENABLED', False)
         import evals
         w = self.world()
         w.belief.scene('Farm', 0.0, 0.0)

@@ -1223,7 +1223,8 @@ def run_cmd(sub_, args):
         note = ' '.join(args[1:] if sub_ == 'escalate' else args[2:])
         steps, _ = plan_state(d)
         if n not in [s['n'] for s in steps]:
-            sys.exit(f'no step {n} in plan.md')
+            sys.exit(f'no step {n} in plan.md: steps need `## Step N: <title>` headings (a numbered list is not read; '
+                     f'found {[s["n"] for s in steps] or "none"}; .claude/skills/wylde-supervise step 2, L139)')
         try:
             hour = game_hour(_frame()) if is_frontmost() else None
         except Exception:

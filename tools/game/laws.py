@@ -490,6 +490,7 @@ def _handle(task, c, res, seed):
     """Update the run from one click's result. 'done' | 'progress' | 'none' | 'stop'."""
     if c.node:
         res['here'] = c.node   # the logged interaction says which node she is at
+        res['inside'] = _inside(task, c.node)
     if task.name == 'replant' and c.has('unplant'):
         out = _replant(c, res, seed)
         if out == 'done':
@@ -559,9 +560,18 @@ def _map_direction(node):
     return None if n < 1 else (dx / n, dy / n)
 
 
-def _step(d):
+def _walked(c):
+    """A step click walked her: the view or the bubbles changed and no object took the click (a click on a hive logs
+    `beehive_progress`: that is the hive, not a walk - D185 loop)."""
+    if c.node or c.mode != 'gameplay':
+        _gameplay()
+        return False
+    return bool(c.moved or _bubble_set(c.before) != _bubble_set(c.after))
+
+
+def _step(d, res=None, label='step'):
     """A few steps on the ground in direction `d` (Tara is at the centre): click a point STEP_R px away; turn a little
-    when she did not move. The Click that moved her, or None."""
+    when she did not walk. The Click that walked her, or None. Every try goes to res['trace'] (for vision's debug)."""
     import math
     for r in STEP_R:
         for deg in STEP_TURN:
@@ -572,9 +582,68 @@ def _step(d):
             if _hud(pt):
                 continue
             c = record_click(pt, 'step')
-            if _changed(c):
+            ok = _walked(c)
+            _trace(res, f'{label} @{pt[0]},{pt[1]}: ' + ('walked' if ok else f'blocked by {c.node}' if c.node else 'no move'))
+            if ok:
                 return c
     return None
+
+
+EXPLORE = [(1, 0), (0.7, 0.7), (0, 1), (-0.7, 0.7), (-1, 0), (-0.7, -0.7), (0, -1), (0.7, -0.7)]
+EXPLORE_R = 300     # px: a free-ground click this far out shows a new part of the region
+FREE_GAP = 110      # px: a free-ground point keeps this far from every bubble and object detection
+
+
+def _free(pt, avoid):
+    return 0 <= pt[0] < W_ and 0 <= pt[1] < H_ and not _hud(pt) and all(_d(pt, a) >= FREE_GAP for a in avoid)
+
+
+def _explore(task, res):
+    """Inside the target's region the map can't help (like inside a house, user D185): walk to free ground in a
+    direction not tried yet in this call, so more nodes come into view. Free = away from every bubble and every object
+    the detector sees. The Click that walked her, or None when every direction is tried."""
+    done = res.setdefault('explored', [])
+    avoid = [a.pt for a in affordances.scan()] + [d.point for d in _see_all()]
+    for d in EXPLORE:
+        if d in done:
+            continue
+        done.append(d)
+        pt = (int(CENTRE[0] + d[0] * EXPLORE_R), int(CENTRE[1] + d[1] * EXPLORE_R))
+        if not _free(pt, avoid):
+            _trace(res, f'explore {d}: @{pt[0]},{pt[1]} not free ground')
+            continue
+        c = record_click(pt, 'explore')
+        res['clicks'] += 1
+        ok = _walked(c)
+        _trace(res, f'explore @{pt[0]},{pt[1]}: ' + ('walked' if ok else f'blocked by {c.node}' if c.node else 'no move'))
+        if ok:
+            return c
+    return None
+
+
+def _see_all():
+    """Every object the detector sees on the frame (any kind): what free ground must keep away from."""
+    try:
+        from objects import detect as D, store as S
+        return D.detect(core.WF.grab(), S.Store())
+    except Exception:   # noqa: BLE001
+        return []
+
+
+def _trace(res, msg):
+    if res is not None:
+        res.setdefault('trace', []).append(msg)
+        _log('seek', what='trace', msg=msg)
+
+
+def _inside(task, here):
+    """She is at a node inside the target's region (Garden: its beds, hives, well): the map has nothing finer."""
+    if not here:
+        return False
+    g = MEMORY['graph']
+    if g is not None and here in g.nodes:
+        return g.nodes[here].region == task.region or here == task.region
+    return here in (task.node, 'Well', 'BeeHive')
 
 
 def _seek(task, res):
@@ -602,10 +671,11 @@ def _seek(task, res):
         d = OG.toward(MEMORY['graph'], here, task.node)
         if d:
             _log('seek', what='graph', here=here, to=task.node, dir=list(d))
-            c = _step(d)
+            c = _step(d, res, f'graph {here}->{task.node}')
             res['clicks'] += 1
             if c is not None:
-                res['here'] = c.node   # she left that node: unknown until the next event names one
+                res['inside'] = _inside(task, here)
+                res['here'] = None   # she left that node: unknown until the next event names one
                 return c
     for det in _see(task.kind, tried)[:2]:
         c = record_click(det.point, 'object')
@@ -615,10 +685,14 @@ def _seek(task, res):
             return c
         if _changed(c):
             return c
+    if res.get('inside') or _inside(task, here):   # inside the region: explore free ground, no map
+        res['inside'] = True
+        return _explore(task, res)
     d = _map_direction(task.region)
     if d is None:
+        _trace(res, 'map: no direction')
         return None
-    c = _step(d)
+    c = _step(d, res, 'map')
     res['clicks'] += 1
     return c
 
@@ -660,7 +734,11 @@ def _ask(task, st, res, last):
          + (f' The save says {left} left (may be stale).' if left is not None else '')
          + f' This call: done {len(res["done"])}, other {res["other"][-3:]}.'
          + (f' Memory: {memory_hint()}.' if memory_hint() else '')
-         + (f' Your last answer led to: {last.describe()}.' if last is not None else ''))
+         + (f' Your last answer led to: {last.describe()}.' if last is not None else '')
+         + (f' The algorithm (graph / see / map / explore free ground) already tried this call, in order: '
+            f'{"; ".join(res.get("trace", [])[-10:])}. Debug it: if a step was blocked, say by what in your report and '
+            f'answer a cell of FREE ground (no object, no fence) she can walk to that gets her around it or shows more '
+            f'nodes; if the target is visible, its cell.' if res.get('trace') else ''))
     st['asks'] += 1
     st['history'] = (st['history'] + [last.describe()[:160] if last is not None else 'no fitting bubble'])[-6:]
     _save_state(st)

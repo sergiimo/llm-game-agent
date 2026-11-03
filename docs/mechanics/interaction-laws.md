@@ -27,11 +27,16 @@ bad state carried over to the next call. These laws keep one guess per click and
    (`target=Well` after a refill, `target=BeeHive` after a hive click) → the graph's screen direction from that node to the
    target node (`graph.toward`, edges `toward` or `TOWARD` defaults: Well → hives → beds) → a step; (a) **see** the target node by its appearance vectors (`objects/db/<kind>`,
    e.g. GardenBed) on the frame → click the nearest match (not the one under Tara; a match whose click names another node,
-   e.g. a hive, is never clicked again this call) → rule 4; (b) not seen → **map**: open
+   e.g. a hive, is never clicked again this call) → rule 4; (b) not seen and **inside the target's region** (her last event named a node of the Garden: a bed, a hive, the well) →
+   **explore**: the map has nothing finer here (like inside a house), so click **free ground** (away from every bubble and
+   detected object) in a direction not tried yet this call, 300 px out, to bring more nodes into view; (b') outside the
+   region → **map**: open
    it, Tara's pin + the node's map picture (`objects/map_db`, e.g. MapGarden) + the road route between them give a
    direction → (c) **step**: click 320 px from the centre in that direction (camera looks north like the map); she didn't
-   move → turn ±35°, then a shorter step → back to rule 4. Only when these give nothing, ask vision **one** question on the
-   current frame: *"Give the click point (x, y in the 1920×1080 frame) of the nearest
+   move → turn ±35°, then a shorter step → back to rule 4. A step or explore click that an object takes (it logs that object's event, e.g. `beehive_progress`) is
+   **blocked**, never progress. Every try goes into a trace; only when these give nothing, ask vision **one** question
+   on the current frame, with the trace, so vision **debugs the algorithm** (what blocked it) and answers a cell of free
+   ground around the blocker, or the target: *"Give the click point (x, y in the 1920×1080 frame) of the nearest
    <target kind> [that looks <state>]. If none is visible, answer `none` and the direction to walk."* Click that point.
    Vision gives a point to click, never a layout, grid or map of everything. Cheap checks on the answer: inside the
    frame, not on the HUD (clock, map, journal or inventory buttons). `none` → click open ground in that direction, then

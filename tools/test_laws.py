@@ -282,6 +282,32 @@ class Seek(Base):
         self.assertIn((int(960 + dx * laws.STEP_R[0]), int(540 + dy * laws.STEP_R[0])), f.clicks)
         self.assertEqual(f.beds['b']['state'], 'wet')
 
+    def test_inside_the_garden_explores_free_ground_not_the_map(self):
+        """D185: after watering, inside the Garden the map kept pointing at the garden; explore free ground instead."""
+        f = self.use(Fake({'a': bed('dry', zone='near', bubble=(900, 400)),
+                           'b': bed('dry', zone='far', bubble=(700, 300), body=(5000, 5000))}))
+        f.step_zone = 'far'
+        def no_map(node):
+            raise AssertionError('map used inside the region')
+        with mock.patch.object(laws, '_map_direction', no_map):
+            with self.assertRaises(NeedVision):
+                laws.run('water')
+        self.assertEqual((f.beds['a']['state'], f.beds['b']['state']), ('wet', 'wet'))
+        self.assertIn((960 + laws.EXPLORE_R, 540), f.clicks)
+
+    def test_a_step_onto_a_hive_is_blocked_and_vision_gets_the_trace(self):
+        f = self.use(Fake({'b': bed('dry', zone='far', bubble=(700, 300), body=(5000, 5000))}, can=True))
+        f.hives = [(960, 540 + laws.STEP_R[0])]          # straight down from the well is a hive
+        f.step_zone, f.step_ok = None, None              # nothing walks
+        with mock.patch.object(laws, '_map_direction', lambda node: None):
+            st = laws._load_state('water')
+            res = {'here': 'BeeHive', 'clicks': 0, 'trace': []}
+            self.assertIsNone(laws._step((0.0, 1.0), res, 'graph'))
+        self.assertTrue(any('blocked by BeeHive' in t for t in res['trace']))
+        with self.assertRaises(NeedVision):
+            laws.run('water')
+        self.assertIn('already tried this call', f.asks[-1][1])
+
     def test_limited_turns_then_vision(self):
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
         f.step_zone, f.step_ok = None, None   # steps never bring it in reach (and never move her)

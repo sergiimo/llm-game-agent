@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, ask, core, engine, learn, nav, observe, plan, steps, ui, world  # noqa: E402
+from game import act, affordances, ask, core, engine, learn, nav, observe, plan, screen, smoke, steps, ui, world  # noqa: E402
 from objects.loop import NeedVision  # noqa: E402
 from objects import graph as OG  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
@@ -1313,6 +1313,80 @@ class SpaceFlow(EngineBase):
         self.assertTrue(all(o['state']['watered'] for o in f.objects.values()), [o['state'] for o in f.objects.values()])
         row = next(r for r in plan.rows() if r['id'] == 'plant')
         self.assertEqual([s_['do'] for s_ in row['steps']], ['click_bubble', 'pick_card', 'press_space', 'press_space'])
+
+
+class Screen(Base):
+    """One reader of the screen state (gameplay / card / picker / pause) with hard rules: no world click outside
+    gameplay, Escape only on a known card or picker, the pause menu is resumed (design review D186)."""
+
+    def setUp(self):
+        super().setUp()
+        self.close = ui.close   # the real one
+
+    def test_states_are_read_from_mode_and_texts(self):
+        R = screen.classify
+        self.assertEqual(R('gameplay', []), 'gameplay')
+        self.assertEqual(R('overlay', []), 'gameplay')   # a textless overlay = HUD hidden (camera on a bed), L144
+        self.assertEqual(R('overlay', ['Game Paused', 'Resume Game']), 'pause')
+        self.assertEqual(R('overlay', ['Inventory', 'Seeds', 'Tulip Bulbs']), 'picker')
+        self.assertEqual(R('overlay', ['Tulip Bulbs', 'Plant these tulip bulbs in a', 'Select']), 'card')
+        self.assertEqual(R('overlay', ['Settings', 'Music Volume']), 'menu')
+        self.assertEqual(R('dialogue', ['Hello']), 'dialogue')
+
+    def test_world_clicks_only_in_gameplay(self):
+        f = self.use(FakeGame([obj('a', stage='empty')], GAME, inventory={'TulipSeed': 2}))
+        act.click((900, 400), 'bubble')   # opens the picker
+        self.assertEqual(screen.read().kind, 'picker')
+        n = len(f.clicks)
+        act.click((1200, 800), 'explore')   # a world click: the picker is closed first, never clicked through
+        self.assertIsNone(f.card)
+        self.assertEqual(len(f.clicks), n + 1)
+
+    def test_a_menu_that_stays_open_stops_world_clicks(self):
+        f = self.use(FakeGame([], GAME))
+        f.blank_overlay, f.overlay_texts = True, ['Settings', 'Music Volume']
+        with self.assertRaises(observe.LawsStuck):
+            act.click((960, 840), 'explore')
+        self.assertEqual(f.clicks, [])
+
+    def test_close_resumes_pause_and_escapes_only_cards(self):
+        f = self.use(FakeGame([], GAME))
+        f.paused = True
+        self.close.__wrapped__()
+        self.assertFalse(f.paused)
+        f.blank_overlay = True
+        keys = []
+        run = f.run_action
+        f.run_action = lambda a: (keys.append(a), run(a))[1]
+        self.close.__wrapped__()   # textless overlay = gameplay: nothing to close
+        self.assertEqual(keys, [])
+
+
+class Smoke(Base):
+    """One bed, one primitive at a time, each with its proof (design review D186): plant bubble in view -> click ->
+    the picker's text -> pick the seed -> Space -> totalPlanted -> Space -> water."""
+
+    def test_one_bed_plants_and_waters_with_a_proof_per_step(self):
+        f = self.use(FakeGame([obj('a', pos=(SX[0], SZ[0]), stage='empty', watered=False, wilted=False)], GAME,
+                              inventory={'TulipSeed': 2}))
+        out = smoke.plant_one('Tulip')
+        self.assertEqual([(s['step'], s['ok']) for s in out],
+                         [('screen', True), ('bubble', True), ('click', True), ('pick', True), ('confirm', True),
+                          ('water', True)])
+        self.assertIn('totalPlanted', out[4]['proof'])
+        self.assertEqual(f.objects['a']['state'], {'stage': 'growing', 'watered': True, 'wilted': False, 'crop': 'Tulip'})
+
+    def test_the_first_failing_step_stops_and_closes_the_card(self):
+        f = self.use(FakeGame([obj('a', stage='empty', watered=False, wilted=False)], GAME, inventory={}))
+        out = smoke.plant_one('Tulip')
+        self.assertEqual([(s['step'], s['ok']) for s in out][-1], ('pick', False))
+        self.assertIsNone(f.card)
+
+    def test_no_plant_bubble_in_view_stops_before_any_click(self):
+        f = self.use(FakeGame([obj('a', stage='growing', watered=True)], GAME))
+        out = smoke.plant_one('Tulip')
+        self.assertEqual([(s['step'], s['ok']) for s in out][-1], ('bubble', False))
+        self.assertEqual(f.clicks, [])
 
 
 if __name__ == '__main__':

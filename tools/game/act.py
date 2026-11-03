@@ -87,14 +87,10 @@ def events_of(lines):
 
 
 def _not_paused(W):
-    """Never click the world on the pause menu (live D186: such clicks exited the game): resume first; still paused =
-    terminal."""
-    if not O.paused(O.texts()[1]):
-        return
-    W.run_action('resume')
-    W.wait_settle()
-    if O.paused(O.texts()[1]):
-        raise O.LawsStuck('PAUSED: the pause menu stays open after resume; no world click is safe. Stop and report.')
+    """A world click only in gameplay (game/screen.py: a card/picker is closed, the pause menu resumed; a menu that
+    stays = terminal). Live D186: world clicks on the pause menu exited the game."""
+    from . import screen
+    screen.require_world()
 
 
 def click(pt, what='point', before=None):
@@ -142,7 +138,7 @@ def after_press(pt, mark, before, after):
 
 
 def gameplay():
-    """Close any card/panel: back to gameplay (failure = reset, law 5)."""
-    mode, _ = O.texts()
-    if mode != 'gameplay':
+    """Close any card/panel: back to gameplay (failure = reset, law 5), by the screen rules."""
+    from . import screen
+    if screen.read().kind != 'gameplay':
         ui.close()

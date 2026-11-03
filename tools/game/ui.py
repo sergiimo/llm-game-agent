@@ -119,23 +119,7 @@ def pick_card(name, box=PICKER):
 
 @action
 def close():
-    """Close a menu/card: one Escape, only on a screen with something to close. The pause menu is resumed, never
-    escaped into; an overlay without text (HUD hidden, camera on a bed) gets no Escape; an Escape that opened the pause
-    menu is undone (resume) and reported (live D186: Escapes into the pause menu, then world clicks exited the game)."""
-    from .observe import paused
-    s = core.WF.state()
-    ts = [t.split(') ', 1)[-1] for t in s.get('text', [])]
-    if paused(ts):
-        core.WF.run_action('resume')
-        _settle()
-        return
-    if s['mode'] == 'gameplay' or not ts:
-        return
-    core.WF.run_action('key:escape')
-    _settle()
-    after = [t.split(') ', 1)[-1] for t in core.WF.state().get('text', [])]
-    if paused(after):
-        core.WF.run_action('resume')
-        _settle()
-        raise Failed(f'Escape opened the pause menu (resumed): the screen ({" / ".join(ts)[:120]}) was not a card '
-                     f'Escape closes')
+    """Close a card/picker by the screen rules (game/screen.py): the pause menu is resumed, never escaped into; Escape
+    only on a known card or picker, checked (an Escape that opened the pause menu is undone and reported)."""
+    from . import screen
+    screen.close()

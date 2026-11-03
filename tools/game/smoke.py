@@ -31,7 +31,7 @@ def _space(pattern):
     return core.seen(pattern, mark, WAIT)
 
 
-def plant_one(seed='Tulip', kind='plant', water=True):
+def plant_one(seed='Tulip', kind='plant', water=True, tried=()):
     out = []
     try:
         s = screen.require_world()
@@ -39,13 +39,15 @@ def plant_one(seed='Tulip', kind='plant', water=True):
         _step(out, 'screen', False, str(e)[:160])
         return out
     _step(out, 'screen', True, s.kind)
-    fit = [a for a in O.scan() if a.kind == kind and not a.drop]   # a drop = a planted bed asking for water (D186)
+    fit = [a for a in O.scan() if a.kind == kind and not a.drop   # a drop = a planted bed asking for water (D186)
+           and not any(O.d(a.pt, p) < 60 for p in tried)]
     if not _step(out, 'bubble', bool(fit), str(O.nearest(fit, O.CENTRE)) if fit else
                  f'no {kind} bubble in view: {[str(a) for a in O.scan()] or "none"}'):
         return out
     c = A.click(O.nearest(fit, O.CENTRE).pt, 'bubble')
     s = screen.read()
     if not _step(out, 'click', s.kind == 'picker', f'{s.kind}: {" / ".join(s.texts[:4])}; events {c.events}'):
+        out[-1]['pt'] = c.pt   # a wrong bubble (misread kind): the caller skips it
         ui.close()
         return out
     try:
@@ -69,9 +71,10 @@ def plant_one(seed='Tulip', kind='plant', water=True):
 def plant_visible(seed='Tulip', kind='plant', max_beds=12, can=None):
     """plant_one while a `kind` bubble is in view (the bubble loop on proven primitives); stops at the first step that
     fails. {'planted', 'watered', 'stop', 'steps'}."""
-    res = {'planted': 0, 'watered': 0, 'stop': None, 'steps': [], 'can': can}
-    for _ in range(max_beds):
-        out = plant_one(seed, kind, water=res['can'] != 'empty')
+    res = {'planted': 0, 'watered': 0, 'stop': None, 'steps': [], 'can': can, 'misses': 0}
+    tried = []
+    for _ in range(max_beds + 3):
+        out = plant_one(seed, kind, water=res['can'] != 'empty', tried=tried)
         res['steps'].append(out)
         done = {s['step']: s['ok'] for s in out}
         res['planted'] += bool(done.get('confirm'))
@@ -80,8 +83,15 @@ def plant_visible(seed='Tulip', kind='plant', max_beds=12, can=None):
         if failed and failed['step'] == 'water' and 'out_of_water' in str(failed['proof']):
             res['can'] = 'empty'   # an empty can stops watering, not planting
             continue
+        if failed and failed['step'] == 'click' and failed.get('pt') and res['misses'] < 2:
+            res['misses'] += 1     # a misread bubble: its click proved another object (the event relabels it)
+            tried.append(failed['pt'])
+            continue
         if failed:
             res['stop'] = f"{failed['step']}: {failed['proof']}"
+            break
+        if res['planted'] >= max_beds:
+            res['stop'] = f'max {max_beds} beds'
             break
     else:
         res['stop'] = f'max {max_beds} beds'

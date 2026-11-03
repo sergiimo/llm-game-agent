@@ -1497,5 +1497,20 @@ class ScreenHint2(Base):
         self.assertIsNone(smoke.can_from_log())
 
 
+class SmokeMiss(Base):
+    def test_a_wrong_bubble_is_skipped_and_the_loop_goes_on(self):
+        grown = obj('g', pos=(SX[0], SZ[0]), bubble=(900, 400), stage='growing', watered=True, wilted=False, crop='Tulip')
+        empty = obj('e', pos=(SX[1], SZ[0]), bubble=(1200, 400), stage='empty', watered=False, wilted=False)
+        f = self.use(FakeGame([grown, empty], GAME + [dict(GAME[4], card=[{'texts': ['Tulip', 'A cup-shaped flower that',
+                                                                                     'grows in Spring.'], 'next': 'space'}])],
+                              inventory={'TulipSeed': 3}))
+        f.behaviour = [dict(GAME[4], card=[{'texts': ['Tulip', 'A cup-shaped flower that', 'grows in Spring.'],
+                                            'next': 'space'}])] + GAME
+        f.relabel = {'plant_growing': 'plant'}   # the growing bed's bubble misread as plant
+        res = smoke.plant_visible('Tulip', can='empty')
+        self.assertEqual(res['planted'], 1, res['stop'])
+        self.assertEqual(f.objects['e']['state']['stage'], 'growing')
+
+
 if __name__ == '__main__':
     unittest.main()

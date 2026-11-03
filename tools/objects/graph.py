@@ -305,3 +305,14 @@ def node_of_line(line):
         return None
     k = m.group(1)
     return {'GardenBed': 'GardenBed@Garden'}.get(k, k)
+
+
+def learn_toward(graph, a, b, d, rate=0.5):
+    """A step from node a in screen direction d reached node b: the a->b `toward` edge moves `rate` of the way to d
+    (starting from TOWARD's default), unit length, source 'learned'."""
+    import math
+    old = toward(graph, a, b) or d
+    x, y = old[0] + rate * (d[0] - old[0]), old[1] + rate * (d[1] - old[1])
+    n = math.hypot(x, y) or 1.0
+    graph._edges = [e for e in graph._edges if not (e['a'] == a and e['b'] == b and e['rel'] == 'toward')]
+    graph.add_edge(a, b, 'toward', dir=[round(x / n, 3), round(y / n, 3)], source='learned')

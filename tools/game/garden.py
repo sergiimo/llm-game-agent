@@ -29,7 +29,8 @@ def water_all(click=None):
 
 
 @action
-def harvest_all(click=None):
-    """Pick every ripe bed (pickup bubbles); NEED_VISION click as replant_all."""
+def harvest_all(click=None, ready=False):
+    """Pick every ripe bed (pickup bubbles); ready=True also collects "!" (ready) bubbles - "!" is not an order to
+    collect (flowers serve the bees, user D185). NEED_VISION click as replant_all."""
     from . import laws
-    return laws.run('harvest', click=click)
+    return laws.run('harvest', click=click, task=laws.harvest_task(ready))

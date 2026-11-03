@@ -299,8 +299,8 @@ class Game(unittest.TestCase):
         d = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bubbles')
         drop = {'water/water-20261030-185207.png', 'water/water-20261031-155650.png',
                 'unplant/unplant-20261101-183642.png', 'unplant/unplant-20261030-184236.png'}
-        none = {'plant/plant-20261030-184926.png', 'unplant/unplant-20261030-184331.png',
-                'water/water-20261030-184954.png', 'fill_can/fill_can-20261029-094417.png', 'talk/talk-live1.png'}
+        none = {'plant/plant-20261030-184926.png', '../fixtures/bubble_ready.png',   # snowdrop "!" (L134: were
+                '../fixtures/bubble_ready2.png', 'fill_can/fill_can-20261029-094417.png', 'talk/talk-live1.png'}  # mislabelled)
         for f in drop | none:
             self.assertEqual(affordances.has_drop(Image.open(os.path.join(d, f))), f in drop, f)
 

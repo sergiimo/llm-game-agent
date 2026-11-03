@@ -7,7 +7,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import affordances, chains, core, garden, laws, ui, well  # noqa: E402
+from game import act, affordances, chains, core, garden, laws, learn, nav, observe, ui, well  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
 from objects.loop import NeedVision  # noqa: E402
 
@@ -86,9 +86,17 @@ class Fake:
     def bubble_crop(self, img, b):
         return ('crop', b)
 
+    WELL = (1500, 260)   # the well's can bubble (in reach from every zone of the fake garden)
+
     def run_action(self, a):
         x, y = (int(v) for v in re.match(r'click:(-?\d+):(-?\d+)', a).groups())
         self.clicks.append((x, y))
+        if abs(x - self.WELL[0]) < 30 and abs(y - self.WELL[1]) < 30:
+            self.log.append('21:00 > fill_watering_can me=Player target=Well')
+            self.can = True
+            if getattr(self, 'well_zone', None):
+                self._walk(self.well_zone)   # she walked to the well: the beds are out of reach
+            return
         for hx, hy in getattr(self, 'hives', ()):   # a hive (its body or its honey bubble) in reach
             if abs(hx - x) < 40 and abs(hy - y) < 40:
                 self.log.append('21:00 > beehive_progress me=Player target=BeeHive(Clone) at (0.2, 0.1, -23.5)')
@@ -102,6 +110,9 @@ class Fake:
                     return self.interact(n)
                 self._walk(b['zone'])   # walked there
                 return
+        if getattr(self, 'walk_always', False):
+            self._walk(self.zone)
+            return
         if getattr(self, 'step_zone', None) and getattr(self, 'step_ok', lambda x, y: True)(x, y):
             self._walk(self.step_zone)   # a few steps on the road bring the garden into reach
 
@@ -131,7 +142,8 @@ class Fake:
         honey = [Affordance('beehive_progress' if 'beehive_progress' in learned else 'unknown', None, p, False, 0.0, False)
                  for p in getattr(self, 'honey', ()) if self.zone == 'near']
         ko = getattr(self, 'kind_of', {})
-        return honey + [Affordance(ko.get(b['bubble'], kind[b['state']]), None, b['bubble'], False, 0.0,
+        well_b = [Affordance('fill_can', None, self.WELL, False, 0.0, False)] if not self.can else []
+        return well_b + honey + [Affordance(ko.get(b['bubble'], kind[b['state']]), None, b['bubble'], False, 0.0,
                                    b['state'] in ('wilted', 'dry'))
                         for b in self.beds.values() if b['zone'] == self.zone]
 
@@ -191,11 +203,11 @@ class Base(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         ps = [mock.patch.object(laws, 'STATE', os.path.join(self.tmp.name, 'laws.json')),
               mock.patch.object(chains, 'OBSERVED', os.path.join(self.tmp.name, 'observed.jsonl')),
-              mock.patch.object(laws, 'GRAPH', self._graph_copy()),
-              mock.patch.object(laws, 'BURST', (0.0, 0.0)), mock.patch.object(laws, 'EVENT_WAIT', 0.0),
+              mock.patch.object(learn, 'GRAPH', self._graph_copy()),
+              mock.patch.object(act, 'BURST', (0.0, 0.0)), mock.patch.object(act, 'EVENT_WAIT', 0.0),
               # default: no vector match on screen and no map (the vision path); Seek tests override these
-              mock.patch.object(laws, '_see', lambda kind, tried=(): []),
-              mock.patch.object(laws, '_map_direction', lambda node: None)]
+              mock.patch.object(observe, 'see', lambda kind, tried=(): []),
+              mock.patch.object(nav, 'map_direction', lambda node: None)]
         for p in ps:
             p.start()
             self.addCleanup(p.stop)
@@ -223,10 +235,11 @@ class Base(unittest.TestCase):
 class Seek(Base):
     """User D185: no fitting bubble -> the node's vector on screen -> click; not seen -> map direction -> a few steps."""
     Det = __import__('collections').namedtuple('Det', 'point')
+    Box = __import__('collections').namedtuple('Box', 'point box')
 
     def test_a_bed_seen_by_its_vector_is_clicked_without_vision(self):
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(1500, 300))}))
-        with mock.patch.object(laws, '_see', lambda kind, tried=(): [self.Det((1500, 300))] if f.zone == 'near' else []):
+        with mock.patch.object(observe, 'see', lambda kind, tried=(): [self.Det((1500, 300))] if f.zone == 'near' else []):
             with self.assertRaises(NeedVision):   # all watered: only then vision is asked (is anything left?)
                 laws.run('water')
         self.assertEqual(len(f.asks), 1)
@@ -236,19 +249,17 @@ class Seek(Base):
     def test_not_seen_map_direction_steps_then_the_loop_runs(self):
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
         f.step_zone = 'far'
-        with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
-            with self.assertRaises(NeedVision):   # all watered: only then vision is asked (is anything left?)
-                laws.run('water')
-        self.assertEqual(len(f.asks), 1)
+        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+            self.assertIsNotNone(laws.run('water')['stop'])   # watered, nothing more found: a summary
+        self.assertEqual(f.asks, [])
         self.assertEqual(f.clicks[0], (960 + laws.STEP_R[0], 540))   # straight toward the garden on the map
         self.assertEqual(f.beds['a']['state'], 'wet')
 
     def test_a_blocked_step_turns_a_little(self):
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
         f.step_zone, f.step_ok = 'far', (lambda x, y: y != 540)   # straight ahead is a fence
-        with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
-            with self.assertRaises(NeedVision):   # all watered: only then vision is asked (is anything left?)
-                laws.run('water')
+        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+            self.assertIsNotNone(laws.run('water')['stop'])   # watered, nothing more found: a summary
         self.assertEqual(f.clicks[0][1], 540)
         self.assertNotEqual(f.clicks[1][1], 540)
         self.assertEqual(f.beds['a']['state'], 'wet')
@@ -258,9 +269,8 @@ class Seek(Base):
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
         f.honey = f.hives = [(800, 532)]
         f.step_zone = 'far'
-        with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
-            with self.assertRaises(NeedVision):
-                laws.run('water')
+        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+            self.assertIsNotNone(laws.run('water')['stop'])   # watered, nothing more found: a summary
         self.assertNotIn((800, 532), f.clicks)
         self.assertEqual(f.beds['a']['state'], 'wet')
 
@@ -275,25 +285,25 @@ class Seek(Base):
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
         f.hives = [(1300, 890)]
         f.step_zone, f.step_ok = 'far', (lambda x, y: (x, y) != (1300, 890))
-        with mock.patch.object(laws, '_see', lambda kind, tried=(): [self.Det(p) for p in [(1300, 890)]
-                                                                     if not any(laws._d(p, t) < 80 for t in tried)]):
-            with self.assertRaises(NeedVision):
-                laws.run('water')
-        self.assertEqual(f.clicks.count((1300, 890)), 1)
+        learned = []
+        def relabel(img, box, kind):
+            learned.append((box, kind))
+            return True
+        def see(kind, tried=()):   # the detector stops matching a look once it is relabelled
+            return [self.Box((1300, 890), (1250, 840, 1350, 940))] if not learned else []
+        with mock.patch.object(observe, 'see', see), mock.patch.object(learn, 'relabel', relabel):
+            self.assertIsNotNone(laws.run('water')['stop'])   # watered, nothing more found: a summary
+        self.assertEqual(learned, [((1250, 840, 1350, 940), 'BeeHive')])
+        self.assertEqual(f.clicks.count((1300, 890)), 1, f.clicks)
         self.assertEqual(f.clicks[1], (960, 540 + laws.STEP_R[0]))   # BeeHive -> beds: straight down
         self.assertEqual(f.beds['a']['state'], 'wet')
 
     def test_after_the_refill_she_is_at_the_well_and_the_graph_leads_to_the_beds(self):
         f = self.use(Fake({'a': bed('dry', zone='near', bubble=(900, 400)),
                            'b': bed('dry', zone='far', bubble=(700, 300), body=(5000, 5000))}, can=False))
-        def fill(graph=None):
-            f.can, f.zone = True, 'well'   # the well: no bed in reach
-        f.fill_can = fill
-        mock.patch.object(well, 'fill_can', fill).start()
-        self.addCleanup(mock.patch.stopall)
+        f.well_zone = 'well'   # clicking the well's bubble walks her there: no bed in reach
         f.step_zone = 'far'
-        with self.assertRaises(NeedVision):
-            laws.run('water')
+        self.assertIsNotNone(laws.run('water')['stop'])   # watered, nothing more found: a summary
         from objects import graph as OG
         dx, dy = OG.TOWARD[('Well', 'GardenBed@Garden')]
         self.assertIn((int(960 + dx * laws.STEP_R[0]), int(540 + dy * laws.STEP_R[0])), f.clicks)
@@ -306,9 +316,8 @@ class Seek(Base):
         f.step_zone = 'far'
         def no_map(node):
             raise AssertionError('map used inside the region')
-        with mock.patch.object(laws, '_map_direction', no_map):
-            with self.assertRaises(NeedVision):
-                laws.run('water')
+        with mock.patch.object(nav, 'map_direction', no_map):
+            self.assertIsNotNone(laws.run('water')['stop'])   # watered, nothing more found: a summary
         self.assertEqual((f.beds['a']['state'], f.beds['b']['state']), ('wet', 'wet'))
         self.assertIn((960 + laws.EXPLORE_R, 540), f.clicks)
 
@@ -316,22 +325,22 @@ class Seek(Base):
         f = self.use(Fake({'b': bed('dry', zone='far', bubble=(700, 300), body=(5000, 5000))}, can=True))
         f.hives = [(960, 540 + laws.STEP_R[0])]          # straight down from the well is a hive
         f.step_zone, f.step_ok = None, None              # nothing walks
-        with mock.patch.object(laws, '_map_direction', lambda node: None):
+        with mock.patch.object(nav, 'map_direction', lambda node: None):
             st = laws._load_state('water')
             res = {'here': 'BeeHive', 'clicks': 0, 'trace': []}
             self.assertIsNone(laws._step((0.0, 1.0), res, 'graph'))
         self.assertTrue(any('blocked by BeeHive' in t for t in res['trace']))
         with self.assertRaises(NeedVision):
             laws.run('water')
-        self.assertIn('already tried this call', f.asks[-1][1])
+        self.assertIn('already tried, in order', f.asks[-1][1])
 
     def test_water_walks_to_the_nearest_dry_soil_first(self):
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
         f.step_zone = 'far'
         def no_map(node):
             raise AssertionError('map used while dry soil is in view')
-        with mock.patch.object(laws, '_dry_spots', lambda tried=(): [(1500, 900, 40), (400, 300, 80)]), \
-                mock.patch.object(laws, '_map_direction', no_map):
+        with mock.patch.object(nav, 'dry_spots', lambda tried=(): [(1500, 900, 40), (400, 300, 80)]), \
+                mock.patch.object(nav, 'map_direction', no_map):
             with self.assertRaises(NeedVision):
                 laws.run('water')
         self.assertEqual(f.clicks[0], (1500, 900))
@@ -347,7 +356,7 @@ class Seek(Base):
         f.scan = lambda: real_scan() if next(flick) % 2 else []
         mock.patch.object(affordances, 'scan', f.scan).start()
         self.addCleanup(mock.patch.stopall)
-        with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
+        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
             with self.assertRaises(NeedVision):
                 laws.run('water')
         self.assertLessEqual(len(f.clicks), laws.STUCK_CLICKS + 1)
@@ -364,11 +373,11 @@ class Seek(Base):
     def test_limited_turns_then_vision(self):
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
         f.step_zone, f.step_ok = None, None   # steps never bring it in reach (and never move her)
-        with mock.patch.object(laws, '_map_direction', lambda node: (0.0, -1.0)):
+        with mock.patch.object(nav, 'map_direction', lambda node: (0.0, -1.0)):
             with self.assertRaises(NeedVision):
                 laws.run('water')
         self.assertEqual(len(f.asks), 1)
-        self.assertLessEqual(len(f.clicks), len(laws.STEP_R) * len(laws.STEP_TURN))
+        self.assertLessEqual(len(f.clicks), len(laws.STEP_R) * len(nav.STEP_TURN))
 
 
 class Language(Base):
@@ -420,7 +429,7 @@ class Reach(Base):
     def test_walks_until_one_fits(self):
         f = self.use(Fake({'a': bed('empty', zone='far', bubble=(700, 300), body=(5000, 5000))}))
         f.step_zone = 'far'
-        with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
+        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
             a = laws.reach(lambda a: a.kind == 'plant')
         self.assertEqual(a.pt, (700, 300))
         self.assertEqual(f.clicks[0], (960 + laws.STEP_R[0], 540))
@@ -428,10 +437,63 @@ class Reach(Base):
     def test_nothing_found_asks_vision_with_the_trace(self):
         f = self.use(Fake({}))
         f.step_zone = None
-        with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
+        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
             with self.assertRaises(core.Failed) as e:
                 laws.reach(lambda a: a.kind == 'plant')
         self.assertIn('STUCK', str(e.exception))
+
+
+class Framework(Base):
+    """L134: observe / act / learn / nav, tasks on top."""
+    def test_closest_node_is_the_owner_of_the_bubble_nearest_tara(self):
+        A = Affordance
+        affs = [A('fill_can', None, (1000, 500), False, 0.0), A('water', None, (1400, 800), False, 0.0, True)]
+        self.assertEqual(observe.closest_node(affs), 'Well')
+        affs = [A('beehive_progress', None, (1500, 300), False, 0.0), A('plant', None, (980, 560), False, 0.0)]
+        self.assertEqual(observe.closest_node(affs), 'GardenBed@Garden')
+
+    def test_late_game_time_stops_before_any_click(self):
+        f = self.use(Fake({'a': bed('dry', bubble=(900, 400))}))
+        with mock.patch.object(observe, 'clock', lambda: (23.5, 'night')):
+            res = laws.run('water')
+        self.assertIn('late', res['stop'])
+        self.assertEqual(f.clicks, [])
+
+    def test_water_ends_with_a_summary_when_nothing_is_left_after_exploring(self):
+        f = self.use(Fake({'a': bed('dry', bubble=(900, 400))}))
+        f.step_zone = 'near'   # explore walks, but there is no other bed
+        f.walk_always = True
+        with mock.patch.object(nav, 'dry_spots', lambda tried=(): []), \
+                mock.patch.object(observe, 'clock', lambda: (13.0, 'day')):
+            res = laws.run('water')
+        self.assertEqual(f.beds['a']['state'], 'wet')
+        self.assertIn('no dry soil', res['stop'])
+        self.assertEqual(f.asks, [])
+
+    def test_the_trace_goes_to_the_next_call(self):
+        f = self.use(Fake({}))
+        with mock.patch.object(nav, 'map_direction', lambda region: None):
+            with self.assertRaises(NeedVision):
+                laws.run('water')
+            with self.assertRaises(NeedVision):
+                laws.run('water', click='Q14')
+        self.assertIn('(before the answer) map: no direction', f.asks[-1][1])
+
+    def test_harvest_ready_bubbles_only_when_asked(self):
+        f = self.use(Fake({}))
+        ready = Affordance('unknown', None, (900, 400), False, 0.0, False, True)
+        self.assertFalse(laws.harvest_task().fits(ready))
+        self.assertTrue(laws.harvest_task(ready=True).fits(ready))
+        del f
+
+    def test_a_graph_direction_that_reached_the_target_is_learned(self):
+        from objects import graph as OG
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        OG.learn_toward(g, 'Well', 'GardenBed@Garden', (1.0, 0.0))
+        dx, dy = OG.toward(g, 'Well', 'GardenBed@Garden')
+        self.assertGreater(dx, OG.TOWARD[('Well', 'GardenBed@Garden')][0])
+        self.assertLess(dy, OG.TOWARD[('Well', 'GardenBed@Garden')][1])
 
 
 class Points(unittest.TestCase):
@@ -597,8 +659,8 @@ class Record(Base):
     def test_burst_frames_catch_a_view_change(self):
         from PIL import Image
         a, b = Image.new('RGB', (1920, 1080), (10, 10, 10)), Image.new('RGB', (1920, 1080), (200, 200, 200))
-        self.assertTrue(laws._view_changed(a, b))
-        self.assertFalse(laws._view_changed(a, a.copy()))
+        self.assertTrue(observe.view_changed(a, b))
+        self.assertFalse(observe.view_changed(a, a.copy()))
 
 
 class ChainsDB(Base):
@@ -665,7 +727,7 @@ class Memory(Base):
     def graph(self):
         from objects import graph as G
         g = G.Graph()
-        g.load(laws.GRAPH)
+        g.load(learn.GRAPH)
         return g
 
     def test_a_replant_run_is_remembered_per_group(self):
@@ -674,18 +736,18 @@ class Memory(Base):
         f.game_stamp = lambda: 'D184 7:30:00 AM'
         garden.replant_all()
         g = self.graph()
-        t = g.state_value(laws.GROUP, 'today')
+        t = g.state_value(learn.GROUP, 'today')
         self.assertEqual(t['day'], 184)
         self.assertEqual((t['removed'], t['planted']), (1, 1))
         self.assertEqual(t['watered'], 1)   # the new seedling; the save's 1 wilted is done, so the run stops there
-        self.assertEqual(g.state_value(laws.GROUP, 'crops'), ['Tulip'])
+        self.assertEqual(g.state_value(learn.GROUP, 'crops'), ['Tulip'])
 
     def test_memory_goes_into_the_vision_question(self):
         f = self.use(Fake({}))
         f.game_stamp = lambda: 'D184 7:30:00 AM'
         g = self.graph()
-        g.set_state(laws.GROUP, 'crops', ['Tulip', 'Carrot'], 'D184 7:00:00 AM', 'event')
-        g.save(laws.GRAPH)
+        g.set_state(learn.GROUP, 'crops', ['Tulip', 'Carrot'], 'D184 7:00:00 AM', 'event')
+        g.save(learn.GRAPH)
         with self.assertRaises(NeedVision):
             garden.replant_all()
         self.assertIn('crops grown here: Tulip, Carrot', f.asks[-1][1])
@@ -694,16 +756,16 @@ class Memory(Base):
     def test_a_new_day_resets_the_tally(self):
         from objects import graph as G
         g = self.graph()
-        G.note_click(g, laws.GROUP, ['water'], 'D183 9:00:00 PM')
-        G.note_click(g, laws.GROUP, ['water'], 'D184 7:00:00 AM')
-        self.assertEqual(g.state_value(laws.GROUP, 'today'), {'day': 184, 'watered': 1})
+        G.note_click(g, learn.GROUP, ['water'], 'D183 9:00:00 PM')
+        G.note_click(g, learn.GROUP, ['water'], 'D184 7:00:00 AM')
+        self.assertEqual(g.state_value(learn.GROUP, 'today'), {'day': 184, 'watered': 1})
 
     def test_can_state_from_events(self):
         from objects import graph as G
         g = self.graph()
-        G.note_click(g, laws.GROUP, ['out_of_water'], 'D184 7:00:00 AM')
+        G.note_click(g, learn.GROUP, ['out_of_water'], 'D184 7:00:00 AM')
         self.assertEqual(g.state_value('Tara', 'can'), 'empty')
-        G.note_click(g, laws.GROUP, ['full_watering_can'], 'D184 7:01:00 AM')
+        G.note_click(g, learn.GROUP, ['full_watering_can'], 'D184 7:01:00 AM')
         self.assertEqual(g.state_value('Tara', 'can'), 'full')
 
     def test_no_positions_or_layouts_in_the_runner(self):

@@ -1,234 +1,55 @@
-"""Interaction laws (docs/mechanics/interaction-laws.md, user D183, L124): one guess per click, confirmed by the game at once.
+"""TASKS on the interaction-laws framework (docs/mechanics/interaction-laws.md, user D183-D185, L124-L134).
 
-1. Tara is always at the frame centre (CENTRE): never located, never asked.
-2. A click on a visible object is reliable: with no fitting bubble on screen, vision gives ONE click point (a grid cell of
-   the gridded frame); the agent passes it back as `click=` on the next call.
-3. Every click is recorded (`record_click`): a burst of frames right after it (short-lived text), the new log lines, the
-   bubbles before/after, the screen mode and texts. State comes from it: log event > card > bubble change > text > vision.
-4. Bubble loop: click every bubble that fits the task (nearest to the centre first) until none is left, then back to 2.
+Framework: OBSERVE (game/observe.py: the frame, never acts) -> ACT (game/act.py: one click + its full record) ->
+LEARN (game/learn.py: memory, bubble kinds, actions DB, graph directions) -> NAV (game/nav.py: reach any fitting node).
+This module only says what a task is and what each logged event means for it:
 
-No layouts, grids or positions are carried between clicks. The only cross-call state is the vision-question counter
-(STATE), which stops a run that keeps asking without progress (LawsStuck)."""
+1. Tara is always at the frame centre; where she is = the closest node (observe.closest_node).
+2. A fitting bubble in reach is clicked (nearest first) until none is left (the bubble loop).
+3. None in reach -> nav.seek (graph direction / dry soil / vectors / explore or map; stuck after 3 still clicks).
+4. Nothing found -> ONE vision question (a grid cell) with the trace of what was tried; its answer comes back as click=.
+5. Done = the save count (replant), or the search finds nothing more (water: no drop bubble, no dry soil after exploring).
+6. Stops: late game time (after 23:00 / before 06:00), a UI not in English, LAWS_STUCK after MAX_ASKS questions.
+
+No positions carried between calls; across calls only the vision counter and the last trace (STATE)."""
 import json
 import os
 import re
-import time
-from dataclasses import dataclass, field
 
-from . import affordances, chains, core, ui
+from . import act as A, core, learn as L, nav as N, observe as O, ui
+# re-exports (callers and tests use these names)
+from .act import BURST, EVENT_WAIT, Click, click as record_click  # noqa: F401
+from .nav import (EXPLORE_R, SEEK_TURNS, STEP_R, STUCK_CLICKS, Target as Task, reach, step as _step)  # noqa: F401
+from .observe import CENTRE, HUD, LawsStuck, WrongLanguage, check_language, closest_node, d as _d  # noqa: F401
 
-CENTRE = (960, 540)
-W_, H_ = 1920, 1080
+W_, H_ = O.W_, O.H_
 COLS, ROWS = 24, 16                    # the vision grid (same as wf ask_vision 'click': A-X x 1-16)
 CELL_W, CELL_H = W_ / COLS, H_ / ROWS  # 80 x 67.5 px
-HUD = ((0, 0, 520, 230), (1440, 0, 1920, 230))   # clock / map-journal-inventory buttons: never a world click
-BURST = (0.0, 0.5, 1.5)                # s after the click: frames that catch short-lived text and bubble changes
-EVENT_WAIT = 2.5                       # s more for a late log line (D149: `> water` came after ~3 s)
-MOVED = 6.0                            # mean abs grey difference (0-255) between first and last burst frame = the view changed
 MAX_ASKS = 4                           # vision questions in a row without progress -> LawsStuck
-EVENT = re.compile(r'> (\w+)(?:\s|$)')
-STATE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.shots', 'laws-state.json')
+LATE, EARLY = 23.0, 6.0                # game hours: no garden work after LATE / before EARLY (AGENTS rule 0, L27)
+WELL_KINDS = ('fill_can', 'full_watering_can')
+WORK = ('water', 'grab_item', 'unplant', 'out_of_water', 'fill_watering_can', 'full_watering_can')   # task work = progress
+STATE = os.path.join(A.SHOTS, 'laws-state.json')
+
+TASKS = {
+    'replant': Task('replant', lambda a: bool(a.drop), 'a WILTED garden bed (grey/brown, drooping, dead-looking plants)',
+                    'wilted'),
+    'water': Task('water', lambda a: bool(a.drop),
+                  'a garden bed that needs water (light-brown dry soil; its bubble has the pale-blue water drop)', 'dry',
+                  soil=True),
+    'harvest': Task('harvest', lambda a: a.kind == 'pickup', 'a RIPE garden bed (full-grown crop ready to pick)', 'ripe'),
+}
+DONE_ON = {'replant': ('unplant',), 'water': ('water',), 'harvest': ('grab_item',)}
 
 
-class LawsStuck(Exception):
-    """Terminal: vision was asked MAX_ASKS times without a single fitting bubble or done bed in between. Stop and report."""
+def harvest_task(ready=False):
+    """Harvest fits the pickup bubble; with ready=True also any "!" (ready) bubble. "!" is NOT an order to collect
+    (user D185: flowers serve the bees), so the caller decides."""
+    t = TASKS['harvest']
+    return Task('harvest', (lambda a: a.kind == 'pickup' or a.ready) if ready else t.fits, t.target, 'ripe')
 
 
-class WrongLanguage(LawsStuck):
-    """Terminal: the game UI is not English (D185: it had switched to Russian; card buttons, the Remove/Seeds/Select texts
-    and the OCR'd messages are matched in English). Stop and ask the user to switch the language back; never change it."""
-
-
-CYRILLIC = re.compile('[\u0400-\u04FF]{3,}')
-
-
-def check_language():
-    """Raise WrongLanguage when the on-screen text (clock day name, cards) is not English."""
-    try:
-        texts = core.WF.state().get('text', [])
-    except Exception:   # noqa: BLE001
-        return
-    bad = [t for t in texts if CYRILLIC.search(str(t))]
-    if bad:
-        raise WrongLanguage(f'WRONG_LANGUAGE: the game UI is not English (saw {bad[0]!r}). Stop: ask the user to switch '
-                            'the game language to English (Settings); do not change it yourself (AGENTS rule 3).')
-
-
-@dataclass
-class Click:
-    """What one click did (law 3)."""
-    pt: tuple
-    what: str                                   # 'bubble' | 'point'
-    mark: int
-    lines: list = field(default_factory=list)   # new game-log lines
-    events: list = field(default_factory=list)  # their event types ('unplant', 'water', ...)
-    before: list = field(default_factory=list)  # Affordances before
-    after: list = field(default_factory=list)   # Affordances after
-    mode: str = 'gameplay'                      # the screen after (a card/panel = not 'gameplay')
-    texts: list = field(default_factory=list)   # on-screen texts after
-    moved: object = None                        # True/False: the view changed during the burst; None = unknown
-    frames: list = field(default_factory=list)  # saved burst frame paths
-    burst_texts: list = field(default_factory=list)  # short-lived texts OCR'd from the burst frames (outside the HUD)
-    surprises: list = field(default_factory=list)    # [(field, expected, got)] vs its chains.json step
-    node: str = None                            # the graph node the logged interaction names (target=...): where she is now
-
-    def has(self, *names):
-        return any(e in names for e in self.events)
-
-    def nothing(self):
-        """No event, no card, no bubble change, no view change: the click did nothing visible."""
-        return (not self.events and self.mode == 'gameplay' and _bubble_set(self.before) == _bubble_set(self.after)
-                and self.moved is False)
-
-    def describe(self):
-        bub = ', '.join(str(a) for a in self.after) or 'none'
-        return (f'click {self.what} @{self.pt[0]},{self.pt[1]}: events {self.events or "none"}; screen {self.mode}'
-                f'{" (" + " / ".join(self.texts[:3]) + ")" if self.texts else ""}; bubbles after: {bub}; '
-                f'view {"changed" if self.moved else "unchanged" if self.moved is False else "?"}'
-                f'{"; frames " + ", ".join(self.frames) if self.frames else ""}')
-
-
-def _bubble_set(affs):
-    return sorted((a.kind, a.drop, round(a.pt[0] / 40), round(a.pt[1] / 40)) for a in affs)
-
-
-def _texts():
-    try:
-        s = core.WF.state()
-        return s.get('mode', 'gameplay'), [t.split(') ', 1)[-1] for t in s.get('text', [])]
-    except Exception:   # noqa: BLE001
-        return 'gameplay', []
-
-
-def _view_changed(a, b):
-    try:
-        import numpy as np
-        ga = np.asarray(a.convert('L').resize((240, 135)), dtype=float)
-        gb = np.asarray(b.convert('L').resize((240, 135)), dtype=float)
-        return float(np.abs(ga - gb).mean()) > MOVED
-    except Exception:   # noqa: BLE001 (fakes have no pixels)
-        return None
-
-
-def _frames_dir():
-    try:
-        d = core.WF.run_dir()
-    except Exception:   # noqa: BLE001
-        d = None
-    return os.path.join(d or os.path.dirname(STATE), 'clicks')
-
-
-def _save_frames(imgs, tag):
-    out = []
-    try:
-        d = _frames_dir()
-        os.makedirs(d, exist_ok=True)
-        for i, img in enumerate(imgs):
-            p = os.path.join(d, f'{tag}-{i}.jpg')
-            img.convert('RGB').resize((960, 540)).save(p, quality=70)
-            out.append(p)
-        old = sorted(os.listdir(d))
-        for f in old[:-90]:   # keep the last 30 clicks' bursts
-            os.remove(os.path.join(d, f))
-    except Exception:   # noqa: BLE001 (fakes, disk): recording never breaks play
-        pass
-    return out
-
-
-def _burst_texts(imgs):
-    out = []
-    for img in imgs[1:]:
-        try:
-            items = core.WF.ocr_image(img)
-        except Exception:   # noqa: BLE001
-            return out
-        for it in items:
-            x, y = it.get('cx', 0), it.get('cy', 0)
-            t = (it.get('text') or '').strip()
-            if t and t not in out and not any(x0 <= x < x1 and y0 <= y < y1 for x0, y0, x1, y1 in HUD):
-                out.append(t)
-    return out
-
-
-def _text_gaps():
-    """OCR the burst only while some step's short-lived text is still a gap or expected (costly, ~0.5 s a frame)."""
-    try:
-        db = chains.load()
-    except (OSError, ValueError):
-        return False
-    return any(s['expect'].get('text', '?') is not None for k, v in db.items() if not k.startswith('_') for s in v)
-
-
-SURPRISES = []   # this run's mismatches vs chains.json (reset by run)
-STEP_OF = {'unplant': ('replant', 0), 'water': ('water', 0), 'out_of_water': ('water', 1), 'grab_item': ('harvest', 0),
-           'plant_growing': ('bed', 0)}   # a bubble-loop click's chain step, known only from its event
-
-
-def check(c, chain=None, idx=None):
-    """Check a click against its chains.json step (by event when not given); surprises go on the click."""
-    if chain is None:
-        hit = next((STEP_OF[e] for e in c.events if e in STEP_OF), None)
-        if hit is None:
-            return c
-        chain, idx = hit
-    try:
-        c.surprises = chains.observe(chain, idx, c)
-    except Exception:   # noqa: BLE001 (the DB never breaks play)
-        pass
-    SURPRISES.extend(f'{chain}[{idx}] {f}: expected {w!r}, got {g!r}' for f, w, g in c.surprises)
-    return c
-
-
-def record_click(pt, what='point', before=None, chain=None, idx=None):
-    """Law 3: click `pt` and record everything it did (and check it against its chains.json step). Returns a Click."""
-    W = core.WF
-    before = affordances.scan() if before is None else before
-    x, y = round(pt[0]), round(pt[1])
-    img0 = W.grab() if what == 'bubble' else None   # the clicked bubble's crop, to learn its kind from the event
-    mark = W.log_mark()
-    W.run_action(f'click:{x}:{y}')
-    t0, imgs = time.monotonic(), []
-    for t in BURST:
-        time.sleep(max(0.0, t0 + t - time.monotonic()))
-        imgs.append(W.grab())
-    W.wait_settle()
-    if not core.seen(EVENT.pattern, mark, 0):
-        core.seen(EVENT.pattern, mark, EVENT_WAIT)
-    lines = core.log_text(mark).splitlines()
-    mode, texts = _texts()
-    c = Click((x, y), what, mark, lines, [m.group(1) for m in map(EVENT.search, lines) if m], before,
-              affordances.scan(), mode, texts, _view_changed(imgs[0], imgs[-1]) if len(imgs) > 1 else None,
-              _save_frames(imgs, time.strftime('%H%M%S') + f'-{x}-{y}'), _burst_texts(imgs) if _text_gaps() else [])
-    from objects import graph as OG
-    c.node = next((n for n in map(OG.node_of_line, lines) if n), None)
-    learned = _learn_bubble(c, img0)
-    check(c, chain, idx)
-    remember(c.events)
-    try:
-        W.run_log('click', node=c.node, learned=learned, pt=[x, y], what=what, events=c.events, mode=mode, texts=texts[:4],
-                  before=[str(a) for a in before], after=[str(a) for a in c.after], moved=c.moved, frames=c.frames,
-                  burst_texts=c.burst_texts[:6], surprises=[list(x) for x in c.surprises])
-    except Exception:   # noqa: BLE001
-        pass
-    return c
-
-
-def _learn_bubble(c, img0):
-    """Gap filling for bubble kinds (D185: the honey bubble stayed 'unknown'): a clicked bubble is labelled by the
-    interaction the game logged next; a wrong/unknown kind is stored as a new reference (wf.learn_bubble). The label or None."""
-    W = core.WF
-    if c.what != 'bubble' or not hasattr(W, 'event_kind') or not hasattr(W, 'learn_bubble'):
-        return None
-    b = _nearest(c.before, c.pt, max_d=60)
-    label = W.event_kind(c.lines)
-    if b is None or not label or b.kind == label:
-        return None
-    try:
-        return label if W.learn_bubble(W.bubble_crop(img0, b.pt), label, b.kind) else None
-    except Exception:   # noqa: BLE001
-        return None
-
-
+# ---- the vision grid ------------------------------------------------------------------------------------------
 FONTS = ('/System/Library/Fonts/Supplemental/Arial Bold.ttf', '/System/Library/Fonts/Helvetica.ttc',
          '/Library/Fonts/Arial.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')
 
@@ -247,8 +68,7 @@ def _font(px):
 
 
 def draw_grid(img):
-    """Copy of img with the A-X x 1-16 grid (thin lines, the cell name in each cell) and Tara's magenta circle at the
-    centre: the frame of a `NEED_VISION click` question."""
+    """Copy of img with the A-X x 1-16 grid and Tara's magenta circle at the centre: the `NEED_VISION click` frame."""
     from PIL import Image, ImageDraw
     pic = img.convert('RGBA')
     ov = Image.new('RGBA', pic.size, (0, 0, 0, 0))
@@ -268,7 +88,7 @@ def draw_grid(img):
 
 
 def parse_point(ans):
-    """A vision answer -> frame point: a grid cell 'Q14' (its centre) or (x, y). ValueError on a point off the frame or on the HUD."""
+    """A vision answer -> frame point: a grid cell 'Q14' (its centre) or (x, y). ValueError off the frame or on the HUD."""
     if isinstance(ans, str):
         m = re.fullmatch(r'\s*([A-Xa-x])\s*(\d{1,2})\s*', ans)
         if not m:
@@ -281,76 +101,12 @@ def parse_point(ans):
         x, y = (float(v) for v in ans)
     if not (0 <= x < W_ and 0 <= y < H_):
         raise ValueError(f'({x:.0f}, {y:.0f}) is off the frame')
-    if any(x0 <= x < x1 and y0 <= y < y1 for x0, y0, x1, y1 in HUD):
+    if O.hud((x, y)):
         raise ValueError(f'({x:.0f}, {y:.0f}) is on the HUD (clock or buttons), not in the world')
     return round(x), round(y)
 
 
-# ---- graph memory (law 6: hints, never a gate) -------------------------------------------------------------------
-GRAPH = None        # Farm.json path (None = objects/graph/Farm.json)
-GROUP = 'GardenBed@Garden'
-MEMORY = {'graph': None}
-
-
-def _graph_path():
-    if GRAPH:
-        return GRAPH
-    from objects import graph as OG
-    return os.path.join(OG.DEFAULT_DIR, 'Farm.json')
-
-
-def _open_memory():
-    from objects import graph as OG
-    g = OG.Graph()
-    try:
-        g.load(_graph_path())
-    except (OSError, ValueError):
-        g = None
-    MEMORY['graph'] = g if g is not None and GROUP in g.nodes else None
-
-
-def _close_memory():
-    g, MEMORY['graph'] = MEMORY['graph'], None
-    if g is not None:
-        try:
-            g.save(_graph_path())
-        except OSError:
-            pass
-
-
-def _stamp():
-    try:
-        return core.WF.game_stamp()
-    except Exception:   # noqa: BLE001
-        return None
-
-
-def remember(events, crop=None):
-    """A click's events (and a crop read from a card) -> the group's memory (objects/graph.note_click)."""
-    g = MEMORY['graph']
-    if g is None or not (events or crop):
-        return
-    from objects import graph as OG
-    OG.note_click(g, GROUP, list(events), _stamp(), crop=crop)
-
-
-def remember_soil(dry, wet):
-    """What the soil heat map saw on this frame (dry/wet cells): the group's latest soil view, a hint (law 6)."""
-    g = MEMORY['graph']
-    if g is None:
-        return
-    g.set_state(GROUP, 'soil_seen', {'dry_cells': dry, 'wet_cells': wet}, _stamp(), 'frame', 0.6)
-
-
-def memory_hint():
-    g = MEMORY['graph']
-    if g is None:
-        return ''
-    from objects import graph as OG
-    return OG.hint(g, GROUP)
-
-
-# ---- cross-call vision counter ---------------------------------------------------------------------------------
+# ---- cross-call state (vision counter + last trace) -------------------------------------------------------------
 def _load_state(task):
     try:
         with open(STATE) as fh:
@@ -370,31 +126,15 @@ def _save_state(s):
 
 
 def reset(task=None):
-    """Forget the vision counter (a new task or progress)."""
+    """Forget the vision counter and trace (a new task or progress)."""
     _save_state({'task': task, 'asks': 0, 'history': []})
 
 
-# ---- tasks -----------------------------------------------------------------------------------------------------
-@dataclass
-class Task:
-    name: str
-    fits: object        # Affordance -> bool
-    target: str         # what vision looks for
-    save_key: str       # save_bed_counts key: how many are left (a hint, law 6)
-    kind: str = 'GardenBed'   # the graph node kind to reach (its appearance vectors: objects/db/<kind>)
-    region: str = 'Garden'    # the node whose map picture gives the direction (objects/map_db)
-    node: str = 'GardenBed@Garden'   # the graph node of the target: where she must be (graph navigation)
-    soil: bool = False        # light-brown (dry) soil marks the targets (water): walk to the soil heat map's dry spots
+def memory_hint():
+    return L.memory_hint()
 
 
-TASKS = {
-    'replant': Task('replant', lambda a: bool(a.drop), 'a WILTED garden bed (grey/brown, drooping, dead-looking plants)', 'wilted'),
-    'water': Task('water', lambda a: bool(a.drop), 'a garden bed whose crop needs water (dry soil, a water-drop bubble)', 'dry',
-                  soil=True),
-    'harvest': Task('harvest', lambda a: a.kind == 'pickup', 'a RIPE garden bed (full-grown crop ready to pick)', 'ripe'),
-}
-
-
+# ---- task steps -------------------------------------------------------------------------------------------------
 def _left_in_save(task):
     try:
         return core.WF.save_bed_counts(core.WF.farm_status()['crops'])[task.save_key]
@@ -402,44 +142,32 @@ def _left_in_save(task):
         return None
 
 
-def _gameplay():
-    mode, _ = _texts()
-    if mode != 'gameplay':
-        ui.close()
-
-
-def _nearest(affs, pt, pred=lambda a: True, max_d=None):
-    best = None
-    for a in affs:
-        if not pred(a):
-            continue
-        d = (a.pt[0] - pt[0]) ** 2 + (a.pt[1] - pt[1]) ** 2
-        if (max_d is None or d <= max_d ** 2) and (best is None or d < best[0]):
-            best = (d, a)
-    return best[1] if best else None
-
-
-def _fill_can(res):
+def _fill_can(res, outer=None):
+    """Refill at the well by the same navigation (L134): reach the well's bubble, click it, the fill line (1-3 s late)
+    proves it. Not found -> the outer task's click question for the well (its answer comes back as click=...)."""
     from . import well
     ui.close()
-    well.fill_can()
+    wt = Task(outer.name if outer else 'refill', lambda a: a.kind in WELL_KINDS,
+              'the WELL (a stone well with a small wooden roof; refills the watering can)', None, 'Well', 'Garden', 'Well')
+    a = N.search(wt, res)
+    if a is None:
+        if outer is None:
+            raise core.Failed('the well was not reached; ' + core.ask_vision('where is the well? click point of it'))
+        _ask(wt, _load_state(outer.name), res, None)
+    c = A.click(a.pt, 'bubble')
+    if not (c.has('fill_watering_can', 'full_watering_can') or core.seen(well.FILLED, c.mark, well.FILL_WAIT)):
+        raise core.Failed('clicked the well bubble but the game logged no fill; '
+                          + core.ask_vision('what happened after clicking the well?'))
     res['refills'] += 1
-    res['here'] = 'Well'   # graph navigation: after the refill she stands at the well, next to the hives
-
-
-def _after_press(pt, mark, before, after):
-    """A button press (Remove, Select) as a Click record: its log lines, bubbles before/after, the screen after."""
-    lines = core.log_text(mark).splitlines()
-    mode, texts = _texts()
-    return Click(pt, 'press', mark, lines, [m.group(1) for m in map(EVENT.search, lines) if m], before, after, mode, texts)
+    res['here'] = 'Well'
 
 
 def chains_observe_remove(c):
     """Step 'press Remove': from the card click's mark (its unplant_impl), bubbles before = the card click's before."""
-    rec = _after_press(c.pt, c.mark, c.before, affordances.scan())
+    rec = A.after_press(c.pt, c.mark, c.before, O.scan())
     rec.events = [e for e in rec.events if e != 'unplant']
-    remember(rec.events)
-    check(rec, 'replant', 1)
+    L.remember(rec.events)
+    L.check(rec, 'replant', 1)
 
 
 def _replant(c, res, seed):
@@ -447,7 +175,7 @@ def _replant(c, res, seed):
     from .garden import crop_name
     crop = crop_name(' / '.join(ui.texts())) or None
     want = seed or crop
-    remember([], crop=crop)
+    L.remember([], crop=crop)
     if not want:
         ui.close()
         raise core.Failed('the Remove card names no crop; ' + core.ask_vision('which crop is on this bed card?'))
@@ -463,12 +191,12 @@ def _replant(c, res, seed):
     else:
         raise core.Failed('Remove was pressed but the game logged no unplant_impl; '
                           + core.ask_vision('what is on screen after pressing Remove?'))
-    plant = _nearest(affordances.scan(), c.pt, lambda a: a.kind == 'plant')
+    plant = O.nearest(O.scan(), c.pt, lambda a: a.kind == 'plant')
     if plant is None:
         raise core.Failed('no seedling bubble after the bed was cleared; '
                           + core.ask_vision('the bed was just cleared: where is its planting bubble?'))
     chains_observe_remove(c)
-    pc = record_click(plant.pt, 'bubble', chain='replant', idx=2)
+    pc = A.click(plant.pt, 'bubble', chain='replant', idx=2)
     try:
         ui.pick_card(want)
     except core.Failed as e:
@@ -476,374 +204,95 @@ def _replant(c, res, seed):
         ui.close()
         res['stop'] = f'no seeds for {want}: {str(e)[:120]}'
         return 'stop'
-    mark, before = core.WF.log_mark(), affordances.scan()
+    mark, before = core.WF.log_mark(), O.scan()
     ui.press('Select')
     if not core.seen(r'totalPlanted\.', mark, 3.0):
         raise core.Failed(f'Select was pressed but {want} was not planted; '
                           + core.ask_vision(f'is {want} planted on the bed?'))
-    after = affordances.scan()
-    sel = _after_press(pc.pt, mark, before, after)
-    remember(sel.events)
-    check(sel, 'replant', 3)
-    drop = _nearest(after, pc.pt, lambda a: a.drop, max_d=250)
+    after = O.scan()
+    sel = A.after_press(pc.pt, mark, before, after)
+    L.remember(sel.events)
+    L.check(sel, 'replant', 3)
+    drop = O.nearest(after, pc.pt, lambda a: a.drop, max_d=250)
     if drop is None:
         res['notes'].append(f'{want} planted; no water bubble seen: water it later (water_all)')
         return 'done'
-    w = record_click(drop.pt, 'bubble', chain='replant', idx=4)
+    w = A.click(drop.pt, 'bubble', chain='replant', idx=4)
     if w.has('out_of_water'):
-        _fill_can(res)
+        _fill_can(res, TASKS['replant'])
         res['notes'].append(f'{want} planted; can was empty, refilled: the bed still needs water (water_all)')
     return 'done'
 
 
 def _handle(task, c, res, seed):
-    """Update the run from one click's result. 'done' | 'progress' | 'none' | 'stop'."""
+    """What one click's record means for the task. 'done' | 'progress' | 'none' | 'stop'."""
     if c.node:
-        res['here'] = c.node   # the logged interaction says which node she is at
-        res['inside'] = _inside(task, c.node)
-    if c.has('water', 'grab_item', 'unplant', 'out_of_water'):
+        res['here'] = c.node   # the logged interaction says which node she is at (fallback for closest_node)
+        res['inside'] = N.inside(task, c.node)
+    elif c.moved:
+        res['here'] = None     # she walked: the old node is stale
+    if c.moved:                # screen points remembered as tried mean nothing after a walk
+        res.get('tried', []).clear()
+        res.get('btried', []).clear()
+    if c.has(*WORK):
         res['still'], res['stuck_traced'] = 0, False   # task work is progress, wherever she stands
+    if c.has('fill_watering_can', 'full_watering_can'):   # a vision cell on the well
+        res['refills'] += 1
+        res['here'] = 'Well'
+        return 'progress'
     if task.name == 'replant' and c.has('unplant'):
         out = _replant(c, res, seed)
         if out == 'done':
             res['done'].append(c.pt)
         return out
     if c.has('out_of_water'):
-        _fill_can(res)
+        _fill_can(res, task)
         return 'progress'
-    if c.has('water'):
-        if task.name == 'water':
-            res['done'].append(c.pt)
-            return 'done'
-        res['other'].append(f'@{c.pt[0]},{c.pt[1]} was dry, not wilted: watered')
+    if c.has(*DONE_ON.get(task.name, ())):
+        res['done'].append(c.pt)
+        return 'done'
+    if c.has('water'):   # another task's work on the way (a dry bed while replanting)
+        res['other'].append(f'@{c.pt[0]},{c.pt[1]} was dry, not {task.save_key}: watered')
         return 'progress'
     if c.has('grab_item'):
-        if task.name == 'harvest':
-            res['done'].append(c.pt)
-            return 'done'
         res['other'].append(f'@{c.pt[0]},{c.pt[1]} was ripe: picked')
         return 'progress'
-    if c.events or c.mode != 'gameplay':   # e.g. plant_growing, a wilted bed's card in the water task: not this task's node
+    if c.events or c.mode != 'gameplay':   # e.g. plant_growing, a wilted bed's card in the water task
         res['other'].append(f'@{c.pt[0]},{c.pt[1]}: {c.events or c.mode}')
-        _gameplay()
+        A.gameplay()
         return 'none'
-    return 'progress' if (c.moved or _bubble_set(c.before) != _bubble_set(c.after)) else 'none'
-
-
-SEEK_TURNS = 6          # see -> map -> step rounds before vision is asked (user D185: limited turns, straightforward)
-SEE_NEAR = 160          # px: a detection this close to Tara is where she already is (its bubble would show)
-STEP_R = (320, 220)     # px from the centre for a map step; the second is tried when the first did not move her
-STEP_TURN = (0, 35, -35)  # degrees off the map direction when a step did not move her
-
-
-def _see(kind, tried=()):
-    """The node's appearance vectors on the current frame: detections of `kind`, nearest to Tara first, without the
-    one she stands at and points already tried. [Detection]"""
-    from objects import detect as D, store as S
-    img = core.WF.grab()
-    dets = [d for d in D.detect(img, S.Store(), kinds=[kind])
-            if _d(d.point, CENTRE) > SEE_NEAR and not _hud(d.point)
-            and not any(_d(d.point, p) < 80 for p in tried)]
-    return sorted(dets, key=lambda d: _d(d.point, CENTRE))
-
-
-def _map_direction(node):
-    """Open the map, find Tara's pin and `node`'s map picture, take the first stretch of the road route between them.
-    A unit (dx, dy) in screen terms (the camera looks north like the map), or None when the map can't tell."""
-    import math
-    from objects import map_vectors as MV
-    img = core.WF.map_snapshot()
-    if img is None:
-        return None
-    pin = core.WF.map_pin(img)
-    g = MEMORY['graph']
-    if g is None:
-        from objects import graph as OG
-        g = OG.Graph()
-        g.load(_graph_path())
-    m = MV.locate(g, node, img) if pin else None
-    if m is None:
-        return None
-    path = core.WF.map_route(img, pin, m.point) or [m.point]
-    ahead = next((q for q in path if math.dist(q, pin) >= 60), path[-1])
-    dx, dy = ahead[0] - pin[0], ahead[1] - pin[1]
-    n = math.hypot(dx, dy)
-    _log('seek', what='map', pin=list(pin), goal=list(m.point), score=round(m.score, 2), ahead=list(ahead))
-    return None if n < 1 else (dx / n, dy / n)
-
-
-STUCK_CLICKS = 3   # seek clicks in a row that did not move her (and did no task work) = stuck (L75 rule, D185)
-
-
-def _walked(c, target=None, res=None):
-    """A seek click got her somewhere: the burst frames show she moved (the view changed; a bubble set that changed
-    without movement is flicker, not a walk - D185), or the logged event is on the `target` node (she arrived: a step
-    toward the beds that lands on a bed). An event on another node (a hive) = blocked. Counts res['still'] (stuck rule)."""
-    arrived = bool(target and c.node == target)
-    if c.mode != 'gameplay' or (c.node and not arrived):
-        _gameplay()
-    ok = arrived or (not c.node and c.moved is True)
-    if res is not None:
-        res['still'] = 0 if (ok or c.moved is True) else res.get('still', 0) + 1
-    return ok
-
-
-def _stuck(res):
-    """STUCK_CLICKS seek clicks in a row did not move her: stop clicking (traced once for vision)."""
-    if res is None or res.get('still', 0) < STUCK_CLICKS:
-        return False
-    if not res.get('stuck_traced'):
-        _trace(res, f'STUCK: {res["still"]} clicks in a row did not move her')
-        res['stuck_traced'] = True
-    return True
-
-
-def _outcome(c, ok, target=None):
-    if target and c.node == target:
-        return f'arrived at {target}'
-    return 'walked' if ok else f'blocked by {c.node}' if c.node else 'no move'
-
-
-def _step(d, res=None, label='step', target=None):
-    """A few steps on the ground in direction `d` (Tara is at the centre): click a point STEP_R px away; turn a little
-    when she did not walk. The Click that walked her, or None. Every try goes to res['trace'] (for vision's debug)."""
-    import math
-    for r in STEP_R:
-        for deg in STEP_TURN:
-            a = math.radians(deg)
-            x = d[0] * math.cos(a) - d[1] * math.sin(a)
-            y = d[0] * math.sin(a) + d[1] * math.cos(a)
-            pt = (int(CENTRE[0] + x * r), int(CENTRE[1] + y * r))
-            if _hud(pt):
-                continue
-            c = record_click(pt, 'step')
-            ok = _walked(c, target, res)
-            _trace(res, f'{label} @{pt[0]},{pt[1]}: ' + _outcome(c, ok, target))
-            if ok:
-                return c
-            if _stuck(res):
-                return None
-    return None
-
-
-EXPLORE = [(1, 0), (0.7, 0.7), (0, 1), (-0.7, 0.7), (-1, 0), (-0.7, -0.7), (0, -1), (0.7, -0.7)]
-EXPLORE_R = 300     # px: a free-ground click this far out shows a new part of the region
-FREE_GAP = 110      # px: a free-ground point keeps this far from every bubble and object detection
-
-
-def _free(pt, avoid):
-    return 0 <= pt[0] < W_ and 0 <= pt[1] < H_ and not _hud(pt) and all(_d(pt, a) >= FREE_GAP for a in avoid)
-
-
-def _explore(task, res):
-    """Inside the target's region the map can't help (like inside a house, user D185): walk to free ground in a
-    direction not tried yet in this call, so more nodes come into view. Free = away from every bubble and every object
-    the detector sees. The Click that walked her, or None when every direction is tried."""
-    done = res.setdefault('explored', [])
-    avoid = [a.pt for a in affordances.scan()] + [d.point for d in _see_all()]
-    for d in EXPLORE:
-        if d in done:
-            continue
-        done.append(d)
-        pt = (int(CENTRE[0] + d[0] * EXPLORE_R), int(CENTRE[1] + d[1] * EXPLORE_R))
-        if not _free(pt, avoid):
-            _trace(res, f'explore {d}: @{pt[0]},{pt[1]} not free ground')
-            continue
-        c = record_click(pt, 'explore')
-        res['clicks'] += 1
-        ok = _walked(c, task.node, res)
-        _trace(res, f'explore @{pt[0]},{pt[1]}: ' + _outcome(c, ok, task.node))
-        if ok:
-            return c
-        if _stuck(res):
-            return None
-    return None
-
-
-def _dry_spots(tried=()):
-    """Dry-soil blobs on the frame (affordances.dry_spots), nearest to Tara first, without HUD, her own spot and tried
-    points; the soil counts go to the group's memory (what the garden looks like now)."""
-    img = core.WF.grab()
-    if img is None:
-        return []
-    try:
-        spots = affordances.dry_spots(img)
-        remember_soil(*affordances.soil_counts(img))
-    except Exception:   # noqa: BLE001
-        return []
-    spots = [t for t in spots if not _hud(t[:2]) and _d(t[:2], CENTRE) > SEE_NEAR
-             and not any(_d(t[:2], p) < 80 for p in tried)]
-    return sorted(spots, key=lambda t: _d(t[:2], CENTRE))
-
-
-def _see_all():
-    """Every object the detector sees on the frame (any kind): what free ground must keep away from."""
-    try:
-        from objects import detect as D, store as S
-        return D.detect(core.WF.grab(), S.Store())
-    except Exception:   # noqa: BLE001
-        return []
-
-
-def _trace(res, msg):
-    if res is not None:
-        res.setdefault('trace', []).append(msg)
-        _log('seek', what='trace', msg=msg)
-
-
-def _inside(task, here):
-    """She is at a node inside the target's region (Garden: its beds, hives, well): the map has nothing finer."""
-    if not here:
-        return False
-    g = MEMORY['graph']
-    if g is not None and here in g.nodes:
-        return g.nodes[here].region == task.region or here == task.region
-    return here in (task.node, 'Well', 'BeeHive')
-
-
-def _seek(task, res):
-    """One round when no fitting bubble shows (user D185). Bubbles without the task's sub-icon are never clicked (only
-    the drop means "needs water"; "!" = ready, not "collect"). In order: (1) she is at another node (the last event's target, e.g. the Well after a
-    refill) -> the graph's direction from there to the target node -> a few steps; (2) the target's vectors on screen ->
-    click the nearest (a click that lands on another node, e.g. a hive, is never repeated and tells where she is);
-    (3) the map's direction -> a few steps. A seek click counts as a walk only when the frames show she moved, or its
-    event is on the target node (arrived); STUCK_CLICKS clicks in a row without either = stuck -> None (then vision,
-    with the trace). The Click that got her somewhere, or None."""
-    from objects import graph as OG
-    tried = res.setdefault('tried', [])   # points that led elsewhere: never clicked again this call
-
-    def fresh(pt):
-        return not any(_d(pt, p) < 80 for p in tried)
-
-    if _stuck(res):   # stuck: no more blind clicks, vision gets the trace
-        res['still'] = 0
-        return None
-    here = res.get('here')
-    if here and here != task.node:
-        d = OG.toward(MEMORY['graph'], here, task.node)
-        if d:
-            _log('seek', what='graph', here=here, to=task.node, dir=list(d))
-            c = _step(d, res, f'graph {here}->{task.node}', task.node)
-            res['clicks'] += 1
-            if c is not None:
-                res['inside'] = _inside(task, here)
-                res['here'] = None   # she left that node: unknown until the next event names one
-                return c
-    if task.soil:   # user D185: light-brown soil = needs water; walk to the nearest dry bed on the soil heat map
-        for x, y, n in _dry_spots(tried)[:2]:
-            c = record_click((x, y), 'soil')
-            res['clicks'] += 1
-            tried.append((x, y))
-            ok = _walked(c, task.node, res)
-            _trace(res, f'dry soil @{x},{y} ({n} cells): ' + _outcome(c, ok, task.node))
-            if ok:
-                return c
-            if _stuck(res):
-                break
-    for det in _see(task.kind, tried)[:2]:
-        c = record_click(det.point, 'object')
-        res['clicks'] += 1
-        tried.append(det.point)
-        ok = _walked(c, task.node, res)
-        _trace(res, f'{task.kind} seen @{det.point[0]},{det.point[1]}: ' + _outcome(c, ok, task.node))
-        if ok or c.node:   # walked / arrived, or a hive seen as a bed: the event tells where she is, the graph leads on
-            return c
-        if _stuck(res):
-            break
-    if res.get('inside') or _inside(task, here):   # inside the region: explore free ground, no map
-        res['inside'] = True
-        return _explore(task, res)
-    d = _map_direction(task.region)
-    if d is None:
-        _trace(res, 'map: no direction')
-        return None
-    c = _step(d, res, 'map', task.node)
-    res['clicks'] += 1
-    return c
-
-
-def _changed(c):
-    """The click did something: Tara moved (view changed), an event, a card, or the bubbles changed."""
-    return bool(c.moved or c.events or c.mode != 'gameplay' or _bubble_set(c.before) != _bubble_set(c.after))
-
-
-def _log(type_, **kw):
-    try:
-        core.WF.run_log(type_, **kw)
-    except Exception:   # noqa: BLE001
-        pass
-
-
-def _d(a, b):
-    return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
-
-
-def _hud(pt):
-    return any(x0 <= pt[0] < x1 and y0 <= pt[1] < y1 for x0, y0, x1, y1 in HUD)
-
-
-def reach(fits=lambda a: True, kind='GardenBed', node=None, region='Garden', soil=False, target=None,
-          rounds=SEEK_TURNS):
-    """The low-level navigation (L133): get Tara in reach of ANY node of `kind` whose bubble `fits` (no particular
-    member: a fitting bubble IS the node in reach). Same search as the task runs: fitting bubble on screen -> graph
-    direction from the node she is at -> dry soil (soil=True) -> the kind's vectors -> explore free ground inside the
-    region / the map outside it; STUCK_CLICKS still clicks = stuck. Returns the nearest fitting Affordance (not
-    clicked: the caller acts on it). Raises Failed with NEED_VISION (the trace) when the search gives nothing.
-    E.g. `reach(lambda a: a.kind == 'plant')` = an empty bed in reach; `reach(lambda a: a.kind == 'fill_can',
-    kind='Well', node='Well')` = the well."""
-    task = Task('reach', fits, target or f'a {kind}', None, kind, region, node or f'{kind}@{region}', soil)
-    res = {'task': 'reach', 'done': [], 'other': [], 'notes': [], 'clicks': 0, 'vision': 0, 'refills': 0,
-           'stop': None, 'left_in_save': None, 'surprises': SURPRISES}
-    _open_memory()
-    try:
-        check_language()
-        _gameplay()
-        for _ in range(rounds + 1):
-            fit = [a for a in affordances.scan() if fits(a)]
-            if fit:
-                return _nearest(fit, CENTRE)
-            c = _seek(task, res)
-            if c is None:
-                break
-            if c.node:
-                res['here'], res['inside'] = c.node, _inside(task, c.node)
-            if c.events or c.mode != 'gameplay':
-                _gameplay()
-        trace = '; '.join(res.get('trace', [])[-10:]) or 'nothing tried'
-        raise core.Failed(f'reach {task.node}: no fitting bubble after the search ({trace}); '
-                          + core.ask_vision(f'Tara (frame centre) must reach {task.target}. The search tried: {trace}. '
-                                            f'What blocks it? Give the click point of {task.target}, or of free ground '
-                                            f'toward it.'))
-    finally:
-        _close_memory()
+    return 'progress' if c.moved else 'none'   # a bubble set changing while she stands still is flicker (L132)
 
 
 def _ask(task, st, res, last):
-    """Law 2: one vision question, the click point of the next node. Raises NeedVision (or LawsStuck after MAX_ASKS)."""
+    """ONE vision question: the click cell of the next node, with the trace of what the search tried (vision debugs it).
+    Raises NeedVision (or LawsStuck after MAX_ASKS)."""
     from objects.loop import NeedVision
     if st['asks'] >= MAX_ASKS:
         hist = ' | '.join(st['history'][-3:])
         reset(task.name)
         raise LawsStuck(f'LAWS_STUCK: {task.name} asked vision {MAX_ASKS} times without progress; last: {hist}. '
                         'Stop and report; do not retry blindly.')
-    _gameplay()
+    A.gameplay()
     left = res['left_in_save']
+    tr = res.get('trace', [])
     q = (f'Task: {task.name}. Tara is the magenta circle (always the frame centre). No fitting bubble is on screen. '
-         f'Give the grid cell of {task.target} nearest to Tara: a cell on the bed itself (its soil/plants, not on a bubble). '
-         f'If no such bed is visible but the garden may be off-screen, give a cell of open ground toward the garden. '
+         f'Give the grid cell of {task.target} nearest to Tara: a cell on the object itself (not on a bubble). '
+         f'If none is visible but it may be off-screen, give a cell of free ground toward it. '
          f'If there is none left anywhere, answer none.'
          + (f' The save says {left} left (may be stale).' if left is not None else '')
          + f' This call: done {len(res["done"])}, other {res["other"][-3:]}.'
-         + (f' Memory: {memory_hint()}.' if memory_hint() else '')
+         + (f' Memory: {L.memory_hint()}.' if L.memory_hint() else '')
          + (f' Your last answer led to: {last.describe()}.' if last is not None else '')
-         + (f' The algorithm (graph / see / map / explore free ground) already tried this call, in order: '
-            f'{"; ".join(res.get("trace", [])[-10:])}. Debug it: if a step was blocked, say by what in your report and '
-            f'answer a cell of FREE ground (no object, no fence) she can walk to that gets her around it or shows more '
-            f'nodes; if the target is visible, its cell.' if res.get('trace') else ''))
+         + (f' The search (closest node -> graph / dry soil / vectors / explore free ground or map) already tried, in '
+            f'order: {"; ".join(tr[-10:])}. Debug it: if a step was blocked, say by what in your report and answer a '
+            f'cell of FREE ground (no object, no fence) she can walk to that gets her around it or shows more nodes; '
+            f'if the target is visible, its cell.' if tr else ''))
     st['asks'] += 1
     st['history'] = (st['history'] + [last.describe()[:160] if last is not None else 'no fitting bubble'])[-6:]
+    st['trace'] = tr[-8:]   # the next call (vision's answer) starts with what was tried
     _save_state(st)
-    ans = f"./wf py \"{'replant' if task.name == 'replant' else task.name}_all(click='Q14')\""
+    ans = f"./wf py \"{task.name}_all(click='Q14')\""
     try:
         prompt = core.WF.ask_vision('click', q, core.WF.grab(), answer=ans)
     except Exception:   # noqa: BLE001
@@ -858,28 +307,58 @@ def summary(res):
     return (f"{res['task']}: done {len(res['done'])}, other {len(res['other'])}, clicks {res['clicks']}, "
             f"vision {res['vision']}, refills {res['refills']}"
             + (f", stop: {res['stop']}" if res['stop'] else '')
-            + (f", surprises: {res['surprises']}" if res.get('surprises') else '') + (f", notes: {res['notes']}" if res['notes'] else ''))
+            + (f", surprises: {res['surprises']}" if res.get('surprises') else '')
+            + (f", notes: {res['notes']}" if res['notes'] else ''))
 
 
-def run(task_name, click=None, seed=None, max_clicks=30):
-    """Do `task_name` ('replant' | 'water' | 'harvest') on every fitting garden bed by the four laws. `click` = vision's
-    answer to the last question: a grid cell ('Q14'), (x, y), or 'none' (nothing left: the run ends). Returns the summary
-    dict; raises NeedVision when no fitting bubble is on screen (answer by calling again with click=...)."""
-    _open_memory()
+def _late(res):
+    """The HUD clock: after LATE or before EARLY -> res['stop']; sets res['light'] for the soil tones."""
+    h, light = O.clock()
+    if h is None:
+        return False
+    res['light'] = light
+    if h >= LATE or h < EARLY:
+        res['stop'] = f'late: game time {int(h):02d}:{int(h % 1 * 60):02d}; no more garden work tonight (ask about bed)'
+        return True
+    return False
+
+
+def _done_looking(task, res):
+    """Soil tasks (water) are done when the search found nothing more: every explore direction used, not stuck, no dry
+    soil in view (daylight). The run ends with a summary instead of a vision question."""
+    if not (task.soil and res.get('explored_all') and res.get('light') in ('day', None)):
+        return False
+    if res.get('still', 0) >= STUCK_CLICKS or res.get('stuck_traced'):
+        return False
+    if N.dry_spots([]):
+        return False
+    res['stop'] = 'no water-drop bubble and no dry soil left in view after exploring the Garden'
+    return True
+
+
+def run(task_name, click=None, seed=None, max_clicks=30, task=None):
+    """Do `task_name` ('replant' | 'water' | 'harvest') on every fitting node. `click` = vision's answer to the last
+    question: a grid cell ('Q14'), (x, y), or 'none'. Returns the summary dict; raises NeedVision when nothing fitting
+    is found (answer by calling again with click=...)."""
+    L.open_memory()
     try:
-        return _run(TASKS[task_name], click, seed, max_clicks)
+        return _run(task or TASKS[task_name], click, seed, max_clicks)
     finally:
-        _close_memory()
+        L.close_memory()
 
 
 def _run(task, click, seed, max_clicks):
     st = _load_state(task.name)
-    res = {'task': task.name, 'done': [], 'other': [], 'notes': [], 'clicks': 0, 'vision': 0, 'refills': 0,
-           'stop': None, 'left_in_save': _left_in_save(task), 'surprises': SURPRISES}
-    SURPRISES.clear()
-    check_language()
-    _gameplay()
+    res = N.new_res(task.name)
+    res['left_in_save'] = _left_in_save(task)
+    L.SURPRISES.clear()
+    O.check_language()
+    A.gameplay()
     last = None
+    if _late(res):
+        return res
+    if click is not None and st.get('trace'):
+        res['trace'] = [f'(before the answer) {t}' for t in st['trace']]
     if isinstance(click, str) and click.strip().lower() == 'none':
         reset(task.name)
         res['stop'] = 'vision: none left'
@@ -891,8 +370,8 @@ def _run(task, click, seed, max_clicks):
         try:
             pt = parse_point(click)
         except ValueError as e:
-            raise core.Failed(f'click answer rejected: {e}. Answer a grid cell A1-X16 on the bed, or none') from None
-        last = record_click(pt, 'point')
+            raise core.Failed(f'click answer rejected: {e}. Answer a grid cell A1-X16 on the target, or none') from None
+        last = A.click(pt, 'point')
         res['clicks'] += 1
         out = _handle(task, last, res, seed)
         if out == 'stop':
@@ -900,34 +379,39 @@ def _run(task, click, seed, max_clicks):
         if out in ('done', 'progress'):
             reset(task.name)
             st = _load_state(task.name)
-    seeks = 0    # seek rounds since the last fitting bubble
-    tried = []   # bubble points that did not progress (a growing bed's drop misread, ...): never clicked again this call
+    seeks = 0                              # seek rounds since the last fitting bubble
+    tried = res.setdefault('btried', [])   # bubble points that did not progress: not clicked again until she walks
     while res['clicks'] < max_clicks and not res['stop']:
+        if res['clicks'] and res['clicks'] % 5 == 0 and _late(res):
+            break
         if res['left_in_save'] is not None and len(res['done']) >= res['left_in_save'] > 0 and task.name == 'replant':
             break   # every wilted bed the save knows of is replanted
-        affs = affordances.scan()
-        fit = [a for a in affs if task.fits(a) and not any(abs(a.pt[0] - p[0]) < 60 and abs(a.pt[1] - p[1]) < 60 for p in tried)]
+        affs = O.scan()
+        fit = [a for a in affs if task.fits(a) and not any(O.d(a.pt, p) < 60 for p in tried)]
         if not fit:
-            seeks += 1   # the node's vector on screen, else the map's direction; vision only after SEEK_TURNS
-            c = _seek(task, res) if seeks <= SEEK_TURNS else None
+            seeks += 1
+            c = N.seek(task, res) if seeks <= SEEK_TURNS else None
+            if c is not None and c.what == 'explore':
+                seeks -= 1   # exploring is bounded by its directions (each once per call), not by the round count
+            if c is None and _done_looking(task, res):
+                break
             if c is None:
                 _ask(task, st, res, last)
             last = c
-            out = _handle(task, c, res, seed)
-            if out == 'stop':
+            if _handle(task, c, res, seed) == 'stop':
                 break
             continue
         seeks = 0
-        a = _nearest(fit, CENTRE)
-        last = record_click(a.pt, 'bubble', before=affs)   # checked by its event (STEP_OF)
+        a = O.nearest(fit, CENTRE)
+        last = A.click(a.pt, 'bubble', before=affs)   # checked by its event (learn.STEP_OF)
         res['clicks'] += 1
         out = _handle(task, last, res, seed)
         if out == 'stop':
             break
         if out == 'none':
             tried.append(a.pt)
-        else:   # something changed (bubbles moved): progress resets the vision counter
-            tried = []
+        else:   # progress resets the vision counter
+            tried.clear()
             reset(task.name)
             st = _load_state(task.name)
     return res

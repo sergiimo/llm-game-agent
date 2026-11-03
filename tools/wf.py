@@ -3685,6 +3685,8 @@ def run_action_inner(spec):
     elif kind == 'click':
         x, y = arg.split(':')
         x, y = int(x), int(y)
+        if is_paused():   # live D186: world clicks on the pause menu exited the game (S13: moved the audio sliders)
+            return 'PAUSE MENU OPEN: no click through it (wf resume first)'
         img = _frame()
         bubbles = find_bubbles(img)
         b = min(bubbles, key=lambda p: math.dist(p, (x, y))) if bubbles else None

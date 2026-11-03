@@ -100,6 +100,14 @@ def check_texts(lines):
                             'the game language to English (Settings); do not change it yourself (AGENTS rule 3).')
 
 
+PAUSE_WORDS = ('game paused', 'пауза')
+
+
+def paused(lines):
+    """The pause menu is on screen (Resume / Settings / Return to Menu / Exit Game): never click the world."""
+    return any(w in str(t).lower() for t in lines for w in PAUSE_WORDS)
+
+
 def check_language():
     """Raise WrongLanguage when the on-screen text (clock day name, cards) is not English."""
     try:

@@ -86,9 +86,21 @@ def events_of(lines):
     return [m.group(1) for m in map(EVENT.search, lines) if m]
 
 
+def _not_paused(W):
+    """Never click the world on the pause menu (live D186: such clicks exited the game): resume first; still paused =
+    terminal."""
+    if not O.paused(O.texts()[1]):
+        return
+    W.run_action('resume')
+    W.wait_settle()
+    if O.paused(O.texts()[1]):
+        raise O.LawsStuck('PAUSED: the pause menu stays open after resume; no world click is safe. Stop and report.')
+
+
 def click(pt, what='point', before=None):
     """Click `pt` and record everything it did; LEARN gets it (bubble kind, memory). Returns a Click."""
     W = core.WF
+    _not_paused(W)
     before = O.scan() if before is None else before
     x, y = round(pt[0]), round(pt[1])
     img0 = W.grab() if what == 'bubble' else None   # the clicked bubble's crop, to learn its kind from the event

@@ -53,6 +53,8 @@ class FakeGame:
         self.no_pos, self.steps_needed, self.steps_done = False, 1, 0
         self.light, self.relabel, self.hide_drop = 'day', {}, False   # dusk vision: wrong kinds, no drop
         self.flash = []   # a short-lived card (a few seconds): only the burst frames' OCR sees it
+        self.paused, self.blank_overlay, self.menu_clicks = False, False, []   # Escape toggles the pause menu
+        self.overlay_texts = []
         self.learned = []
 
     # ---- world rules ---------------------------------------------------------------------------------------------
@@ -185,14 +187,27 @@ class FakeGame:
                                                                              for k, v in self.inventory.items()]}}}}
 
     def state(self):
+        if self.paused:
+            return {'mode': 'overlay', 'text': ['0) Game Paused', '1) Resume Game', '2) Settings', '3) Exit Game']}
+        if self.blank_overlay:
+            return {'mode': 'overlay', 'text': [f'{i}) {t}' for i, t in enumerate(self.overlay_texts)]}
         ts = self.texts()
         return {'mode': 'gameplay' if not ts else 'overlay', 'text': [f'{i}) {t}' for i, t in enumerate(ts)]}
 
     def run_action(self, a):
+        if a == 'resume':
+            self.paused = False
+            return None
+        if a == 'key:escape':
+            if self.card:
+                return self.close()
+            self.paused = not self.paused   # no card: Escape toggles the pause menu
+            return None
+        if self.paused:
+            self.menu_clicks.append(a)   # a click on the pause menu (Resume / Settings / Exit Game)
+            return None
         if a == 'key:space':
             return self.press_bubble()
-        if a == 'key:escape':
-            return self.close()
         x, y = (int(v) for v in re.match(r'click:(-?\d+):(-?\d+)', a).groups())
         self.clicks.append((x, y))
         self.flash = []
@@ -1233,6 +1248,45 @@ class PlantProof(EngineBase):
                 mock.patch.object(items, 'learn', lambda crop, title: None):
             self.assertEqual(real.__wrapped__('Tulip'), 'Tulip Bulbs')
         self.assertNotIn('key:escape', keys)
+
+
+class PauseMenu(Base):
+    """Live D186: Escape on a screen that wasn't a card opened the pause menu, and world clicks landed on it until the
+    game exited. close() never presses Escape into the pause menu; no world click while it is open."""
+
+    def setUp(self):
+        super().setUp()
+        self.close = ui.close   # the real one (use() patches ui.close with the fake's)
+
+    def test_close_on_the_pause_menu_resumes_instead_of_escape(self):
+        f = self.use(FakeGame([], GAME))
+        f.paused = True
+        self.close.__wrapped__()
+        self.assertFalse(f.paused)
+
+    def test_a_textless_overlay_gets_no_escape(self):
+        f = self.use(FakeGame([], GAME))
+        f.blank_overlay = True   # an overlay without text (HUD hidden, camera on a bed): nothing to close
+        keys = []
+        run = f.run_action
+        f.run_action = lambda a: (keys.append(a), run(a))[1]
+        self.close.__wrapped__()
+        self.assertEqual((keys, f.paused), ([], False))
+
+    def test_an_escape_that_opens_the_pause_menu_is_undone_and_reported(self):
+        f = self.use(FakeGame([], GAME))
+        f.blank_overlay, f.overlay_texts = True, ['Bee Hive', 'Plant flowers nearby']   # Escape doesn't close it
+        with self.assertRaises(core.Failed) as cm:
+            self.close.__wrapped__()
+        self.assertFalse(f.paused)
+        self.assertIn('pause menu', str(cm.exception))
+
+    def test_act_click_never_clicks_the_world_while_paused(self):
+        f = self.use(FakeGame([obj('a', bubble=(900, 400), stage='growing', watered=False, wilted=False)], GAME))
+        f.paused = True
+        act.click((960, 840), 'explore')
+        self.assertEqual(f.menu_clicks, [])
+        self.assertFalse(f.paused)
 
 
 if __name__ == '__main__':

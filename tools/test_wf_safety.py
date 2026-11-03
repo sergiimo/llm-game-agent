@@ -32,6 +32,14 @@ class NoClickThroughMenus(unittest.TestCase):
         self.assertTrue(wf.go_to(900, 600).startswith('MENU OPEN'))
         self.assertEqual(self.clicks, [])
 
+    def test_a_raw_click_refuses_on_the_pause_menu(self):
+        """Live engine run D186: world clicks landed on the pause menu (Resume / Settings / Return to Menu / Exit Game)
+        and the game exited. `click:` (the engine's clicks) refuses like `go:`."""
+        wf.state = lambda save=False: {'mode': 'overlay', 'text': ['0) Game Paused', '1) Resume Game', '2) Exit Game']}
+        msg = wf.run_action_inner('click:960:840')
+        self.assertTrue(msg.startswith('PAUSE MENU OPEN'), msg)
+        self.assertEqual(self.clicks, [])
+
     def test_refuses_on_settings_sliders(self):
         wf.state = lambda save=False: {'mode': 'overlay', 'text': ['0) Settings', '1) Music Volume']}
         self.assertTrue(wf.go_to(900, 600).startswith('MENU OPEN'))

@@ -1290,7 +1290,7 @@ class PauseMenu(Base):
 
     def test_an_escape_that_opens_the_pause_menu_is_undone_and_reported(self):
         f = self.use(FakeGame([], GAME))
-        f.blank_overlay, f.overlay_texts = True, ['Bee Hive', 'Plant flowers nearby']   # Escape doesn't close it
+        f.blank_overlay, f.overlay_texts = True, ['Bee Hive', 'Plant flowers nearby', 'to encourage the bees']   # Escape doesn't close it
         with self.assertRaises(core.Failed) as cm:
             self.close.__wrapped__()
         self.assertFalse(f.paused)
@@ -1473,6 +1473,28 @@ class ScreenHint(Base):
         f.wait_settle = lambda: setattr(f, 'blank_overlay', False)   # the hint fades
         self.assertEqual(screen.close().kind, 'gameplay')
         self.assertEqual(keys, [])
+
+
+class ScreenHint2(Base):
+    def test_a_lasting_hint_without_buttons_is_passive_never_escaped(self):
+        f = self.use(FakeGame([], GAME))
+        f.blank_overlay, f.overlay_texts = True, ['Fill watering can at the', 'Well']   # stays
+        keys = []
+        run = f.run_action
+        f.run_action = lambda a: (keys.append(a), run(a))[1]
+        with mock.patch.object(screen, 'HINT_WAIT', 0.0):
+            self.assertEqual(screen.require_world().kind, 'card')   # passive: world clicks may go on
+            screen.close()
+        self.assertEqual(keys, [])
+
+    def test_the_can_state_comes_from_todays_log(self):
+        f = self.use(FakeGame([], GAME))
+        f.log = ['[D186 11:55:27 AM] > out_of_water me=Player target=GardenBed(Clone) at (13.89, 0.10, -66.86)']
+        self.assertEqual(smoke.can_from_log(), 'empty')
+        f.log.append('[D186 12:00:00 PM] > fill_watering_can me=Player target=Well')
+        self.assertEqual(smoke.can_from_log(), 'full')
+        f.log = []
+        self.assertIsNone(smoke.can_from_log())
 
 
 if __name__ == '__main__':

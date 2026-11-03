@@ -135,9 +135,24 @@ def walk_to_need(where, kind='GardenBed', region=None):
     return c
 
 
+def can_from_log():
+    """'empty' | 'full' | None: the last can event in today's game log (out_of_water vs a fill)."""
+    import re
+    try:
+        lines = core.WF.today_log()[0]
+    except Exception:   # noqa: BLE001
+        return None
+    for line in reversed(lines):
+        if re.search(r'> out_of_water ', line):
+            return 'empty'
+        if re.search(r'> (?:fill_watering_can|full_watering_can) ', line):
+            return 'full'
+    return None
+
+
 def plant_garden(seed='Tulip', region=None, rounds=8):
     """plant_visible, then walk to the nearest empty bed the world knows, until none is left or a walk fails."""
-    total = {'planted': 0, 'watered': 0, 'walks': 0, 'stop': None, 'can': None}
+    total = {'planted': 0, 'watered': 0, 'walks': 0, 'stop': None, 'can': can_from_log()}
     for _ in range(rounds):
         r = plant_visible(seed, can=total['can'])
         total['can'] = r['can']

@@ -14,6 +14,24 @@ from . import core
 from .observe import LawsStuck, paused
 
 PICKER = ('inventory',)
+BUTTONS = ('select', 'remove', 'cancel', 'confirm', 'buy', 'sell', 'collect', 'yes', 'no', 'ok')
+HINT_WAIT = 4.0   # s a short hint gets to fade (the watering-can hint lasts longer than one settle, D186)
+
+
+def passive(s):
+    """A short card without a button (a hint/tooltip): Escape doesn't close it (it opened the pause menu, D186), it
+    fades by itself, and a world click is safe under it (S13 passive info cards)."""
+    return s.kind == 'card' and len(s.texts) <= 2 and not any(t.strip().lower() in BUTTONS for t in s.texts)
+
+
+def _wait_hint(s):
+    import time
+    end = time.time() + HINT_WAIT
+    while passive(s) and time.time() < end:
+        _settle()
+        time.sleep(0.3)
+        s = read()
+    return s
 MENU = ('settings', 'volume', 'return to menu', 'exit game', 'настройки', 'громкость')
 
 
@@ -64,11 +82,9 @@ def close():
         return read()
     if s.kind not in ('card', 'picker'):
         return s
-    if s.kind == 'card' and len(s.texts) <= 2:   # a short hint ("Fill watering can at the / Well", D186) fades
+    if passive(s):   # a hint ("Fill watering can at the / Well", D186): wait, never Escape
         _settle()
-        after = read()
-        if after.kind == 'gameplay':
-            return after
+        return _wait_hint(read())
     core.WF.run_action('key:escape')
     _settle()
     after = read()
@@ -86,10 +102,10 @@ def require_world():
         s = read()
         if s.kind == 'gameplay':
             return s
-        if s.kind == 'card' and len(s.texts) <= 2:   # a tooltip ("Rusty Watering Can", D186) fades by itself
+        if passive(s):   # a tooltip / hint ("Rusty Watering Can", D186): wait it out; a world click is safe under it
             _settle()
-            if read().kind == 'gameplay':
-                return read()
+            s = _wait_hint(read())
+            return s if s.kind == 'gameplay' or passive(s) else require_world()
         close()
     s = read()
     if s.kind != 'gameplay':

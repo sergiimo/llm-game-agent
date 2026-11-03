@@ -6,7 +6,7 @@
 > library or written by the quest agent. The LLM orchestrates (picks/writes goals, answers questions); the engine
 > decides clicks from the table.
 
-Status: draft for review (2026-11-03, D185). Supersedes the task layer of `game/laws.py` (L124–L137).
+Status: approved 2026-11-03 (D185); rev. 2 after the plan review (kinds.json, one state vocabulary, read_card, pending record). Supersedes the task layer of `game/laws.py` (L124–L137).
 
 ## 1. Purpose and success
 User (D185): "why are you so specific with my tasks? can't come up with generic game play engine?" — and "find a new
@@ -58,7 +58,11 @@ group node `<Kind>@<Region>` with a grid pattern, one member per object (`#r<row
 edges with screen directions. Directions between any two nodes: learned `toward` edge → else from their positions
 (camera looks north: world +x = screen right, +z = screen up) → else unknown (nav explores).
 
-**State** = key/value per node (`plant`, `watered`, `wilted`, `ready`, `can`…), each with `source` (event > save >
+**Kinds as data** (`game/kinds.json`, review rev. 2): per kind its save list and field → state map, clustering gap,
+area name stem, frame markers (`watered=false` → dry soil), and nodes for position-less kinds. No kind names in code.
+
+**State** = key/value per node, one vocabulary: `stage` (`empty|growing|producing|produced`), `watered`, `wilted`,
+`ready`, `crop` (from cards/events only: the save has no crop type), `Tara.can` (hint only), each with `source` (event > save >
 frame) and game time. Queries read it; `beds_left` generalises to `count(query)` = save state minus today's log events
 by position.
 
@@ -73,7 +77,8 @@ One row per action an object offers:
  "source": "seed: game D148", "seen": 0, "ok": 0, "surprises": 0}
 ```
 - **Step primitives** (the only code per step type): `click_bubble`, `click_object`, `press <label>`, `press_space`,
-  `pick_card <name>`, `close`. Each step's `expect` is checked like chains are today (events, card, bubble, text) and
+  `pick_card <name>`, `close`, `read_card` (stores the card's first line into a state key, e.g. `crop`).
+- **`bubble`** = `{kind?: "a|b", drop?: bool, ready?: bool}` or null for an event-only row (`out_of_water`). Each step's `expect` is checked like chains are today (events, card, bubble, text) and
   feeds surprises / gaps / revisions.
 - **`needs`** = a precondition on another node (Tara's can full, an item in the inventory). A failed need observed in
   the log (`out_of_water`) becomes a learned effect (`Tara.can = empty`) and the planner adds a sub-goal (`Well`
@@ -88,10 +93,10 @@ One row per action an object offers:
 ## 5. Goals (`game/goals.json` + raw queries)
 A goal = `{kind, where, make, params, order?, limit?}`:
 ```json
-"water":   {"kind": "GardenBed", "where": {"plant": "growing|producing", "watered": false, "wilted": false}, "make": {"watered": true}},
-"replant": {"kind": "GardenBed", "where": {"wilted": true}, "make": {"plant": "$same"}},
-"plant":   {"kind": "GardenBed", "where": {"region": "$region", "plant": "empty"}, "make": {"plant": "$seed"}},
-"harvest": {"kind": "GardenBed", "where": {"ready": true, "crop": "$crops"}, "make": {"ready": false}}
+"water":   {"kind": "GardenBed", "where": {"stage": "growing|producing", "watered": false, "wilted": false}, "make": {"watered": true}},
+"replant": {"kind": "GardenBed", "where": {"wilted": true}, "make": {"crop": "$same", "watered": true}},
+"plant":   {"kind": "GardenBed", "where": {"region": "$region", "stage": "empty"}, "make": {"crop": "$seed"}, "required": ["seed", "region"]},
+"harvest": {"kind": "GardenBed", "where": {"ready": true, "crop": "$crops"}, "make": {"ready": false}, "required": ["crops"]}
 ```
 - **Library** entries are what the agent uses for chores (`./wf achieve plant region=GardenSouth seed=Tulip`).
 - **Raw queries**: the agent writes the same shape (`./wf achieve '{"kind": "BeeHive", "where": {"ready": true},
@@ -123,6 +128,8 @@ achieve(goal, answer=None):
   (`done N, left 0, clicks, vision, surprises, learned rows`) or `NEED_VISION <kind>` with a framed PNG:
   `click` (a grid cell: the next node / free ground), `button` (which on-screen text to press next), `name` (what an
   unknown icon/card is). It answers by calling again with `answer=…`.
+- The question's context is kept as a **pending record** (`{kind, goal, params, row, step, bubble}`) so the answer
+  lands on the right row/step (`game/ask.py`).
 - **Every answer is stored as data**: a click cell becomes a step/target, a button a step, a name a label. The next
   time the engine replays it without asking (A = C with memory).
 - The agent reports learned rows and surprises as `[docs]` gaps; the supervisor reviews `actions.json` diffs.

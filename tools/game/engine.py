@@ -296,6 +296,9 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
         return res
     finally:
         res['left'] = len(_targets(g, spec, _where(spec, params), [])) if 'kind' in spec else None
+        n = max(1, len(res['done']))
+        res['clicks_per_target'] = round(res['clicks'] / n, 2)
+        res['vision_per_target'] = round(res['vision'] / n, 2)
         res['surprises'] = res['surprises'] + list(L.SURPRISES)
         try:
             res['learned'] += [f'{c[0]} {c[1]}[{c[2]}] {c[3]}' for c in L.settle_rows()]
@@ -309,10 +312,22 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
         _log(res)
 
 
+def summary(res):
+    """One line for the agent: done/left, clicks, vision, sub-goals, learned rows, surprises, stop."""
+    return (f"{res['goal']}: done {len(res['done'])}, left {res.get('left')}, clicks {res['clicks']}, "
+            f"vision {res['vision']}, sub-goals {res['subgoals']}, per target: clicks {res.get('clicks_per_target')} "
+            f"vision {res.get('vision_per_target')}"
+            + (f", learned {res['learned']}" if res['learned'] else '')
+            + (f", surprises {res['surprises'][:4]}" if res['surprises'] else '')
+            + (f", notes {res['notes'][-3:]}" if res['notes'] else '')
+            + f", stop: {res['stop']}")
+
+
 def _log(res):
     try:
         core.WF.run_log('engine', goal=res['goal'], done=len(res['done']), left=res.get('left'), clicks=res['clicks'],
                         vision=res['vision'], subgoals=res['subgoals'], stop=res['stop'],
+                        clicks_per_target=res.get('clicks_per_target'), vision_per_target=res.get('vision_per_target'),
                         surprises=[str(s) for s in res['surprises']][:6], learned=res['learned'])
     except Exception:   # noqa: BLE001
         pass

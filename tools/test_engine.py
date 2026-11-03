@@ -827,5 +827,29 @@ class Learning(EngineBase):
                          ['water|hazel_waterplant'])
 
 
+class Report(EngineBase):
+    """Per-run metrics (vision and clicks per target) and the catalogue the agent picks goals from."""
+
+    def test_summary_has_per_target_metrics(self):
+        f = self.use(FakeGame(beds('n', NX[:2], NZ[:1], 'near', 500, 300, stage='growing', watered=False, wilted=False),
+                              GAME))
+        res = engine.achieve('water')
+        self.assertEqual((res['clicks_per_target'], res['vision_per_target']), (1.0, 0.0))
+        self.assertIn('water: done 2, left 0, clicks 2, vision 0', engine.summary(res))
+        logged = [k for a, k in f.runlog if a and a[0] == 'engine']
+        self.assertEqual(logged[-1]['done'], 2)
+
+    def test_catalogue_lists_kinds_regions_rows(self):
+        g = OG.Graph()
+        g.load(SEED)
+        fences = [obj('f1', kind='Fence', pos=(20.0, -40.0), save={})]
+        world.refresh(g, FakeGame(NORTH + SOUTH + HIVES + fences, GAME).read_save()[1], [], None)
+        cat = world.catalogue(g)
+        self.assertIn('GardenSouth', cat)
+        self.assertIn('GardenBed x12', cat)
+        self.assertIn('GardenBed: water, remove_wilted, plant, pick', cat)   # trusted rows per kind
+        self.assertIn('unnamed save objects: 1', cat)
+
+
 if __name__ == '__main__':
     unittest.main()

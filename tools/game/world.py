@@ -247,6 +247,7 @@ def refresh(graph, save, today_lines, save_time_=None):
     prefabs = g.extra.setdefault('prefabs', {})
     objs = save_objects(save, prefabs)
     g.extra['_unnamed'] = [o for o in objs if o['kind'] is None]   # for place(): a log event names its prefab
+    g.extra['unnamed'] = len(g.extra['_unnamed'])
     new_ids = []
     for o in objs:
         if o['kind'] is None:
@@ -387,4 +388,12 @@ def catalogue(g):
         voc = {k: v for k, v in r['state'].items() if k in ('stage', 'watered', 'wilted', 'ready', 'crop')}
         lines.append(f'{r["area"]} (in {r["parent"]}, at {r["pos"]}): {ks}'
                      + (f' | {json.dumps(voc, sort_keys=True)}' if voc else ''))
+    lines.append('actions per kind (trusted; learning = seen < 2):')
+    by = {}
+    for row in plan.rows():
+        if row.get('bubble') is not None:
+            by.setdefault(row['kind'], []).append(row['id'] + ('' if plan._trusted(row) else ' (learning)'))
+    lines += [f'  {k}: {", ".join(v)}' for k, v in sorted(by.items())]
+    if g.extra.get('unnamed'):
+        lines.append(f'unnamed save objects: {g.extra["unnamed"]} (named when a log event lands on one)')
     return '\n'.join(lines)

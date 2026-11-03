@@ -201,7 +201,7 @@ def _area_pos(region):
     return g, tuple(g.nodes[region].extra.get('pos') or ()) or None
 
 
-def plant_garden(seed='Tulip', region=None, rounds=12):
+def plant_garden(seed='Tulip', region=None, rounds=12, answer=None):
     """plant_visible; with no seedling bubble in view: away from the area -> walk_to_area (each step closer, map or
     event position); inside it -> click a visible bed not tried yet (its event says where she is). Stops when the
     world has no empty bed in the area left, or a step fails."""
@@ -209,6 +209,14 @@ def plant_garden(seed='Tulip', region=None, rounds=12):
     from . import where, world
     total = {'planted': 0, 'watered': 0, 'walks': 0, 'stop': None, 'can': can_from_log()}
     tried = []
+    if answer is not None:   # vision's cell (an empty bed, or ground toward it): click it first
+        from . import ask
+        if str(answer).strip().lower() == 'none':
+            total['stop'] = 'vision: none'
+            return total
+        c = A.click(ask.parse_point(answer), 'point')
+        print(f'answer: clicked {answer}: {"walked" if c.moved else "no move"}, events {c.events}')
+        A.gameplay()
     for _ in range(rounds):
         r = plant_visible(seed, can=total['can'])
         total['can'] = r['can']
@@ -232,10 +240,11 @@ def plant_garden(seed='Tulip', region=None, rounds=12):
         dets = [d for d in O.see('GardenBed', tried)]
         if not dets:
             from . import ask
-            ask.ask('click', f'Tara (frame centre) is in {region} but sees no empty-bed bubble and no bed by its look. '
-                             f'Give the grid cell of an EMPTY bed (bare soil), or none.', {'goal': 'plant_garden',
-                                                                                           'params': {'region': region}},
-                    total)
+            ask.ask('click', f'Tara (frame centre) must plant the empty beds of {region} but sees no empty-bed bubble '
+                             f'and no bed by its look. Give the grid cell of an EMPTY bed (bare soil), or none. '
+                             f'Answer: ./wf py "from game import smoke; smoke.plant_garden(\'{seed}\', '
+                             f'region=\'{region}\', answer=\'<cell>\')"', {'goal': 'plant_garden',
+                                                                         'params': {'region': region}}, total)
         d = dets[0]
         tried.append(d.point)
         c = A.click(d.point, 'object')

@@ -1654,5 +1654,24 @@ class WhereWalks(Base):
         self.assertEqual(where.position(), (None, None))
 
 
+class GardenAnswer(Base):
+    def setUp(self):
+        super().setUp()
+        for mod, name in ((ask, 'STATE'), (where, 'CALIB')):
+            p = mock.patch.object(mod, name, os.path.join(self.tmp.name, name + '.json'))
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_a_vision_cell_is_clicked_first_then_the_loop_runs(self):
+        far = obj('f', pos=(SX[1], SZ[0]), zone='far', bubble=(900, 400), body=(840, 236), stage='empty',
+                  watered=False, wilted=False)
+        f = self.use(FakeGame([far], GAME, inventory={'TulipSeed': 5}))
+        f.world_graph = lambda: GardenLoop._graph(self, f)
+        f.map_snapshot, f.map_pin = (lambda: None), (lambda img: None)
+        res = smoke.plant_garden('Tulip', region='Garden', answer='K4')
+        self.assertEqual(f.clicks[0], (840, 236))
+        self.assertEqual(res['planted'], 1, res)
+
+
 if __name__ == '__main__':
     unittest.main()

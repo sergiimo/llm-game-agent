@@ -68,7 +68,7 @@ vision: "click point of the nearest wilted bed" → click → its bubble or card
 | Module | Job | Never |
 |---|---|---|
 | `game/observe.py` | Read the frame: bubbles (kind, `drop`, `ready`), soil heat map, **the closest node** (where she is), detections, screen mode/texts, clock + light, language | act; carry anything between frames |
-| `game/act.py` | One click + its full record (`Click`: burst frames, moved, log events, the event's node and position, bubbles before/after, screen, short-lived text); close cards | decide |
+| `game/act.py` | One click + its full record (`Click`: burst frames at 0 / 0.5 / 1.5 s, moved, log events, the event's node and position, bubbles before/after, screen, short-lived text OCR'd from the burst on every click, L142: a crop card gives the object's crop / days left / wilted); close cards | decide |
 | `game/world.py` + `kinds.json` | **The world graph** from the save (every positioned object; kind by `save_has`, or named by a log event on it), today's log (`target=Kind at (x, y, z)`, newer than the save wins) and click results. **Places are grouped only by distance** (areas over objects of every kind: `Garden` = 12 beds + 8 hives, `GardenSouth` = 12 beds); kind and state are filters (`query`, `count`) | group by kind |
 | `game/plan.py` + `actions.json` | **The transition table**: per action `when` / `bubble` / `steps` / `effect` / `needs`, seeded (water, fill_can, remove_wilted, plant, pick, out_of_water) + learned; `path` = BFS over effects | use a learned row before 2 agreeing sightings |
 | `game/steps.py` | Run a row's steps (click_bubble, press, press_space, pick_card, read_card, close) with checked expectations; every field observed (`observed-steps.jsonl`) | — |

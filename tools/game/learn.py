@@ -6,6 +6,7 @@
   observations, expectations revised after 3 agreeing contradictions (settle_rows)
 - graph directions: a graph step that reached its node moves the edge toward the direction that worked"""
 import os
+import re
 
 from . import core, observe as O
 
@@ -126,13 +127,41 @@ def learn_bubble(c, img0):
 
 
 # ---- the transition table ---------------------------------------------------------------------------------------
-def text_gaps():
-    """OCR the burst only while some row expects a short-lived text that is still a gap (costly)."""
-    try:
-        from . import plan
-        return any((s.get('expect') or {}).get('text') == '?' for r in plan.rows() for s in r['steps'])
-    except (OSError, ValueError):
-        return False
+CROP_CARD = re.compile(r'\d+ days? remaining|has wilted|\bGrows\b|grows in', re.I)
+DAYS = re.compile(r'(\d+) days? remaining', re.I)
+
+
+def card_state(lines):
+    """A crop card's lines (short-lived, from the burst frames, or the open card) -> state: its first line is the crop
+    (the save has no crop type), "N days remaining" -> days_left, "has wilted" -> wilted. {} for other cards."""
+    lines = [str(t) for t in lines]
+    if not lines or not any(CROP_CARD.search(t) for t in lines[1:]):
+        return {}
+    st = {'crop': lines[0].strip()}
+    for t in lines:
+        m = DAYS.search(t)
+        if m:
+            st['days_left'] = int(m.group(1))
+        if 'has wilted' in t.lower():
+            st['wilted'] = True
+    return st
+
+
+def observe_card(c):
+    """A click whose event has a position and whose texts are a crop card: the object there gets the card's state."""
+    g = MEMORY['graph']
+    if g is None or not c.at:
+        return None
+    st = card_state(c.burst_texts) or card_state(c.texts if c.mode != 'gameplay' else [])
+    if not st:
+        return None
+    import re as _re
+    from . import world
+    kind = next((m.group(1) for m in map(_re.compile(r'target=(\w+)').search, c.lines) if m), None)
+    nid = world.find(g, kind, c.at) if kind else None
+    if nid:
+        world._set(g, nid, st, stamp(), 'card')
+    return nid
 
 
 def log_db(what, msg):

@@ -76,16 +76,37 @@ def texts():
         return 'gameplay', []
 
 
+LATIN = re.compile('[A-Za-z]')
+
+
+def clean_texts(lines):
+    """OCR lines worth keeping: at least 2 letters, mostly letters, one script per line (drops '••40', '00000',
+    'АЛЛАnaР' - OCR of HUD numbers and icons)."""
+    out = []
+    for t in (str(x).strip() for x in lines):
+        chars = [ch for ch in t if not ch.isspace()]
+        letters = [ch for ch in chars if ch.isalpha()]
+        mixed = LATIN.search(t) and re.search('[Ѐ-ӿ]', t)
+        if len(letters) >= 2 and len(letters) >= 0.6 * len(chars) and not mixed and t not in out:
+            out.append(t)
+    return out
+
+
+def check_texts(lines):
+    """Raise WrongLanguage when any of `lines` (e.g. a short-lived card from the burst frames) is not English."""
+    bad = [t for t in lines if CYRILLIC.search(str(t))]
+    if bad:
+        raise WrongLanguage(f'WRONG_LANGUAGE: the game UI is not English (saw {bad[0]!r}). Stop: ask the user to switch '
+                            'the game language to English (Settings); do not change it yourself (AGENTS rule 3).')
+
+
 def check_language():
     """Raise WrongLanguage when the on-screen text (clock day name, cards) is not English."""
     try:
         ts = core.WF.state().get('text', [])
     except Exception:   # noqa: BLE001
         return
-    bad = [t for t in ts if CYRILLIC.search(str(t))]
-    if bad:
-        raise WrongLanguage(f'WRONG_LANGUAGE: the game UI is not English (saw {bad[0]!r}). Stop: ask the user to switch '
-                            'the game language to English (Settings); do not change it yourself (AGENTS rule 3).')
+    check_texts(ts)
 
 
 def clock():
@@ -126,7 +147,7 @@ def burst_texts(imgs):
             t = (it.get('text') or '').strip()
             if t and t not in out and not hud((x, y)):
                 out.append(t)
-    return out
+    return clean_texts(out)
 
 
 # ---- objects -------------------------------------------------------------------------------------------------

@@ -105,11 +105,12 @@ def click(pt, what='point', before=None):
     mode, ts = O.texts()
     c = Click((x, y), what, mark, lines, events_of(lines), before, O.scan(), mode, ts,
               O.view_changed(imgs[0], imgs[-1]) if len(imgs) > 1 else None,
-              save_frames(imgs, time.strftime('%H%M%S') + f'-{x}-{y}'), O.burst_texts(imgs) if L.text_gaps() else [])
+              save_frames(imgs, time.strftime('%H%M%S') + f'-{x}-{y}'), O.burst_texts(imgs))   # every click (~0.08 s/frame)
     from objects import graph as OG
     c.node = next((n for n in map(OG.node_of_line, lines) if n), None)
     c.at = next((p for p in map(position_of, lines) if p), None)
     learned = L.learn_bubble(c, img0)
+    L.observe_card(c)   # a short-lived crop card -> the object's crop / days left / wilted (world graph)
     L.remember(c.events)
     try:
         W.run_log('click', node=c.node, learned=learned, pt=[x, y], what=what, events=c.events, mode=mode,
@@ -117,6 +118,7 @@ def click(pt, what='point', before=None):
                   frames=c.frames, burst_texts=c.burst_texts[:6])
     except Exception:   # noqa: BLE001
         pass
+    O.check_texts(c.burst_texts)   # recorded first; a non-English card is terminal
     return c
 
 

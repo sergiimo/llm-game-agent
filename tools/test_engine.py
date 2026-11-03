@@ -52,6 +52,7 @@ class FakeGame:
         self.hour, self.minute = 13.0, 0
         self.no_pos, self.steps_needed, self.steps_done = False, 1, 0
         self.light, self.relabel, self.hide_drop = 'day', {}, False   # dusk vision: wrong kinds, no drop
+        self.flash = []   # a short-lived card (a few seconds): only the burst frames' OCR sees it
         self.learned = []
 
     # ---- world rules ---------------------------------------------------------------------------------------------
@@ -148,7 +149,7 @@ class FakeGame:
         return ('crop', b)
 
     def ocr_image(self, img, **k):
-        return []
+        return [{'text': t, 'cx': 960, 'cy': 300 + 30 * i} for i, t in enumerate(self.flash)]
 
     def today_log(self):
         return list(self.log), '185', list(self.log)
@@ -194,6 +195,7 @@ class FakeGame:
             return self.close()
         x, y = (int(v) for v in re.match(r'click:(-?\d+):(-?\d+)', a).groups())
         self.clicks.append((x, y))
+        self.flash = []
         if self.card:
             return
         for o in self.objects.values():
@@ -216,6 +218,8 @@ class FakeGame:
             return
         if b.get('click_event'):
             self.emit(b['click_event'], o)
+        if b.get('flash'):
+            self.flash = [str(o['state'].get('crop')) if t == '$crop' else t for t in b['flash']]
         if b.get('card'):
             self.card = {'obj': o, 'beh': b, 'i': 0}
         else:
@@ -290,7 +294,8 @@ GAME = [
     {'kind': 'GardenBed', 'when': {'stage': 'produced'}, 'bubble': {'kind': 'pickup'}, 'event': 'grab_item',
      'effect': {'stage': 'growing', 'watered': False}},
     {'kind': 'GardenBed', 'when': {'stage': 'growing|producing', 'watered': True}, 'bubble': {'kind': 'plant_growing'},
-     'event': 'plant_growing', 'effect': {}},
+     'event': 'plant_growing', 'effect': {},
+     'flash': ['$crop', 'A crisp orange vegetable', 'that grows in Spring.', '4 days remaining']},
     {'kind': 'Well', 'when': {'Tara.can': 'empty'}, 'bubble': {'kind': 'fill_can'}, 'event': 'fill_watering_can',
      'effect': {'Tara.can': 'full'}},
 ]
@@ -1093,6 +1098,44 @@ class Predictions(EngineBase):
         import wfc
         self.assertTrue(wfc.stale(100.0, [50.0, 150.0]))
         self.assertFalse(wfc.stale(200.0, [50.0, 150.0]))
+
+
+class FlashText(Base):
+    """Short-lived cards (a few seconds) are read from the burst frames on EVERY click (OCR ~0.08 s/frame) and become
+    state: the crop card's first line = crop (the save has none), "N days remaining", "has wilted"; junk dropped;
+    a non-English card stops (user D185)."""
+
+    def test_burst_text_junk_is_dropped(self):
+        self.assertEqual(observe.clean_texts(['••40', '00000', 'АЛЛАnaР', 'Green Bean', '2 days remaining', 'Collect',
+                                              'Bee Hive']),
+                         ['Green Bean', '2 days remaining', 'Collect', 'Bee Hive'])
+
+    def test_card_state_reads_crop_days_and_wilted(self):
+        self.assertEqual(learn.card_state(['Green Bean', 'The unripe fruit of the', 'common bean plant. Grows',
+                                           '2 days remaining']), {'crop': 'Green Bean', 'days_left': 2})
+        self.assertEqual(learn.card_state(['Carrot', 'A crisp orange vegetable', 'This plant has wilted. You']),
+                         {'crop': 'Carrot', 'wilted': True})
+        self.assertEqual(learn.card_state(['Bee Hive', 'Plant flowers nearby to', 'encourage the bees to']), {})
+        self.assertEqual(learn.card_state(['Collect']), {})
+
+    def test_a_growing_bed_click_teaches_its_crop(self):
+        f = self.use(FakeGame([obj('a', pos=(NX[0], NZ[0]), bubble=(900, 400), stage='growing', watered=True,
+                                   crop='Carrot')], GAME))
+        g = OG.Graph()
+        g.load(SEED)
+        world.refresh(g, f.read_save()[1], [], None)
+        learn.MEMORY['graph'] = g
+        self.addCleanup(learn.MEMORY.__setitem__, 'graph', None)
+        c = act.click((900, 400), 'bubble')
+        self.assertIn('4 days remaining', c.burst_texts)
+        nid = world.find(g, 'GardenBed', (NX[0], NZ[0]))
+        self.assertEqual((g.state_value(nid, 'crop'), g.state_value(nid, 'days_left')), ('Carrot', 4))
+
+    def test_a_non_english_flash_card_stops(self):
+        f = self.use(FakeGame([obj('a', bubble=(900, 400), stage='growing', watered=True, crop='Carrot')], GAME))
+        f.behaviour = [dict(GAME[4], flash=['Пчелиный улей', 'Посади рядом цветы,'])]
+        with self.assertRaises(observe.WrongLanguage):
+            act.click((900, 400), 'bubble')
 
 
 if __name__ == '__main__':

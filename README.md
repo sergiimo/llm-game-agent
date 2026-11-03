@@ -382,7 +382,7 @@ sequenceDiagram
 
 ## 9. Observability: run logs and idle-time attribution
 
-Every task writes `runs/<date>-<task>.jsonl`: the agent adds attempts, issues and decisions; the tools add each call
+Every task writes a local run log, `runs/<date>-<task>/log.jsonl` (not in git): the agent adds attempts, issues and decisions; the tools add each call
 (start/end), each avatar walk/action segment from the tracker, and key engine events. The recorder adds captioned
 H.264 video plus per-frame **activity** and **event** tracks.
 
@@ -420,7 +420,7 @@ actions (e.g. "break this object and collect every drop" as one call), not faste
 | [`tools/record.py`](tools/record.py) · [`tools/idle.py`](tools/idle.py) | Recorder (video + activity/event tracks) and idle-time attribution |
 | [`docs/actions.md`](docs/actions.md) · [`docs/self-improvement.md`](docs/self-improvement.md) | Actions DB and the self-labelling method |
 | [`docs/`](docs/INDEX.md) | World model: tasks, mechanics, UI, world, learnings |
-| [`runs/`](runs) · [`retros/`](retros) | Run logs and the retrospectives built from them |
+| `runs/` (local, not in git) · [`retros/`](retros) | Run logs (plans, logs, click frames; kept on disk) and the retrospectives built from them |
 | [`AGENTS.md`](AGENTS.md) · [`.claude/`](.claude) | Agent rules, agent definitions and skills, incl. a generic onboarding skill for new apps |
 
 ## Running it

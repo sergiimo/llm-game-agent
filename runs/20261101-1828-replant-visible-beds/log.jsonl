@@ -1,9 +1,0 @@
-{"t": 1793550516.72, "type": "start", "quest": "replant-visible-beds", "goal": "At current bed-grid position, OCR-probe GardenBed bubbles one-by-one and replant four wilted flowers"}
-{"t": 1793550536.91, "type": "call", "start": 1793550536.91, "end": 1793550539.92, "cmd": "resume"}
-{"t": 1793550542.93, "type": "action", "name": "garden.replant_visible", "args": "Tulip", "start": 1793550541.41, "end": 1793550542.93, "depth": 0, "ok": false, "why": "no visible bed proved wilted after trying 0 GardenBed bubbles (unplant* @696,512 → object unknown, water* @1240,512 → object unknown, beehive_progress* @968,512 → object unknown, unknown @1280,680 → object unknown, unknown @628,680 → object unknown, unknown* @956,680 → object unknown, unknown @652,716 → object unknown)", "before": "?", "after": "gameplay"}
-{"t": 1793550541.35, "type": "call", "start": 1793550541.35, "end": 1793550542.93, "cmd": "py replant_visible('Tulip')"}
-{"t": 1793550544.16, "type": "call", "start": 1793550544.16, "end": 1793550546.26, "cmd": "pause"}
-{"t": 1793550607.84, "type": "routine", "status": ["R1 water garden: DUE 0/20 beds watered today · 8 WILTED: water first", "R2 harvest ripe crops: DUE 4 ripe per save, 0 harvested today"]}
-{"t": 1793550614.12, "type": "call", "start": 1793550614.12, "end": 1793550614.55, "cmd": "state"}
-{"t": 1793550633.79, "type": "call", "start": 1793550633.79, "end": 1793550633.8, "cmd": "world tara"}
-{"t": 1793550792.57, "type": "end", "result": "abandoned", "text": "a new run started"}

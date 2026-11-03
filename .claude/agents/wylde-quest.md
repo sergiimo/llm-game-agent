@@ -31,7 +31,7 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
   centre); (3) pick ONE grid cell on the target bed itself (its soil/plants, not a bubble; nearest to Tara), or a cell of open
   ground toward the garden when no bed is visible; (4) `./wf resume`, then call again with it: `./wf py "replant_all(click='Q14')"`.
   Nothing left of the target anywhere: `replant_all(click='none')` ends the run. The question says what your last cell led to
-  (events, bubbles): a cell that led to `plant_growing` was a growing bed, pick another. **`LAWS_STUCK: …`** (4 questions
+  (events, bubbles): a cell that led to `plant_growing` was a growing bed, pick another. **`WRONG_LANGUAGE: …`** = the game UI is not English: stop, ask the user to switch it (never change it yourself). **`LAWS_STUCK: …`** (4 questions
   without progress) is terminal: stop, `./wf pause`, report. The summary's `surprises` (results that differ from
   `tools/game/chains.json`) go into your report as `[docs]` gaps.
 - **One game command per tool call** (AGENTS.md rule 8): never chain `./wf …; ./wf …` — a rejected call may already have run its first commands (objects-seed batched several with `;`).

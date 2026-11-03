@@ -101,6 +101,11 @@ def _objects(g):
     return [n for n in g.nodes.values() if n.type == 'member' and n.extra.get('pos') and n.extra.get('scene')]
 
 
+def known_kind(kind):
+    """A kind worth keeping in the graph: in kinds.json, in the transition table, or named from the save."""
+    return kind in kinds() or any(r['kind'] == kind for r in plan.rows())
+
+
 def find(g, kind, at, near=NEAR):
     best = None
     for n in _objects(g):
@@ -219,6 +224,10 @@ def _areas(g, scene, changes):
             changes.setdefault(name, []).append(name)
         a = g.nodes[name]
         a.extra.update(area=True, pos=list(_centre(c)))
+        if all(g.nodes[nid].extra.get('transient') for nid, _, _ in c):
+            a.extra['transient'] = True   # an area of noise objects only: not kept
+        else:
+            a.extra.pop('transient', None)
         if a.region is None:
             a.region = scene
         for nid, _, _ in c:
@@ -302,6 +311,8 @@ def place(g, kind, at, events, effects=None, frame=None, stamp=None, scene='Farm
         nid, _ = _ensure_object(g, kind, at, near[1].extra['scene'] if near else scene, prefab, source='event')
         if near and near[0] <= GAP_MAX:
             g.nodes[nid].region = near[1].region
+        if not prefab and not known_kind(kind):   # a log-only object of a kind nothing knows (Weed, Stone): this call only
+            g.nodes[nid].extra['transient'] = True
     for ev in events:
         eff = plan.effects_of_event(ev, params) if effects is None else effects
         _set(g, nid, eff, stamp, 'event')

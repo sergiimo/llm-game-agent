@@ -119,14 +119,35 @@ def _stamp():
         return None
 
 
-def _reach(name, row, kind, area, res, marker):
+def _ambiguous(g, row, kind, area):
+    """Objects of `kind` OUTSIDE the target area that the row could act on: their bubbles look the same."""
+    return [n for n in world.query(g, {'kind': kind}) if area not in g.chain(n)
+            and _passes(g, n, {k: v for k, v in row['when'].items()})]
+
+
+def _reach(g, name, params, row, kind, area, res, marker):
+    """A bubble that fits the row in the target's area. Her area unknown (she walked) and look-alike objects in
+    another area -> ONE question: which area is she in? (answer area=<name>)."""
     tried = res.setdefault('btried', [])
     ok = plan.fits(row)
+    amb = bool(_ambiguous(g, row, kind, area))
+
+    def free(a):
+        return ok(a) and not any(O.d(a.pt, p) < 60 for p in tried)
 
     def fits(a):
-        return ok(a) and res.get('area') in (None, area) and not any(O.d(a.pt, p) < 60 for p in tried)
+        return free(a) and (res.get('area') == area or (res.get('area') is None and not amb))
+
+    def halt(affs):
+        return res.get('area') is None and amb and any(free(a) for a in affs)
     t = N.Target(name, fits, f'a {kind} in {area} whose bubble fits "{row["id"]}"', None, kind, area, area, marker)
-    return N.search(t, res)
+    a = N.search(t, res, halt=halt)
+    if a is None and halt(O.scan()):
+        areas = sorted({world.area_of(g, n) for n in _ambiguous(g, row, kind, area)} | {area})
+        ask.ask('name', f'Tara (the frame centre) sees {kind} bubbles that fit "{row["id"]}", but they look the same '
+                        f'in {", ".join(areas)}. Which area is she in? Answer area=<one of {", ".join(areas)}>.',
+                {'goal': name, 'params': params, 'area_question': True}, res)
+    return a
 
 
 def _ask_click(name, params, what, area, res):
@@ -186,8 +207,16 @@ def _answer(g, name, params, answer, res):
 
 
 def _answer_name(g, pend, answer, res):
-    """Vision named what an explored click changed ('key=value'): a learned row, applied to the clicked object."""
+    """Vision named what an explored click changed ('key=value'): a learned row, applied to the clicked object; or
+    which area she is in ('area=<name>')."""
     from .affordances import Affordance
+    if pend.get('area_question') or str(answer).strip().startswith('area='):
+        a = str(answer).split('=', 1)[-1].strip()
+        if a in g.nodes:
+            res['area'] = a
+        else:
+            res['notes'].append(f'area answer unknown: {answer}')
+        return
     lr = pend.get('learn') or {}
     b = lr.get('bubble') or ['?', False, False, [0, 0]]
     row = L.new_row(lr.get('kind'), {}, Affordance(b[0], None, tuple(b[3]), False, 0.0, b[1], b[2]),
@@ -260,6 +289,16 @@ def _explore(g, tid, kind, area, where, name, params, res, working, make):
     return None
 
 
+def _lookalikes(g):
+    """Frame node names (kinds.json `node`) of kinds whose objects stand in more than one area: the frame can't tell
+    which one she is at."""
+    out = set()
+    for k, v in world.kinds().items():
+        if v.get('node') and len({world.area_of(g, n) for n in world.query(g, {'kind': k})}) > 1:
+            out.add(v['node'])
+    return out
+
+
 def _open_graph():
     from objects import graph as OG
     g = OG.Graph()
@@ -290,6 +329,12 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
         if missing:
             res['stop'] = f'NEED_INPUT {name}: ' + _need_input(g, spec, missing)[len('NEED_INPUT '):]
             return res
+        region = _where(spec, params).get('region')
+        if region and not (region in g.nodes and g.nodes[region].type == 'region'):
+            res['stop'] = (f'NEED_INPUT {name}: ' + _need_input(g, spec, ['region'])[len('NEED_INPUT '):]
+                           + f' - {region!r} is not an area')
+            return res
+        res['lookalike'] = _lookalikes(g)
         if answer is not None:
             _answer(g, name, params, answer, res)
         _loop(g, name, spec, params, save, max_clicks, res)
@@ -378,13 +423,16 @@ def _loop(g, name, spec, params, save, max_clicks, res):
                     res['stop'] = res['stop'] or f'sub-goal {k}={v} failed'
         if res['stop']:
             break
-        a = _reach(name, t, kind, area, res, _marker(spec, where))
+        a = _reach(g, name, params, t, kind, area, res, _marker(spec, where))
         if a is None:
             if res['stop'] or _only_maybes(g, targets, where, res):
                 break
             _ask_click(name, params, f'a {kind} that needs "{t["id"]}"', area, res)
         out = steps.run(t, t['params'], a)
         res['clicks'] += out['clicks']
+        if out['ok'] and not out['at'] and out['events']:   # the event names no position: it was the target (surprise)
+            out['at'], out['kind'] = tuple(g.nodes[tid].extra['pos']), kind
+            res['surprises'].append(f'{t["id"]}: no position in the event lines {out["events"]}; counted on {tid}')
         nid = _learn(g, out, kind, t, res)
         plan.count(t['id'], out['ok'])
         if nid and nid not in working and nid in g.nodes and g.nodes[nid].kind == kind:

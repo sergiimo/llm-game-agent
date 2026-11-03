@@ -19,6 +19,7 @@ SEEK_TURNS = 6          # seek rounds before vision is asked
 STEP_R = (320, 220)     # px from the centre for a direction step; the second is tried when the first did not move her
 STEP_TURN = (0, 35, -35)  # degrees off the direction when a step did not move her
 HEADING_MAX = 8         # steps along the last graph direction while the frame shows no node (between two gardens)
+WALK_MAX = 16           # seek clicks that walked her and don't use up a search round (a long way, review 2026-11-03)
 STUCK_CLICKS = 3        # seek clicks in a row that did not move her = stuck (L75 rule, L132)
 EXPLORE = [(1, 0), (0.7, 0.7), (0, 1), (-0.7, 0.7), (-1, 0), (-0.7, -0.7), (0, -1), (0.7, -0.7)]
 EXPLORE_R = 300         # px: a free-ground click this far out shows a new part of the region
@@ -188,7 +189,10 @@ def seek(t, res):
         return None
     # the area known from the last event (engine) first: look-alike bubbles (beds in two gardens) can't tell; then the
     # frame; the last event only when the frame shows no node
-    here = res.get('area') or O.closest_node() or res.get('here')
+    cn = O.closest_node()
+    if cn in res.get('lookalike', ()) and not res.get('area'):
+        cn = None   # beds look alike in every garden: the frame can't say which one she is at
+    here = res.get('area') or cn or res.get('here')
     if here and here.startswith('GardenBed@') and (res.get('here') or '').startswith('GardenBed@'):
         here = res['here']   # bed bubbles look alike in every garden: the last bed event's position says which (L137)
     res['inside'] = inside(t, here) if here else res.get('inside')
@@ -250,15 +254,24 @@ def seek(t, res):
     return step(dd, res, 'map', t.node)
 
 
-def search(t, res, rounds=SEEK_TURNS):
-    """Seek rounds until a fitting bubble shows: the nearest fitting Affordance, or None (stuck / nothing found)."""
-    for _ in range(rounds + 1):
-        fit = [a for a in O.scan() if t.fits(a)]
+def search(t, res, rounds=SEEK_TURNS, halt=None):
+    """Seek rounds until a fitting bubble shows: the nearest fitting Affordance, or None (stuck / nothing found /
+    `halt(bubbles)` says stop). A seek click that walked her does not use up a round (up to WALK_MAX)."""
+    r, walks = 0, 0
+    while r <= rounds:
+        affs = O.scan()
+        fit = [a for a in affs if t.fits(a)]
         if fit:
             return O.nearest(fit, O.CENTRE)
+        if halt is not None and halt(affs):
+            return None
         c = seek(t, res)
         if c is None:
             return None
+        if c.moved and walks < WALK_MAX:
+            walks += 1
+        else:
+            r += 1
         if c.node:
             res['here'], res['inside'] = c.node, inside(t, c.node)
         if c.moved:

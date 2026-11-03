@@ -50,6 +50,7 @@ class FakeGame:
         self.picked = None
         self.walk_frames, self.step_zone, self.step_ok = 0, None, (lambda x, y: True)
         self.hour, self.minute = 13.0, 0
+        self.no_pos, self.steps_needed, self.steps_done = False, 1, 0
         self.learned = []
 
     # ---- world rules ---------------------------------------------------------------------------------------------
@@ -67,7 +68,8 @@ class FakeGame:
 
     def emit(self, event, o):
         x, z = o['pos']
-        self.log.append(f'{self.stamp()} > {event} me=Player target={o["kind"]}(Clone) at ({x}, 0.10, {z})')
+        at = '' if self.no_pos else f' at ({x}, 0.10, {z})'
+        self.log.append(f'{self.stamp()} > {event} me=Player target={o["kind"]}(Clone){at}')
 
     def complete(self, o, b):
         need = b.get('needs') or {}
@@ -204,7 +206,8 @@ class FakeGame:
                     return self.interact(o)
                 return self._walk(o['zone'])
         if self.step_zone and self.step_ok(x, y):
-            self._walk(self.step_zone)
+            self.steps_done += 1   # a long way: every step walks (frames move), the zone comes after steps_needed
+            self._walk(self.step_zone if self.steps_done >= self.steps_needed else self.zone)
 
     def interact(self, o):
         b = self.beh_of(o)
@@ -702,7 +705,11 @@ class Loop(EngineBase):
                               + beds('s', SX[:2], SZ[:1], 'south', 500, 600, stage='empty', watered=False, wilted=False),
                               GAME, inventory={'TulipSeed': 18}))
         f.step_zone = 'south'
-        res = engine.achieve('plant', seed='Tulip', region='GardenSouth')
+        with self.assertRaises(NeedVision) as cm:   # empty beds in both gardens look alike: which one is she in?
+            engine.achieve('plant', seed='Tulip', region='GardenSouth')
+        self.assertIn('area=', str(cm.exception))
+        self.assertTrue(all(o['state']['stage'] == 'empty' for o in f.objects.values()))
+        res = engine.achieve('plant', seed='Tulip', region='GardenSouth', answer='area=GardenSouth')
         self.assertEqual(len(res['done']), 2, res)
         self.assertTrue(all(o['state']['stage'] == 'empty' for o in f.objects.values() if o['zone'] == 'near'))
 
@@ -960,6 +967,59 @@ class Nav(EngineBase):
         f.state = lambda: {'mode': 'gameplay', 'text': ['0) Понедельник 9:00']}
         with self.assertRaises(observe.WrongLanguage):
             engine.achieve('water')
+        self.assertEqual(f.clicks, [])
+
+
+class ReviewFixes(EngineBase):
+    """Final review (2026-11-03): area gating after a walk, look-alike frame nodes, long walks, events without a
+    position, log-only noise objects, unknown regions."""
+
+    def test_a_look_alike_frame_node_is_not_where_she_is_when_her_area_is_unknown(self):
+        f = self.use(FakeGame([obj('a', pos=(NX[0], NZ[0]), bubble=(980, 560), stage='growing', watered=True)], GAME))
+        calls = []
+        res = nav.new_res('t')
+        res.update(area=None, lookalike={'GardenBed@Garden'})
+        t = nav.Target('t', lambda a: False, 'x', None, 'GardenBed', 'GardenSouth', 'GardenSouth', None)
+        with mock.patch.object(learn, 'toward', lambda a, b: calls.append((a, b))):
+            nav.seek(t, res)
+        self.assertNotIn(('GardenBed@Garden', 'GardenSouth'), calls)
+        del f
+
+    def test_a_long_walk_does_not_use_up_the_search(self):
+        f = self.use(FakeGame(Nav.FAR and [obj(f'f{i}', pos=p, zone='far', bubble=(700 + 200 * i, 300), stage='growing',
+                                               watered=False, wilted=False) for i, p in enumerate(Nav.FAR)], GAME))
+        f.step_zone, f.steps_needed = 'far', 10
+        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+            res = engine.achieve('water')
+        self.assertEqual((len(res['done']), res['vision']), (2, 0), res)
+
+    def test_a_logged_event_without_a_position_counts_on_the_target(self):
+        f = self.use(FakeGame(beds('n', NX[:1], NZ[:1], 'near', 500, 300, stage='growing', watered=False, wilted=False),
+                              GAME))
+        f.no_pos = True
+        res = engine.achieve('water')
+        self.assertEqual(len(res['done']), 1, res)
+        self.assertTrue(any('no position' in str(s) for s in res['surprises']))
+
+    def test_log_only_objects_of_unknown_kinds_are_not_saved(self):
+        g = OG.Graph()
+        g.load(SEED)
+        world.refresh(g, FakeGame(NORTH, GAME).read_save()[1], [L('9:00:00 AM', 'pickup', 'Weed', 40.0, 10.0)], None)
+        self.assertIn('Weed#40.0,10.0', g.nodes)   # this call sees it
+        p = os.path.join(self.tmp.name, 'g.json')
+        g.save(p)
+        g2 = OG.Graph()
+        g2.load(p)
+        self.assertNotIn('Weed#40.0,10.0', g2.nodes)
+        self.assertTrue(any(n.kind == 'GardenBed' and n.extra.get('pos') for n in g2.nodes.values()))
+
+    def test_an_unknown_region_asks_with_the_areas_seen(self):
+        f = self.use(FakeGame(beds('n', NX, NZ, 'near', 500, 300, stage='growing', watered=True, wilted=False)
+                              + beds('s', SX, SZ, 'south', 500, 300, stage='empty', watered=False, wilted=False),
+                              GAME, inventory={'TulipSeed': 18}))
+        res = engine.achieve('plant', seed='Tulip', region='GardenSouht')
+        self.assertTrue(res['stop'].startswith('NEED_INPUT plant: region?'), res['stop'])
+        self.assertIn('GardenSouth', res['stop'])
         self.assertEqual(f.clicks, [])
 
 

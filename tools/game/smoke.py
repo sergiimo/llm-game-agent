@@ -74,7 +74,7 @@ def plant_visible(seed='Tulip', kind='plant', max_beds=12, can=None):
     res = {'planted': 0, 'watered': 0, 'stop': None, 'steps': [], 'can': can, 'misses': 0}
     tried = []
     for _ in range(max_beds + 3):
-        out = plant_one(seed, kind, water=res['can'] != 'empty', tried=tried)
+        out = plant_one(seed, kind, water=res['can'] not in ('empty', 'skip'), tried=tried)
         res['steps'].append(out)
         done = {s['step']: s['ok'] for s in out}
         res['planted'] += bool(done.get('confirm'))
@@ -83,8 +83,8 @@ def plant_visible(seed='Tulip', kind='plant', max_beds=12, can=None):
             ask.progress('plant_garden')
         res['watered'] += bool(done.get('water'))
         failed = next((s for s in out if not s['ok']), None)
-        if failed and failed['step'] == 'water' and 'out_of_water' in str(failed['proof']):
-            res['can'] = 'empty'   # an empty can stops watering, not planting
+        if failed and failed['step'] == 'water':   # an empty can or rain (Space waters nothing): plant on, no watering
+            res['can'] = 'empty' if 'out_of_water' in str(failed['proof']) else (res['can'] or 'skip')
             continue
         if failed and failed['step'] == 'click' and failed.get('pt') and res['misses'] < 2:
             res['misses'] += 1     # a misread bubble: its click proved another object (the event relabels it)

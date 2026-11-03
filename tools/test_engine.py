@@ -1732,5 +1732,17 @@ class Morning(Base):
         self.assertEqual(res['stop'], 'done')
 
 
+class SmokeRain(Base):
+    def test_a_water_space_that_does_nothing_stops_watering_not_planting(self):
+        f = self.use(FakeGame(beds('s', SX[:2], SZ[:1], 'near', 500, 300, stage='empty', watered=False, wilted=False),
+                              GAME, inventory={'TulipSeed': 5}))
+        f.highlight_off = True   # rain: Space after planting does nothing
+        orig = f.press_bubble
+        f.press_bubble = lambda: orig() if f.card else None
+        with mock.patch.object(ui, 'press_bubble', f.press_bubble):
+            res = smoke.plant_visible('Tulip')
+        self.assertEqual((res['planted'], res['watered']), (2, 0), res['stop'])
+
+
 if __name__ == '__main__':
     unittest.main()

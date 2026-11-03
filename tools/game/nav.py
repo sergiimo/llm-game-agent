@@ -18,6 +18,7 @@ from . import act as A, core, learn as L, observe as O
 SEEK_TURNS = 6          # seek rounds before vision is asked
 STEP_R = (320, 220)     # px from the centre for a direction step; the second is tried when the first did not move her
 STEP_TURN = (0, 35, -35)  # degrees off the direction when a step did not move her
+HEADING_MAX = 8         # steps along the last graph direction while the frame shows no node (between two gardens)
 STUCK_CLICKS = 3        # seek clicks in a row that did not move her = stuck (L75 rule, L132)
 EXPLORE = [(1, 0), (0.7, 0.7), (0, 1), (-0.7, 0.7), (-1, 0), (-0.7, -0.7), (0, -1), (0.7, -0.7)]
 EXPLORE_R = 300         # px: a free-ground click this far out shows a new part of the region
@@ -184,15 +185,23 @@ def seek(t, res):
         res['still'] = 0
         return None
     here = O.closest_node() or res.get('here')   # the frame first; the last event only when the frame shows no node
-    res['inside'] = res.get('inside') or inside(t, here)
+    if here and here.startswith('GardenBed@') and (res.get('here') or '').startswith('GardenBed@'):
+        here = res['here']   # bed bubbles look alike in every garden: the last bed event's position says which (L137)
+    res['inside'] = inside(t, here) if here else res.get('inside')
     if here and here != t.node:
         dd = L.toward(here, t.node)
         if dd:
             log('seek', what='graph', here=here, to=t.node, dir=list(dd))
             c = step(dd, res, f'graph {here}->{t.node}', t.node, learn=(here, t.node))
             if c is not None:
-                res['here'] = c.node
+                res['here'], res['heading'], res['heading_n'] = c.node, dd, 0
                 return c
+    if not here and res.get('heading') and res.get('heading_n', 0) < HEADING_MAX:   # between nodes: keep going
+        res['heading_n'] = res.get('heading_n', 0) + 1
+        c = step(res['heading'], res, f'heading {res["heading_n"]}/{HEADING_MAX}', t.node)
+        if c is not None:
+            res['here'] = c.node
+            return c
     if t.soil and res.get('light') in ('day', None):
         for x, y, n in dry_spots(tried)[:2]:
             c = A.click((x, y), 'soil')

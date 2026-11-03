@@ -33,6 +33,7 @@ class Click:
     burst_texts: list = field(default_factory=list)  # short-lived texts OCR'd from the burst frames
     surprises: list = field(default_factory=list)    # [(field, expected, got)] vs its chains.json step
     node: str = None                            # the graph node the logged interaction names (target=...)
+    at: tuple = None                            # world (x, z) of the logged interaction (`at (x, y, z)`), if any
 
     def has(self, *names):
         return any(e in names for e in self.events)
@@ -74,6 +75,14 @@ def save_frames(imgs, tag):
     return out
 
 
+AT = re.compile(r' at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)')
+
+
+def position_of(line):
+    m = AT.search(line)
+    return (float(m.group(1)), float(m.group(2))) if m else None
+
+
 def events_of(lines):
     return [m.group(1) for m in map(EVENT.search, lines) if m]
 
@@ -100,6 +109,8 @@ def click(pt, what='point', before=None, chain=None, idx=None):
               save_frames(imgs, time.strftime('%H%M%S') + f'-{x}-{y}'), O.burst_texts(imgs) if L.text_gaps() else [])
     from objects import graph as OG
     c.node = next((n for n in map(OG.node_of_line, lines) if n), None)
+    c.at = next((p for p in map(position_of, lines) if p), None)
+    c.node = L.place(c.node, c.at, c.events)   # a bed event's position says WHICH garden (and bed) it was
     learned = L.learn_bubble(c, img0)
     L.check(c, chain, idx)
     L.remember(c.events)

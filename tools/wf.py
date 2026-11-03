@@ -1447,19 +1447,24 @@ def save_bed_counts(crops):
 
 
 DONE_AT = {'dry': r'> (?:water|hazel_waterplant) me=Player target=GardenBed[^\n]*? at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)',
-           'wilted': r'> unplant_impl me=Player target=GardenBed[^\n]*? at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)'}
+           'wilted': r'> unplant_impl me=Player target=GardenBed[^\n]*? at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)',
+           'empty': r'> plant me=Player target=GardenBed[^\n]*? at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)'}
 SAME_BED = 0.8   # world units: a log position this close to a save crop is that bed
 
 
-def beds_left(key):
-    """Beds still to do for `key` ('dry' | 'wilted'): the save's beds in that state minus the beds today's log already
+def beds_left(key, beds=None):
+    """Beds still to do for `key` ('dry' | 'wilted' | 'empty'), optionally only `beds` [(x, z)]: the save's beds in that state minus the beds today's log already
     did (by position: save crop x/z vs the log line's `at (x, y, z)`). Exact even when the save is old (L136)."""
     crops = farm_status()['crops']
     def st(c):
         return c.get('plantState')
     pick = {'dry': lambda c: st(c) in ('##growing', '##producing') and c.get('isWatered') != 'true'
                    and c.get('isWilted') != 'true',
-            'wilted': lambda c: c.get('isWilted') == 'true'}[key]
+            'wilted': lambda c: c.get('isWilted') == 'true',
+            'empty': lambda c: (st(c) or '').strip('#') in ('', '0')}[key]
+    if beds is not None:   # only these beds (a region's bed positions)
+        crops = [c for c in crops if any(abs(float(c['x']) - x) < SAME_BED and abs(float(c['z']) - z) < SAME_BED
+                                         for x, z in beds)]
     done = []
     for l in today_log()[0]:
         m = re.search(DONE_AT[key], l)

@@ -290,11 +290,15 @@ TOWARD = {('Well', 'BeeHive'): (0.83, 0.55), ('Well', 'GardenBed@Garden'): (0.69
 
 
 def toward(graph, a, b):
-    """Screen direction from node `a` to node `b`: a `toward` edge in the graph, else the TOWARD default; None if unknown."""
+    """Screen direction from node `a` to node `b`: a `toward` edge in the graph, else the TOWARD default, else from
+    their world positions (`pos` of the nodes or their regions, e.g. one garden to another, L137); None if unknown."""
     for e in graph.edges(a, 'toward') if graph is not None else []:
         if e['b'] == b and e.get('dir'):
             return tuple(e['dir'])
-    return TOWARD.get((a, b))
+    if (a, b) in TOWARD:
+        return TOWARD[(a, b)]
+    pa, pb = pos_of(graph, a), pos_of(graph, b)
+    return screen_dir(pa, pb) if pa and pb else None
 
 
 def node_of_line(line):
@@ -316,3 +320,100 @@ def learn_toward(graph, a, b, d, rate=0.5):
     n = math.hypot(x, y) or 1.0
     graph._edges = [e for e in graph._edges if not (e['a'] == a and e['b'] == b and e['rel'] == 'toward')]
     graph.add_edge(a, b, 'toward', dir=[round(x / n, 3), round(y / n, 3)], source='learned')
+
+
+# ---- regions and their beds from the save (L137: "find a new garden south of the house, build a graph of its beds") ----
+CLUSTER_GAP = 6.0    # world units: beds closer than this (chained) belong to one garden (bed pitch 2.5-3.75)
+NEAR_BED = 1.2       # world units: a log position this close to a bed member is that bed
+
+
+def cluster_beds(crops, gap=CLUSTER_GAP):
+    """Save crops [{'x','z',...}] -> gardens: [{'beds': [crop, ...], 'centre': (x, z)}], north first (z larger)."""
+    pts = [(float(c['x']), float(c['z']), c) for c in crops]
+    groups = []
+    for p in pts:
+        hit = [gr for gr in groups if any(abs(p[0] - q[0]) <= gap and abs(p[1] - q[1]) <= gap for q in gr)]
+        merged = [p]
+        for gr in hit:
+            merged += gr
+            groups.remove(gr)
+        groups.append(merged)
+    out = []
+    for gr in groups:
+        cx = sum(q[0] for q in gr) / len(gr)
+        cz = sum(q[1] for q in gr) / len(gr)
+        out.append({'beds': [q[2] for q in gr], 'centre': (round(cx, 2), round(cz, 2))})
+    return sorted(out, key=lambda c: -c['centre'][1])
+
+
+def _grid(beds):
+    """Row/col of each bed: rows north->south (z descending), cols west->east (x ascending), by distinct values."""
+    zs = sorted({round(float(b['z']), 1) for b in beds}, reverse=True)
+    xs = sorted({round(float(b['x']), 1) for b in beds})
+    return [(zs.index(round(float(b['z']), 1)) + 1, xs.index(round(float(b['x']), 1)) + 1, b) for b in beds], len(zs), len(xs)
+
+
+def ensure_region(graph, region, beds, parent='Farm', kind='Garden', group_kind='GardenBed', source='save'):
+    """Add (or refresh) a region node, its bed group and one member per bed with position, row/col and save state;
+    `next_to` edges between grid neighbours with their screen direction. Returns the list of changes (new ids)."""
+    changes = []
+    cx = round(sum(float(b['x']) for b in beds) / len(beds), 2)
+    cz = round(sum(float(b['z']) for b in beds) / len(beds), 2)
+    if region not in graph.nodes:
+        graph.nodes[region] = Node(region, 'region', kind=kind, region=parent, signal='view', source=source)
+        changes.append(region)
+    graph.nodes[region].extra['pos'] = [cx, cz]
+    gid = f'{group_kind}@{region}'
+    cells, rows, cols = _grid(beds)
+    if gid not in graph.nodes:
+        graph.nodes[gid] = Node(gid, 'group', kind=group_kind, region=region, source=source)
+        changes.append(gid)
+    grp = graph.nodes[gid]
+    grp.extra.update(pos=[cx, cz], pattern={'rows': rows, 'cols': cols, 'order': 'rows north to south, cols west to east'})
+    for r, c, b in cells:
+        mid = f'{gid}#r{r}c{c}'
+        if mid not in graph.nodes:
+            graph.nodes[mid] = Node(mid, 'member', kind=group_kind, region=gid, source=source)
+            changes.append(mid)
+        m = graph.nodes[mid]
+        m.extra.update(pos=[round(float(b['x']), 2), round(float(b['z']), 2)], row=r, col=c)
+        ps = (b.get('plantState') or '').strip('#')
+        m.state['plant'] = {'value': 'empty' if ps in ('', '0') else ps, 'game_time': None,
+                            'source': source, 'conf': 1.0}
+    have = {(e['a'], e['b']) for e in graph.edges(rel='next_to')}
+    for r, c, _ in cells:
+        for dr, dc, d in ((0, 1, [1.0, 0.0]), (1, 0, [0.0, 1.0])):   # east / south neighbour (screen right / down)
+            a, b = f'{gid}#r{r}c{c}', f'{gid}#r{r + dr}c{c + dc}'
+            if b in graph.nodes and (a, b) not in have:
+                graph.add_edge(a, b, 'next_to', dir=d, source=source)
+    return changes
+
+
+def pos_of(graph, node):
+    """World (x, z) of a node or of its nearest ancestor that has one; None."""
+    for nid in reversed(graph.chain(node)) if graph is not None and node in graph.nodes else []:
+        p = graph.nodes[nid].extra.get('pos')
+        if p:
+            return tuple(p)
+    return None
+
+
+def node_at(graph, x, z, near=NEAR_BED):
+    """The bed member at world (x, z) (a log line's `at`), or None."""
+    best = None
+    for n in graph.nodes.values() if graph is not None else []:
+        p = n.extra.get('pos')
+        if n.type == 'member' and p and abs(p[0] - x) <= near and abs(p[1] - z) <= near:
+            dd = (p[0] - x) ** 2 + (p[1] - z) ** 2
+            if best is None or dd < best[0]:
+                best = (dd, n.id)
+    return best[1] if best else None
+
+
+def screen_dir(a, b):
+    """Screen direction (unit dx, dy) from world point a to world point b: the camera looks north, so world +x = right
+    and world +z = up (screen -y)."""
+    import math
+    dx, dy = b[0] - a[0], -(b[1] - a[1])
+    n = math.hypot(dx, dy)
+    return None if n < 1e-6 else (dx / n, dy / n)

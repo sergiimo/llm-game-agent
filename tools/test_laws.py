@@ -571,6 +571,47 @@ class BedsLeft(unittest.TestCase):
             self.assertEqual(wf.beds_left('wilted'), 0)
 
 
+class NewGarden(Base):
+    """L137: find a new garden south of the house - a new region node with a graph of its beds - and plant it."""
+    NORTH = [{'x': str(x), 'z': str(z), 'plantState': '##growing', 'isWatered': 'true', 'isWilted': 'false'}
+             for z in (-25.34, -29.09, -31.59) for x in (-1.66, 0.84, 3.34, 5.84)]
+    SOUTH = [{'x': str(x), 'z': str(z), 'plantState': '##0', 'isWatered': 'false', 'isWilted': 'false'}
+             for z in (-59.36, -63.11, -66.86) for x in (2.64, 6.39, 10.14, 13.89)]
+
+    def _farm(self, f):
+        f.farm_status = lambda: {'crops': self.NORTH + self.SOUTH}
+
+    def test_discover_adds_the_south_garden_with_a_graph_of_its_beds(self):
+        from objects import graph as OG
+        f = self.use(Fake({}))
+        self._farm(f)
+        out = garden.discover()
+        self.assertEqual(len(out['GardenSouth']), 2 + 12)   # region + bed group + 12 beds
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        self.assertEqual(g.nodes['GardenSouth'].region, 'Farm')
+        self.assertEqual(g.nodes['GardenBed@GardenSouth'].extra['pattern']['rows'], 3)
+        b = g.nodes['GardenBed@GardenSouth#r1c1']
+        self.assertEqual((b.region, b.extra['pos'], b.state['plant']['value']), ('GardenBed@GardenSouth', [2.64, -59.36], 'empty'))
+        self.assertEqual(len([e for e in g.edges(rel='next_to') if e['a'].startswith('GardenBed@GardenSouth')]), 17)
+        dx, dy = OG.toward(g, 'GardenBed@Garden', 'GardenBed@GardenSouth')
+        self.assertGreater(dy, 0.9)   # south = screen down
+        self.assertEqual(garden.discover()['GardenSouth'], [])   # idempotent
+
+    def test_plant_all_walks_south_and_plants_every_empty_bed(self):
+        f = self.use(Fake({'n': bed('wet', zone='near', bubble=(900, 400)),
+                           's1': bed('empty', zone='south', bubble=(800, 500), body=(5000, 5000)),
+                           's2': bed('empty', zone='south', bubble=(1100, 500), body=(5000, 5000))}))
+        self._farm(f)
+        f.step_zone = 'south'
+        f.save_left = 2
+        res = garden.plant_all(seed='Tulip')
+        self.assertEqual((f.beds['s1']['crop'], f.beds['s2']['crop']), ('Tulip', 'Tulip'))
+        self.assertEqual(len(res['done']), 2)
+        self.assertEqual(f.asks, [])
+        self.assertTrue(any('graph GardenBed@Garden->GardenBed@GardenSouth' in t for t in res.get('trace', [])))
+
+
 class Points(unittest.TestCase):
     def test_grid_cell_is_its_centre(self):
         self.assertEqual(laws.parse_point('Q14'), (1320, 911))

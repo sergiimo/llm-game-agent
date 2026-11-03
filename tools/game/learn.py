@@ -67,6 +67,27 @@ def remember_soil(counts):
     g.set_state(GROUP, 'soil_seen', {'dry_cells': counts[0], 'wet_cells': counts[1]}, stamp(), 'frame', 0.6)
 
 
+BED_STATE_OF = {'plant': 'planted', 'water': 'watered', 'plant_growing': 'growing', 'unplant_impl': 'empty',
+                'grab_item': 'picked', 'unplant': 'wilted'}
+
+
+def place(node, at, events=()):
+    """A bed event's world position -> its bed's group ('GardenBed@GardenSouth'), and the bed member's state from the
+    event (L137: the graph of beds inside a garden). Other nodes pass through."""
+    g = MEMORY['graph']
+    if g is None or at is None or not node or not node.startswith('GardenBed'):
+        return node
+    from objects import graph as OG
+    mid = OG.node_at(g, at[0], at[1])
+    if mid is None:
+        return node
+    for e in events:
+        if e in BED_STATE_OF:
+            g.set_state(mid, 'plant' if e in ('plant', 'unplant_impl', 'plant_growing', 'unplant') else e,
+                        BED_STATE_OF[e], stamp(), 'event')
+    return g.nodes[mid].region
+
+
 def memory_hint():
     g = MEMORY['graph']
     if g is None:

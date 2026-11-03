@@ -42,6 +42,14 @@ TASKS = {
 DONE_ON = {'replant': ('unplant',), 'water': ('water',), 'harvest': ('grab_item',)}
 
 
+def plant_task(region='GardenSouth'):
+    """Plant every empty bed of `region` (L137): fits the empty-bed (seedling) bubble; the target node is the region's
+    bed group, so the graph's direction leads from the garden she is at to this one."""
+    return Task('plant', lambda a: a.kind == 'plant',
+                f'an EMPTY garden bed (bare soil; its bubble shows a seedling) in the garden {region}', 'empty',
+                'GardenBed', region, f'GardenBed@{region}')
+
+
 def harvest_task(ready=False):
     """Harvest fits the pickup bubble; with ready=True also any "!" (ready) bubble. "!" is NOT an order to collect
     (user D185: flowers serve the bees), so the caller decides."""
@@ -137,11 +145,14 @@ def memory_hint():
 # ---- task steps -------------------------------------------------------------------------------------------------
 def _left_in_save(task):
     """How many targets are left: the save's count, minus the beds today's log already did (wf.beds_left, by position;
-    L136: a save written before this morning's watering still said 3 dry). None when unknown."""
+    L136), only in the task's garden when the graph knows its beds (L137). None when unknown."""
     W = core.WF
     try:
-        if task.save_key in ('dry', 'wilted') and hasattr(W, 'beds_left'):
-            return W.beds_left(task.save_key)
+        if task.save_key in ('dry', 'wilted', 'empty') and hasattr(W, 'beds_left'):
+            g = L.MEMORY['graph']
+            beds = [tuple(n.extra['pos']) for n in g.nodes.values()
+                    if n.region == task.node and n.extra.get('pos')] if g is not None else []
+            return W.beds_left(task.save_key, beds or None)
         return W.save_bed_counts(W.farm_status()['crops'])[task.save_key]
     except Exception:   # noqa: BLE001
         return None
@@ -229,6 +240,31 @@ def _replant(c, res, seed):
     return 'done'
 
 
+def _plant(pc, res, want):
+    """The planting panel is open (a seedling bubble was clicked): the seed's card -> Select; `totalPlanted` proves it.
+    'done' | 'stop' (no such seeds)."""
+    try:
+        ui.pick_card(want)
+    except core.Failed as e:
+        ui.close()
+        ui.close()
+        res['stop'] = f'no seeds for {want}: {str(e)[:120]}'
+        return 'stop'
+    mark, before = core.WF.log_mark(), O.scan()
+    ui.press('Select')
+    if not core.seen(r'totalPlanted\.', mark, 3.0):
+        raise core.Failed(f'Select was pressed but {want} was not planted; '
+                          + core.ask_vision(f'is {want} planted on the bed?'))
+    sel = A.after_press(pc.pt, mark, before, O.scan())
+    sel.at = next((p for p in map(A.position_of, sel.lines) if p), None)
+    sel.node = L.place('GardenBed', sel.at, sel.events)   # the bed member it was planted in
+    L.remember(sel.events)
+    L.check(sel, 'replant', 3)
+    if sel.node:
+        res['here'] = sel.node
+    return 'done'
+
+
 def _handle(task, c, res, seed):
     """What one click's record means for the task. 'done' | 'progress' | 'none' | 'stop'."""
     if c.node:
@@ -245,6 +281,11 @@ def _handle(task, c, res, seed):
         res['refills'] += 1
         res['here'] = 'Well'
         return 'progress'
+    if task.name == 'plant' and c.mode != 'gameplay' and ui.shows('Seeds', wait=0.5):   # the planting panel
+        out = _plant(c, res, seed or 'Tulip')
+        if out == 'done':
+            res['done'].append(c.pt)
+        return out
     if task.name == 'replant' and c.has('unplant'):
         out = _replant(c, res, seed)
         if out == 'done':
@@ -398,8 +439,8 @@ def _run(task, click, seed, max_clicks):
         if not fit:
             seeks += 1
             c = N.seek(task, res) if seeks <= SEEK_TURNS else None
-            if c is not None and c.what == 'explore':
-                seeks -= 1   # exploring is bounded by its directions (each once per call), not by the round count
+            if c is not None and (c.what == 'explore' or (c.what == 'step' and c.moved)):
+                seeks -= 1   # exploring / walking a known direction is bounded by its own limits, not the round count
             if c is None and _done_looking(task, res):
                 break
             if c is None:

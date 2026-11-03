@@ -2,7 +2,7 @@
 runs one. Add behaviour by adding a function to the module of its area."""
 from . import affordances, core, garden, move, track, ui, walk, well  # noqa: F401
 from .core import Failed, bind  # noqa: F401
-from .garden import harvest_all, replant_all, water_all  # noqa: F401
+from .garden import discover, harvest_all, plant_all, replant_all, water_all  # noqa: F401
 from .laws import reach  # noqa: F401
 from .move import goto  # noqa: F401
 from .ui import close, press, press_bubble, shows  # noqa: F401

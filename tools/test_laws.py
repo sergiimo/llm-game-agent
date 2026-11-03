@@ -556,6 +556,21 @@ class CardText(unittest.TestCase):
         self.assertEqual(chains.actual(c)['text'], '+1 Honey')
 
 
+class BedsLeft(unittest.TestCase):
+    """L136: beds left = the save's beds in that state minus today's log, by position (an old save over-counts)."""
+    def test_watered_since_the_save_are_not_left(self):
+        import wf
+        crops = [{'x': '1.0', 'z': '-25.0', 'plantState': '##growing', 'isWatered': 'false', 'isWilted': 'false'},
+                 {'x': '3.5', 'z': '-25.0', 'plantState': '##growing', 'isWatered': 'false', 'isWilted': 'false'},
+                 {'x': '6.0', 'z': '-25.0', 'plantState': '##growing', 'isWatered': 'true', 'isWilted': 'false'},
+                 {'x': '8.5', 'z': '-25.0', 'plantState': '##0', 'isWatered': 'false', 'isWilted': 'false'}]
+        log = ['[D185 9:00:00 AM] > water me=Player target=GardenBed(Clone) at (1.02, 0.10, -25.01)']
+        with mock.patch.object(wf, 'farm_status', lambda: {'crops': crops}), \
+                mock.patch.object(wf, 'today_log', lambda: (log, '185', log)):
+            self.assertEqual(wf.beds_left('dry'), 1)
+            self.assertEqual(wf.beds_left('wilted'), 0)
+
+
 class Points(unittest.TestCase):
     def test_grid_cell_is_its_centre(self):
         self.assertEqual(laws.parse_point('Q14'), (1320, 911))

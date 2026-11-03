@@ -1446,6 +1446,29 @@ def save_bed_counts(crops):
                        and not wilted(c) for c in crops)}
 
 
+DONE_AT = {'dry': r'> (?:water|hazel_waterplant) me=Player target=GardenBed[^\n]*? at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)',
+           'wilted': r'> unplant_impl me=Player target=GardenBed[^\n]*? at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)'}
+SAME_BED = 0.8   # world units: a log position this close to a save crop is that bed
+
+
+def beds_left(key):
+    """Beds still to do for `key` ('dry' | 'wilted'): the save's beds in that state minus the beds today's log already
+    did (by position: save crop x/z vs the log line's `at (x, y, z)`). Exact even when the save is old (L136)."""
+    crops = farm_status()['crops']
+    def st(c):
+        return c.get('plantState')
+    pick = {'dry': lambda c: st(c) in ('##growing', '##producing') and c.get('isWatered') != 'true'
+                   and c.get('isWilted') != 'true',
+            'wilted': lambda c: c.get('isWilted') == 'true'}[key]
+    done = []
+    for l in today_log()[0]:
+        m = re.search(DONE_AT[key], l)
+        if m:
+            done.append((float(m.group(1)), float(m.group(2))))
+    return sum(1 for c in crops if pick(c) and not any(abs(float(c['x']) - x) < SAME_BED and abs(float(c['z']) - z) < SAME_BED
+                                                       for x, z in done))
+
+
 def game_stamp():
     """Latest game-log stamp such as 'D183 1:30:00 PM' (the clock the graph hints use), or None."""
     try:
@@ -4041,7 +4064,13 @@ def routines():
     if rain:
         out.append('R1 water garden: SKIP (rain waters everything)')
     else:
-        out.append(f'R1 water garden: {"DONE" if watered >= need else "DUE"} {watered}/{need} beds watered today'
+        try:
+            left = beds_left('dry')
+        except Exception:   # noqa: BLE001
+            left = None
+        out.append(f'R1 water garden: {"DONE" if left == 0 else "DUE"} '
+                   + (f'{left} dry bed(s) left (save minus today\'s log), ' if left is not None else '')
+                   + f'{watered} watered today'
                    + (f' · {fs["wilted"]} WILTED: water first' if fs['wilted'] else ''))
     out.append(f'R2 harvest ripe crops: {"DONE" if fs["ripe"] == 0 or harvested >= fs["ripe"] else "DUE"} '
                f'{fs["ripe"]} ripe per save, {harvested} harvested today')

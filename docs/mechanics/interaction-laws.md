@@ -56,7 +56,7 @@ bad state carried over to the next call. These laws keep one guess per click and
    rule 4 or 2. No stored layout, grid or position survives a failure.
 6. **Memory is a hint, never a gate.** The graph and the save say what to look for (save: "4 wilted"; graph: the crop
    last planted in a bed) and when to stop (save count = 0). They never decide where to click and never block a click.
-7. **Done** = the save count for the task is 0, or vision answers `none` for the target from a fresh frame and the save
+7. **Done** = beds left for the task is 0 (`wf.beds_left`: the save minus today's log, by position, L136), or vision answers `none` for the target from a fresh frame and the save
    can't tell. Report the counts before and after.
 
 ### Example: replant every wilted bed

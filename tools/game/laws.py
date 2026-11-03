@@ -136,8 +136,13 @@ def memory_hint():
 
 # ---- task steps -------------------------------------------------------------------------------------------------
 def _left_in_save(task):
+    """How many targets are left: the save's count, minus the beds today's log already did (wf.beds_left, by position;
+    L136: a save written before this morning's watering still said 3 dry). None when unknown."""
+    W = core.WF
     try:
-        return core.WF.save_bed_counts(core.WF.farm_status()['crops'])[task.save_key]
+        if task.save_key in ('dry', 'wilted') and hasattr(W, 'beds_left'):
+            return W.beds_left(task.save_key)
+        return W.save_bed_counts(W.farm_status()['crops'])[task.save_key]
     except Exception:   # noqa: BLE001
         return None
 
@@ -365,7 +370,7 @@ def _run(task, click, seed, max_clicks):
         res['stop'] = 'vision: none left'
         return res
     if click is None and res['left_in_save'] == 0:
-        res['stop'] = f'save: no {task.save_key} beds'
+        res['stop'] = f'none left: no {task.save_key} beds (save minus today\'s log)'
         return res
     if click is not None:
         try:

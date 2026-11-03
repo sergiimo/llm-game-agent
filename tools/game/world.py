@@ -271,17 +271,22 @@ def refresh(graph, save, today_lines, save_time_=None):
     if pp and 'Tara' in g.nodes and (abs(pp.get('x', 0)) + abs(pp.get('z', 0))) > 1e-6:
         g.nodes['Tara'].extra['pos'] = [round(pp['x'], 2), round(pp['z'], 2)]
     scene = save.get('currentScene') or 'Farm'
-    events = [(m.group(1), m.group(2), (float(m.group(3)), float(m.group(4))), line)
-              for line in _after(today_lines, stamp) for m in [_EVENT.search(line)] if m]
-    for ev, kind, at, line in events:   # a new kind's object first, so areas see it
+    events, since = [], []
+    for line in _after(today_lines, stamp):   # each event with the lines since the previous one (its proof)
+        m = _EVENT.search(line)
+        since.append(line)
+        if m:
+            events.append((m.group(1), m.group(2), (float(m.group(3)), float(m.group(4))), line, since))
+            since = []
+    for ev, kind, at, line, _ in events:   # a new kind's object first, so areas see it
         if find(g, kind, at) is None:
             nid = place(g, kind, at, [], scene=scene)
             if nid:
                 new_ids.append(nid)
     for sc in {n.extra['scene'] for n in _objects(g)}:
         _areas(g, sc, changes)
-    for ev, kind, at, line in events:
-        place(g, kind, at, [ev], stamp=_stamp_of(line), scene=scene)
+    for ev, kind, at, line, ctx in events:
+        place(g, kind, at, [ev], stamp=_stamp_of(line), scene=scene, lines=ctx)
     for nid in new_ids:
         n = g.nodes.get(nid)
         if n is not None:
@@ -295,7 +300,7 @@ def _stamp_of(line):
     return m.group(1) if m else None
 
 
-def place(g, kind, at, events, effects=None, frame=None, stamp=None, scene='Farm', params=None):
+def place(g, kind, at, events, effects=None, frame=None, stamp=None, scene='Farm', params=None, lines=None):
     """A logged interaction at world `at` -> its object (created when unknown; an unnamed save object there names its
     prefab), its state from the events' effects (+ `frame` sub-icons, source 'frame'), Tara's position. The id."""
     nid = find(g, kind, at)
@@ -314,7 +319,7 @@ def place(g, kind, at, events, effects=None, frame=None, stamp=None, scene='Farm
         if not prefab and not known_kind(kind):   # a log-only object of a kind nothing knows (Weed, Stone): this call only
             g.nodes[nid].extra['transient'] = True
     for ev in events:
-        eff = plan.effects_of_event(ev, params) if effects is None else effects
+        eff = plan.effects_of_event(ev, params, lines) if effects is None else effects
         _set(g, nid, eff, stamp, 'event')
     if frame:
         _set(g, nid, frame, stamp, 'frame')

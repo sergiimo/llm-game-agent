@@ -98,10 +98,16 @@ def pick_card(name, box=PICKER):
     for x, y in order:
         core.WF.run_action(f'click:{x}:{y}')
         _settle()
-        title = ''
-        if shows('Select', wait=1.0):  # the title band can read '' (D183): a name on screen is the detail's title
-            title = detail_title() or next((t for t in texts() if _named(t, name)), '')
-        if title:
+        opened = shows('Select', wait=1.0)   # the card's modal with its Select button
+        on_screen = texts()
+        named = next((t for t in on_screen if _named(t, name)), '')
+        if opened:   # the modal's own text names the card (the fixed title band misread 'ılbs', D186)
+            title = named or detail_title()
+        else:   # D186: the card is highlighted, its name in a tooltip, no detail/Select: picked; confirming is next
+            if named:
+                return named
+            title = ''
+        if title and title in on_screen:   # an icon is learned only under a name the screen shows
             items.learn(items.crop(img, (x, y)), title)
         if _named(title, name):
             return title

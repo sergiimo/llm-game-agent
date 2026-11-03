@@ -9,7 +9,7 @@ import os
 import re
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'actions.json')
-PRIMITIVES = ('click_bubble', 'click_object', 'press', 'press_space', 'pick_card', 'close', 'read_card')
+PRIMITIVES = ('click_bubble', 'click_object', 'press', 'press_space', 'pick_card', 'close', 'read_card', 'click_cell')
 TRUST = 2            # a learned row is used by `path` after this many agreeing sightings
 SAME = '$same'       # keep the object's own value (replant: the same crop)
 _PARAM = re.compile(r'\$(\w+)')
@@ -145,10 +145,13 @@ def _events_of(row):
     return [e for alt in (last.get('expect') or {}).get('events', []) for e in alt.split('|')]
 
 
-def effects_of_event(event, params=None):
-    """The state change a logged event means (the row it proves); `$x` unresolved -> that key dropped."""
+def effects_of_event(event, params=None, lines=None):
+    """The state change a logged event means (the row it proves); `$x` unresolved -> that key dropped. A row with a
+    `proof` counts only when one of `lines` (the log lines that came with the event) matches it."""
     for r in rows():
         if event in _events_of(r):
+            if r.get('proof') and not any(re.search(r['proof'], str(l)) for l in (lines or [])):
+                return {}
             eff = resolve(r, params or {})['effect']
             return {k: v for k, v in eff.items() if not (isinstance(v, str) and '$' in v)}
     return {}

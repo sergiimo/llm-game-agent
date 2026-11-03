@@ -94,12 +94,22 @@ def _made(g, nid, make, params, before):
     return all(st.get(k) == v for k, v in want.items() if v != plan.SAME)
 
 
+def _really_missing(save, item, out):
+    """A failed pick is a missing item only when the inventory agrees; else the screen differs (vision asks)."""
+    if not out.get('missing'):
+        return False
+    try:
+        return world.inventory(save, core.WF.today_log()[0]).get(item or '', 0) < 1
+    except Exception:   # noqa: BLE001
+        return True
+
+
 def _learn(g, out, kind, row, res):
     """A run's events -> the world (by position); stored card values; where she is now. The object id or None."""
     nid = None
     if out['at']:
         nid = world.place(g, out['kind'] or kind, out['at'], out['events'], stamp=_stamp(),
-                          params=row.get('params'))
+                          params=row.get('params'), lines=out['lines'])
         res['area'] = world.area_of(g, nid)
     for k, v in out['stored'].items():
         if nid and v:
@@ -243,12 +253,29 @@ def _answer(g, name, params, answer, res):
         rs = plan.rows()
         for r in rs:
             if r['id'] == pend.get('row') and pend.get('step') is not None:
-                r['steps'][pend['step']] = {'do': 'press', 'arg': str(answer)}
-                r['source'] = f'{r["source"]}; step {pend["step"]} from vision'
+                r['steps'][pend['step']] = button_step(answer, r['steps'][pend['step']])
+                r['source'] = f'{r["source"]}; step {pend["step"]} from vision ({answer})'
         plan.save_rows(rs)
         res['learned'].append(f'{pend.get("row")}[{pend.get("step")}] press {answer}')
     else:
         _answer_name(g, pend, answer, res)
+
+
+def button_step(answer, old):
+    """Vision's `button` answer -> the step that replaces the failed one (its expectation kept): `space`, a grid
+    cell (a card or a button without text) or the exact on-screen text."""
+    a = str(answer).strip()
+    if a.lower() in ('space', 'key:space'):
+        step = {'do': 'press_space'}
+    else:
+        try:
+            ask.parse_point(a)
+            step = {'do': 'click_cell', 'arg': a.upper()}
+        except ValueError:
+            step = {'do': 'press', 'arg': a}
+    if old.get('expect'):
+        step['expect'] = old['expect']
+    return step
 
 
 def _answer_name(g, pend, answer, res):
@@ -484,6 +511,13 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             res['surprises'].append(f'{t["id"]}: no position in the event lines {out["events"]}; counted on {tid}')
         nid = _learn(g, out, kind, t, res)
         plan.count(t['id'], out['ok'])
+        if not out['ok'] and out.get('why') and not _really_missing(save, item, out):
+            st = t['steps'][out['failed_step']]
+            ask.ask('button', f'Goal {name}: step {out["failed_step"]} of "{t["id"]}" ({st["do"]} {st.get("arg", "")}) '
+                              f'found nothing to do ({out["why"][:120]}). On screen: {out.get("screen") or "?"}. '
+                              f'What does Tara do next on this screen? Answer the exact on-screen text to press, '
+                              f'space, or the grid cell of the card/button.',
+                    {'goal': name, 'params': params, 'row': t['id'], 'step': out['failed_step']}, res)
         if nid and nid not in working and nid in g.nodes and g.nodes[nid].kind == kind:
             working.append(nid)
         if out['ok']:
@@ -492,7 +526,7 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             if nid and _made(g, nid, make, params, world.state_of(g, nid)) and nid not in res['done']:
                 res['done'].append(nid)
             continue
-        if out['missing']:
+        if out['missing']:   # the item is really gone (the inventory agrees)
             res['stop'] = f'missing {item or out["missing"]}'
             break
         res['surprises'] += [f'{t["id"]}[{s[0]}] {s[1]}: expected {s[2]!r}, got {str(s[3])[:80]!r}' for s in out['surprises']]

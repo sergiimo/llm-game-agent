@@ -1,34 +1,211 @@
 {
-  "_doc": "Transition table (spec 2026-11-03 §4): one row per action an object offers. when = state it needs; bubble = the bubble that fits it (null = event-only row); steps = primitives with checked expectations; effect = state change ($param, $same); needs = precondition (an item, Tara's can). seen/ok/surprises are counted by play; learned rows are trusted after 2 agreeing sightings.",
-  "rows": [
-    {"id": "water", "kind": "GardenBed", "when": {"stage": "growing|producing", "watered": false, "wilted": false},
-     "bubble": {"drop": true},
-     "steps": [{"do": "click_bubble", "expect": {"events": ["water|hazel_waterplant"]}}],
-     "effect": {"watered": true}, "needs": {"Tara.can": "full"},
-     "source": "seed: game D149 (L123)", "seen": 0, "ok": 0, "surprises": 0},
-    {"id": "out_of_water", "kind": "GardenBed", "when": {}, "bubble": null, "event": "out_of_water", "steps": [],
-     "effect": {"Tara.can": "empty"}, "source": "seed: game D185", "seen": 0, "ok": 0, "surprises": 0},
-    {"id": "fill_can", "kind": "Well", "when": {}, "bubble": {"kind": "fill_can|full_watering_can"},
-     "steps": [{"do": "click_bubble", "expect": {"events": ["fill_watering_can|full_watering_can"]}}],
-     "effect": {"Tara.can": "full"}, "source": "seed: game D156/D185 (L131)", "seen": 0, "ok": 0, "surprises": 0},
-    {"id": "remove_wilted", "kind": "GardenBed", "when": {"wilted": true}, "bubble": {"drop": true},
-     "steps": [{"do": "click_bubble", "expect": {"events": ["unplant"], "card": "wilted"}},
-               {"do": "read_card", "store": "crop"},
-               {"do": "press_space"},
-               {"do": "press", "arg": "Remove", "expect": {"events": ["unplant_impl"]}}],
-     "effect": {"stage": "empty", "wilted": false, "watered": false, "crop": null},
-     "source": "seed: game D183/D184 (L123, L126)", "seen": 0, "ok": 0, "surprises": 0},
-    {"id": "plant", "kind": "GardenBed", "when": {"stage": "empty"}, "bubble": {"kind": "plant"},
-     "steps": [{"do": "click_bubble", "expect": {"card": "Seeds"}},
-               {"do": "pick_card", "arg": "$seed"},
-               {"do": "press", "arg": "Select", "expect": {"events": ["plant"], "log": "totalPlanted"}}],
-     "effect": {"stage": "growing", "crop": "$seed", "watered": false}, "needs": {"item": "$seedSeed"},
-     "source": "seed: game D148/D185 (L137)", "seen": 0, "ok": 0, "surprises": 0},
-    {"id": "pick", "kind": "GardenBed", "when": {"stage": "produced"}, "bubble": {"kind": "pickup"},
-     "steps": [{"do": "click_bubble", "expect": {"events": ["grab_item"]}}],
-     "effect": {"stage": "growing", "ready": false, "watered": false},
-     "source": "seed: game D150", "seen": 0, "ok": 0, "surprises": 0},
-    {"id": "info_growing", "kind": "GardenBed", "when": {}, "bubble": null, "event": "plant_growing", "steps": [],
-     "effect": {}, "source": "seed: game D183", "seen": 0, "ok": 0, "surprises": 0}
-  ]
+ "_doc": "Transition table (spec 2026-11-03 §4): one row per action an object offers. when = state it needs; bubble = the bubble that fits it (null = event-only row); steps = primitives with checked expectations; effect = state change ($param, $same); needs = precondition (an item, Tara's can). seen/ok/surprises are counted by play; learned rows are trusted after 2 agreeing sightings. proof = a log line that must come with the row's event for its effect to count (`> plant` is written whenever the planting panel closes, also cancelled; only `[STATS] totalPlanted` proves it, D148/D186).",
+ "rows": [
+  {
+   "id": "water",
+   "kind": "GardenBed",
+   "when": {
+    "stage": "growing|producing",
+    "watered": false,
+    "wilted": false
+   },
+   "bubble": {
+    "drop": true
+   },
+   "steps": [
+    {
+     "do": "click_bubble",
+     "expect": {
+      "events": [
+       "water|hazel_waterplant"
+      ]
+     }
+    }
+   ],
+   "effect": {
+    "watered": true
+   },
+   "needs": {
+    "Tara.can": "full"
+   },
+   "source": "seed: game D149 (L123)",
+   "seen": 0,
+   "ok": 0,
+   "surprises": 0
+  },
+  {
+   "id": "out_of_water",
+   "kind": "GardenBed",
+   "when": {},
+   "bubble": null,
+   "event": "out_of_water",
+   "steps": [],
+   "effect": {
+    "Tara.can": "empty"
+   },
+   "source": "seed: game D185",
+   "seen": 0,
+   "ok": 0,
+   "surprises": 0
+  },
+  {
+   "id": "fill_can",
+   "kind": "Well",
+   "when": {},
+   "bubble": {
+    "kind": "fill_can|full_watering_can"
+   },
+   "steps": [
+    {
+     "do": "click_bubble",
+     "expect": {
+      "events": [
+       "fill_watering_can|full_watering_can"
+      ]
+     }
+    }
+   ],
+   "effect": {
+    "Tara.can": "full"
+   },
+   "source": "seed: game D156/D185 (L131)",
+   "seen": 0,
+   "ok": 0,
+   "surprises": 0
+  },
+  {
+   "id": "remove_wilted",
+   "kind": "GardenBed",
+   "when": {
+    "wilted": true
+   },
+   "bubble": {
+    "drop": true
+   },
+   "steps": [
+    {
+     "do": "click_bubble",
+     "expect": {
+      "events": [
+       "unplant"
+      ],
+      "card": "wilted"
+     }
+    },
+    {
+     "do": "read_card",
+     "store": "crop"
+    },
+    {
+     "do": "press_space"
+    },
+    {
+     "do": "press",
+     "arg": "Remove",
+     "expect": {
+      "events": [
+       "unplant_impl"
+      ]
+     }
+    }
+   ],
+   "effect": {
+    "stage": "empty",
+    "wilted": false,
+    "watered": false,
+    "crop": null
+   },
+   "source": "seed: game D183/D184 (L123, L126)",
+   "seen": 0,
+   "ok": 0,
+   "surprises": 0
+  },
+  {
+   "id": "plant",
+   "kind": "GardenBed",
+   "when": {
+    "stage": "empty"
+   },
+   "bubble": {
+    "kind": "plant"
+   },
+   "steps": [
+    {
+     "do": "click_bubble",
+     "expect": {
+      "card": "Seeds"
+     }
+    },
+    {
+     "do": "pick_card",
+     "arg": "$seed"
+    },
+    {
+     "do": "press",
+     "arg": "Select",
+     "expect": {
+      "events": [
+       "plant"
+      ],
+      "log": "totalPlanted"
+     }
+    }
+   ],
+   "effect": {
+    "stage": "growing",
+    "crop": "$seed",
+    "watered": false
+   },
+   "needs": {
+    "item": "$seedSeed"
+   },
+   "source": "seed: game D148/D185 (L137)",
+   "seen": 1,
+   "ok": 0,
+   "surprises": 1,
+   "proof": "totalPlanted"
+  },
+  {
+   "id": "pick",
+   "kind": "GardenBed",
+   "when": {
+    "stage": "produced"
+   },
+   "bubble": {
+    "kind": "pickup"
+   },
+   "steps": [
+    {
+     "do": "click_bubble",
+     "expect": {
+      "events": [
+       "grab_item"
+      ]
+     }
+    }
+   ],
+   "effect": {
+    "stage": "growing",
+    "ready": false,
+    "watered": false
+   },
+   "source": "seed: game D150",
+   "seen": 0,
+   "ok": 0,
+   "surprises": 0
+  },
+  {
+   "id": "info_growing",
+   "kind": "GardenBed",
+   "when": {},
+   "bubble": null,
+   "event": "plant_growing",
+   "steps": [],
+   "effect": {},
+   "source": "seed: game D183",
+   "seen": 0,
+   "ok": 0,
+   "surprises": 0
+  }
+ ]
 }

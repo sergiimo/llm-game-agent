@@ -414,8 +414,10 @@ class Table(unittest.TestCase):
 
     def test_event_effects_and_unresolved_params(self):
         self.assertEqual(plan.effects_of_event('out_of_water'), {'Tara.can': 'empty'})
-        self.assertEqual(plan.effects_of_event('plant'), {'stage': 'growing', 'watered': False})
-        self.assertEqual(plan.effects_of_event('plant', {'seed': 'Tulip'})['crop'], 'Tulip')
+        proof = ['[STATS] totalPlanted.TulipSeed = 58']
+        self.assertEqual(plan.effects_of_event('plant'), {})   # the panel closed: no proof, no planting
+        self.assertEqual(plan.effects_of_event('plant', lines=proof), {'stage': 'growing', 'watered': False})
+        self.assertEqual(plan.effects_of_event('plant', {'seed': 'Tulip'}, proof)['crop'], 'Tulip')
         self.assertEqual(plan.effects_of_event('unplant'), {})   # opens the card only: no effect
 
     def test_no_path_is_none(self):
@@ -493,7 +495,7 @@ class World(unittest.TestCase):
     def test_log_after_the_save_wins_in_order(self):
         log = [L('7:00:00 AM', 'plant', 'GardenBed', 6.39, -59.36),   # before the save: already in it
                L('9:00:00 AM', 'unplant_impl', 'GardenBed', 2.64, -59.36),
-               L('9:01:00 AM', 'plant', 'GardenBed', 2.64, -59.36)]
+               '[STATS] totalPlanted.TulipSeed = 58', L('9:01:00 AM', 'plant', 'GardenBed', 2.64, -59.36)]
         world.refresh(self.g, self.save(), log, 'D185 8:00:00 AM')
         self.assertEqual(self.g.state_value('GardenBed#2.6,-59.4', 'stage'), 'growing')
         self.assertEqual(self.g.state_value('GardenBed#6.4,-59.4', 'stage'), 'empty')
@@ -1136,6 +1138,90 @@ class FlashText(Base):
         f.behaviour = [dict(GAME[4], flash=['Пчелиный улей', 'Посади рядом цветы,'])]
         with self.assertRaises(observe.WrongLanguage):
             act.click((900, 400), 'bubble')
+
+
+class PlantProof(EngineBase):
+    """Live D186: the picker showed the Tulip Bulbs card highlighted (tooltip only, no Select); the engine stopped
+    'missing TulipSeed', closing the panel logged `> plant` (game: written whenever the panel closes) and the bed was
+    marked growing. Only `totalPlanted` proves a planting; a missing confirm button is ONE vision question."""
+
+    def test_a_closed_panel_without_total_planted_is_not_a_planting(self):
+        g = OG.Graph()
+        g.load(SEED)
+        save = FakeGame(SOUTH, GAME).read_save()[1]
+        world.refresh(g, save, [L('9:00:00 AM', 'plant', 'GardenBed', 10.14, -59.36)], 'D185 8:00:00 AM')
+        self.assertEqual(g.state_value('GardenBed#10.1,-59.4', 'stage'), 'empty')
+        world.refresh(g, save, ['[D185 9:05:00 AM] > interact me=Player', '[STATS] totalPlanted.TulipSeed = 58',
+                                L('9:05:01 AM', 'plant', 'GardenBed', 10.14, -59.36)], 'D185 8:00:00 AM')
+        self.assertEqual(g.state_value('GardenBed#10.1,-59.4', 'stage'), 'growing')
+
+    def test_a_picker_without_select_asks_which_button_then_replays_it(self):
+        confirm = [dict(GAME[1], card=[{'texts': ['Inventory', 'Seeds'], 'next': 'pick'},
+                                       {'texts': ['Inventory', 'Seeds', 'Tulip Bulbs'], 'next': 'space'}])]
+        f = self.use(FakeGame(beds('s', SX[:2], SZ[:1], 'near', 500, 300, stage='empty', watered=False, wilted=False),
+                              confirm + GAME, inventory={'TulipSeed': 5}))
+        with self.assertRaises(NeedVision) as cm:
+            engine.achieve('plant', seed='Tulip', region='Garden')
+        self.assertIn('button', str(cm.exception).lower())
+        self.assertTrue(all(o['state']['stage'] == 'empty' for o in f.objects.values()))
+        res = engine.achieve('plant', seed='Tulip', region='Garden', answer='space')
+        self.assertEqual((len(res['done']), res['vision']), (2, 0), res)
+        row = next(r for r in plan.rows() if r['id'] == 'plant')
+        self.assertEqual(row['steps'][2], {'do': 'press_space', 'expect': {'events': ['plant'], 'log': 'totalPlanted'}})
+
+    def test_pick_card_reads_the_card_modal_text_not_the_fixed_title_band(self):
+        """User D186: the picked card opened a modal with "Select"; the fixed title band read another text, so the right
+        card was closed with Escape. The modal's own text names the card."""
+        from game import items
+        keys, real = [], ui.pick_card
+        f = self.use(FakeGame([], GAME))
+        f.run_action = lambda a: keys.append(a)
+        with mock.patch.object(ui, 'shows', lambda w, wait=2.0: w == 'Select'), \
+                mock.patch.object(ui, 'texts', lambda: ['Inventory', 'Seeds', 'Tulip Bulbs', 'Plant in Spring', 'Select']), \
+                mock.patch.object(ui, 'detail_title', lambda: 'Inventory'), \
+                mock.patch.object(items, 'learn', lambda crop, title: None), \
+                mock.patch.object(items, 'crop', lambda img, s: None):
+            self.assertEqual(real.__wrapped__('Tulip'), 'Tulip')
+        self.assertNotIn('key:escape', keys)
+
+    def test_pick_card_trusts_the_modal_text_over_a_misread_title_band(self):
+        """Live D186: the card's modal opened (Select) after the click; the fixed title band read 'ılbs', so the right
+        card was learned as 'ılbs' and closed with Escape although the screen said 'Tulip Bulbs'."""
+        from game import items
+        keys, learned, real, opened = [], [], ui.pick_card, []
+        f = self.use(FakeGame([], GAME))
+        f.run_action = lambda a: (keys.append(a), opened.append(1) if a.startswith('click') else None)
+        f.grab = lambda: None
+        screen = lambda: ['Inventory', 'Seeds', 'Tulip Bulbs', 'Select'] if opened else ['Inventory', 'Seeds']
+        with mock.patch.object(ui, 'shows', lambda w, wait=2.0: w == 'Select' and bool(opened)), \
+                mock.patch.object(ui, 'texts', screen), \
+                mock.patch.object(ui, 'detail_title', lambda: 'ılbs'), \
+                mock.patch.object(ui, 'card_spots', lambda box=None, img=None: [(125, 535)]), \
+                mock.patch.object(items, 'match', lambda crop: (None, 0.0)), \
+                mock.patch.object(items, 'crop', lambda img, s: 'crop'), \
+                mock.patch.object(items, 'learn', lambda crop, title: learned.append(title)):
+            self.assertEqual(real.__wrapped__('Tulip'), 'Tulip Bulbs')
+        self.assertNotIn('key:escape', keys)
+        self.assertEqual(learned, ['Tulip Bulbs'])
+
+    def test_a_grid_cell_answer_becomes_a_click_step(self):
+        self.assertEqual(engine.button_step('Q14', {'expect': {'log': 'x'}}), {'do': 'click_cell', 'arg': 'Q14',
+                                                                              'expect': {'log': 'x'}})
+        self.assertEqual(engine.button_step('Select', {}), {'do': 'press', 'arg': 'Select'})
+
+    def test_pick_card_takes_a_highlighted_card_named_on_screen(self):
+        from game import items
+        keys, real = [], ui.pick_card
+        f = self.use(FakeGame([], GAME))
+        f.run_action = lambda a: keys.append(a)
+        with mock.patch.object(ui, 'shows', lambda w, wait=2.0: False), \
+                mock.patch.object(ui, 'texts', lambda: ['Inventory', 'Seeds', 'Tulip Bulbs', '18']), \
+                mock.patch.object(ui, 'card_spots', lambda box=None, img=None: [(125, 535)]), \
+                mock.patch.object(items, 'match', lambda crop: (None, 0.0)), \
+                mock.patch.object(items, 'crop', lambda img, s: None), \
+                mock.patch.object(items, 'learn', lambda crop, title: None):
+            self.assertEqual(real.__wrapped__('Tulip'), 'Tulip Bulbs')
+        self.assertNotIn('key:escape', keys)
 
 
 if __name__ == '__main__':

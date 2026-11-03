@@ -89,11 +89,16 @@ def run(row, params, bubble, node_state=None):
                 ui.pick_card(s['arg'])
             elif s['do'] == 'close':
                 ui.close()
+            elif s['do'] == 'click_cell':   # a grid cell vision named (a button without text, a card)
+                from .ask import parse_point
+                x, y = parse_point(s['arg'])
+                core.WF.run_action(f'click:{x}:{y}')
+                core.WF.wait_settle()
             elif s['do'] == 'read_card':
                 from .garden import crop_name
                 out['stored'][s.get('store', 'crop')] = crop_name(_card()) or None
         except core.Failed as e:
-            out.update(ok=False, failed_step=i, why=str(e)[:200])
+            out.update(ok=False, failed_step=i, why=str(e)[:200], screen=_card())
             if s['do'] == 'pick_card':
                 out['missing'] = s.get('arg')
             break

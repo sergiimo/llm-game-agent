@@ -39,7 +39,8 @@
           "": "empty",
           "##growing": "growing",
           "##producing": "producing",
-          "##produced": "produced"
+          "##produced": "produced",
+          "##seed": "growing"
         }
       ],
       "watered": [

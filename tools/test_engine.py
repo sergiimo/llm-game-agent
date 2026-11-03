@@ -1673,5 +1673,18 @@ class GardenAnswer(Base):
         self.assertEqual(res['planted'], 1, res)
 
 
+class GardenProgress(Base):
+    def test_a_planting_resets_the_vision_counter(self):
+        f = self.use(FakeGame(beds('s', SX[:1], SZ[:1], 'near', 500, 300, stage='empty', watered=False, wilted=False),
+                              GAME, inventory={'TulipSeed': 2}))
+        with mock.patch.object(ask, 'STATE', os.path.join(self.tmp.name, 'ask.json')):
+            ask.save_state({'goal': 'plant_garden', 'asks': 3, 'history': []})
+            smoke.plant_visible('Tulip', can='empty')
+            self.assertEqual(ask.load_state('plant_garden')['asks'], 0)
+
+    def test_a_seeded_bed_in_the_save_is_growing(self):
+        self.assertEqual(world._mapped('GardenBed', {'plantState': '##seed'})['stage'], 'growing')
+
+
 if __name__ == '__main__':
     unittest.main()

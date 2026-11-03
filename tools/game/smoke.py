@@ -78,6 +78,9 @@ def plant_visible(seed='Tulip', kind='plant', max_beds=12, can=None):
         res['steps'].append(out)
         done = {s['step']: s['ok'] for s in out}
         res['planted'] += bool(done.get('confirm'))
+        if done.get('confirm'):   # progress: the vision counter starts again
+            from . import ask
+            ask.progress('plant_garden')
         res['watered'] += bool(done.get('water'))
         failed = next((s for s in out if not s['ok']), None)
         if failed and failed['step'] == 'water' and 'out_of_water' in str(failed['proof']):

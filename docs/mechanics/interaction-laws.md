@@ -88,4 +88,5 @@ that opens, `null` = stays in gameplay), `bubble` (the clicked object's bubble a
 | `replant_all()` / `water_all()` / `harvest_all()` on these laws | ✅ `game/laws.py` (offline tests `tools/test_laws.py`); live check pending |
 | Actions DB as chains, surprises, gap filling | ✅ `game/chains.py` + `chains.json` |
 | Graph memory (law 6): per group today's tally per event (removed/planted/watered/harvested/growing_seen/can_ran_dry), crops grown, last event, the can; read back as a hint in the vision question | ✅ `objects/graph.note_click` / `hint`, fed by every recorded click and press; saved in `graph/Farm.json` |
+| `laws.reach(fits, kind=…)`: the low-level navigation — any node of a kind whose bubble fits (the same search), returns the bubble, doesn't click; replaces `goto_bed` (L133) | ✅ offline tests `Reach` |
 | Old graph-chain runner (anchor question, layout fit, camera-shift proof, `./wf anchor`) | ❌ removed (L124) |

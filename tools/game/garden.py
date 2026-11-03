@@ -1,21 +1,10 @@
 """The garden (L77): `replant_all` / `water_all` / `harvest_all` run the interaction laws (game/laws.py,
-docs/mechanics/interaction-laws.md, L124); `goto_bed` walks to a bed by the object loop. Log (D148): `> unplant` = Space on a wilted bed (card/prompt), `> unplant_impl` = removed; `> plant` is written
+docs/mechanics/interaction-laws.md, L124); reaching a bed is `laws.reach` (any bed whose bubble fits). Log (D148): `> unplant` = Space on a wilted bed (card/prompt), `> unplant_impl` = removed; `> plant` is written
 when the planting panel closes (also when cancelled), `[STATS] totalPlanted.<Seed>` = planted; `> water` = watered. Planting panel = "Inventory / Seeds" picker: cards show icon + count only (Green Bean 26,
 Carrot 10, Tulip 22 on D148); clicking one opens its detail card (title + Select)."""
 
-from objects import loop
-from objects.query import Q
-
 from . import core
 from .core import action
-
-
-@action
-def goto_bed(**state):
-    """Walk to a bed with the given graph state (`goto_bed(crop=None)` = an unplanted one) on the object loop: clicks the
-    bed as soon as it is visible. Returns the loop's Arrival (the bed's bubble is up); doesn't plant. NeedVision
-    propagates (answer with `loop.answer(n, X, Y)` and call again)."""
-    return loop.goto(Q(kind='GardenBed').where(**state), core.WF)
 
 
 def crop_name(card_text):

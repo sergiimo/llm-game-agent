@@ -409,6 +409,31 @@ class Mechanics(unittest.TestCase):
         self.assertGreater(dry, 300)
 
 
+class Reach(Base):
+    """L133: the low-level navigation - any node of a kind whose bubble fits, not a particular member."""
+    def test_returns_the_fitting_bubble_in_reach_without_clicking_it(self):
+        f = self.use(Fake({'a': bed('empty', bubble=(900, 400)), 'b': bed('dry', bubble=(1100, 400))}))
+        a = laws.reach(lambda a: a.kind == 'plant')
+        self.assertEqual(a.pt, (900, 400))
+        self.assertEqual(f.clicks, [])
+
+    def test_walks_until_one_fits(self):
+        f = self.use(Fake({'a': bed('empty', zone='far', bubble=(700, 300), body=(5000, 5000))}))
+        f.step_zone = 'far'
+        with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
+            a = laws.reach(lambda a: a.kind == 'plant')
+        self.assertEqual(a.pt, (700, 300))
+        self.assertEqual(f.clicks[0], (960 + laws.STEP_R[0], 540))
+
+    def test_nothing_found_asks_vision_with_the_trace(self):
+        f = self.use(Fake({}))
+        f.step_zone = None
+        with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
+            with self.assertRaises(core.Failed) as e:
+                laws.reach(lambda a: a.kind == 'plant')
+        self.assertIn('STUCK', str(e.exception))
+
+
 class Points(unittest.TestCase):
     def test_grid_cell_is_its_centre(self):
         self.assertEqual(laws.parse_point('Q14'), (1320, 911))

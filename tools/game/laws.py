@@ -384,11 +384,13 @@ class Task:
     kind: str = 'GardenBed'   # the graph node kind to reach (its appearance vectors: objects/db/<kind>)
     region: str = 'Garden'    # the node whose map picture gives the direction (objects/map_db)
     node: str = 'GardenBed@Garden'   # the graph node of the target: where she must be (graph navigation)
+    soil: bool = False        # light-brown (dry) soil marks the targets (water): walk to the soil heat map's dry spots
 
 
 TASKS = {
     'replant': Task('replant', lambda a: bool(a.drop), 'a WILTED garden bed (grey/brown, drooping, dead-looking plants)', 'wilted'),
-    'water': Task('water', lambda a: bool(a.drop), 'a garden bed whose crop needs water (dry soil, a water-drop bubble)', 'dry'),
+    'water': Task('water', lambda a: bool(a.drop), 'a garden bed whose crop needs water (dry soil, a water-drop bubble)', 'dry',
+                  soil=True),
     'harvest': Task('harvest', lambda a: a.kind == 'pickup', 'a RIPE garden bed (full-grown crop ready to pick)', 'ripe'),
 }
 
@@ -727,7 +729,7 @@ def _seek(task, res):
                 res['inside'] = _inside(task, here)
                 res['here'] = None   # she left that node: unknown until the next event names one
                 return c
-    if task.name == 'water':   # user D185: light-brown soil = needs water; walk to the nearest dry bed on the soil heat map
+    if task.soil:   # user D185: light-brown soil = needs water; walk to the nearest dry bed on the soil heat map
         for x, y, n in _dry_spots(tried)[:2]:
             c = record_click((x, y), 'soil')
             res['clicks'] += 1
@@ -778,6 +780,42 @@ def _d(a, b):
 
 def _hud(pt):
     return any(x0 <= pt[0] < x1 and y0 <= pt[1] < y1 for x0, y0, x1, y1 in HUD)
+
+
+def reach(fits=lambda a: True, kind='GardenBed', node=None, region='Garden', soil=False, target=None,
+          rounds=SEEK_TURNS):
+    """The low-level navigation (L133): get Tara in reach of ANY node of `kind` whose bubble `fits` (no particular
+    member: a fitting bubble IS the node in reach). Same search as the task runs: fitting bubble on screen -> graph
+    direction from the node she is at -> dry soil (soil=True) -> the kind's vectors -> explore free ground inside the
+    region / the map outside it; STUCK_CLICKS still clicks = stuck. Returns the nearest fitting Affordance (not
+    clicked: the caller acts on it). Raises Failed with NEED_VISION (the trace) when the search gives nothing.
+    E.g. `reach(lambda a: a.kind == 'plant')` = an empty bed in reach; `reach(lambda a: a.kind == 'fill_can',
+    kind='Well', node='Well')` = the well."""
+    task = Task('reach', fits, target or f'a {kind}', None, kind, region, node or f'{kind}@{region}', soil)
+    res = {'task': 'reach', 'done': [], 'other': [], 'notes': [], 'clicks': 0, 'vision': 0, 'refills': 0,
+           'stop': None, 'left_in_save': None, 'surprises': SURPRISES}
+    _open_memory()
+    try:
+        check_language()
+        _gameplay()
+        for _ in range(rounds + 1):
+            fit = [a for a in affordances.scan() if fits(a)]
+            if fit:
+                return _nearest(fit, CENTRE)
+            c = _seek(task, res)
+            if c is None:
+                break
+            if c.node:
+                res['here'], res['inside'] = c.node, _inside(task, c.node)
+            if c.events or c.mode != 'gameplay':
+                _gameplay()
+        trace = '; '.join(res.get('trace', [])[-10:]) or 'nothing tried'
+        raise core.Failed(f'reach {task.node}: no fitting bubble after the search ({trace}); '
+                          + core.ask_vision(f'Tara (frame centre) must reach {task.target}. The search tried: {trace}. '
+                                            f'What blocks it? Give the click point of {task.target}, or of free ground '
+                                            f'toward it.'))
+    finally:
+        _close_memory()
 
 
 def _ask(task, st, res, last):

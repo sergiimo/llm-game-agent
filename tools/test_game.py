@@ -293,17 +293,6 @@ class Game(unittest.TestCase):
         self.assertIn('fill_watering_can', line)
         self.assertEqual(getattr(self.g, 'clicks_at_well', 0), 0)
 
-    def test_goto_bed_queries_the_state_and_returns_the_arrival(self):
-        from objects import loop
-        from game import garden
-        seen = []
-        arr = loop.Arrival(None, 'Garden', (1, 2), 1)
-        old = garden.loop.goto
-        garden.loop.goto = lambda q, wf, **kw: (seen.append(q), arr)[1]
-        self.addCleanup(setattr, garden.loop, 'goto', old)
-        self.assertIs(game.goto_bed(crop=None), arr)
-        self.assertEqual((seen[0].kind, seen[0].state), ('GardenBed', {'crop': None}))
-
     def test_drop_sub_icon_on_real_bubbles(self):            # user, D183: the drop goes with any crop icon
         from game import affordances
         from PIL import Image

@@ -50,14 +50,14 @@ places chain `go:` hops (look between). `go:` returns when Tara herself stops (t
   route through them. ⚠️ Not everywhere: D151 a click west of the garden's west fence gave `Player locomotion failed …
   Jump failed while pathfinding` and she stayed inside (loop-live-3). If the log shows that line, click a point on her
   side of the fence or toward a gap.
-- The loop (`fill_can()`, `goto_bed(…)`) clicks the target as soon as it is visible (user rule); stuck → it writes `ask-<n>.png` (+ clean `ask-<n>.frame.png`) in the run dir and raises NeedVision (two asks per goal, then Failed). Answer with `./wf py "answer(n, X, Y)"` (a walkable point toward the target) or, when the target is visible but not detected, teach it: `./wf py "label(n, 'Well', x0, y0, x1, y1)"`; then re-run the call. A wrong box → label it as what it really is (`label(n, 'Grass', …)`): rival kinds take the spot from then on.
+- The object loop (`fill_can()` only, since L133) clicks the target as soon as it is visible (user rule); stuck → it writes `ask-<n>.png` (+ clean `ask-<n>.frame.png`) in the run dir and raises NeedVision (two asks per goal, then Failed). Answer with `./wf py "answer(n, X, Y)"` (a walkable point toward the target) or, when the target is visible but not detected, teach it: `./wf py "label(n, 'Well', x0, y0, x1, y1)"`; then re-run the call. A wrong box → label it as what it really is (`label(n, 'Grass', …)`): rival kinds take the spot from then on.
 - **Every object whose bubble is showing is available now.** Several nearby objects can be available simultaneously
   (six adjacent beds were observed). The loop stores each bubble's kind and click point as transient graph-node state;
-  `goto_bed()` succeeds on any available bed matching its query rather than walking to a preselected member. Tara is a
+  Reaching a bed is `laws.reach(fits)` (L133): any bed whose bubble fits, never a preselected member. Tara is a
   transient graph node with `near` edges to those objects; each edge notes their screen-relative direction
   (`north`, `south-east`, etc.). `./wf py "available()"` lists each active node with its direction, bubble kind and
   exact bubble click point. Bubble ownership is resolved against **all objects in the current region** before the goal
-  query is applied (e.g. a beehive bubble remains a hive and cannot satisfy `goto_bed()`).
+  query is applied (e.g. a beehive bubble remains a hive and cannot satisfy a bed query).
 - `ALREADY THERE` = she was already at the object (its bubble shows): act.
 - `NO MOVE` = not walkable (wall, furniture, water, a menu open): click a ground point nearer to Tara.
 - `STILL MOVING` = long path: look and continue.

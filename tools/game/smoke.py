@@ -205,3 +205,29 @@ def plant_garden(seed='Tulip', region=None, rounds=8):
     print(f"garden: planted {total['planted']}, watered {total['watered']}, walks {total['walks']}, "
           f"can {total['can'] or '?'}, stop: {total['stop']}")
     return total
+
+
+STEP_PX = 320   # px from the centre for one step
+
+
+def walk_until(direction, kind='plant', max_steps=8):
+    """Step in a screen direction until a `kind` bubble (without a drop) shows; stops when a step doesn't move her.
+    For when her position is unknown (walking logs nothing, D186). {'found', 'steps', 'stop'}."""
+    res = {'found': False, 'steps': 0, 'stop': None}
+    for _ in range(max_steps):
+        if any(a.kind == kind and not a.drop for a in O.scan()):
+            res['found'] = True
+            break
+        pt = (round(O.CENTRE[0] + direction[0] * STEP_PX), round(O.CENTRE[1] + direction[1] * STEP_PX))
+        c = A.click(pt, 'step')
+        res['steps'] += 1
+        print(f'walk_until: step {res["steps"]} @{pt[0]},{pt[1]}: {"walked" if c.moved else "no move"}; '
+              f'bubbles {[str(a) for a in c.after] or "-"}')
+        if not c.moved:
+            res['stop'] = 'no move'
+            break
+    else:
+        res['found'] = any(a.kind == kind and not a.drop for a in O.scan())
+        res['stop'] = None if res['found'] else f'{max_steps} steps'
+    LAST_WALK.clear()   # her position is unknown until the next positioned event
+    return res

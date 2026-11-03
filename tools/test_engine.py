@@ -1522,5 +1522,19 @@ class SmokeDeadReckoning(Base):
         self.assertEqual(smoke.tara_now((2.64, -59.36)), (2.64, -59.36))     # a newer event wins
 
 
+class SmokeWalkDir(Base):
+    def test_walk_until_steps_until_the_kind_shows(self):
+        f = self.use(FakeGame([obj('a', zone='south', stage='empty', watered=False, wilted=False)], GAME))
+        f.step_zone, f.steps_needed = 'south', 4
+        res = smoke.walk_until((0, 1), 'plant', max_steps=8)
+        self.assertEqual((res['found'], res['steps']), (True, 4))
+        self.assertTrue(all(y > 540 for _, y in f.clicks))   # straight down
+
+    def test_walk_until_stops_when_a_step_does_not_move(self):
+        f = self.use(FakeGame([], GAME))
+        res = smoke.walk_until((0, 1), 'plant', max_steps=8)
+        self.assertEqual((res['found'], res['stop']), (False, 'no move'))
+
+
 if __name__ == '__main__':
     unittest.main()

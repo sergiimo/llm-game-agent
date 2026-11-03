@@ -1453,5 +1453,14 @@ class SmokeCan(Base):
         self.assertEqual(sum('out_of_water' in l for l in f.log), 1)   # Space-water tried once, then skipped
 
 
+class SmokeDrop(Base):
+    def test_a_plant_bubble_with_a_drop_is_not_an_empty_bed(self):
+        f = self.use(FakeGame([obj('a', stage='growing', watered=False, wilted=False)], GAME))
+        f.relabel = {'water': 'plant'}   # live D186: the just-planted bed's bubble read as plant +drop
+        out = smoke.plant_one('Tulip')
+        self.assertEqual([(s['step'], s['ok']) for s in out][-1], ('bubble', False))
+        self.assertEqual(f.clicks, [])
+
+
 if __name__ == '__main__':
     unittest.main()

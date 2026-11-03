@@ -39,7 +39,7 @@ def plant_one(seed='Tulip', kind='plant', water=True):
         _step(out, 'screen', False, str(e)[:160])
         return out
     _step(out, 'screen', True, s.kind)
-    fit = [a for a in O.scan() if a.kind == kind]
+    fit = [a for a in O.scan() if a.kind == kind and not a.drop]   # a drop = a planted bed asking for water (D186)
     if not _step(out, 'bubble', bool(fit), str(O.nearest(fit, O.CENTRE)) if fit else
                  f'no {kind} bubble in view: {[str(a) for a in O.scan()] or "none"}'):
         return out

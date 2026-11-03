@@ -272,12 +272,16 @@ def refresh(graph, save, today_lines, save_time_=None):
         g.nodes['Tara'].extra['pos'] = [round(pp['x'], 2), round(pp['z'], 2)]
     scene = save.get('currentScene') or 'Farm'
     events, since = [], []
-    for line in _after(today_lines, stamp):   # each event with the lines since the previous one (its proof)
-        m = _EVENT.search(line)
+    for line in _after(today_lines, stamp):   # each event with the lines around it up to the neighbours (its proof:
+        m = _EVENT.search(line)               # `> plant` is logged when the panel opens, totalPlanted after, D186)
         since.append(line)
         if m:
-            events.append((m.group(1), m.group(2), (float(m.group(3)), float(m.group(4))), line, since))
+            if events:
+                events[-1][4].extend(since[:-1])
+            events.append((m.group(1), m.group(2), (float(m.group(3)), float(m.group(4))), line, list(since)))
             since = []
+    if events:
+        events[-1][4].extend(since)
     for ev, kind, at, line, _ in events:   # a new kind's object first, so areas see it
         if find(g, kind, at) is None:
             nid = place(g, kind, at, [], scene=scene)

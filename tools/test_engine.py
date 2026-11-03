@@ -1176,6 +1176,13 @@ class PlantProof(EngineBase):
         world.refresh(g, save, ['[D185 9:05:00 AM] > interact me=Player', '[STATS] totalPlanted.TulipSeed = 58',
                                 L('9:05:01 AM', 'plant', 'GardenBed', 10.14, -59.36)], 'D185 8:00:00 AM')
         self.assertEqual(g.state_value('GardenBed#10.1,-59.4', 'stage'), 'growing')
+        g2 = OG.Graph()
+        g2.load(SEED)   # the live order (D186): `> plant` when the panel opens, totalPlanted after Space
+        world.refresh(g2, save, [L('10:44:35 AM', 'plant', 'GardenBed', 10.14, -59.36),
+                                 '[D185 10:45:38 AM] [STATS] totalPlanted.TulipSeed = 105',
+                                 L('10:45:59 AM', 'water', 'GardenBed', 10.14, -59.36)], 'D185 8:00:00 AM')
+        self.assertEqual((g2.state_value('GardenBed#10.1,-59.4', 'stage'), g2.state_value('GardenBed#10.1,-59.4', 'watered')),
+                         ('growing', True))
 
     def test_a_picker_without_select_asks_which_button_then_replays_it(self):
         confirm = [dict(GAME[1], space_confirms=False,   # a card whose button is "Plant" and Space doesn't confirm
@@ -1400,6 +1407,27 @@ class BubbleLabels(Base):
         f.event_kind = lambda lines: 'beehive_progress'
         self.assertIsNone(learn.learn_bubble(c, None))
         self.assertEqual(f.learned, [])
+
+
+class SmokeLoop(Base):
+    def test_plant_visible_plants_every_bed_in_view_then_stops(self):
+        f = self.use(FakeGame(beds('s', SX[:3], SZ[:1], 'near', 500, 300, stage='empty', watered=False, wilted=False)
+                              + [obj('far', pos=(SX[3], SZ[0]), zone='far', stage='empty', watered=False, wilted=False)],
+                              GAME, inventory={'TulipSeed': 5}))
+        res = smoke.plant_visible('Tulip')
+        self.assertEqual((res['planted'], res['watered']), (3, 3))
+        self.assertIn('no plant bubble in view', res['stop'])
+        self.assertEqual(f.objects['far']['state']['stage'], 'empty')
+
+    def test_a_short_lived_tooltip_is_waited_out_not_escaped(self):
+        f = self.use(FakeGame([], GAME))
+        f.blank_overlay, f.overlay_texts = True, ['Rusty Watering Can']
+        keys = []
+        run = f.run_action
+        f.run_action = lambda a: (keys.append(a), run(a))[1]
+        f.wait_settle = lambda: setattr(f, 'blank_overlay', False)   # the tooltip fades
+        self.assertEqual(screen.require_world().kind, 'gameplay')
+        self.assertEqual(keys, [])
 
 
 if __name__ == '__main__':

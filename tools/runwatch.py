@@ -48,7 +48,7 @@ def game_alive():
 class Watch:
     def __init__(self, alive=game_alive):
         self.alive = alive
-        self.proof = False   # a totalPlanted line since the last game event
+        self.pending = None   # a `> plant` line waiting for its totalPlanted (logged when the panel opens, D186)
 
     def health(self):
         return [] if self.alive() else [('STOP', 'the game process is gone (Wylde Flowers not running)')]
@@ -86,13 +86,13 @@ class Watch:
         elif t == 'game':
             line = str(r.get('line', ''))
             if 'totalPlanted' in line:
-                self.proof = True
-            elif re.search(r'> plant me=Player', line):
-                if not self.proof:
-                    out.append(('NOTE', f'`> plant` without totalPlanted (a closed panel, not a planting): {line[:90]}'))
-                self.proof = False
-            elif re.search(r'> \w+ me=Player', line):
-                self.proof = False
+                self.pending = None   # the planting is proven
+            elif self.pending and ('closed without result' in line or re.search(r'> \w+ me=Player', line)):
+                out.append(('NOTE', f'`> plant` without totalPlanted (a closed panel, not a planting): '
+                                    f'{self.pending[:90]}'))
+                self.pending = None
+            if re.search(r'> plant me=Player', line):
+                self.pending = line
         elif t == 'vision':
             out.append(('NOTE', f"vision {r.get('kind')}: {str(r.get('question'))[:140]}"))
         elif t == 'engine':

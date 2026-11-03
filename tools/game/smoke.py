@@ -62,3 +62,23 @@ def plant_one(seed='Tulip', kind='plant'):
     line = _space(r'> (?:water|out_of_water) ')
     _step(out, 'water', line and 'out_of_water' not in line, line or f'no water line within {WAIT} s')
     return out
+
+
+def plant_visible(seed='Tulip', kind='plant', max_beds=12):
+    """plant_one while a `kind` bubble is in view (the bubble loop on proven primitives); stops at the first step that
+    fails. {'planted', 'watered', 'stop', 'steps'}."""
+    res = {'planted': 0, 'watered': 0, 'stop': None, 'steps': []}
+    for _ in range(max_beds):
+        out = plant_one(seed, kind)
+        res['steps'].append(out)
+        done = {s['step']: s['ok'] for s in out}
+        res['planted'] += bool(done.get('confirm'))
+        res['watered'] += bool(done.get('water'))
+        failed = next((s for s in out if not s['ok']), None)
+        if failed:
+            res['stop'] = f"{failed['step']}: {failed['proof']}"
+            break
+    else:
+        res['stop'] = f'max {max_beds} beds'
+    print(f"planted {res['planted']}, watered {res['watered']}, stop: {res['stop']}")
+    return res

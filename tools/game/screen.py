@@ -81,6 +81,10 @@ def require_world():
         s = read()
         if s.kind == 'gameplay':
             return s
+        if s.kind == 'card' and len(s.texts) <= 2:   # a tooltip ("Rusty Watering Can", D186) fades by itself
+            _settle()
+            if read().kind == 'gameplay':
+                return read()
         close()
     s = read()
     if s.kind != 'gameplay':

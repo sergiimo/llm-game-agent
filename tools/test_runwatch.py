@@ -58,12 +58,16 @@ class Rules(unittest.TestCase):
 
     def test_a_plant_line_without_its_proof_is_a_note(self):   # attempt 3: the cancelled panel
         out = self.levels([{'type': 'game', 'line': '[D186 7:30:05 AM] > plant me=Player target=GardenBed(Clone) '
-                                                    'at (10.14, 0.10, -59.36)'}])
+                                                    'at (10.14, 0.10, -59.36)'},
+                           {'type': 'game', 'line': '[D186 7:30:23 AM] InventoryMenuViewModel closed without result, '
+                                                    'cancelling performance.'}])
         self.assertEqual(out[0][0], 'NOTE')
-        proved = self.levels([{'type': 'game', 'line': '[STATS] totalPlanted.TulipSeed = 58'},
-                              {'type': 'game', 'line': '[D186 7:31:00 AM] > plant me=Player target=GardenBed(Clone) '
-                                                       'at (10.14, 0.10, -59.36)'}])
-        self.assertEqual(proved, [])
+        proved = self.levels([{'type': 'game', 'line': '[D186 10:44:35 AM] > plant me=Player target=GardenBed(Clone) '
+                                                       'at (10.14, 0.10, -63.11)'},
+                              {'type': 'game', 'line': '[D186 10:45:38 AM] [STATS] totalPlanted.TulipSeed = 105'},
+                              {'type': 'game', 'line': '[D186 10:45:59 AM] > water me=Player target=GardenBed(Clone) '
+                                                       'at (10.14, 0.10, -63.11)'}])
+        self.assertEqual(proved, [])   # the live order: `> plant` on opening, totalPlanted after Space
 
     def test_stuck_and_vision_are_notes(self):
         out = self.levels([{'type': 'seek', 'what': 'trace', 'msg': 'STUCK: 3 clicks in a row did not move her'},

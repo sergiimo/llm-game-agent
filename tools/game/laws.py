@@ -332,6 +332,8 @@ class Task:
     fits: object        # Affordance -> bool
     target: str         # what vision looks for
     save_key: str       # save_bed_counts key: how many are left (a hint, law 6)
+    kind: str = 'GardenBed'   # the graph node kind to reach (its appearance vectors: objects/db/<kind>)
+    region: str = 'Garden'    # the node whose map picture gives the direction (objects/map_db)
 
 
 TASKS = {
@@ -470,6 +472,108 @@ def _handle(task, c, res, seed):
     return 'progress' if (c.moved or _bubble_set(c.before) != _bubble_set(c.after)) else 'none'
 
 
+SEEK_TURNS = 6          # see -> map -> step rounds before vision is asked (user D185: limited turns, straightforward)
+SEE_NEAR = 160          # px: a detection this close to Tara is where she already is (its bubble would show)
+STEP_R = (320, 220)     # px from the centre for a map step; the second is tried when the first did not move her
+STEP_TURN = (0, 35, -35)  # degrees off the map direction when a step did not move her
+
+
+def _see(kind, tried=()):
+    """The node's appearance vectors on the current frame: detections of `kind`, nearest to Tara first, without the
+    one she stands at and points already tried. [Detection]"""
+    from objects import detect as D, store as S
+    img = core.WF.grab()
+    dets = [d for d in D.detect(img, S.Store(), kinds=[kind])
+            if _d(d.point, CENTRE) > SEE_NEAR and not _hud(d.point)
+            and not any(_d(d.point, p) < 80 for p in tried)]
+    return sorted(dets, key=lambda d: _d(d.point, CENTRE))
+
+
+def _map_direction(node):
+    """Open the map, find Tara's pin and `node`'s map picture, take the first stretch of the road route between them.
+    A unit (dx, dy) in screen terms (the camera looks north like the map), or None when the map can't tell."""
+    import math
+    from objects import map_vectors as MV
+    img = core.WF.map_snapshot()
+    if img is None:
+        return None
+    pin = core.WF.map_pin(img)
+    g = MEMORY['graph']
+    if g is None:
+        from objects import graph as OG
+        g = OG.Graph()
+        g.load(_graph_path())
+    m = MV.locate(g, node, img) if pin else None
+    if m is None:
+        return None
+    path = core.WF.map_route(img, pin, m.point) or [m.point]
+    ahead = next((q for q in path if math.dist(q, pin) >= 60), path[-1])
+    dx, dy = ahead[0] - pin[0], ahead[1] - pin[1]
+    n = math.hypot(dx, dy)
+    _log('seek', what='map', pin=list(pin), goal=list(m.point), score=round(m.score, 2), ahead=list(ahead))
+    return None if n < 1 else (dx / n, dy / n)
+
+
+def _step(d):
+    """A few steps on the ground in direction `d` (Tara is at the centre): click a point STEP_R px away; turn a little
+    when she did not move. The Click that moved her, or None."""
+    import math
+    for r in STEP_R:
+        for deg in STEP_TURN:
+            a = math.radians(deg)
+            x = d[0] * math.cos(a) - d[1] * math.sin(a)
+            y = d[0] * math.sin(a) + d[1] * math.cos(a)
+            pt = (int(CENTRE[0] + x * r), int(CENTRE[1] + y * r))
+            if _hud(pt):
+                continue
+            c = record_click(pt, 'step')
+            if _changed(c):
+                return c
+    return None
+
+
+def _seek(task, res):
+    """One round when no fitting bubble shows (user D185): the node's vector on screen -> click it; not seen -> the map's
+    direction -> a few steps. The Click that changed something (the bubble loop looks again), or None (then vision).
+    The caller allows SEEK_TURNS rounds without progress."""
+    tried = []
+    for _ in range(2):   # a seen node that did nothing is skipped once
+        dets = _see(task.kind, tried)
+        if not dets:
+            break
+        c = record_click(dets[0].point, 'object')
+        res['clicks'] += 1
+        if _changed(c):
+            return c
+        tried.append(dets[0].point)
+    d = _map_direction(task.region)
+    if d is None:
+        return None
+    c = _step(d)
+    res['clicks'] += 1
+    return c
+
+
+def _changed(c):
+    """The click did something: Tara moved (view changed), an event, a card, or the bubbles changed."""
+    return bool(c.moved or c.events or c.mode != 'gameplay' or _bubble_set(c.before) != _bubble_set(c.after))
+
+
+def _log(type_, **kw):
+    try:
+        core.WF.run_log(type_, **kw)
+    except Exception:   # noqa: BLE001
+        pass
+
+
+def _d(a, b):
+    return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
+
+
+def _hud(pt):
+    return any(x0 <= pt[0] < x1 and y0 <= pt[1] < y1 for x0, y0, x1, y1 in HUD)
+
+
 def _ask(task, st, res, last):
     """Law 2: one vision question, the click point of the next node. Raises NeedVision (or LawsStuck after MAX_ASKS)."""
     from objects.loop import NeedVision
@@ -547,6 +651,7 @@ def _run(task, click, seed, max_clicks):
         if out in ('done', 'progress'):
             reset(task.name)
             st = _load_state(task.name)
+    seeks = 0    # seek rounds since the last fitting bubble
     tried = []   # bubble points that did not progress (a growing bed's drop misread, ...): never clicked again this call
     while res['clicks'] < max_clicks and not res['stop']:
         if res['left_in_save'] is not None and len(res['done']) >= res['left_in_save'] > 0 and task.name == 'replant':
@@ -554,7 +659,16 @@ def _run(task, click, seed, max_clicks):
         affs = affordances.scan()
         fit = [a for a in affs if task.fits(a) and not any(abs(a.pt[0] - p[0]) < 60 and abs(a.pt[1] - p[1]) < 60 for p in tried)]
         if not fit:
-            _ask(task, st, res, last)
+            seeks += 1   # the node's vector on screen, else the map's direction; vision only after SEEK_TURNS
+            c = _seek(task, res) if seeks <= SEEK_TURNS else None
+            if c is None:
+                _ask(task, st, res, last)
+            last = c
+            out = _handle(task, c, res, seed)
+            if out == 'stop':
+                break
+            continue
+        seeks = 0
         a = _nearest(fit, CENTRE)
         last = record_click(a.pt, 'bubble', before=affs)   # checked by its event (STEP_OF)
         res['clicks'] += 1

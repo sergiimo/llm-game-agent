@@ -79,6 +79,8 @@ class Fake:
                     return self.interact(n)
                 self.zone = b['zone']   # walked there
                 return
+        if getattr(self, 'step_zone', None) and getattr(self, 'step_ok', lambda x, y: True)(x, y):
+            self.zone = self.step_zone   # a few steps on the road bring the garden into reach
 
     def interact(self, n):
         b = self.beds[n]
@@ -162,7 +164,10 @@ class Base(unittest.TestCase):
         ps = [mock.patch.object(laws, 'STATE', os.path.join(self.tmp.name, 'laws.json')),
               mock.patch.object(chains, 'OBSERVED', os.path.join(self.tmp.name, 'observed.jsonl')),
               mock.patch.object(laws, 'GRAPH', self._graph_copy()),
-              mock.patch.object(laws, 'BURST', (0.0,)), mock.patch.object(laws, 'EVENT_WAIT', 0.0)]
+              mock.patch.object(laws, 'BURST', (0.0,)), mock.patch.object(laws, 'EVENT_WAIT', 0.0),
+              # default: no vector match on screen and no map (the vision path); Seek tests override these
+              mock.patch.object(laws, '_see', lambda kind, tried=(): []),
+              mock.patch.object(laws, '_map_direction', lambda node: None)]
         for p in ps:
             p.start()
             self.addCleanup(p.stop)
@@ -185,6 +190,49 @@ class Base(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)
         return f
+
+
+class Seek(Base):
+    """User D185: no fitting bubble -> the node's vector on screen -> click; not seen -> map direction -> a few steps."""
+    Det = __import__('collections').namedtuple('Det', 'point')
+
+    def test_a_bed_seen_by_its_vector_is_clicked_without_vision(self):
+        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(1500, 300))}))
+        with mock.patch.object(laws, '_see', lambda kind, tried=(): [self.Det((1500, 300))] if f.zone == 'near' else []):
+            with self.assertRaises(NeedVision):   # all watered: only then vision is asked (is anything left?)
+                laws.run('water')
+        self.assertEqual(len(f.asks), 1)
+        self.assertEqual(f.beds['a']['state'], 'wet')
+        self.assertEqual(f.clicks[0], (1500, 300))
+
+    def test_not_seen_map_direction_steps_then_the_loop_runs(self):
+        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
+        f.step_zone = 'far'
+        with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
+            with self.assertRaises(NeedVision):   # all watered: only then vision is asked (is anything left?)
+                laws.run('water')
+        self.assertEqual(len(f.asks), 1)
+        self.assertEqual(f.clicks[0], (960 + laws.STEP_R[0], 540))   # straight toward the garden on the map
+        self.assertEqual(f.beds['a']['state'], 'wet')
+
+    def test_a_blocked_step_turns_a_little(self):
+        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
+        f.step_zone, f.step_ok = 'far', (lambda x, y: y != 540)   # straight ahead is a fence
+        with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
+            with self.assertRaises(NeedVision):   # all watered: only then vision is asked (is anything left?)
+                laws.run('water')
+        self.assertEqual(f.clicks[0][1], 540)
+        self.assertNotEqual(f.clicks[1][1], 540)
+        self.assertEqual(f.beds['a']['state'], 'wet')
+
+    def test_limited_turns_then_vision(self):
+        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
+        f.step_zone, f.step_ok = None, None   # steps never bring it in reach (and never move her)
+        with mock.patch.object(laws, '_map_direction', lambda node: (0.0, -1.0)):
+            with self.assertRaises(NeedVision):
+                laws.run('water')
+        self.assertEqual(len(f.asks), 1)
+        self.assertLessEqual(len(f.clicks), len(laws.STEP_R) * len(laws.STEP_TURN))
 
 
 class Points(unittest.TestCase):

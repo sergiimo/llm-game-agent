@@ -21,8 +21,13 @@ bad state carried over to the next call. These laws keep one guess per click and
 ## Rules (any task: replant, water, harvest, forage, talk)
 1. **Never locate Tara.** She is at the centre (M1). Describe everything as an offset from the centre ("the bed
    up-right of her"). Questions never ask "which bed is she at".
-2. **First node: vision gives one click point.** If a bubble that fits the task is visible, go to rule 4. Otherwise ask
-   vision **one** question on the current frame: *"Give the click point (x, y in the 1920×1080 frame) of the nearest
+2. **First node: see → map → step, then vision (user D185).** If a bubble that fits the task is visible, go to rule 4.
+   Otherwise, at most `SEEK_TURNS` (6) rounds: (a) **see** the target node by its appearance vectors (`objects/db/<kind>`,
+   e.g. GardenBed) on the frame → click the nearest match (not the one under Tara) → rule 4; (b) not seen → **map**: open
+   it, Tara's pin + the node's map picture (`objects/map_db`, e.g. MapGarden) + the road route between them give a
+   direction → (c) **step**: click 320 px from the centre in that direction (camera looks north like the map); she didn't
+   move → turn ±35°, then a shorter step → back to rule 4. Only when these give nothing, ask vision **one** question on the
+   current frame: *"Give the click point (x, y in the 1920×1080 frame) of the nearest
    <target kind> [that looks <state>]. If none is visible, answer `none` and the direction to walk."* Click that point.
    Vision gives a point to click, never a layout, grid or map of everything. Cheap checks on the answer: inside the
    frame, not on the HUD (clock, map, journal or inventory buttons). `none` → click open ground in that direction, then
@@ -65,6 +70,7 @@ that opens, `null` = stays in gameplay), `bubble` (the clicked object's bubble a
 |---|---|
 | Centre constant, bubble scan with kinds and drop flag | ✅ `laws.CENTRE`, `affordances.scan()` |
 | Click-result record (burst frames + new log lines + bubbles before/after + screen + burst OCR) | ✅ `laws.record_click` → `Click` (run log `click`, frames in `<run>/clicks/`) |
+| See → map → step before vision (`laws._seek`: `_see` detect, `_map_direction` map pin + MapGarden + road route, `_step`) | ✅ offline tests `Seek`; map direction checked on `.shots/map_last.png`; live check pending |
 | Vision "click point of the next node" (one grid cell) | ✅ `NEED_VISION click` (`wf.ask_vision('click', …)`), answer `click='Q14'`; `LAWS_STUCK` after 4 asks without progress |
 | `replant_all()` / `water_all()` / `harvest_all()` on these laws | ✅ `game/laws.py` (offline tests `tools/test_laws.py`); live check pending |
 | Actions DB as chains, surprises, gap filling | ✅ `game/chains.py` + `chains.json` |

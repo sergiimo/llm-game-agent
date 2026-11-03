@@ -292,6 +292,23 @@ class Seek(Base):
         self.assertLessEqual(len(f.clicks), len(laws.STEP_R) * len(laws.STEP_TURN))
 
 
+class Language(Base):
+    def test_russian_ui_stops_before_any_click(self):
+        f = self.use(Fake({'a': bed('dry', bubble=(900, 400))}))
+        f.state = lambda: {'mode': 'gameplay', 'text': ['0) Среда 09:40', '1) 100']}
+        with self.assertRaises(laws.WrongLanguage) as e:
+            laws.run('water')
+        self.assertIn('WRONG_LANGUAGE', str(e.exception))
+        self.assertEqual(f.clicks, [])
+
+    def test_english_ui_runs(self):
+        f = self.use(Fake({'a': bed('dry', bubble=(900, 400))}))
+        f.state = lambda: {'mode': 'gameplay', 'text': ['0) Wednesday 9:40 am']}
+        with self.assertRaises(NeedVision):
+            laws.run('water')
+        self.assertEqual(f.beds['a']['state'], 'wet')
+
+
 class Points(unittest.TestCase):
     def test_grid_cell_is_its_centre(self):
         self.assertEqual(laws.parse_point('Q14'), (1320, 911))

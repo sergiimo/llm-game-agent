@@ -34,6 +34,26 @@ class LawsStuck(Exception):
     """Terminal: vision was asked MAX_ASKS times without a single fitting bubble or done bed in between. Stop and report."""
 
 
+class WrongLanguage(LawsStuck):
+    """Terminal: the game UI is not English (D185: it had switched to Russian; card buttons, the Remove/Seeds/Select texts
+    and the OCR'd messages are matched in English). Stop and ask the user to switch the language back; never change it."""
+
+
+CYRILLIC = re.compile('[\u0400-\u04FF]{3,}')
+
+
+def check_language():
+    """Raise WrongLanguage when the on-screen text (clock day name, cards) is not English."""
+    try:
+        texts = core.WF.state().get('text', [])
+    except Exception:   # noqa: BLE001
+        return
+    bad = [t for t in texts if CYRILLIC.search(str(t))]
+    if bad:
+        raise WrongLanguage(f'WRONG_LANGUAGE: the game UI is not English (saw {bad[0]!r}). Stop: ask the user to switch '
+                            'the game language to English (Settings); do not change it yourself (AGENTS rule 3).')
+
+
 @dataclass
 class Click:
     """What one click did (law 3)."""
@@ -678,6 +698,7 @@ def _run(task, click, seed, max_clicks):
     res = {'task': task.name, 'done': [], 'other': [], 'notes': [], 'clicks': 0, 'vision': 0, 'refills': 0,
            'stop': None, 'left_in_save': _left_in_save(task), 'surprises': SURPRISES}
     SURPRISES.clear()
+    check_language()
     _gameplay()
     last = None
     if isinstance(click, str) and click.strip().lower() == 'none':

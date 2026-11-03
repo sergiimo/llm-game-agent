@@ -392,6 +392,8 @@ class GraphCli(unittest.TestCase):
         cls.views = os.path.join(cls.tmp, 'views')
         shutil.copytree(os.path.join(cls.ROOT, 'tools', 'objects', 'db'), cls.db)
         shutil.copytree(os.path.join(cls.ROOT, 'tools', 'objects', 'views'), cls.views)
+        cls.graph = os.path.join(cls.tmp, 'Farm.json')   # the seed, not the live Farm.json (the engine adds objects, L138)
+        shutil.copy(os.path.join(cls.ROOT, 'tools', 'fixtures', 'graph_seed.json'), cls.graph)
 
     @classmethod
     def tearDownClass(cls):
@@ -400,7 +402,8 @@ class GraphCli(unittest.TestCase):
 
     def run_wf(self, frame, *args, scene='Farm'):
         import subprocess
-        env = dict(os.environ, WF_NO_DAEMON='1', WF_SCENE=scene, WF_OBJECTS_DB=self.db, WF_VIEWS=self.views)
+        env = dict(os.environ, WF_NO_DAEMON='1', WF_SCENE=scene, WF_OBJECTS_DB=self.db, WF_VIEWS=self.views,
+                   WF_GRAPH=self.graph)
         if frame:
             env['WF_FRAME'] = os.path.join(self.ROOT, 'tools', 'fixtures', 'frames', frame + '.jpg')
         r = subprocess.run([os.path.join(self.ROOT, 'wf'), 'graph', *args], env=env, capture_output=True, text=True, timeout=300)

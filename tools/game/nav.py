@@ -228,6 +228,7 @@ def seek(t, res):
         c = A.click(det.point, 'object')
         res['clicks'] += 1
         tried.append(det.point)
+        _predicted_arrival(t, c)
         ok = walked(c, t.node, res)
         trace(res, f'{t.kind} seen @{det.point[0]},{det.point[1]}: ' + outcome(c, ok, t.node))
         if c.node == t.node and not any(t.fits(a) for a in c.after):   # a bed, but not one this target needs
@@ -252,6 +253,19 @@ def seek(t, res):
         trace(res, 'map: no direction')
         return None
     return step(dd, res, 'map', t.node)
+
+
+def _predicted_arrival(t, c):
+    """A click on a seen object of the target kind predicts she arrives at one: its bubble shows (or its event)."""
+    own = O.NODE_OF.get(t.kind)
+    hit = c.node == t.node or any(O.node_of_bubble(a) == own for a in c.after)
+    try:
+        import evals
+        evals.record('nav', 'arrive', t.kind, c.node or [str(a) for a in c.after][:4], hit,
+                     {'pt': list(c.pt), 'target': t.node})
+    except Exception:   # noqa: BLE001 (scoring never breaks play)
+        pass
+    return hit
 
 
 def search(t, res, rounds=SEEK_TURNS, halt=None):

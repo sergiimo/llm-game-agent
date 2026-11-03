@@ -51,6 +51,7 @@ class FakeGame:
         self.walk_frames, self.step_zone, self.step_ok = 0, None, (lambda x, y: True)
         self.hour, self.minute = 13.0, 0
         self.no_pos, self.steps_needed, self.steps_done = False, 1, 0
+        self.light, self.relabel, self.hide_drop = 'day', {}, False   # dusk vision: wrong kinds, no drop
         self.learned = []
 
     # ---- world rules ---------------------------------------------------------------------------------------------
@@ -129,7 +130,7 @@ class FakeGame:
         return self.hour
 
     def light_period(self, h):
-        return 'day'
+        return self.light
 
     def ask_vision(self, kind, q, img, **ctx):
         self.asks.append((kind, q))
@@ -231,7 +232,8 @@ class FakeGame:
             s = o['state']
             drop = bool(s.get('wilted')) or (s.get('watered') is False and s.get('stage') in ('growing', 'producing'))
             ready = s['ready'] if 'ready' in s else s.get('stage') == 'produced'
-            out.append(Affordance(b['bubble']['kind'], None, tuple(o['bubble_pt']), False, 0.0, drop, bool(ready)))
+            out.append(Affordance(self.relabel.get(b['bubble']['kind'], b['bubble']['kind']), None, tuple(o['bubble_pt']),
+                                  False, 0.0, drop and not self.hide_drop, bool(ready)))
         return out
 
     # ---- ui ------------------------------------------------------------------------------------------------------
@@ -1021,6 +1023,76 @@ class ReviewFixes(EngineBase):
         self.assertTrue(res['stop'].startswith('NEED_INPUT plant: region?'), res['stop'])
         self.assertIn('GardenSouth', res['stop'])
         self.assertEqual(f.clicks, [])
+
+
+class Predictions(EngineBase):
+    """User D185 live run: at 6:40 pm (dusk) the empty bed's bubble read as `unplant`; she walked on. Predictions
+    (arrival at a seen object, the bubble the world says the area's objects show) are recorded with hit/miss; icon
+    goals run in daylight only; a contradicting bubble outside daylight stops with a sleep suggestion."""
+
+    def setUp(self):
+        super().setUp()
+        import evals.store as ES
+        self.preds = os.path.join(self.tmp.name, 'predictions.jsonl')
+        p = mock.patch.object(ES, 'PATH', self.preds)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def recs(self):
+        import json
+        try:
+            return [json.loads(l) for l in open(self.preds)]
+        except OSError:
+            return []
+
+    def misses(self, component, what):
+        rs = self.recs()
+        ids = {r['id'] for r in rs if r.get('component') == component and r.get('what') == what}
+        return [r for r in rs if r.get('id') in ids and 'hit' in r and not r['hit']]
+
+    def test_icon_goals_stop_outside_daylight_and_suggest_sleep(self):
+        f = self.use(FakeGame(beds('s', SX[:2], SZ[:1], 'near', 500, 300, stage='empty', watered=False, wilted=False),
+                              GAME, inventory={'TulipSeed': 5}))
+        f.light = 'dusk'
+        res = engine.achieve('plant', seed='Tulip', region='Garden')
+        self.assertTrue(res['stop'].startswith('dark'), res['stop'])
+        self.assertIn('sleep', res['stop'])
+        self.assertEqual(f.clicks, [])
+
+    def test_a_bubble_that_contradicts_the_world_is_a_recorded_miss(self):
+        f = self.use(FakeGame(beds('s', SX[:2], SZ[:1], 'near', 500, 300, stage='empty', watered=False, wilted=False),
+                              GAME, inventory={'TulipSeed': 5}))
+        f.relabel = {'plant': 'unplant'}   # misread kind
+        with self.assertRaises(NeedVision):
+            engine.achieve('plant', seed='Tulip', region='Garden')
+        m = self.misses('engine', 'bubble')
+        self.assertTrue(m, self.recs())
+        self.assertIn('unplant', str(m[0]['outcome']))
+
+    def test_at_dusk_a_contradicting_bubble_stops_the_run(self):
+        f = self.use(FakeGame(beds('n', NX[:2], NZ[:1], 'near', 500, 300, stage='growing', watered=False, wilted=False),
+                              GAME))
+        f.light, f.hide_drop = 'dusk', True   # dry beds whose drop sub-icon isn't seen in the dusk light
+        res = engine.achieve('water')
+        self.assertTrue(res['stop'].startswith('dark'), res['stop'])
+        self.assertIn('sleep', res['stop'])
+        self.assertTrue(self.misses('engine', 'bubble'))
+
+    def test_arrival_at_a_seen_object_is_a_recorded_prediction(self):
+        f = self.use(FakeGame([obj('a', pos=(NX[0], NZ[0]), zone='far', bubble=(900, 400), body=(1500, 300),
+                                   stage='empty', watered=False, wilted=False)], GAME, inventory={'TulipSeed': 2}))
+        Det = __import__('collections').namedtuple('Det', 'point')
+        with mock.patch.object(observe, 'see', lambda kind, tried=(): [Det((1500, 300))] if f.zone == 'near' else []):
+            res = engine.achieve('plant', seed='Tulip', region='Garden')
+        self.assertEqual(len(res['done']), 1)
+        hits = [r for r in self.recs() if r.get('hit') is True]
+        arrive = [r for r in self.recs() if r.get('component') == 'nav' and r.get('what') == 'arrive']
+        self.assertTrue(arrive and any(h['id'] == arrive[0]['id'] for h in hits), self.recs())
+
+    def test_the_daemon_is_stale_when_code_is_newer(self):
+        import wfc
+        self.assertTrue(wfc.stale(100.0, [50.0, 150.0]))
+        self.assertFalse(wfc.stale(200.0, [50.0, 150.0]))
 
 
 if __name__ == '__main__':

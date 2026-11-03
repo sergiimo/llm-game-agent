@@ -125,6 +125,35 @@ def _ambiguous(g, row, kind, area):
             and _passes(g, n, {k: v for k, v in row['when'].items()})]
 
 
+def _all_need(g, row, kind, area):
+    """The world says EVERY object of `kind` in the area needs this row (all south beds empty): any of their bubbles
+    in view must fit it - a prediction the frame can refute."""
+    objs = world.query(g, {'kind': kind, 'region': area})
+    return bool(objs) and all(_passes(g, n, row['when']) for n in objs)
+
+
+def _bubble_miss(row, area, mine, res):
+    """Bubbles of the area's objects in view, none fits the row the world predicts: a recorded miss (evals). Outside
+    daylight icons are unreliable (D185 dusk: an empty bed read as `unplant`): stop and suggest sleeping."""
+    got = sorted({str(a).split(' @')[0] for a in mine})
+    key = (row['id'], tuple(got))
+    if key not in res.setdefault('bubble_misses', []):
+        res['bubble_misses'].append(key)
+        res['surprises'].append(f'{row["id"]}: the world predicts its bubble {row["bubble"]} in {area}; seen {got}')
+        try:
+            import evals
+            evals.record('engine', 'bubble', row['bubble'], got, False, {'row': row['id'], 'area': area,
+                                                                       'light': res.get('light')})
+        except Exception:   # noqa: BLE001
+            pass
+    if res.get('light') not in (None, 'day'):
+        res['stop'] = (f'dark ({res["light"]}): the bubbles in {area} ({", ".join(got)}) contradict the world '
+                       f'({row["id"]} expected); icons are unreliable outside daylight - suggest sleeping (ask the '
+                       f'user), then retry in the morning')
+        return True
+    return False
+
+
 def _reach(g, name, params, row, kind, area, res, marker):
     """A bubble that fits the row in the target's area. Her area unknown (she walked) and look-alike objects in
     another area -> ONE question: which area is she in? (answer area=<name>)."""
@@ -138,11 +167,27 @@ def _reach(g, name, params, row, kind, area, res, marker):
     def fits(a):
         return free(a) and (res.get('area') == area or (res.get('area') is None and not amb))
 
+    expect = _all_need(g, row, kind, area)
+    own = O.NODE_OF.get(kind)
+
     def halt(affs):
-        return res.get('area') is None and amb and any(free(a) for a in affs)
+        if res.get('area') is None and amb and any(free(a) for a in affs):
+            return True
+        mine = [a for a in affs if O.node_of_bubble(a) == own]
+        if expect and mine and res.get('area') in (None, area) and not any(fits(a) for a in affs):
+            return _bubble_miss(row, area, mine, res)
+        return False
     t = N.Target(name, fits, f'a {kind} in {area} whose bubble fits "{row["id"]}"', None, kind, area, area, marker)
     a = N.search(t, res, halt=halt)
-    if a is None and halt(O.scan()):
+    if a is None and res['stop']:
+        return None
+    if a is not None and expect:
+        try:
+            import evals
+            evals.record('engine', 'bubble', row['bubble'], str(a), True, {'row': row['id'], 'area': area})
+        except Exception:   # noqa: BLE001
+            pass
+    if a is None and res.get('area') is None and amb and any(free(b) for b in O.scan()):
         areas = sorted({world.area_of(g, n) for n in _ambiguous(g, row, kind, area)} | {area})
         ask.ask('name', f'Tara (the frame centre) sees {kind} bubbles that fit "{row["id"]}", but they look the same '
                         f'in {", ".join(areas)}. Which area is she in? Answer area=<one of {", ".join(areas)}>.',
@@ -320,6 +365,10 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
         O.check_language()
         A.gameplay()
         if ask.late(res):
+            return res
+        if spec.get('light') and res.get('light') and res['light'] != spec['light']:
+            res['stop'] = (f'dark ({res["light"]}): {name} reads bubble icons, reliable only in daylight - suggest '
+                           f'sleeping (ask the user), then retry in the morning')
             return res
         _, save = W.read_save()
         world.refresh(g, save, W.today_log()[0])

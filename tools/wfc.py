@@ -87,6 +87,25 @@ def chain_refusal(argv, parent):
     return None
 
 
+CODE = [os.path.join(ROOT, 'tools', 'wf.py'), os.path.join(ROOT, 'tools', 'game'), os.path.join(ROOT, 'tools', 'objects')]
+
+
+def code_mtimes():
+    out = []
+    for p in CODE:
+        if os.path.isdir(p):
+            out += [os.path.getmtime(os.path.join(p, f)) for f in os.listdir(p) if f.endswith(('.py', '.json'))
+                    and not f.startswith('observed')]
+        elif os.path.exists(p):
+            out.append(os.path.getmtime(p))
+    return out
+
+
+def stale(started, mtimes):
+    """The daemon runs older code than the files (it imports game modules once): restart it (L141)."""
+    return bool(mtimes) and max(mtimes) > started
+
+
 def main():
     argv = sys.argv[1:]
     msg = chain_refusal(argv, parent_cmdline())
@@ -100,6 +119,13 @@ def main():
         subprocess.run(['pkill', '-f', 'tools/wf.py serve'])
         return 0
     if argv and argv[0] not in LOCAL_ONLY and not (argv[0] in ('objects', 'graph') and os.environ.get('WF_FRAME')) and os.environ.get('WF_NO_DAEMON') != '1':
+        try:
+            if os.path.exists(SOCK) and stale(os.path.getmtime(SOCK), code_mtimes()):
+                print('wf: code changed since the daemon started: restarting it', file=sys.stderr)
+                subprocess.run(['pkill', '-f', 'tools/wf.py serve'])
+                os.remove(SOCK)
+        except OSError:
+            pass
         try:
             code = via_daemon(argv)
             log_end(start, argv)

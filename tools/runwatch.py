@@ -20,7 +20,7 @@ import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAUSE = ('game paused', 'пауза')
-JUNK = re.compile(r'^[A-Za-z][A-Za-z ]{2,}$')   # an item name: Latin letters and spaces, 3+ chars
+JUNK = re.compile(r'^[A-Za-z][A-Za-z _]{2,}$')   # an item name: Latin letters, spaces or _ (folder names), 3+ chars
 
 
 def _kinds_nodes():

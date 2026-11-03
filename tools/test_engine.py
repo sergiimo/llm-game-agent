@@ -55,6 +55,7 @@ class FakeGame:
         self.flash = []   # a short-lived card (a few seconds): only the burst frames' OCR sees it
         self.paused, self.blank_overlay, self.menu_clicks = False, False, []   # Escape toggles the pause menu
         self.overlay_texts = []
+        self.highlight = None   # the object whose bubble Space acts on
         self.learned = []
 
     # ---- world rules ---------------------------------------------------------------------------------------------
@@ -95,7 +96,7 @@ class FakeGame:
             self.inventory[self.picked + 'Seed'] -= 1
         if b.get('event'):
             self.emit(b['event'], o)
-        self.card, self.picked = None, None
+        self.card, self.picked, self.highlight = None, None, o
 
     def _walk(self, zone):
         self.zone, self.walk_frames = zone, 1
@@ -280,8 +281,11 @@ class FakeGame:
         self._advance(f'press:{label}')
 
     def press_bubble(self):
-        if self.screen() and self.screen()['next'] == 'space':
-            self._advance('space')
+        sc = self.screen()
+        if sc and (sc['next'] == 'space' or (self.card['beh'].get('space_confirms') and sc['next'].startswith('press:'))):
+            return self._advance(sc['next'] if sc['next'] != 'space' else 'space')
+        if not sc and self.highlight is not None:   # gameplay: Space acts on the highlighted bubble (the bed just planted)
+            self.interact(self.highlight)
 
     def pick_card(self, name):
         if not self.inventory.get(name + 'Seed'):
@@ -302,6 +306,7 @@ GAME = [
      'event': 'unplant_impl', 'effect': {'stage': 'empty', 'wilted': False, 'watered': False, 'crop': None}},
     {'kind': 'GardenBed', 'when': {'stage': 'empty'}, 'bubble': {'kind': 'plant'},
      'card': [{'texts': ['Inventory', 'Seeds'], 'next': 'pick'}, {'texts': ['Seeds', 'Select'], 'next': 'press:Select'}],
+     'space_confirms': True,
      'event': 'plant', 'stats': 'totalPlanted.$seedSeed', 'uses_seed': True,
      'effect': {'stage': 'growing', 'crop': '$seed', 'watered': False}},
     {'kind': 'GardenBed', 'when': {'stage': 'growing|producing', 'watered': False}, 'bubble': {'kind': 'water'},
@@ -1107,6 +1112,8 @@ class Predictions(EngineBase):
         with mock.patch.object(observe, 'see', lambda kind, tried=(): [Det((1500, 300))] if f.zone == 'near' else []):
             res = engine.achieve('plant', seed='Tulip', region='Garden')
         self.assertEqual(len(res['done']), 1)
+        self.assertTrue(nav._predicted_arrival(nav.Target('t', None, 'x', None, 'GardenBed', 'GardenSouth', 'GardenSouth'),
+                                               act.Click((1, 1), 'object', 0, node='GardenBed@Garden')))
         hits = [r for r in self.recs() if r.get('hit') is True]
         arrive = [r for r in self.recs() if r.get('component') == 'nav' and r.get('what') == 'arrive']
         self.assertTrue(arrive and any(h['id'] == arrive[0]['id'] for h in hits), self.recs())
@@ -1171,18 +1178,19 @@ class PlantProof(EngineBase):
         self.assertEqual(g.state_value('GardenBed#10.1,-59.4', 'stage'), 'growing')
 
     def test_a_picker_without_select_asks_which_button_then_replays_it(self):
-        confirm = [dict(GAME[1], card=[{'texts': ['Inventory', 'Seeds'], 'next': 'pick'},
-                                       {'texts': ['Inventory', 'Seeds', 'Tulip Bulbs'], 'next': 'space'}])]
+        confirm = [dict(GAME[1], space_confirms=False,   # a card whose button is "Plant" and Space doesn't confirm
+                        card=[{'texts': ['Inventory', 'Seeds'], 'next': 'pick'},
+                              {'texts': ['Inventory', 'Seeds', 'Tulip Bulbs', 'Plant'], 'next': 'press:Plant'}])]
         f = self.use(FakeGame(beds('s', SX[:2], SZ[:1], 'near', 500, 300, stage='empty', watered=False, wilted=False),
                               confirm + GAME, inventory={'TulipSeed': 5}))
         with self.assertRaises(NeedVision) as cm:
             engine.achieve('plant', seed='Tulip', region='Garden')
         self.assertIn('button', str(cm.exception).lower())
         self.assertTrue(all(o['state']['stage'] == 'empty' for o in f.objects.values()))
-        res = engine.achieve('plant', seed='Tulip', region='Garden', answer='space')
+        res = engine.achieve('plant', seed='Tulip', region='Garden', answer='Plant')
         self.assertEqual((len(res['done']), res['vision']), (2, 0), res)
         row = next(r for r in plan.rows() if r['id'] == 'plant')
-        self.assertEqual(row['steps'][2], {'do': 'press_space', 'expect': {'events': ['plant'], 'log': 'totalPlanted'}})
+        self.assertEqual(row['steps'][2], {'do': 'press', 'arg': 'Plant', 'expect': {'events': ['plant'], 'log': 'totalPlanted'}})
 
     def test_pick_card_reads_the_card_modal_text_not_the_fixed_title_band(self):
         """User D186: the picked card opened a modal with "Select"; the fixed title band read another text, so the right
@@ -1287,6 +1295,24 @@ class PauseMenu(Base):
         act.click((960, 840), 'explore')
         self.assertEqual(f.menu_clicks, [])
         self.assertFalse(f.paused)
+
+
+class SpaceFlow(EngineBase):
+    """User D186: "select confirm can be run by a space click, and watering after planting is also a space click"."""
+
+    def test_planting_confirms_with_space_and_waters_with_space(self):
+        f = self.use(FakeGame(beds('s', SX[:2], SZ[:1], 'near', 500, 300, stage='empty', watered=False, wilted=False),
+                              GAME, inventory={'TulipSeed': 5}))
+        pressed = []
+        press = f.press
+        f.press = lambda label: (pressed.append(label), press(label))[1]
+        with mock.patch.object(ui, 'press', f.press):
+            res = engine.achieve('plant', seed='Tulip', region='Garden')
+        self.assertEqual((len(res['done']), res['vision']), (2, 0), res)
+        self.assertEqual(pressed, [])   # no Select click: Space confirms
+        self.assertTrue(all(o['state']['watered'] for o in f.objects.values()), [o['state'] for o in f.objects.values()])
+        row = next(r for r in plan.rows() if r['id'] == 'plant')
+        self.assertEqual([s_['do'] for s_ in row['steps']], ['click_bubble', 'pick_card', 'press_space', 'press_space'])
 
 
 if __name__ == '__main__':

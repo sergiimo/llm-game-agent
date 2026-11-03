@@ -54,6 +54,7 @@ class Rules(unittest.TestCase):
                            {'type': 'action', 'name': 'ui.pick_card', 'args': 'Tulip', 'ok': False,
                             'why': 'no "Tulip" among 1 cards'}])
         self.assertEqual([lv for lv, _ in out], ['ALERT', 'ALERT'])
+        self.assertEqual(self.levels([{'type': 'learn', 'what': 'item_icon', 'name': 'Tulip_Bulbs'}]), [])
 
     def test_a_plant_line_without_its_proof_is_a_note(self):   # attempt 3: the cancelled panel
         out = self.levels([{'type': 'game', 'line': '[D186 7:30:05 AM] > plant me=Player target=GardenBed(Clone) '

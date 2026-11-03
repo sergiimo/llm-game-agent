@@ -141,14 +141,16 @@
      "arg": "$seed"
     },
     {
-     "do": "press",
-     "arg": "Select",
+     "do": "press_space",
      "expect": {
       "events": [
        "plant"
       ],
       "log": "totalPlanted"
      }
+    },
+    {
+     "do": "press_space"
     }
    ],
    "effect": {
@@ -159,10 +161,10 @@
    "needs": {
     "item": "$seedSeed"
    },
-   "source": "seed: game D148/D185 (L137)",
-   "seen": 1,
+   "source": "seed: game D148/D185 (L137); user D186: Space confirms the card (no Select click), a second Space waters the bed just planted",
+   "seen": 3,
    "ok": 0,
-   "surprises": 1,
+   "surprises": 3,
    "proof": "totalPlanted"
   },
   {

@@ -141,7 +141,7 @@ def _events_of(row):
     """The events that prove a row happened: an event-only row's event, else its last step's expected events."""
     if row.get('event'):
         return [row['event']]
-    last = row['steps'][-1] if row['steps'] else {}
+    last = next((s for s in reversed(row['steps']) if (s.get('expect') or {}).get('events')), {})
     return [e for alt in (last.get('expect') or {}).get('events', []) for e in alt.split('|')]
 
 

@@ -112,7 +112,7 @@ def run(row, params, bubble, node_state=None):
             observe(r['id'], i, field, want, got, ok)
         if bad:
             out['surprises'] += [(i, f, w, g) for f, w, g in bad]
-            out.update(ok=False, failed_step=i)
+            out.update(ok=False, failed_step=i, screen=_card())   # the card still open: what vision is asked about
             break
     for line in out['lines']:
         p = A.position_of(line)

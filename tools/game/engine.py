@@ -515,10 +515,11 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             res['surprises'].append(f'{t["id"]}: no position in the event lines {out["events"]}; counted on {tid}')
         nid = _learn(g, out, kind, t, res)
         plan.count(t['id'], out['ok'])
-        if not out['ok'] and out.get('why') and not _really_missing(save, item, out):
+        if not out['ok'] and (out.get('why') or out.get('screen')) and not _really_missing(save, item, out):
             st = t['steps'][out['failed_step']]
             ask.ask('button', f'Goal {name}: step {out["failed_step"]} of "{t["id"]}" ({st["do"]} {st.get("arg", "")}) '
-                              f'found nothing to do ({out["why"][:120]}). On screen: {out.get("screen") or "?"}. '
+                              f'did not work ({str(out.get("why") or out["surprises"])[:120]}). On screen: '
+                              f'{out.get("screen") or "?"}. '
                               f'What does Tara do next on this screen? Answer the exact on-screen text to press, '
                               f'space, or the grid cell of the card/button.',
                     {'goal': name, 'params': params, 'row': t['id'], 'step': out['failed_step']}, res)

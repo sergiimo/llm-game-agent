@@ -12,7 +12,7 @@ Camera zooms on the bed; left panel titled **Inventory** with tab **Seeds**.
 - With no seeds: "Seeds can be bought at Lina's store." (buy seeds at Lina's store).
 
 ## Actions
-- Click card (≈(110,540) for the first) → `./wf click-text Select` (EN ❓).
+- Click card (≈(110,540) for the first) → **Space** confirms it (= Select; user D186, more reliable than clicking the Select text) → **Space** again waters the bed just planted (its water bubble is highlighted).
 
 ## Exit
 Esc.

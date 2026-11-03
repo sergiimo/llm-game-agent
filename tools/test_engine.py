@@ -1512,5 +1512,15 @@ class SmokeMiss(Base):
         self.assertEqual(f.objects['e']['state']['stage'], 'growing')
 
 
+class SmokeDeadReckoning(Base):
+    def test_after_a_walk_her_position_is_the_walked_to_point_until_an_event(self):
+        f = self.use(FakeGame([], GAME))
+        smoke.LAST_WALK.clear()
+        smoke.remember_walk((13.89, -60.56))
+        self.assertEqual(smoke.tara_now((10.14, -63.11)), (13.89, -60.56))   # no event since: the walk's end point
+        f.log.append('[D186 1:40:00 PM] > plant me=Player target=GardenBed(Clone) at (2.64, 0.10, -59.36)')
+        self.assertEqual(smoke.tara_now((2.64, -59.36)), (2.64, -59.36))     # a newer event wins
+
+
 if __name__ == '__main__':
     unittest.main()

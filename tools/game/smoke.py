@@ -119,6 +119,24 @@ def screen_point(tara, obj, k):
     return (round(O.CENTRE[0] + (obj[0] - tara[0]) * k), round(O.CENTRE[1] - (obj[1] - tara[1]) * k))
 
 
+LAST_WALK = {}   # {'pos': (x, z), 'mark': log mark}: where a walk that moved her ended
+
+
+def remember_walk(pos):
+    LAST_WALK.update(pos=tuple(pos), mark=core.WF.log_mark())
+
+
+def tara_now(from_events):
+    """Her position: the last walk's end point while no positioned event came since, else the events' position."""
+    import re
+    if LAST_WALK.get('pos') is not None:
+        newer = core.log_text(LAST_WALK['mark'])
+        if not re.search(r' at \(', newer):
+            return LAST_WALK['pos']
+        LAST_WALK.clear()
+    return from_events
+
+
 def walk_to_need(where, kind='GardenBed', region=None):
     """Refresh the world (save + today's log), take the nearest object that matches, click the ground below it (she
     walks there). The Click, or None when nothing matches / her position is unknown."""
@@ -126,7 +144,7 @@ def walk_to_need(where, kind='GardenBed', region=None):
     g = core.WF.world_graph() if hasattr(core.WF, 'world_graph') else None
     if g is None:
         return None
-    tara = world.tara_pos(g)
+    tara = tara_now(world.tara_pos(g))
     flt = dict(where, kind=kind, **({'region': region} if region else {}))
     objs = world.query(g, flt)
     if not tara or not objs:
@@ -137,9 +155,12 @@ def walk_to_need(where, kind='GardenBed', region=None):
     pos = tuple(g.nodes[nid].extra['pos'])
     ns = sorted(math.dist(pos, tuple(g.nodes[m].extra['pos'])) for m in world.query(g, {'kind': kind}) if m != nid)
     k = px_per_unit(O.scan(), ns[0] if ns else 0)
-    x, y = screen_point(tara, (pos[0], pos[1] - 1.2), k)   # just south of it: she stands in front, its bubble shows
+    goal = (pos[0], pos[1] - 1.2)   # just south of it: she stands in front, its bubble shows
+    x, y = screen_point(tara, goal, k)
     x, y = min(max(x, 60), 1860), min(max(y, 260), 1020)
     c = A.click((x, y), 'step')
+    if c.moved:   # dead reckoning: she walked to the clicked point (clamped clicks fall short; the next walk re-aims)
+        remember_walk((tara[0] + (x - O.CENTRE[0]) / k, tara[1] - (y - O.CENTRE[1]) / k))
     print(f'walk: to {nid} at {pos} from {tara} (k {k:.1f} px/unit) -> click {x},{y}: '
           f'{"walked" if c.moved else "no move"}, events {c.events}')
     return c

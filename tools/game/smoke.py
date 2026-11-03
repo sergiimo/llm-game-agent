@@ -225,7 +225,7 @@ def plant_garden(seed='Tulip', region=None, rounds=12):
             total['stop'] = f'no empty bed left in {region} (world)'
             break
         src, pos = where.position()
-        if apos and (pos is None or math.dist(pos, apos) > AREA_NEAR):
+        if apos and pos is not None and math.dist(pos, apos) > AREA_NEAR:   # unknown: a visible bed first
             walk_to_area(apos, arrive=AREA_NEAR * 0.6)
             total['walks'] += 1
             continue
@@ -239,7 +239,6 @@ def plant_garden(seed='Tulip', region=None, rounds=12):
         d = dets[0]
         tried.append(d.point)
         c = A.click(d.point, 'object')
-        where.walked() if c.moved and not c.at else None
         total['walks'] += 1
         print(f'bed: clicked the bed seen @{d.point[0]},{d.point[1]}: {"walked" if c.moved else "no move"}, '
               f'events {c.events}, bubbles {[str(a) for a in c.after] or "-"}')

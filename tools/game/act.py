@@ -117,6 +117,9 @@ def click(pt, what='point', before=None):
     from objects import graph as OG
     c.node = next((n for n in map(OG.node_of_line, lines) if n), None)
     c.at = next((p for p in map(position_of, lines) if p), None)
+    if c.moved and not c.at and mode == 'gameplay':   # she walked and nothing logged where: positions are stale
+        from . import where
+        where.walked()
     learned = L.learn_bubble(c, img0)
     L.observe_card(c)   # a short-lived crop card -> the object's crop / days left / wilted (world graph)
     L.remember(c.events)

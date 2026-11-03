@@ -205,7 +205,11 @@ class Base(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
+        from game import where
+        where._WALK.clear()
+        self.addCleanup(where._WALK.clear)
         ps = [mock.patch.object(ask, 'STATE', os.path.join(self.tmp.name, 'ask.json')),
+              mock.patch.object(where, 'WALK', os.path.join(self.tmp.name, 'where-walk.json')),
               mock.patch.object(learn, 'GRAPH', self._graph_copy()),
               mock.patch.object(act, 'BURST', (0.0, 0.0)), mock.patch.object(act, 'EVENT_WAIT', 0.0),
               # default: no vector match on screen and no map (the vision path); Seek tests override these

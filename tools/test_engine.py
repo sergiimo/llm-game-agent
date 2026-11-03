@@ -334,7 +334,10 @@ class Base(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         g = os.path.join(self.tmp.name, 'Farm.json')
         shutil.copy(SEED, g)
+        where._WALK.clear()
+        self.addCleanup(where._WALK.clear)
         ps = [mock.patch.object(learn, 'GRAPH', g),
+              mock.patch.object(where, 'WALK', os.path.join(self.tmp.name, 'where-walk.json')),
               mock.patch.object(act, 'BURST', (0.0, 0.0)), mock.patch.object(act, 'EVENT_WAIT', 0.0),
               mock.patch.object(observe, 'see', lambda kind, tried=(): []),
               mock.patch.object(observe, 'see_all', lambda: []),
@@ -1635,6 +1638,20 @@ class GardenLoop(Base):
         g.load(SEED)
         world.refresh(g, f.read_save()[1], f.today_log()[0], None)
         return g
+
+
+class WhereWalks(Base):
+    def setUp(self):
+        super().setUp()
+    def test_any_click_that_moved_her_without_an_event_is_a_walk_kept_on_disk(self):
+        f = self.use(FakeGame([], GAME))
+        f.log.append(L('9:00:00 AM', 'water', 'GardenBed', SX[0], SZ[0]))
+        self.assertEqual(where.position()[0], 'event')
+        f.step_zone = 'near'
+        act.click((960, 860), 'step')   # walked, no event
+        where._WALK.clear()             # a daemon restart: memory gone, the disk keeps it
+        f.map_snapshot, f.map_pin = (lambda: None), (lambda img: None)
+        self.assertEqual(where.position(), (None, None))
 
 
 if __name__ == '__main__':

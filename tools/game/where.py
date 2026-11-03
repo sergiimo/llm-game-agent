@@ -14,7 +14,9 @@ from . import core
 CALIB = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'map_calib.json')
 MIN_SPREAD = 5.0     # world units between pairs for a usable scale
 _AT = re.compile(r' at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)')
-_WALK = {}           # {'mark': log mark} of the last walk
+_WALK = {}           # {'mark': log mark} of the last walk (also on disk: a daemon restart must not forget it)
+WALK = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.shots',
+                    'where-walk.json')
 
 
 def pairs():
@@ -57,11 +59,31 @@ def to_world(pin):
 def walked():
     """A walk click: the event position is stale from now until the next positioned event."""
     _WALK['mark'] = core.WF.log_mark()
+    try:
+        os.makedirs(os.path.dirname(WALK), exist_ok=True)
+        with open(WALK, 'w') as f:
+            json.dump({'mark': _WALK['mark']}, f)
+    except (OSError, TypeError):
+        pass
+
+
+def _walk_mark():
+    if 'mark' not in _WALK:
+        try:
+            with open(WALK) as f:
+                _WALK['mark'] = json.load(f)['mark']
+        except (OSError, ValueError, KeyError):
+            return None
+    return _WALK['mark']
 
 
 def _event_pos():
-    if 'mark' in _WALK:
-        lines = core.log_text(_WALK['mark']).splitlines()
+    mark = _walk_mark()
+    if mark is not None:
+        try:
+            lines = core.log_text(mark).splitlines()
+        except Exception:   # noqa: BLE001 (a new log file: the mark is from another session)
+            lines = []
     else:
         try:
             lines = core.WF.today_log()[0]

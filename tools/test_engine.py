@@ -1430,5 +1430,17 @@ class SmokeLoop(Base):
         self.assertEqual(keys, [])
 
 
+class SmokeWalk(Base):
+    def test_the_screen_point_of_a_bed_from_world_positions(self):
+        self.assertEqual(smoke.screen_point((10.14, -63.11), (6.39, -63.11), 57.6), (744, 540))   # west = left
+        self.assertEqual(smoke.screen_point((10.14, -63.11), (10.14, -66.86), 57.6), (960, 756))  # south = down
+
+    def test_px_per_unit_from_two_neighbour_bubbles(self):
+        A_ = Affordance
+        k = smoke.px_per_unit([A_('water', None, (848, 536), False, 0.0), A_('water', None, (1064, 540), False, 0.0)], 3.75)
+        self.assertAlmostEqual(k, 57.6, delta=0.5)
+        self.assertEqual(smoke.px_per_unit([], 3.75), smoke.PX_PER_UNIT)
+
+
 if __name__ == '__main__':
     unittest.main()

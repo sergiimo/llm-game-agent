@@ -120,6 +120,8 @@ def learn_bubble(c, img0):
     label = W.event_kind(c.lines)
     if b is None or not label or b.kind == label:
         return None
+    if b.drop and label not in O.CROP_KINDS:   # the drop sub-icon = a crop (D183); the event came from a neighbour
+        return None                            # (D186: tulip+drop examples stored as beehive_progress)
     try:
         return label if W.learn_bubble(W.bubble_crop(img0, b.pt), label, b.kind) else None
     except Exception:   # noqa: BLE001

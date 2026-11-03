@@ -1389,5 +1389,18 @@ class Smoke(Base):
         self.assertEqual(f.clicks, [])
 
 
+class BubbleLabels(Base):
+    """Live D186 smoke: a seedling read as `unplant`, a tulip+drop as `beehive_progress` - polluted examples from
+    "label a clicked bubble by the next event" when the event came from a neighbour (the hive by the beds)."""
+
+    def test_a_drop_bubble_is_never_relabelled_as_a_non_crop_kind(self):
+        f = self.use(FakeGame([], GAME))
+        c = act.Click((900, 400), 'bubble', 0, lines=['[D186 9:00:00 AM] > beehive_progress me=Player target=BeeHive(Clone)'],
+                      before=[Affordance('water', None, (900, 400), False, 0.0, True)])
+        f.event_kind = lambda lines: 'beehive_progress'
+        self.assertIsNone(learn.learn_bubble(c, None))
+        self.assertEqual(f.learned, [])
+
+
 if __name__ == '__main__':
     unittest.main()

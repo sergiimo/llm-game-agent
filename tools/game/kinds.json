@@ -1,0 +1,15 @@
+{
+  "_doc": "Optional per-kind overrides (spec 2026-11-03 §3). save_has: userState fields that identify the kind in the save (prefab ids are opaque); state: save field -> one-vocabulary state key ([field, 'bool' | {value: state, '*': default}]); area: name stem for an area where this kind is the main one; markers: state -> frame marker nav can walk to. A kind without an entry still works (raw fields only; named from the log).",
+  "GardenBed": {
+    "save_has": ["isWatered", "lastTimeRefreshed"],
+    "state": {
+      "stage": ["plantState", {"##0": "empty", "": "empty", "##growing": "growing", "##producing": "producing", "##produced": "produced"}],
+      "watered": ["isWatered", "bool"],
+      "wilted": ["isWilted", "bool"],
+      "ready": ["plantState", {"##produced": true, "*": false}]
+    },
+    "area": "Garden",
+    "markers": {"watered=false": "dry_soil"}
+  },
+  "BeeHive": {"save_has": ["pollen"], "area": "Hives"}
+}

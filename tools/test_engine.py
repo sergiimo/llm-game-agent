@@ -9,7 +9,8 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, core, learn, nav, observe, plan, ui  # noqa: E402
+from game import act, affordances, core, learn, nav, observe, plan, ui, world  # noqa: E402
+from objects import graph as OG  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
 
 core.LOG_WAIT = 0.0
@@ -425,6 +426,108 @@ class Table(unittest.TestCase):
         plan.count('water', False)
         r = next(r for r in plan.rows() if r['id'] == 'water')
         self.assertEqual((r['seen'], r['ok'], r['surprises']), (2, 1, 1))
+
+
+NORTH = [obj(f'n{x}{z}', pos=(x, z), stage='growing', watered=True, wilted=False)
+         for z in (-25.34, -29.09, -31.59) for x in (-1.66, 0.84, 3.34, 5.84)]
+SOUTH = [obj(f's{x}{z}', pos=(x, z), zone='south', stage='empty', watered=False, wilted=False)
+         for z in (-59.36, -63.11, -66.86) for x in (2.64, 6.39, 10.14, 13.89)]
+HIVES = [obj(f'h{x}', kind='BeeHive', pos=(x, -23.5), save={'pollen': '0'}) for x in (-2.3, -1.0, 0.2, 1.5, 2.7, 4.0, 5.2, 6.5)]
+
+
+def L(t, event, kind, x, z):
+    return f'[D185 {t}] > {event} me=Player target={kind}(Clone) at ({x}, 0.10, {z})'
+
+
+class World(unittest.TestCase):
+    """The world graph from save + log: objects of any kind, areas by distance only, filters by kind/state."""
+
+    def setUp(self):
+        self.g = OG.Graph()
+        self.g.load(SEED)
+
+    def save(self, extra=(), inventory=None):
+        return FakeGame(NORTH + SOUTH + HIVES + list(extra), GAME, inventory=inventory).read_save()[1]
+
+    def test_refresh_adds_the_south_area_with_its_12_beds(self):
+        out = world.refresh(self.g, self.save(), [], None)
+        self.assertEqual(len(out['GardenSouth']), 1 + 12)   # the area + its 12 beds
+        self.assertEqual(self.g.nodes['GardenSouth'].region, 'Farm')
+        self.assertEqual(world.count(self.g, {'kind': 'GardenBed', 'region': 'GardenSouth', 'stage': 'empty'}), 12)
+        self.assertEqual(world.count(self.g, {'kind': 'GardenBed', 'region': 'Garden', 'stage': 'empty'}), 0)
+        dx, dy = OG.toward(self.g, 'Garden', 'GardenSouth')
+        self.assertGreater(dy, 0.9)   # south = screen down
+
+    def test_hives_next_to_the_beds_share_their_area(self):
+        world.refresh(self.g, self.save(), [], None)
+        hives = world.query(self.g, {'kind': 'BeeHive'})
+        self.assertEqual(len(hives), 8)
+        self.assertEqual({world.area_of(self.g, h) for h in hives}, {'Garden'})
+
+    def test_a_lone_object_is_an_area_of_one(self):
+        world.refresh(self.g, self.save([obj('far', kind='BeeHive', pos=(60.0, -100.0), save={'pollen': '0'})]), [], None)
+        a = world.area_of(self.g, 'BeeHive#60.0,-100.0')
+        self.assertNotIn(a, (None, 'Garden', 'GardenSouth'))
+        self.assertEqual(world.query(self.g, {'region': a}), ['BeeHive#60.0,-100.0'])
+
+    def test_refresh_is_idempotent_ids_stable_and_names_kept(self):
+        world.refresh(self.g, self.save(), [], None)
+        n, e = len(self.g.nodes), len(self.g.edges(rel='next_to'))
+        self.assertFalse(any(world.refresh(self.g, self.save(), [], None).values()))
+        self.assertEqual((len(self.g.nodes), len(self.g.edges(rel='next_to'))), (n, e))
+        self.assertIn('GardenBed#2.6,-59.4', self.g.nodes)
+        self.assertEqual(world.area_of(self.g, 'GardenBed#2.6,-59.4'), 'GardenSouth')
+
+    def test_log_after_the_save_wins_in_order(self):
+        log = [L('7:00:00 AM', 'plant', 'GardenBed', 6.39, -59.36),   # before the save: already in it
+               L('9:00:00 AM', 'unplant_impl', 'GardenBed', 2.64, -59.36),
+               L('9:01:00 AM', 'plant', 'GardenBed', 2.64, -59.36)]
+        world.refresh(self.g, self.save(), log, 'D185 8:00:00 AM')
+        self.assertEqual(self.g.state_value('GardenBed#2.6,-59.4', 'stage'), 'growing')
+        self.assertEqual(self.g.state_value('GardenBed#6.4,-59.4', 'stage'), 'empty')
+        self.assertEqual(world.count(self.g, {'kind': 'GardenBed', 'region': 'GardenSouth', 'stage': 'empty'}), 11)
+
+    def test_a_new_kind_appears_from_the_log(self):
+        world.refresh(self.g, self.save(), [L('9:00:00 AM', 'interact', 'Mailbox', 40.0, 10.0)], None)
+        self.assertEqual(self.g.nodes['Mailbox#40.0,10.0'].kind, 'Mailbox')
+        self.assertIsNotNone(world.area_of(self.g, 'Mailbox#40.0,10.0'))
+
+    def test_an_unnamed_save_object_is_named_by_a_log_event(self):
+        fences = [obj('f1', kind='Fence', pos=(20.0, -40.0), save={}), obj('f2', kind='Fence', pos=(22.0, -40.0), save={})]
+        world.refresh(self.g, self.save(fences), [], None)
+        self.assertEqual(world.query(self.g, {'kind': 'Fence'}), [])   # unnamed prefab: not a node yet
+        world.refresh(self.g, self.save(fences), [L('9:00:00 AM', 'interact', 'Fence', 20.0, -40.0)], None)
+        world.refresh(self.g, self.save(fences), [], None)
+        self.assertEqual(sorted(world.query(self.g, {'kind': 'Fence'})), ['Fence#20.0,-40.0', 'Fence#22.0,-40.0'])
+
+    def test_inventory_minus_todays_planting_after_the_save(self):
+        log = ['[D185 7:00:00 AM] > plant me=Player', '[STATS] totalPlanted.TulipSeed = 56',
+               '[D185 9:00:00 AM] > plant me=Player', '[STATS] totalPlanted.TulipSeed = 57',
+               '[D185 9:01:00 AM] > plant me=Player', '[STATS] totalPlanted.TulipSeed = 58']
+        inv = world.inventory(self.save(inventory={'TulipSeed': 18, 'CarrotSeed': 7}), log, 'D185 8:00:00 AM')
+        self.assertEqual((inv['TulipSeed'], inv['CarrotSeed']), (16, 7))
+
+    def test_tara_position_from_the_last_event_else_the_save(self):
+        world.refresh(self.g, self.save(), [], None)
+        self.assertEqual(world.tara_pos(self.g), (1.5, -28.5))
+        world.refresh(self.g, self.save(), [L('9:00:00 AM', 'water', 'GardenBed', 2.64, -59.36)], None)
+        self.assertEqual(world.tara_pos(self.g), (2.64, -59.36))
+        self.assertEqual(world.area_of(self.g, world.tara_pos(self.g)), 'GardenSouth')
+
+    def test_save_fields_become_state_raw_and_mapped(self):
+        world.refresh(self.g, self.save(), [], None)
+        n = 'GardenBed#0.8,-25.3'
+        self.assertEqual((self.g.state_value(n, 'stage'), self.g.state_value(n, 'watered'),
+                          self.g.state_value(n, 'ready'), self.g.state_value(n, 'plantState')),
+                         ('growing', True, False, '##growing'))
+        self.assertEqual(self.g.state_value('BeeHive#1.5,-23.5', 'pollen'), '0')   # raw field, no mapping needed
+
+    def test_nodes_and_catalogue_list_areas_kinds_and_states(self):
+        world.refresh(self.g, self.save(), [], None)
+        rows = {r['area']: r for r in world.nodes(self.g)}
+        self.assertEqual(rows['GardenSouth']['kinds'], {'GardenBed': 12})
+        self.assertEqual(rows['Garden']['kinds'], {'GardenBed': 12, 'BeeHive': 8})
+        self.assertIn('GardenSouth', world.catalogue(self.g))
 
 
 if __name__ == '__main__':

@@ -34,7 +34,10 @@ bad state carried over to the next call. These laws keep one guess per click and
    region → **map**: open
    it, Tara's pin + the node's map picture (`objects/map_db`, e.g. MapGarden) + the road route between them give a
    direction → (c) **step**: click 320 px from the centre in that direction (camera looks north like the map); she didn't
-   move → turn ±35°, then a shorter step → back to rule 4. A step or explore click that an object takes (it logs that object's event, e.g. `beehive_progress`) is
+   move → turn ±35°, then a shorter step → back to rule 4. A seek click is a **walk** only when the burst frames show she moved (a bubble set that changes while she stands still
+   is flicker), or its event is on the **target** node (a step toward the beds that lands on a bed = arrived, back to
+   rule 4). **Stuck = 3 seek clicks in a row without either** (and no task work): stop clicking, vision gets the trace.
+   A step or explore click that another object takes (it logs that object's event, e.g. `beehive_progress`) is
    **blocked**, never progress. Every try goes into a trace; only when these give nothing, ask vision **one** question
    on the current frame, with the trace, so vision **debugs the algorithm** (what blocked it) and answers a cell of free
    ground around the blocker, or the target: *"Give the click point (x, y in the 1920×1080 frame) of the nearest

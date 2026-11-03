@@ -28,7 +28,15 @@ class Fake:
 
     # -- WF
     def grab(self):
-        return None
+        """Frames: a walk makes the first burst frame differ from the next ones (moved=True); otherwise all equal."""
+        from PIL import Image
+        if getattr(self, 'walk_frames', 0):
+            self.walk_frames -= 1
+            return Image.new('L', (8, 8), 0)
+        return Image.new('L', (8, 8), 200)
+
+    def _walk(self, zone):
+        self.zone, self.walk_frames = zone, 1
 
     def log_mark(self):
         return len(self.log)
@@ -92,10 +100,10 @@ class Fake:
             if abs(b['body'][0] - x) < 100 and abs(b['body'][1] - y) < 80:
                 if b['zone'] == self.zone:
                     return self.interact(n)
-                self.zone = b['zone']   # walked there
+                self._walk(b['zone'])   # walked there
                 return
         if getattr(self, 'step_zone', None) and getattr(self, 'step_ok', lambda x, y: True)(x, y):
-            self.zone = self.step_zone   # a few steps on the road bring the garden into reach
+            self._walk(self.step_zone)   # a few steps on the road bring the garden into reach
 
     def interact(self, n):
         b = self.beds[n]
@@ -184,7 +192,7 @@ class Base(unittest.TestCase):
         ps = [mock.patch.object(laws, 'STATE', os.path.join(self.tmp.name, 'laws.json')),
               mock.patch.object(chains, 'OBSERVED', os.path.join(self.tmp.name, 'observed.jsonl')),
               mock.patch.object(laws, 'GRAPH', self._graph_copy()),
-              mock.patch.object(laws, 'BURST', (0.0,)), mock.patch.object(laws, 'EVENT_WAIT', 0.0),
+              mock.patch.object(laws, 'BURST', (0.0, 0.0)), mock.patch.object(laws, 'EVENT_WAIT', 0.0),
               # default: no vector match on screen and no map (the vision path); Seek tests override these
               mock.patch.object(laws, '_see', lambda kind, tried=(): []),
               mock.patch.object(laws, '_map_direction', lambda node: None)]
@@ -328,6 +336,30 @@ class Seek(Base):
                 laws.run('water')
         self.assertEqual(f.clicks[0], (1500, 900))
         self.assertEqual(f.beds['a']['state'], 'wet')
+
+    def test_bubble_flicker_without_movement_is_not_a_walk_and_three_still_clicks_are_stuck(self):
+        """D185 live: a step 'walked' because the bubble set changed while she stood still; stuck never fired."""
+        f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
+        f.step_zone = None
+        f.honey = [(800, 532)]   # a bubble that comes and goes (flicker)
+        flick = iter(range(1000))
+        real_scan = f.scan
+        f.scan = lambda: real_scan() if next(flick) % 2 else []
+        mock.patch.object(affordances, 'scan', f.scan).start()
+        self.addCleanup(mock.patch.stopall)
+        with mock.patch.object(laws, '_map_direction', lambda node: (1.0, 0.0)):
+            with self.assertRaises(NeedVision):
+                laws.run('water')
+        self.assertLessEqual(len(f.clicks), laws.STUCK_CLICKS + 1)
+        self.assertIn('STUCK', f.asks[-1][1])
+
+    def test_a_step_that_lands_on_the_target_is_arrival_not_blocked(self):
+        f = self.use(Fake({'a': bed('wet', zone='near', bubble=(900, 400), body=(960, 860)),
+                           'b': bed('dry', zone='far', bubble=(700, 300), body=(5000, 5000))}))
+        res = {'clicks': 0, 'trace': []}
+        c = laws._step((0.0, 1.0), res, 'graph', 'GardenBed@Garden')   # down from the hives lands on a bed
+        self.assertIsNotNone(c)
+        self.assertIn('arrived at GardenBed@Garden', res['trace'][0])
 
     def test_limited_turns_then_vision(self):
         f = self.use(Fake({'a': bed('dry', zone='far', bubble=(900, 400), body=(5000, 5000))}))
@@ -531,9 +563,10 @@ class Record(Base):
     def test_nothing_needs_a_known_unchanged_view(self):
         f = self.use(Fake({}))
         c = laws.record_click((900, 900))
-        self.assertFalse(c.nothing())   # view change unknown (no pixels): not claimed as nothing
-        c.moved = False
+        self.assertIs(c.moved, False)   # the burst frames are equal: she did not move
         self.assertTrue(c.nothing())
+        c.moved = None                  # view change unknown: not claimed as nothing
+        self.assertFalse(c.nothing())
         del f
 
     def test_burst_frames_catch_a_view_change(self):

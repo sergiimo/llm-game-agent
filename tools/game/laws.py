@@ -499,6 +499,8 @@ def _handle(task, c, res, seed):
     if c.node:
         res['here'] = c.node   # the logged interaction says which node she is at
         res['inside'] = _inside(task, c.node)
+    if c.has('water', 'grab_item', 'unplant', 'out_of_water'):
+        res['still'], res['stuck_traced'] = 0, False   # task work is progress, wherever she stands
     if task.name == 'replant' and c.has('unplant'):
         out = _replant(c, res, seed)
         if out == 'done':
@@ -568,16 +570,39 @@ def _map_direction(node):
     return None if n < 1 else (dx / n, dy / n)
 
 
-def _walked(c):
-    """A step click walked her: the view or the bubbles changed and no object took the click (a click on a hive logs
-    `beehive_progress`: that is the hive, not a walk - D185 loop)."""
-    if c.node or c.mode != 'gameplay':
+STUCK_CLICKS = 3   # seek clicks in a row that did not move her (and did no task work) = stuck (L75 rule, D185)
+
+
+def _walked(c, target=None, res=None):
+    """A seek click got her somewhere: the burst frames show she moved (the view changed; a bubble set that changed
+    without movement is flicker, not a walk - D185), or the logged event is on the `target` node (she arrived: a step
+    toward the beds that lands on a bed). An event on another node (a hive) = blocked. Counts res['still'] (stuck rule)."""
+    arrived = bool(target and c.node == target)
+    if c.mode != 'gameplay' or (c.node and not arrived):
         _gameplay()
+    ok = arrived or (not c.node and c.moved is True)
+    if res is not None:
+        res['still'] = 0 if (ok or c.moved is True) else res.get('still', 0) + 1
+    return ok
+
+
+def _stuck(res):
+    """STUCK_CLICKS seek clicks in a row did not move her: stop clicking (traced once for vision)."""
+    if res is None or res.get('still', 0) < STUCK_CLICKS:
         return False
-    return bool(c.moved or _bubble_set(c.before) != _bubble_set(c.after))
+    if not res.get('stuck_traced'):
+        _trace(res, f'STUCK: {res["still"]} clicks in a row did not move her')
+        res['stuck_traced'] = True
+    return True
 
 
-def _step(d, res=None, label='step'):
+def _outcome(c, ok, target=None):
+    if target and c.node == target:
+        return f'arrived at {target}'
+    return 'walked' if ok else f'blocked by {c.node}' if c.node else 'no move'
+
+
+def _step(d, res=None, label='step', target=None):
     """A few steps on the ground in direction `d` (Tara is at the centre): click a point STEP_R px away; turn a little
     when she did not walk. The Click that walked her, or None. Every try goes to res['trace'] (for vision's debug)."""
     import math
@@ -590,10 +615,12 @@ def _step(d, res=None, label='step'):
             if _hud(pt):
                 continue
             c = record_click(pt, 'step')
-            ok = _walked(c)
-            _trace(res, f'{label} @{pt[0]},{pt[1]}: ' + ('walked' if ok else f'blocked by {c.node}' if c.node else 'no move'))
+            ok = _walked(c, target, res)
+            _trace(res, f'{label} @{pt[0]},{pt[1]}: ' + _outcome(c, ok, target))
             if ok:
                 return c
+            if _stuck(res):
+                return None
     return None
 
 
@@ -622,10 +649,12 @@ def _explore(task, res):
             continue
         c = record_click(pt, 'explore')
         res['clicks'] += 1
-        ok = _walked(c)
-        _trace(res, f'explore @{pt[0]},{pt[1]}: ' + ('walked' if ok else f'blocked by {c.node}' if c.node else 'no move'))
+        ok = _walked(c, task.node, res)
+        _trace(res, f'explore @{pt[0]},{pt[1]}: ' + _outcome(c, ok, task.node))
         if ok:
             return c
+        if _stuck(res):
+            return None
     return None
 
 
@@ -675,19 +704,24 @@ def _seek(task, res):
     the drop means "needs water"; "!" = ready, not "collect"). In order: (1) she is at another node (the last event's target, e.g. the Well after a
     refill) -> the graph's direction from there to the target node -> a few steps; (2) the target's vectors on screen ->
     click the nearest (a click that lands on another node, e.g. a hive, is never repeated and tells where she is);
-    (3) the map's direction -> a few steps. The Click that changed something, or None (then vision)."""
+    (3) the map's direction -> a few steps. A seek click counts as a walk only when the frames show she moved, or its
+    event is on the target node (arrived); STUCK_CLICKS clicks in a row without either = stuck -> None (then vision,
+    with the trace). The Click that got her somewhere, or None."""
     from objects import graph as OG
     tried = res.setdefault('tried', [])   # points that led elsewhere: never clicked again this call
 
     def fresh(pt):
         return not any(_d(pt, p) < 80 for p in tried)
 
+    if _stuck(res):   # stuck: no more blind clicks, vision gets the trace
+        res['still'] = 0
+        return None
     here = res.get('here')
     if here and here != task.node:
         d = OG.toward(MEMORY['graph'], here, task.node)
         if d:
             _log('seek', what='graph', here=here, to=task.node, dir=list(d))
-            c = _step(d, res, f'graph {here}->{task.node}')
+            c = _step(d, res, f'graph {here}->{task.node}', task.node)
             res['clicks'] += 1
             if c is not None:
                 res['inside'] = _inside(task, here)
@@ -698,18 +732,22 @@ def _seek(task, res):
             c = record_click((x, y), 'soil')
             res['clicks'] += 1
             tried.append((x, y))
-            ok = _walked(c) or c.has('water')
-            _trace(res, f'dry soil @{x},{y} ({n} cells): ' + ('walked' if ok else f'blocked by {c.node}' if c.node else 'no move'))
+            ok = _walked(c, task.node, res)
+            _trace(res, f'dry soil @{x},{y} ({n} cells): ' + _outcome(c, ok, task.node))
             if ok:
                 return c
+            if _stuck(res):
+                break
     for det in _see(task.kind, tried)[:2]:
         c = record_click(det.point, 'object')
         res['clicks'] += 1
         tried.append(det.point)
-        if c.node and c.node != task.node:   # a hive seen as a bed: she is there now; the graph leads on
+        ok = _walked(c, task.node, res)
+        _trace(res, f'{task.kind} seen @{det.point[0]},{det.point[1]}: ' + _outcome(c, ok, task.node))
+        if ok or c.node:   # walked / arrived, or a hive seen as a bed: the event tells where she is, the graph leads on
             return c
-        if _changed(c):
-            return c
+        if _stuck(res):
+            break
     if res.get('inside') or _inside(task, here):   # inside the region: explore free ground, no map
         res['inside'] = True
         return _explore(task, res)
@@ -717,7 +755,7 @@ def _seek(task, res):
     if d is None:
         _trace(res, 'map: no direction')
         return None
-    c = _step(d, res, 'map')
+    c = _step(d, res, 'map', task.node)
     res['clicks'] += 1
     return c
 

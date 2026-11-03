@@ -124,8 +124,9 @@ def soil_map(img):
     return out
 
 
-def dry_spots(img, min_cells=6):
-    """Centres of dry-soil blobs (connected 'dry' cells, >= min_cells: a bed, not a speck), largest first: [(x, y, n)]."""
+def dry_spots(img, min_cells=20):
+    """Centres of dry-soil blobs (connected 'dry' cells, >= min_cells: a bed, not a speck), largest first: [(x, y, n)].
+    min_cells 20 (D185: 6-12 cell blobs were fence, grass edges and a hive; beds read 29-295 cells)."""
     m = soil_map(img)
     h, w = m.shape
     seen, out = set(), []

@@ -19,7 +19,8 @@ def observe(row, step, field, expected, got, ok):
     try:
         with open(OBSERVED, 'a') as f:
             f.write(json.dumps({'t': time.strftime('%Y-%m-%d %H:%M:%S'), 'row': row, 'step': step, 'field': field,
-                                'expected': expected, 'got': got, 'verdict': 'ok' if ok else 'surprise'}) + '\n')
+                                'expected': expected, 'got': got,
+                                'verdict': 'gap' if ok is None else 'ok' if ok else 'surprise'}) + '\n')
     except OSError:
         pass
 
@@ -41,6 +42,10 @@ def _check(expect, lines, events):
     """[(field, expected, got)] of the expectations that failed, and the ones checked."""
     bad, checked = [], []
     for field, want in (expect or {}).items():
+        if want == '?':   # a gap: observe what the game shows, never a failure
+            got = events if field == 'events' else _card() if field == 'card' else next(iter(lines), None)
+            checked.append((field, want, got, None))
+            continue
         if field == 'events':
             got = events
             ok = all(any(e in got for e in alt.split('|')) for alt in want)
@@ -65,7 +70,7 @@ def run(row, params, bubble, node_state=None):
     from .plan import resolve
     r = resolve(row, params or {})
     out = {'ok': True, 'events': [], 'lines': [], 'at': None, 'kind': None, 'surprises': [], 'clicks': 0,
-           'failed_step': None, 'missing': None, 'stored': {}, 'row': r['id'],
+           'failed_step': None, 'missing': None, 'stored': {}, 'row': r['id'], 'after': [],
            'frame': {'drop': bool(getattr(bubble, 'drop', False)), 'ready': bool(getattr(bubble, 'ready', False))}}
     for i, s in enumerate(r['steps']):
         mark = core.WF.log_mark()
@@ -75,6 +80,7 @@ def run(row, params, bubble, node_state=None):
                 c = A.click(bubble.pt, 'bubble' if s['do'] == 'click_bubble' else 'object')
                 out['clicks'] += 1
                 lines, events = c.lines, c.events
+                out['after'] = c.after
             elif s['do'] == 'press':
                 ui.press(s['arg'])
             elif s['do'] == 'press_space':

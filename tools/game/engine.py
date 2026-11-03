@@ -185,8 +185,79 @@ def _answer(g, name, params, answer, res):
         _answer_name(g, pend, answer, res)
 
 
-def _answer_name(g, pend, answer, res):   # Task 6
-    res['notes'].append(f'name answer not used: {answer}')
+def _answer_name(g, pend, answer, res):
+    """Vision named what an explored click changed ('key=value'): a learned row, applied to the clicked object."""
+    from .affordances import Affordance
+    lr = pend.get('learn') or {}
+    b = lr.get('bubble') or ['?', False, False, [0, 0]]
+    row = L.new_row(lr.get('kind'), {}, Affordance(b[0], None, tuple(b[3]), False, 0.0, b[1], b[2]),
+                    {'events': lr.get('events', [])}, answer=answer)
+    if row is None:
+        res['notes'].append(f'name answer not a key=value: {answer}')
+        return
+    row = L.add_row(row)
+    res['learned'].append(row['id'])
+    if lr.get('nid') in g.nodes:
+        world._set(g, lr['nid'], row['effect'], _stamp(), 'vision')
+
+
+def _assumed(st, where):
+    """The goal's literal `where` values for keys the object never had (it was selected as maybe having them)."""
+    return {k: v for k, v in where.items()
+            if k not in st and k != 'region' and not (isinstance(v, str) and ('|' in v or v.startswith('$')))}
+
+
+def _only_maybes(g, targets, where, res):
+    """Every target left was selected only because its state is unknown, and no fitting bubble shows: done."""
+    if targets and all(_assumed(world.state_of(g, n), where) for n in targets):
+        res['stop'] = f'done: no fitting bubble left in view ({len(targets)} with unknown state)'
+        return True
+    return False
+
+
+def _explore(g, tid, kind, area, where, name, params, res, working, make):
+    """No row takes the target where the goal wants: click one bubble that agrees with the goal's sub-icons (ready)
+    in the target's area and learn the row from the game's answer (frame change / event); vision names a change the
+    frame doesn't show. 'stop' | None."""
+    tried = res.setdefault('btried', [])
+
+    def fits(a):
+        return ((where.get('ready') is not True or a.ready) and res.get('area') in (None, area)
+                and not any(O.d(a.pt, p) < 60 for p in tried))
+    t = N.Target(f'{name}:explore', fits, f'a {kind} in {area}', None, kind, area, area, None)
+    a = N.search(t, res)
+    if a is None:
+        if res['stop'] or _only_maybes(g, [n for n in _targets(g, {'kind': kind}, where, working)
+                                           if n not in res['skip']], where, res):
+            return 'stop'
+        _ask_click(name, params, f'a {kind} (no known action yet)', area, res)
+    row = {'id': 'explore', 'kind': kind, 'when': {}, 'bubble': {}, 'steps': [{'do': 'click_bubble'}], 'effect': {}}
+    out = steps.run(row, {}, a)
+    res['clicks'] += out['clicks']
+    nid = _learn(g, out, kind, row, res)
+    A.gameplay()
+    if nid is None or g.nodes[nid].kind != kind:
+        tried.append(a.pt)
+        res['notes'].append(f'explored @{a.pt}: {out["events"] or "no event"} (not a {kind})')
+        return None
+    new = L.new_row(kind, world.state_of(g, nid), a, out)
+    if new is None:
+        ask.ask('name', f'Tara clicked a {kind} bubble ({a.kind}{" +ready" if a.ready else ""}'
+                        f'{" +drop" if a.drop else ""}); the game logged {out["events"] or "nothing"}. What changed on '
+                        f'the {kind}? Answer key=value (e.g. ready=false), or none.',
+                {'goal': name, 'params': params,
+                 'learn': {'kind': kind, 'nid': nid, 'events': out['events'],
+                           'bubble': [a.kind, bool(a.drop), bool(a.ready), list(a.pt)]}}, res)
+    row = L.add_row(new)
+    res['learned'].append(row['id'])
+    world._set(g, nid, row['effect'], _stamp(), 'event')
+    ask.progress(name)
+    res['btried'].clear()
+    if nid not in working:
+        working.append(nid)
+    if _made(g, nid, make, params, world.state_of(g, nid)) and nid not in res['done']:
+        res['done'].append(nid)
+    return None
 
 
 def _open_graph():
@@ -227,6 +298,10 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
         res['left'] = len(_targets(g, spec, _where(spec, params), [])) if 'kind' in spec else None
         res['surprises'] = res['surprises'] + list(L.SURPRISES)
         try:
+            res['learned'] += [f'{c[0]} {c[1]}[{c[2]}] {c[3]}' for c in L.settle_rows()]
+        except Exception:   # noqa: BLE001 (the table never breaks play)
+            pass
+        try:
             g.save(L.graph_path())
         except OSError:
             pass
@@ -262,10 +337,15 @@ def _loop(g, name, spec, params, save, max_clicks, res):
         here = world.tara_pos(g)
         tid = min(targets, key=lambda n: math.dist(here, tuple(g.nodes[n].extra['pos'])) if here else 0)
         st, area = world.state_of(g, tid), world.area_of(g, tid)
-        p = plan.path(kind, st, make, params)
+        assumed = _assumed(st, where)
+        p = plan.path(kind, dict(st, **assumed), make, params)
+        if p is None:   # no known action: explore one fitting bubble, learn the row from what the game shows
+            if _explore(g, tid, kind, area, where, name, params, res, working, make) == 'stop':
+                break
+            continue
         if not p:
             res['skip'].append(tid)
-            res['notes'].append(f'no known action takes {tid} {st} to {make}')
+            res['notes'].append(f'{tid}: already {make} but still selected by {where}')
             continue
         t = p[0]
         if any(isinstance(s.get('arg'), str) and '$' in s['arg'] for s in t['steps']):
@@ -285,7 +365,7 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             break
         a = _reach(name, t, kind, area, res, _marker(spec, where))
         if a is None:
-            if res['stop']:
+            if res['stop'] or _only_maybes(g, targets, where, res):
                 break
             _ask_click(name, params, f'a {kind} that needs "{t["id"]}"', area, res)
         out = steps.run(t, t['params'], a)

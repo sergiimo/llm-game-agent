@@ -227,8 +227,8 @@ class FakeGame:
                 continue
             s = o['state']
             drop = bool(s.get('wilted')) or (s.get('watered') is False and s.get('stage') in ('growing', 'producing'))
-            out.append(Affordance(b['bubble']['kind'], None, tuple(o['bubble_pt']), False, 0.0, drop,
-                                  s.get('stage') == 'produced'))
+            ready = s['ready'] if 'ready' in s else s.get('stage') == 'produced'
+            out.append(Affordance(b['bubble']['kind'], None, tuple(o['bubble_pt']), False, 0.0, drop, bool(ready)))
         return out
 
     # ---- ui ------------------------------------------------------------------------------------------------------
@@ -642,9 +642,7 @@ NX, NZ = (-1.66, 0.84, 3.34, 5.84), (-25.34, -29.09, -31.59)
 SX, SZ = (2.64, 6.39, 10.14, 13.89), (-59.36, -63.11, -66.86)
 
 
-class Loop(Base):
-    """One loop for every goal: targets from the world graph, a path from the table, nav, steps, verify, learn."""
-
+class EngineBase(Base):
     def setUp(self):
         super().setUp()
         for mod, name, path in ((ask, 'STATE', 'ask.json'), (steps, 'OBSERVED', 'obs.jsonl'), (plan, 'DB', 'actions.json')):
@@ -658,6 +656,11 @@ class Loop(Base):
         g = OG.Graph()
         g.load(learn.GRAPH)
         return g
+
+
+
+class Loop(EngineBase):
+    """One loop for every goal: targets from the world graph, a path from the table, nav, steps, verify, learn."""
 
     def test_water_goal_waters_every_dry_bed_and_stops_on_empty_query(self):
         f = self.use(FakeGame(beds('n', NX[:3], NZ[:1], 'near', 500, 300, stage='growing', watered=False, wilted=False)
@@ -745,6 +748,83 @@ class Loop(Base):
         res = engine.achieve({'kind': 'GardenBed', 'where': {'watered': False, 'stage': 'growing'},
                               'make': {'watered': True}})
         self.assertEqual(len(res['done']), 2)
+
+
+HIVE = {'kind': 'BeeHive', 'when': {'ready': True}, 'bubble': {'kind': 'honey'}, 'event': 'beehive_collect',
+        'effect': {'ready': False}}
+
+
+class Learning(EngineBase):
+    """A transition the table doesn't know is learned from play (frame change / event), then replayed."""
+
+    def hives(self, ready):
+        return [obj(f'h{i}', kind='BeeHive', pos=(x, -23.5), bubble=(400 + 150 * i, 300) if i in ready else None,
+                    save={'pollen': '0'}, **({'ready': True} if i in ready else {}))
+                for i, x in enumerate((-2.3, -1.0, 0.2, 1.5, 2.7, 4.0, 5.2, 6.5))]
+
+    def test_a_new_kind_is_learned_with_at_most_one_answer_then_replayed(self):
+        q = {'kind': 'BeeHive', 'where': {'ready': True}, 'make': {'ready': False}}
+        f = self.use(FakeGame(beds('n', NX, NZ[:1], 'near', 500, 600, stage='growing', watered=True, wilted=False)
+                              + self.hives({0, 3}), GAME + [HIVE]))
+        res = engine.achieve(q)
+        self.assertLessEqual(res['vision'], 1)
+        self.assertEqual(len(res['done']), 2, res)
+        self.assertFalse(f.objects['h0']['state']['ready'] or f.objects['h3']['state']['ready'])
+        row = next(r for r in plan.rows('BeeHive'))
+        self.assertEqual((row['when'], row['bubble'], row['effect']), ({'ready': True}, {'kind': 'honey', 'ready': True},
+                                                                        {'ready': False}))
+        self.assertEqual(row['steps'], [{'do': 'click_bubble', 'expect': {'events': ['beehive_collect']}}])
+        self.assertGreaterEqual(row['seen'], 2)
+        f.objects['h5'].update(bubble_pt=(900, 300))
+        f.objects['h5']['state']['ready'] = True   # the next day: another hive is ready
+        res2 = engine.achieve(q)
+        self.assertEqual((res2['vision'], len(res2['done'])), (0, 1), res2)
+        self.assertFalse(f.objects['h5']['state']['ready'])
+
+    def test_no_change_seen_asks_name_and_the_answer_becomes_the_effect(self):
+        r = learn.new_row('BeeHive', {}, Affordance('honey', None, (500, 300), False, 0.0, False, False),
+                          {'events': ['beehive_progress'], 'after': [Affordance('honey', None, (500, 300), False, 0.0)]},
+                          answer='pollen=collected')
+        self.assertEqual((r['effect'], r['seen'], r['bubble']), ({'pollen': 'collected'}, 1, {'kind': 'honey'}))
+        self.assertIsNone(learn.new_row('BeeHive', {}, Affordance('honey', None, (500, 300), False, 0.0),
+                                        {'events': [], 'after': [Affordance('honey', None, (500, 300), False, 0.0)]}))
+
+    def obs(self, *recs):
+        import json
+        with open(steps.OBSERVED, 'a') as fh:
+            for row, step, field, exp, got, verdict in recs:
+                fh.write(json.dumps({'row': row, 'step': step, 'field': field, 'expected': exp, 'got': got,
+                                     'verdict': verdict}) + '\n')
+
+    def test_gap_filled_after_two(self):
+        rs = plan.rows()
+        next(r for r in rs if r['id'] == 'plant')['steps'][0]['expect']['card'] = '?'
+        plan.save_rows(rs)
+        self.obs(('plant', 0, 'card', '?', 'Inventory / Seeds', 'gap'))
+        learn.settle_rows()
+        self.assertEqual(next(r for r in plan.rows() if r['id'] == 'plant')['steps'][0]['expect']['card'], '?')
+        self.obs(('plant', 0, 'card', '?', 'Inventory / Seeds', 'gap'))
+        learn.settle_rows()
+        self.assertEqual(next(r for r in plan.rows() if r['id'] == 'plant')['steps'][0]['expect']['card'],
+                         'Inventory / Seeds')
+
+    def test_revise_after_three_contradictions(self):
+        bad = ('water', 0, 'events', ['water|hazel_waterplant'], ['water_can_empty'], 'surprise')
+        self.obs(bad, bad)
+        learn.settle_rows()
+        self.assertEqual(next(r for r in plan.rows() if r['id'] == 'water')['steps'][0]['expect']['events'],
+                         ['water|hazel_waterplant'])
+        self.obs(bad)
+        learn.settle_rows()
+        self.assertEqual(next(r for r in plan.rows() if r['id'] == 'water')['steps'][0]['expect']['events'],
+                         ['water_can_empty'])
+
+    def test_one_ok_after_surprises_keeps_the_expectation(self):
+        bad = ('water', 0, 'events', ['water|hazel_waterplant'], ['x'], 'surprise')
+        self.obs(bad, bad, ('water', 0, 'events', ['water|hazel_waterplant'], ['water'], 'ok'), bad)
+        learn.settle_rows()
+        self.assertEqual(next(r for r in plan.rows() if r['id'] == 'water')['steps'][0]['expect']['events'],
+                         ['water|hazel_waterplant'])
 
 
 if __name__ == '__main__':

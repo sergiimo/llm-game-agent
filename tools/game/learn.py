@@ -122,6 +122,11 @@ def learn_bubble(c, img0):
         return None
     if b.drop and label not in O.CROP_KINDS:   # the drop sub-icon = a crop (D183); the event came from a neighbour
         return None                            # (D186: tulip+drop examples stored as beehive_progress)
+    if b.drop and label == 'plant':            # an empty bed's seedling has no drop: a dry bed (D186 pollution)
+        return None
+    from . import plan
+    if any(r.get('event') == label and r.get('bubble') is None for r in plan.rows()):
+        return None                            # an event-only row (out_of_water) is not a bubble kind
     try:
         return label if W.learn_bubble(W.bubble_crop(img0, b.pt), label, b.kind) else None
     except Exception:   # noqa: BLE001

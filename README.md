@@ -28,8 +28,83 @@ the test bed: the techniques apply to any GUI that has to be automated from the 
 | **Telemetry side channel** | Live tail of the engine log + decoding of the compressed JSON autosave; hashed ids resolved by **CRC32 reverse lookup** over strings mined from the app bundle | Outcome checks are text-only; 413/428 hashed ids decoded |
 | **Action** | Clicks on the 3D world trigger the **engine's own navmesh pathfinding**; arrival from the tracker | Approaching a target: **3–6 calls → 1** |
 | **Latency** | Warm daemon on a Unix socket, in-memory capture, half-res OCR, run-loop-pumped focus detection | `state` ≈ **0.15–0.2 s**; act+observe ≈ **2.3 s** (was 6–8 s) |
+| **World graph** | Objects of **any kind** from the save (positioned records), the live log (`target=Kind at (x, y, z)`) and clicks; **areas by distance only** (single linkage, gap from the spacing); kind and state are **filters**, not nodes; unnamed save prefabs are named by the first log event on them | A new garden **appeared by itself** from the save: area + 12 beds, no garden code; real save: 2 areas, 293 unnamed objects waiting for a name |
+| **Learned transition table** | One row per action (`when` · `bubble` · `steps` · `effect` · `needs` · `proof`), seeded from known mechanics, **new rows learned from play** (frame change, event, or a vision `key=value`), trusted after 2 agreeing sightings; gaps filled after 2, expectations revised after 3 contradictions | A new object kind = one goal line; an unknown bubble is learned once, replayed with zero vision |
+| **Model orchestration** | LLM picks a library goal or writes a raw query; the engine asks **one typed question at a time** (`click` cell · `button` · `name`) with a **pending record**, or `NEED_INPUT` for a missing goal parameter; the supervisor runs a **live watcher** with STOP / ALERT rules over every click | Vision only where pixels can't decide; failures stop at the first wrong click instead of being discovered by the user |
 | **Orchestration** | **Supervisor → task agent → action agent**, manifest protocol, `need-help` escalation, hard budgets | Knowledge gaps fixed once in shared docs, reused by every later agent |
 | **Observability** | Structured **run logs** + per-frame activity tracks + **idle-time attribution** | Retros start from numbers (e.g. 53% of wall time = model turns between calls) |
+
+---
+
+## The engine: graph + vectors + model orchestration
+
+One loop, `achieve(goal)`, runs every chore; nothing in the code names a garden, a crop or a goal. Kinds, actions and
+goals are data (`kinds.json`, `actions.json`, `goals.json`). Each layer does what it is good at:
+
+```mermaid
+flowchart TB
+    subgraph LLM["Models (decide where pixels can't)"]
+        SUP["Supervisor<br/>live watcher · gated steps"]
+        QA["Quest agent (small model)<br/>picks / writes a goal"]
+        VIS["Vision<br/>one typed question:<br/>click cell · button · name"]
+    end
+    subgraph DATA["Data, learned while playing"]
+        WG[("World graph<br/>objects of any kind<br/>areas by distance<br/>state from save + log")]
+        AT[("Transition table<br/>seeded + learned rows<br/>proof per action")]
+        VM[("Vector memory<br/>bubble kinds · object looks<br/>self-labelled from events")]
+    end
+    subgraph LOOP["achieve(goal): one loop"]
+        F["filter targets<br/>(kind, state, area)"] --> PL["path = BFS over effects"]
+        PL --> NV["nav: each step must<br/>bring her closer"]
+        NV --> ST["steps with checked<br/>expectations"]
+        ST --> PR["proof from the log<br/>(e.g. totalPlanted)"]
+        PR --> F
+    end
+    QA -- "goal / query" --> F
+    WG --> F
+    AT --> PL
+    VM --> NV
+    PR -- "events by position" --> WG
+    ST -- "new rows, gaps, revisions" --> AT
+    ST -- "labels from events" --> VM
+    NV -- "stuck / unknown" --> VIS
+    VIS -- "answer (pending record)" --> ST
+    SUP -. "STOP / ALERT" .-> LOOP
+```
+
+**Graph.** The save holds hundreds of positioned objects with opaque prefab ids. The graph takes every one it can
+name (by its state fields, or by a log event that lands on it), clusters them by distance into **areas** (beds +
+hives + well = one area; a lone object is an area of one) and keeps kind and state as filters. A goal is a filter
+(`kind=GardenBed, stage=empty, region=GardenSouth`): navigation goes to the nearest area that holds matches, the bubble
+loop works inside it. Log events newer than the save are applied in order, so counts are exact even when the save is
+old; an action counts only with its **proof** line (the game logs `> plant` when the panel *opens*; only
+`[STATS] totalPlanted` proves a planting).
+
+**Vectors.** Two embedding memories, both grown from play: bubble kinds (Apple Vision feature prints, nearest
+neighbour) and object looks (DINOv2 patch heatmaps). Labels come from the event the game logs after a click, with
+guards learned from real pollution: a bubble with a water-drop sub-icon is a crop (never a hive), never an empty-bed
+seedling, and an event-only row (`out_of_water`) is never a bubble kind.
+
+**Model orchestration.** Models are used only where pixels and logs can't decide, and always for **one typed
+question** whose context survives to the answer (a pending record: goal, row, step, object). A missing goal
+parameter is asked (`NEED_INPUT crops? (seen: Carrot, Tulip)`), never defaulted. The supervisor watches every click
+live (`tools/runwatch.py`: a click on the pause menu = STOP, a prediction miss = ALERT) and runs gameplay agents in
+gated steps, one engine call each.
+
+**Proof-first primitives.** The engine is only as good as its primitives, so each one is proven live on one object
+before it is generalised (`game/smoke.py`): bubble in view → click → picker text → pick the card → **Space**
+(`totalPlanted`) → **Space** (`> water`). One screen-state reader (`game/screen.py`) owns the hard rules: a world click
+only in gameplay, Escape only on a known card, a short hint is waited out, the pause menu is resumed and never clicked.
+
+**Measured, live (D186–D187).** A garden south of the house that no code knew about: discovered from the save, all
+**12 beds planted** with their proof lines (`totalPlanted.TulipSeed` 104 → 114 across two days, plus the user's own),
+then home, bed, sleep and the morning planting by visible-object clicks. Every failure on the way became a test and a
+learning row (L138–L149: stale daemon, misread bubbles at dusk, a title band OCR'd as "ılbs", Escape toggling the
+pause menu, walking without position feedback).
+
+**Known limits.** The map pin is too coarse (≈ one 40 px cell) to replace event positions inside a garden; bubble
+icons are unreliable after dusk, so icon goals run in daylight and suggest sleeping otherwise; long walks still lean on
+one vision cell.
 
 ---
 
@@ -52,6 +127,7 @@ flowchart LR
         D --> A["Actuation<br/>Quartz CGEvents · focus mgmt"]
         D --> T["Telemetry<br/>log tail · save decoder"]
         D --> M[("Vector memory<br/>labelled crops")]
+        D --> E["Engine<br/>world graph · transition table · goals<br/>screen rules · proof-first steps"]
     end
 
     subgraph WM["World model (docs/)"]
@@ -338,6 +414,8 @@ actions (e.g. "break this object and collect every drop" as one call), not faste
 |---|---|
 | [`tools/wf.py`](tools/wf.py) | Control plane: capture, numpy detectors, OCR, embeddings + vector memory, tracker, input, telemetry, `do` / `act` / `run` / `learn` |
 | [`tools/wfc.py`](tools/wfc.py) | Thin client for the warm daemon; logs every call |
+| [`tools/game/`](tools/game) | The engine: `world.py` (graph from save + log, areas by distance), `plan.py` + `actions.json` (transition table), `steps.py`, `engine.py` + `goals.json` (`achieve`), `ask.py` (one typed vision question), `screen.py` (screen rules), `smoke.py` (proof-first primitives), `where.py` (position: event or map pin), `nav.py`, `learn.py` |
+| [`tools/runwatch.py`](tools/runwatch.py) | Supervisor's live watcher: one line per click, STOP / ALERT / NOTE rules, per-attempt report |
 | [`tools/bubbles/`](tools/bubbles) | Vector memory: labelled prompt crops (grows itself) |
 | [`tools/record.py`](tools/record.py) · [`tools/idle.py`](tools/idle.py) | Recorder (video + activity/event tracks) and idle-time attribution |
 | [`docs/actions.md`](docs/actions.md) · [`docs/self-improvement.md`](docs/self-improvement.md) | Actions DB and the self-labelling method |

@@ -461,7 +461,12 @@ def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
         if expect and mine and res.get('area') in (None, area) and not any(fits(a) for a in affs):
             return _bubble_miss(row, area, mine, res)
         return False
-    t = N.Target(name, fits, f'a {kind} in {area} whose bubble fits "{row["id"]}"', None, kind, area, area, marker)
+    from . import where as WH
+    src, here = WH.position(far_ok=False, walk_ok=True)
+    tid = res.get('tid_now')
+    t = N.Target(name, fits, f'a {kind} in {area} whose bubble fits "{row["id"]}"', None, kind, area, area, marker,
+                 pos=tuple(g.nodes[tid].extra['pos']) if tid in g.nodes else None,
+                 here=here if src in ('event', 'walk') else None)   # fresh only: the save's position can be an hour old
     res['row_now'], res['skip_names'] = row, set(skip)
     res['on_card'] = lambda c: finish_card(c, res)
     res.pop('icon_unknown', None)
@@ -932,6 +937,7 @@ def _loop(g, name, spec, params, save, max_clicks, res):
                 break
             _ask_start(name, params, kind, t, area, res)
         if a is None:
+            res['tid_now'] = tid   # nav walks toward THIS bed (user D189), not whichever bed the vectors see
             a = _reach(g, name, params, t, kind, area, res, _marker(spec, where), skip_names)
         runs = res.pop('card_runs', [])
         for out in runs:   # a card the row finished during a walk: its events update the world like a step's

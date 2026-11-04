@@ -167,7 +167,19 @@ def ask(kind, question, pending, res, img=None):
     except Exception:   # noqa: BLE001
         prompt = f'NEED_VISION {kind}: {q} (no frame saved: ./wf look)'
     res['vision'] = res.get('vision', 0) + 1
+    _freeze()
     raise NeedVision(f'{prompt}\n  answer: {ans}')
+
+
+def _freeze():
+    """The question's frame is taken: pause the game so thinking costs no game time (live D189: 46 s idle, the clock
+    running); only on plain gameplay (Escape on an open card would close it). The next call resumes (screen rules)."""
+    try:
+        from . import screen
+        if screen.read().kind == 'gameplay' and hasattr(core.WF, 'set_paused'):
+            core.WF.set_paused(True)
+    except Exception:   # noqa: BLE001
+        pass
 
 
 RAIN = ('Raining', 'Rain', 'Storm', 'Thunder')

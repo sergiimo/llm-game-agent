@@ -16,6 +16,7 @@ ON_CLICK = None            # the improvement loop's boundary (integrate.on_click
 BURST = (0.0, 0.5, 1.5)    # s after the click: frames that catch short-lived text and bubble changes
 EVENT_WAIT = 2.5           # s more for a late log line (D149: `> water` came after ~3 s)
 EVENT = re.compile(r'> (\w+)(?:\s|$)')
+INTERACT = ('bubble', 'point', 'object')   # clicks that interact (their event can come late); walks log nothing
 SHOTS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.shots')
 
 
@@ -43,6 +44,7 @@ class Click:
     exp: str = None                             # the experience id (integrate)
     learned: str = None                         # what the loop learned from it
     checks: tuple = ()                          # the experience's checked expectations (experience.Check)
+    shift: tuple = None                         # her movement during the burst (observe.view_shift), 1920-frame px
 
     def has(self, *names):
         return any(e in names for e in self.events)
@@ -124,7 +126,7 @@ def click(pt, what='point', before=None, here=None, predict=None, goal=None, con
         time.sleep(max(0.0, t0 + t - time.monotonic()))
         imgs.append(W.grab())
     W.wait_settle()
-    if not core.seen(EVENT.pattern, mark, 0):
+    if what in INTERACT and not core.seen(EVENT.pattern, mark, 0):   # a walk logs nothing: no 2.5 s wait (D189 speed)
         core.seen(EVENT.pattern, mark, EVENT_WAIT)
     lines = core.log_text(mark).splitlines()
     mode, ts = O.texts()
@@ -133,6 +135,8 @@ def click(pt, what='point', before=None, here=None, predict=None, goal=None, con
               save_frames(imgs, time.strftime('%H%M%S') + f'-{x}-{y}'), O.burst_texts(imgs))   # every click (~0.08 s/frame)
     from objects import graph as OG
     c.img0 = img0
+    if len(imgs) > 1:   # how far the view moved = how far she walked (the barely-moved check, live D189)
+        c.shift = O.view_shift(imgs[0], imgs[-1])
     c.node = next((n for n in map(OG.node_of_line, lines) if n), None)
     c.at = next((p for p in map(position_of, lines) if p), None)
     if c.moved and not c.at and not on_card(c):   # she walked, nothing logged where: positions are stale (a textless

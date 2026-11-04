@@ -51,6 +51,32 @@ def hud(pt):
     return any(x0 <= pt[0] < x1 and y0 <= pt[1] < y1 for x0, y0, x1, y1 in HUD)
 
 
+def view_shift(a, b, size=(480, 270)):
+    """Her movement between two frames in 1920-frame px (dx right, dy down): the camera follows her, so the scene
+    shifts the opposite way; phase correlation on small grey copies. None when unsure (flat frames, no clear peak)."""
+    import numpy as np
+    try:
+        x = np.asarray(a.convert('L').resize(size), dtype=float)
+        y = np.asarray(b.convert('L').resize(size), dtype=float)
+        if x.std() < 2 or y.std() < 2:
+            return None   # a flat frame (a fake, a fade): no texture to follow
+        x, y = x - x.mean(), y - y.mean()
+        r = np.fft.fft2(x) * np.conj(np.fft.fft2(y))
+        r /= np.abs(r) + 1e-9
+        c = np.abs(np.fft.ifft2(r))
+        if c.max() < 8 * c.mean():
+            return None   # no clear peak: the views don't match (a scene change)
+        iy, ix = np.unravel_index(int(np.argmax(c)), c.shape)
+        if iy > size[1] // 2:
+            iy -= size[1]
+        if ix > size[0] // 2:
+            ix -= size[0]
+        k = W_ / size[0]
+        return (float(ix * k), float(iy * k))   # scene moved by (-ix, -iy): she moved (+ix, +iy)
+    except Exception:   # noqa: BLE001
+        return None
+
+
 def on_frame(pt):
     return 0 <= pt[0] < W_ and 0 <= pt[1] < H_ and not hud(pt)
 

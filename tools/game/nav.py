@@ -45,6 +45,8 @@ class Target:
     region: str = 'Garden'           # map picture of the region (objects/map_db)
     node: str = 'GardenBed@Garden'   # the graph node: where she must be
     marker: str = None               # a frame marker of the targets nav can walk to ('dry_soil': light-brown soil)
+    pos: tuple = None                # world (x, z) of the target object, when the graph knows it
+    here: tuple = None               # her world (x, z) when known (an event, a walk end, the graph)
 
 
 def new_res(name):
@@ -93,6 +95,8 @@ def walked(c, target=None, res=None):
     ok = arrived or (not c.node and c.moved is True)
     if ok and c.moved and res is not None and res.get('area'):
         res['area'] = None   # she walked: the area known from the last event may be left behind
+    if res is not None and c.moved is not None:
+        walk_moved(res, c.pt, getattr(c, 'shift', None))
     if res is not None:
         if getattr(c, 'exp', None):
             res.setdefault('exps', []).append(c.exp)
@@ -116,10 +120,35 @@ def lost(res):
     return True
 
 
+WALK_NET = 2.0 * 57.6   # px: three walks whose clicks add up to less than 2 units = barely moved (L75 rule)
+
+
+def walk_moved(res, pt, shift=None):
+    """A walk click: how far she really moved (the view's shift, observe.view_shift; else the click's vector)."""
+    v = shift if shift is not None else (pt[0] - O.CENTRE[0], pt[1] - O.CENTRE[1])
+    res.setdefault('walks', []).append(tuple(v))
+    del res['walks'][:-3]
+
+
+def barely_moved(res):
+    """The last three walks moved her under 2 units in all (net): the fence held her, or left-right-left (L75 rule,
+    live D189 2:35 PM)."""
+    w = res.get('walks') or []
+    if len(w) < 3:
+        return False
+    return math.hypot(sum(v[0] for v in w), sum(v[1] for v in w)) < WALK_NET
+
+
 def stuck(res):
-    """STUCK_CLICKS seek clicks in a row did not move her, or she is lost (BLIND_MAX walks without progress): stop
-    clicking (traced once for vision)."""
+    """STUCK_CLICKS seek clicks in a row did not move her, the last three walks cancel out (barely moved), or she is
+    lost (BLIND_MAX walks without progress): stop clicking (traced once for vision)."""
     if lost(res):
+        return True
+    if res is not None and barely_moved(res):
+        if not res.get('stuck_traced'):
+            trace(res, 'STUCK: the last 3 walks cancel out (barely moved) - which way to the target?')
+            res['stuck_traced'] = True
+            _gap(res, 'nav: stuck - three walks that cancel out (barely moved)')
         return True
     if res is None or res.get('still', 0) < STUCK_CLICKS:
         return False
@@ -271,7 +300,7 @@ def _rung(t, res, tier, cn, here, tried):
                 return None
     if t.marker and res.get('inside'):   # inside the region the targets are marked (drop, dry soil), not just beds
         return explore(t, res)
-    c = _visible(t, res, tried)   # rung 1: the target visible by vectors (screen-far)
+    c = _visible(t, res, tried)   # rung 1: the target visible by vectors (screen-far) - THE target, when known
     if c is not None or stuck(res):
         return c
     at = cn or here
@@ -282,6 +311,14 @@ def _rung(t, res, tier, cn, here, tried):
             c = step(dd, res, f'graph {at}->{t.node}', t.node, learn=(at, t.node))
             if c is not None:
                 res['here'], res['heading'], res['heading_n'] = c.node, dd, 0
+                return c
+    if t.pos and t.here and math.dist(t.pos, t.here) > 1.5:   # rung 2 from positions: the graph knows where she and
+        from objects import graph as OG                       # the target bed are (user D189: not whichever bed)
+        dd = OG.screen_dir(t.here, t.pos)
+        if dd:
+            r = int(min(MAP_STEP_R, max(STEP_R[1], math.dist(t.pos, t.here) * 57.6 - 60)))
+            c = step(dd, res, f'toward the target {math.dist(t.pos, t.here):.1f} units', t.node, radii=(r, STEP_R[1]))
+            if c is not None or stuck(res):
                 return c
     if not at and res.get('heading') and res.get('heading_n', 0) < HEADING_MAX:   # between nodes: keep going
         res['heading_n'] = res.get('heading_n', 0) + 1
@@ -296,8 +333,14 @@ def _rung(t, res, tier, cn, here, tried):
 
 
 def _visible(t, res, tried):
-    """The target kind seen by its vectors: free ground just below it (never its bubble, user D188)."""
-    for det in ([] if res.get('no_detect') else O.see(t.kind, tried)[:2]):
+    """The target kind seen by its vectors: free ground just below it (never its bubble, user D188). When the target's
+    position and hers are known, only the detection at the TARGET's predicted point counts (user D189: she walked
+    left-right-left between whichever beds the vectors saw)."""
+    dets = [] if res.get('no_detect') else O.see(t.kind, tried)
+    if t.pos and t.here:
+        px = (O.CENTRE[0] + (t.pos[0] - t.here[0]) * 57.6, O.CENTRE[1] - (t.pos[1] - t.here[1]) * 57.6)
+        dets = [d for d in dets if O.d(d.point, px) <= 160]
+    for det in dets[:2]:
         pt = beside(det, O.scan())
         if pt is None:
             tried.append(det.point)

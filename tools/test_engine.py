@@ -2965,5 +2965,69 @@ class VisionBeforeDone(VisitBeds):
         self.assertEqual(g.nodes[nid].state['ready']['source'], 'vision')
 
 
+class TowardTheTarget(EngineBase):
+    """Live D189 2:35 PM (user: "she barely moved 3 last clicks vs going to the far west bed which is unchecked"):
+    inside the garden nav walked to whichever bed the vectors saw, left, right, left; the target bed was elsewhere."""
+    Box = __import__('collections').namedtuple('Box', 'point box kind')
+
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(observe, 'see', lambda kind, tried=(): [self.Box((870, 690), (820, 640, 920, 680), kind),
+                                                                       self.Box((1150, 690), (1100, 640, 1200, 680),
+                                                                                kind)])
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_near_with_known_positions_the_step_goes_toward_the_target_bed(self):
+        f = self.use(FakeGame([], GAME))
+        f.step_zone, f.steps_needed = 'nowhere', 99
+        res = nav.new_res('t')
+        res['inside'] = True
+        t = nav.Target('t', lambda a: False, 'a bed', None, 'GardenBed', 'Garden', 'Garden', None,
+                       pos=(-6.0, 0.0), here=(0.0, 0.0))   # the target 6 units west of her
+        nav.seek(t, res)
+        x, y = f.clicks[0]
+        self.assertLess(x, 960 - 150, f.clicks)            # west
+        self.assertLess(abs(y - 540), 80, f.clicks)
+
+    def test_three_walks_that_barely_move_the_view_are_stuck(self):
+        """Measured by the view's shift (the camera follows her), not by where the click asked her to go."""
+        res = {'walks': []}
+        for shift in ((-20, 30), (25, 20), (-15, 25)):   # the fence held her: the view hardly moved
+            nav.walk_moved(res, (900, 800), shift)
+        self.assertTrue(nav.barely_moved(res))
+        res2 = {'walks': []}
+        for shift in ((-200, 0), (-210, 10), (-190, 0)):  # walking west
+            nav.walk_moved(res2, (700, 540), shift)
+        self.assertFalse(nav.barely_moved(res2))
+
+    def test_the_view_shift_is_measured_between_two_frames(self):
+        import numpy as np
+        from PIL import Image
+        rng = np.random.default_rng(1)
+        a = rng.integers(0, 255, (540, 960), dtype=np.uint8)
+        b = np.roll(a, (12, -30), axis=(0, 1))   # the scene moved 30 px left, 12 down (at 960x540)
+        dx, dy = observe.view_shift(Image.fromarray(a), Image.fromarray(b))
+        self.assertLess(abs(dx - 60) + abs(dy + 24), 8, (dx, dy))   # her move in 1920-frame px: right 60, up 24
+
+
+class PauseWhileAsking(EngineBase):
+    """Live D189 18:52: the agent read a vision image for 46 s while the game ran (the idle alert): a question
+    freezes the clock - after its frame is taken, and only on plain gameplay (Escape would close an open card)."""
+
+    def test_a_question_pauses_the_game_on_gameplay_only(self):
+        f = self.use(FakeGame([], GAME))
+        calls = []
+        f.set_paused = lambda want: calls.append(want) or 'paused'
+        with self.assertRaises(ask.NeedVision):
+            ask.ask('click', 'where?', {'goal': 'harvest'}, {})
+        self.assertEqual(calls, [True])
+        f.overlay_texts, f.blank_overlay = ['Collect'], True   # a card is open: never Escape it away
+        calls.clear()
+        with self.assertRaises(ask.NeedVision):
+            ask.ask('button', 'which?', {'goal': 'harvest'}, {})
+        self.assertEqual(calls, [])
+
+
 if __name__ == '__main__':
     unittest.main()

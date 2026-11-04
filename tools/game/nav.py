@@ -461,7 +461,7 @@ def map_walk(t, res, read=True):
         dd = way
     c = None
     for i in range(MAP_STEPS):
-        ci = step(dd, res, f'map {i + 1}/{MAP_STEPS}', t.node, radii=(MAP_STEP_R, STEP_R[0]))
+        ci = path_step(dd, res, f'map {i + 1}/{MAP_STEPS}', t.node)
         if ci is None:
             break
         c = ci
@@ -563,11 +563,58 @@ def walk_way(answer, pend, res):
     res['map_first'] = True
     c = None
     for i in range(MAP_STEPS):
-        ci = step(d, res, f'way {answer} {i + 1}/{MAP_STEPS}', pend['to'], radii=(MAP_STEP_R, STEP_R[0]))
+        ci = path_step(d, res, f'way {answer} {i + 1}/{MAP_STEPS}', pend['to'])
         if ci is None:
+            if c is None:   # blocked every way from the start: vision names a cell ON the path (its look is learned)
+                ask_path(answer, d, pend, res)
             break
         c = ci
     return c
+
+
+PATH_KIND = 'Path'        # the objects db kind of walkable path patches (learned from vision answers, D188)
+PATH_R = (200, 560)       # px from her: a path patch for the next step
+PATH_COS = 0.5            # within 60 degrees of the wanted direction
+
+
+def path_step(d, res, label, target):
+    """A long step that follows the path: the seen Path patch (embeddings) nearest the wanted direction, else the
+    plain direction step (turns when blocked). The Click that walked her, or None."""
+    try:
+        dets = O.see(PATH_KIND)
+    except Exception:   # noqa: BLE001 (no Path examples yet)
+        dets = []
+    best = None
+    for det in dets:
+        vx, vy = det.point[0] - O.CENTRE[0], det.point[1] - O.CENTRE[1]
+        r = math.hypot(vx, vy)
+        if not PATH_R[0] <= r <= PATH_R[1] or O.hud(det.point):
+            continue
+        cos = (vx * d[0] + vy * d[1]) / r
+        if cos >= PATH_COS and (best is None or cos + r / 2000 > best[0]):
+            best = (cos + r / 2000, det)
+    if best is not None:
+        pt = (int(best[1].point[0]), int(best[1].point[1]))
+        c = A.click(pt, 'step')
+        if res is not None:
+            res['clicks'] = res.get('clicks', 0) + 1
+        ok = walked(c, target, res)
+        trace(res, f'{label} path @{pt[0]},{pt[1]}: ' + outcome(c, ok, target))
+        if ok:
+            return c
+    return step(d, res, label, target, radii=(MAP_STEP_R, STEP_R[0]))
+
+
+def ask_path(answer, d, pend, res):
+    """Every step toward the answered way was blocked: vision gives a cell ON THE PATH she should follow; the
+    click that walks her there proves it, and its look becomes a Path example (gap filling)."""
+    from . import ask
+    q = (f'Tara (the magenta circle, frame centre) must go {answer} toward the {pend.get("to")}, but every step that '
+         f'way was blocked (rocks, water, cliffs). Give the grid cell ON THE PATH (the dirt road she should follow '
+         f'out of here), a few steps from her - never rocks, water, grass behind rocks, or a building.')
+    ask.ask('click', q, {'goal': res.get('goal'), 'params': res.get('params') or {}, 'path_cell': True,
+                         'from': pend.get('from'), 'to': pend.get('to'), 'dir': list(d),
+                         'pin': pend.get('pin'), 'map_goal': pend.get('map_goal')}, res)
 
 
 def _map_progress(res, target=None):

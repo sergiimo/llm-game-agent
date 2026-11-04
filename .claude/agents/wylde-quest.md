@@ -35,8 +35,14 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
   always the centre); (3) ONE grid cell on the target object (not a bubble), or open ground toward it; (4) `./wf resume`,
   then the printed `answer:` line, e.g. `./wf achieve water answer=Q14` (`answer=none` = nothing left).
   **An achieve call can take minutes: run it with the Bash `timeout: 600000`** (D188: the default 120 s sent it to
-  the background mid-call). A WORLD MAP question (map left, game view right) = a compass answer (N..NW): find the
-  road on the map, then the path she stands on in the view that starts it.
+  the background mid-call). A WORLD MAP question (the zoomed map on TOP, the game view BELOW, both full scale) = a
+  compass answer (N..NW). **Trace first, then answer** (D188: three wrong answers from the straight-line bearing):
+  write the road's first stretch from the pin on the map, then the path in the view that starts it, then the
+  direction along that path. Never the bearing to the goal; never into rocks, cliffs or water. If she is not on
+  that path in the view, say so and answer the direction to reach it. A question for a cell ON THE PATH = a cell on
+  the dirt road a few steps from her.
+- **After your final report you send no game input** (no resume, no map, no clicks) unless the supervisor or the
+  user tells you to in a new message.
 - **Foraging (rocks, trees, branches, drops, forage plants; L158):** `./wf forage chop|rock|pickup|forage`. Each call asks
   ONE vision question (the nearest target's cell); answer with `answer=<cell>`, `walk:<cell>` (free ground toward more,
   off-screen) or `none`. It walks there, clicks the bubble at her until the log proves it (`destroying` / `grab_item`),

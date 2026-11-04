@@ -2529,7 +2529,7 @@ class NavLadder(MapWay):
                 engine.achieve('harvest', max_clicks=6)
             except ask.NeedVision:
                 pass
-        self.assertEqual(calls, [])
+        self.assertNotIn('GardenBed', calls)   # target detections are phantoms far away; Path patches guide steps
 
     def test_near_on_the_map_the_vectors_lead(self):
         f = self.lost()
@@ -2646,6 +2646,40 @@ class DistanceEdges(NavLadder):
             learn.MEMORY['graph'] = None
         e, = g.edges('Mine', 'toward')
         self.assertEqual((e['compass'], e['route_px']), ('S', 172.0))
+
+
+class PathSteps(MapWay):
+    """Way steps follow the path she stands on (live D188 16:16: S stepped into the rocks below her). The path is
+    found by its embeddings (objects db `Path`); a blocked way asks vision for a cell on the path and stores its look."""
+    Box = __import__('collections').namedtuple('Box', 'point box kind')
+
+    def test_a_way_step_snaps_to_the_seen_path_near_its_direction(self):
+        f = self.lost()
+        f.step_zone, f.steps_needed = 'nowhere', 99
+        path = [self.Box((700, 900), (650, 860, 750, 940), 'Path'), self.Box((1500, 300), (1450, 260, 1550, 340), 'Path')]
+        with mock.patch.object(observe, 'see', lambda kind, tried=(): path if kind == 'Path' else []):
+            res = nav.new_res('t')
+            nav.walk_way('S', {'from': 'Mine', 'to': 'Garden'}, res)
+        self.assertEqual(f.clicks[0], (700, 900))   # the path patch south-west, not the rocks straight below
+
+    def test_a_blocked_way_asks_for_a_cell_on_the_path_and_learns_its_look(self):
+        f = self.lost()
+        f.step_zone, f.steps_needed, f.step_ok = 'nowhere', 99, (lambda x, y: False)   # every direction blocked
+        with mock.patch.object(nav, 'map_direction', self.reading((530, 425))):
+            with self.assertRaises(ask.NeedVision):
+                engine.achieve('harvest', max_clicks=20)
+            with self.assertRaises(ask.NeedVision) as e:
+                engine.achieve('harvest', answer='S', max_clicks=20)
+        self.assertIn('ON THE PATH', str(e.exception))
+        f.step_ok = lambda x, y: True
+        stored = []
+        with mock.patch.object(learn, 'relabel', lambda img, box, kind: stored.append(kind) or True), \
+                mock.patch.object(nav, 'map_direction', self.reading((560, 470))):
+            try:
+                engine.achieve('harvest', answer='H10', max_clicks=4)
+            except ask.NeedVision:
+                pass
+        self.assertIn('Path', stored)
 
 
 if __name__ == '__main__':

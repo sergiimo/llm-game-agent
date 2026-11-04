@@ -469,6 +469,13 @@ def _answer(g, name, params, answer, res):
             raise core.Failed(f'answer rejected: {e}. Answer a grid cell A1-X16, or none') from None
         c = A.click(pt, 'point', here=res.get('area'))
         res['clicks'] += 1
+        if pend.get('path_cell') and c.moved and not c.events and c.exp:   # she walked onto it: a Path look
+            hx, hy = L.ANSWER_BOX
+            I.prove(c.exp, 'proven_look', img0=c.img0, box=[max(0, pt[0] - hx), max(0, pt[1] - hy), pt[0] + hx,
+                                                           pt[1] + hy], kind=N.PATH_KIND)
+            res['learned'].append('look: Path')
+            if pend.get('from') and pend.get('dir'):
+                res['way'] = (pend['from'], pend['to'], tuple(pend['dir']))
         if c.at:
             world.place(g, c.node.split('@')[0] if c.node else 'Object', c.at, c.events, stamp=_stamp())
             res['area'] = world.area_of(g, c.at)

@@ -882,11 +882,17 @@ class Learning(EngineBase):
                     save={'pollen': '0'}, **({'ready': True} if i in ready else {}))
                 for i, x in enumerate((-2.3, -1.0, 0.2, 1.5, 2.7, 4.0, 5.2, 6.5))]
 
+    def run_q(self, q):
+        try:
+            return engine.achieve(q)
+        except ask.NeedVision:
+            return dict(engine.LAST)
+
     def test_a_new_kind_is_learned_with_at_most_one_answer_then_replayed(self):
         q = {'kind': 'BeeHive', 'where': {'ready': True}, 'make': {'ready': False}}
         f = self.use(FakeGame(beds('n', NX, NZ[:1], 'near', 500, 600, stage='growing', watered=True, wilted=False)
                               + self.hives({0, 3}), GAME + [HIVE]))
-        res = engine.achieve(q)
+        res = self.run_q(q)   # the far hives' state stays unknown (beyond bubble range): a question may end it
         self.assertLessEqual(res['vision'], 1)
         self.assertEqual(len(res['done']), 2, res)
         self.assertFalse(f.objects['h0']['state']['ready'] or f.objects['h3']['state']['ready'])
@@ -897,8 +903,9 @@ class Learning(EngineBase):
         self.assertGreaterEqual(row['seen'], 2)
         f.objects['h5'].update(bubble_pt=(900, 300))
         f.objects['h5']['state']['ready'] = True   # the next day: another hive is ready
-        res2 = engine.achieve(q)
-        self.assertEqual((res2['vision'], len(res2['done'])), (0, 1), res2)
+        res2 = self.run_q(q)
+        self.assertEqual(len(res2['done']), 1, res2)   # the learned row acts with no question
+        self.assertLessEqual(res2['vision'], 1)         # at most the closing "where are the far hives?" question
         self.assertFalse(f.objects['h5']['state']['ready'])
 
     def test_no_change_seen_asks_name_and_the_answer_becomes_the_effect(self):
@@ -1067,7 +1074,7 @@ class Nav(EngineBase):
     def test_none_answer_ends_the_run(self):
         f = self.use(FakeGame(self.far(), GAME))
         res = engine.achieve('water', answer='none')
-        self.assertEqual((res['stop'], f.clicks), ('vision: none left', []))
+        self.assertEqual((res['stop'], f.clicks), ('done: vision sees none left', []))
 
     def test_bad_answer_is_rejected_without_a_click(self):
         f = self.use(FakeGame(self.far(), GAME))
@@ -2235,7 +2242,10 @@ class VisitBeds(EngineBase):
         ready = dict(stage='produced', watered=True, wilted=False)
         f = self.geo([obj('c', pos=(NX[3], NZ[0]), **ready)], (NX[0], NZ[0]))
         f.blocked = True
-        engine.achieve('harvest', max_clicks=6)
+        try:
+            engine.achieve('harvest', max_clicks=6)
+        except ask.NeedVision:   # out of bubble range and the walk failed: a question, never a guess
+            pass
         self.assertEqual(f.objects['c']['state']['stage'], 'produced')
         self.assertEqual([c for c in f.clicks if c not in f.walks], [], f.clicks)   # only walks, never a guess
 
@@ -2880,6 +2890,79 @@ class SeenIsFresh(VisitBeds):
         self.assertEqual(g.state_value(nid, 'crop'), 'Carrot')
         self.assertEqual(f.clicks, [])
         self.assertTrue(str(res.get('stop')).startswith('done'), res.get('stop'))
+
+
+class FarRow(VisitBeds):
+    """Live D189 1:28 PM: two beds of the far row were ready (save), on screen but beyond bubble range; the engine
+    stopped 'done: no fitting bubble left in view (4 with unknown state)' without going there."""
+
+    def test_only_maybes_is_done_only_within_bubble_range(self):
+        x, z = NX[1], NZ[0]
+        f = self.use(GeoGame([obj('near', pos=(x, z - 1.0), stage='produced', watered=True, wilted=False),
+                              obj('far', pos=(x, z - 4.5), stage='produced', watered=True, wilted=False)],
+                             GAME, (x, z)))
+        f.log.append(L('8:30:00 AM', 'plant_growing', 'GardenBed', x, z))
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        near, far = world.find(g, 'GardenBed', (x, z - 1.0)), world.find(g, 'GardenBed', (x, z - 4.5))
+        for n in (near, far):   # readiness unknown: the maybes the range rule is about
+            g.nodes[n].state.pop('ready', None)
+        where_ = {'ready': True, 'crop': '!Tulip'}
+        res = {}
+        self.assertFalse(engine._only_maybes(g, [near, far], where_, res))   # far is out of bubble range
+        self.assertTrue(engine._only_maybes(g, [near], where_, {}))
+
+    def test_unknown_beds_beyond_bubble_range_are_not_done(self):
+        x, z = NX[1], NZ[0]
+        far = obj('far', pos=(x, z - 4.5), stage='produced', watered=True, wilted=False)   # far row: no bubble yet
+        f = self.use(GeoGame([far], GAME, (x, z), inventory={'TulipSeed': 2}))
+        f.log.append(L('8:30:00 AM', 'plant_growing', 'GardenBed', x, z))
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        keep = world.find(g, 'GardenBed', far['pos'])
+        for n in world.query(g, {'kind': 'GardenBed'}):   # the seed graph's other beds: not ready (only `far` matters)
+            if n != keep:
+                g.set_state(n, 'ready', False, 'D185 8:20:00 AM', 'card')
+        g.save(learn.GRAPH)
+        with mock.patch.object(icons, 'name_of', lambda a: 'Carrot'):
+            try:
+                res = engine.achieve('harvest', max_clicks=10)
+            except ask.NeedVision:
+                res = engine.LAST
+        self.assertEqual(f.objects['far']['state']['stage'], 'growing', (res.get('stop'), f.clicks))   # walked, picked
+
+
+class VisionBeforeDone(VisitBeds):
+    """User D189: "fallback to model vision should solve ALL cases ... notice it in retro and make sure learnings
+    were saved": a 'done' while the world still lists beds is a conclusion code can't prove - vision confirms."""
+
+    def quiet(self, f, keep):
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        ids = [world.find(g, 'GardenBed', p) for p in keep]
+        for n in world.query(g, {'kind': 'GardenBed'}):
+            if n not in ids:
+                g.set_state(n, 'ready', False, 'D185 8:20:00 AM', 'card')
+        g.save(learn.GRAPH)
+        return ids
+
+    def test_only_unknown_beds_left_asks_vision_before_done_and_none_settles_them(self):
+        x, z = NX[1], NZ[0]
+        b = obj('b', pos=(x, z - 1.0), stage='produced', watered=True, wilted=False)
+        b['no_bubble'] = True   # nothing readable shows for it (live: the tulips with no name, the far row)
+        f = self.use(GeoGame([b], GAME, (x, z), inventory={'TulipSeed': 2}))
+        f.log.append(L('8:30:00 AM', 'plant_growing', 'GardenBed', x, z))
+        nid, = self.quiet(f, [b['pos']])
+        with self.assertRaises(ask.NeedVision) as e:
+            engine.achieve('harvest', max_clicks=6)
+        self.assertIn('still lists', str(e.exception))
+        res = engine.achieve('harvest', answer='none', max_clicks=6)
+        self.assertTrue(str(res['stop']).startswith('done'), res['stop'])
+        g = self.graph()
+        self.assertEqual(g.nodes[nid].state['ready']['source'], 'vision')
 
 
 if __name__ == '__main__':

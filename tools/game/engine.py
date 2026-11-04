@@ -234,6 +234,7 @@ def _bubble_miss(row, area, mine, res):
     return False
 
 
+BUBBLE_R = 4.0        # world units: farther shows no bubble (D186 bubbles at 3.75; D189 the far row at ~4.4: none)
 PX_PER_UNIT = 57.6     # screen px per world unit at the usual zoom (neighbour bed bubbles 216 px for 3.75 units, D186)
 OWN_PX = 140           # px: the bubble this close to a bed's expected screen point is that bed's
 
@@ -465,6 +466,10 @@ def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
     res['on_card'] = lambda c: finish_card(c, res)
     res.pop('icon_unknown', None)
     a = N.search(t, res, halt=halt)
+    cache = res.get('icon_cache') or {}
+    last = max((k for (_, k) in cache), default=None)   # the latest look's icons
+    seen = [n for (pt, k), n in cache.items() if n is not None and k == last]
+    res['flowers_only'] = bool(seen) and bool(skip) and all(n in skip for n in seen)   # every fitting icon seen = a flower
     if a is None and res['stop']:
         return None
     if a is None and res.get('icon_unknown') is not None:   # a ready bubble whose crop nobody knows: ask, never guess
@@ -489,11 +494,26 @@ def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
     return a
 
 
-def _ask_click(name, params, what, area, res, row=None):
+def _ask_click(name, params, what, area, res, row=None, settle=()):
+    """The click question; `settle` = the objects the world still lists that a `none` answer settles (not ready,
+    source vision): the next call starts from what vision saw, never the same loop (user D189)."""
+    listed = (f' The world still lists {len(settle)} of them here; if you see none, answer none (that settles them).'
+              if settle else ' Answer none if there is none left.')
     q = (f'Goal {name}: no bubble for {what} is in reach. Tara is the magenta circle (always the frame centre). Give '
          f'the grid cell of the nearest {what} in {area}, on the object (not on a bubble), or of free ground toward '
-         f'it if it is off-screen. Answer none if there is none left.')
-    ask.ask('click', q, {'goal': name, 'params': params, 'node': area}, res)
+         f'it if it is off-screen.' + listed)
+    ask.ask('click', q, {'goal': name, 'params': params, 'node': area, 'settle': list(settle)}, res)
+
+
+def _in_view(g, targets):
+    """The targets within bubble range of her exact position (the ones a `none` from the frame can speak for)."""
+    from . import where as WH
+    src, here = WH.position(far_ok=False, walk_ok=True)   # the walk end is close enough to say which beds she sees
+    if src not in ('event', 'walk'):
+        here = world.tara_pos(g)   # else her last known place in the graph
+        if here is None:
+            return []
+    return [n for n in targets if n in g.nodes and math.dist(here, tuple(g.nodes[n].extra['pos'])) <= BUBBLE_R]
 
 
 def _wants(row):
@@ -536,7 +556,10 @@ def _subgoal(g, key, value, name, params, res):
 def _answer(g, name, params, answer, res):
     pend = ask.take_answer(name) or {'kind': 'click'}
     if str(answer).strip().lower() == 'none':
-        res['stop'] = 'vision: none left'
+        settled = [n for n in pend.get('settle') or () if n in g.nodes]
+        for n in settled:   # vision's "none" is the proof: the world stops listing them (user D189: never stuck)
+            g.set_state(n, 'ready', False, _stamp(), 'vision')
+        res['stop'] = 'done: vision sees none left' + (f' ({len(settled)} settled)' if settled else '')
         return
     if pend['kind'] == 'click':
         try:
@@ -657,10 +680,16 @@ def _only_maybes(g, targets, where, res):
     stale = res.get('stale') or {}
     from . import where as WH
     src, here = WH.position(far_ok=False)
-    if src != 'event' or not all(O.on_frame(screen_point(here, tuple(g.nodes[n].extra['pos']))) for n in targets):
-        return False   # she can't see where they are: no conclusion (live D188: 'done' with 7 ready beds away)
-    if targets and all(_assumed(world.state_of(g, n), where) or n in stale for n in targets):
-        res['stop'] = f'done: no fitting bubble left in view ({len(targets)} with unknown state)'
+    if src != 'event' or not all(math.dist(here, tuple(g.nodes[n].extra['pos'])) <= BUBBLE_R for n in targets):
+        return False   # a bed beyond bubble range shows no bubble at all: no conclusion (live D188 7 beds away;
+        # D189 1:28 PM the far row on screen, 4.5 units off, ready by the save)
+    def maybe(n):   # selected only because a POSITIVE condition is unknown (ready unknown): no "!" in range = not ready.
+        # A bed known ready whose only unknown is "not a flower": a maybe only when every fitting bubble in view was
+        # a skipped flower (the evidence); else no bubble contradicts the world -> vision confirms
+        a = _assumed(world.state_of(g, n), where)
+        return n in stale or any(not str(v).startswith('!') for v in a.values()) or (bool(a) and res.get('flowers_only'))
+    if targets and all(maybe(n) for n in targets):
+        res['stop'] = f'done: no fitting bubble left in view ({len(targets)} with unknown state, in bubble range)'
         return True
     return False
 
@@ -677,10 +706,10 @@ def _explore(g, tid, kind, area, where, name, params, res, working, make):
     t = N.Target(f'{name}:explore', fits, f'a {kind} in {area}', None, kind, area, area, None)
     a = N.search(t, res)
     if a is None:
-        if res['stop'] or _only_maybes(g, [n for n in _targets(g, {'kind': kind}, where, working)
-                                           if n not in res['skip']], where, res):
+        listed = [n for n in _targets(g, {'kind': kind}, where, working) if n not in res['skip']]
+        if res['stop'] or _only_maybes(g, listed, where, res):
             return 'stop'
-        _ask_click(name, params, f'a {kind} (no known action yet)', area, res)
+        _ask_click(name, params, f'a {kind} (no known action yet)', area, res, settle=_in_view(g, listed))
     row = {'id': 'explore', 'kind': kind, 'when': {}, 'bubble': {}, 'steps': [{'do': 'click_bubble'}], 'effect': {}}
     out = steps.run(row, {}, a)
     res['clicks'] += out['clicks']
@@ -918,7 +947,7 @@ def _loop(g, name, spec, params, save, max_clicks, res):
         if a is None:
             if res['stop'] or _only_maybes(g, targets, where, res):
                 break
-            _ask_click(name, params, f'a {kind} that needs "{t["id"]}"', area, res)
+            _ask_click(name, params, f'a {kind} that needs "{t["id"]}"', area, res, settle=_in_view(g, targets))
         out = steps.run(t, t['params'], a)
         res['clicks'] += out['clicks']
         if out['ok'] and not out['at'] and out['events']:   # the event names no position: it was the target (surprise)

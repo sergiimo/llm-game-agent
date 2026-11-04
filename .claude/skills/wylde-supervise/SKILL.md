@@ -111,6 +111,9 @@ Never let a child run the game blind. For every dispatch that touches the game:
    An `idle Ns` ALERT (no call or click for 45 s while the game runs) = the child is thinking with the clock running:
    pause the game or nudge the child. After a run, `.venv/bin/python tools/runwatch.py <run> --report` has the Time
    table (wall, in calls, thinking, longest gap, game minutes, clicks, vision, picks) - put it in the review.
+   **Vision is the fallback for every case (user D189):** no stop or loop may stand where vision could decide. In the
+   retro list each vision answer (`./wf gaps experiences`, run log `vision` rows) and what it settled or taught
+   (graph state, a look, a way); one that taught nothing is a gap to fix. Repeated questions = a tool fix.
    Read the click's saved frame (`<run>/clicks/`) yourself and decide (continue / stop / fix). **Two ALERTs of the same
    kind in a row → Read the newest frame at once** (S40: the frame showed her by the river, far from the garden).
 3. **Gated steps:** the child makes ONE `./wf achieve` call per dispatch and returns its summary line; you read the

@@ -266,7 +266,7 @@ def _neighbours(g, c):
 
 
 # ---- refresh / place ---------------------------------------------------------------------------------------------
-LANDMARK_PX = 80   # map px: the pin this close to a landmark's map point = she is at it
+LANDMARK_PX = 45   # map px: the pin this close to a landmark's map point = she is at it (80 held her "at the Mine" past it, D188)
 
 
 def landmarks(g):

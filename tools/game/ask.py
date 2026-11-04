@@ -16,6 +16,7 @@ W_, H_ = O.W_, O.H_
 COLS, ROWS = 24, 16                    # the vision grid (same as wf ask_vision 'click': A-X x 1-16)
 CELL_W, CELL_H = W_ / COLS, H_ / ROWS  # 80 x 67.5 px
 MAX_ASKS = 4                           # vision questions in a row without progress -> LawsStuck
+STALE_S = 600.0                        # s: question state this old was left by a killed attempt: start fresh
 LATE, EARLY = 23.0, 6.0                # game hours: no garden work after LATE / before EARLY (AGENTS rule 0, L27)
 STATE = os.path.join(A.SHOTS, 'ask-state.json')
 
@@ -96,11 +97,16 @@ def _all(path=None):
 def load_state(goal, path=None):
     """This goal's question state (vision counter, history, trace, pending): kept per goal, so progress on one goal
     never erases another goal's pending question (D188)."""
+    import time
     st = _all(path).get(str(goal))
+    if st and time.time() - (st.get('t') or 0) > STALE_S:   # live D188: killed attempts left the counter at 3
+        st = None
     return st if st else {'goal': goal, 'asks': 0, 'history': []}
 
 
 def save_state(s, path=None):
+    import time
+    s = dict(s, t=time.time())   # every save is activity: only a state left alone for STALE_S is stale
     try:
         allst = _all(path)
         allst[str(s.get('goal', s.get('task')))] = s

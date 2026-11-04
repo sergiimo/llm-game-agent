@@ -2352,6 +2352,15 @@ class Lost(EngineBase):
         with mock.patch.object(where.time, 'time', lambda: where._WALK['at'] + where.WALK_TTL + 1):
             self.assertEqual(where.position(far_ok=False, walk_ok=True), (None, None))
 
+    def test_questions_left_by_killed_attempts_do_not_count(self):
+        """Live D188 13:45: three killed attempts left harvest's vision counter at 3: one new question = LAWS_STUCK."""
+        st = {'goal': 'harvest', 'asks': 3, 'history': ['old'], 't': 0.0}
+        with open(ask.STATE, 'w') as fh:   # left by a killed attempt long ago
+            json.dump({'harvest': st}, fh)
+        self.assertEqual(ask.load_state('harvest')['asks'], 0)
+        ask.save_state(st)                 # an active run saves now
+        self.assertEqual(ask.load_state('harvest')['asks'], 3)
+
     def test_an_unusable_map_calibration_is_reported(self):
         self.lost_game()
         with mock.patch.object(where, 'pairs', lambda: [[[0, 0], [100, 100]], [[10, 0], [900, 100]], [[0, 10], [100, 0]]]):
@@ -2444,6 +2453,26 @@ class MapWay(EngineBase):
         self.assertIn('Mine', msg)
         self.assertIn('NE', msg)
         self.assertEqual(f.clicks, [])   # no step into the dead end
+
+    def test_progress_is_measured_along_the_road_route_not_the_straight_line(self):
+        """Live D188 13:45: east of the mine the pin got closer as the crow flies but she was in a pocket by the river
+        (rocks, water): the straight line learned a wrong way. The road route's length is the progress."""
+        res = {'way': ('Mine', 'GardenBed@Garden', (1.0, 0.0)), 'map_best': 172.0}
+        nav.LAST_MAP.clear()
+        nav.LAST_MAP.update(pin=(600, 452), goal=(690, 490), route_len=260.0)   # closer in a line, longer by road
+        with mock.patch('game.integrate.relation', lambda *a: self.fail('a wrong way learned')):
+            nav._map_progress(res)
+        self.assertEqual(res.get('map_flat'), 1)
+        self.assertIn('way', res)
+
+    def test_the_way_question_shows_the_frame_next_to_the_map(self):
+        self.use(FakeGame([], GAME))
+        from PIL import Image
+        nav.LAST_MAP.clear()
+        nav.LAST_MAP.update(pin=(530, 425), goal=(690, 490), img=Image.new('RGB', (1920, 1080), (40, 120, 200)))
+        pic = nav.way_image()
+        self.assertEqual(pic.size, (1920, 540))
+        self.assertNotEqual(pic.getpixel((480, 270)), pic.getpixel((1440, 270)))   # map left, game view right
 
     def test_the_answered_direction_walks_long_steps_and_progress_learns_the_way(self):
         f = self.lost()

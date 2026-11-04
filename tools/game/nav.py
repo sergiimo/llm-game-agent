@@ -220,13 +220,14 @@ def map_direction(region):
     m = MV.locate(g, region, img) if pin else None
     if m is None:
         return None
-    path = core.WF.map_route(img, pin, m.point) or [m.point]
+    route = core.WF.map_route(img, pin, m.point)
+    path = route or [m.point]
     ahead = next((q for q in path if math.dist(q, pin) >= 60), path[-1])
     dx, dy = ahead[0] - pin[0], ahead[1] - pin[1]
     n = math.hypot(dx, dy)
     log('seek', what='map', pin=list(pin), goal=list(m.point), score=round(m.score, 2), ahead=list(ahead))
     LAST_MAP.clear()
-    LAST_MAP.update(pin=tuple(pin), goal=tuple(m.point), img=img)
+    LAST_MAP.update(pin=tuple(pin), goal=tuple(m.point), img=img, route_len=_route_len(pin, route, m.point))
     return None if n < 1 else (dx / n, dy / n)
 
 
@@ -310,6 +311,14 @@ def seek(t, res):
     return map_walk(t, res)
 
 
+def _route_len(pin, route, goal):
+    """Map px from the pin to the goal along the road route (its last point to the goal straight); None without one."""
+    if not route:
+        return None
+    pts = [tuple(pin)] + [tuple(p) for p in route] + [tuple(goal)]
+    return sum(math.dist(pts[i], pts[i + 1]) for i in range(len(pts) - 1))
+
+
 def _way_learned(g, a, b):
     for e in (g.edges(a, 'toward') if g is not None else []):
         if e['b'] == b and e.get('dir') and e.get('source') == 'learned':
@@ -369,17 +378,38 @@ def marked_map(mark=None):
     return pic
 
 
+def way_image(mark=None):
+    """The way question's picture: the marked-up map (left) and the game view now (right, Tara at its centre)."""
+    from PIL import Image, ImageDraw
+    m = marked_map(mark)
+    if m is None:
+        return None
+    try:
+        frame = core.WF.grab().convert('RGB')
+    except Exception:   # noqa: BLE001
+        frame = Image.new('RGB', (1920, 1080), (0, 0, 0))
+    pic = Image.new('RGB', (1920, 540), (0, 0, 0))
+    pic.paste(m.resize((960, 540)), (0, 0))
+    pic.paste(frame.resize((960, 540)), (960, 0))
+    dr = ImageDraw.Draw(pic)
+    dr.ellipse((1440 - 14, 270 - 14, 1440 + 14, 270 + 14), outline=(255, 0, 255), width=4)   # Tara in the view
+    dr.line((960, 0, 960, 540), fill=(255, 255, 255), width=3)
+    return pic
+
+
 def ask_way(t, res, mark):
     """Vision reads the map's roads for the first direction from a dead end (or between two distant places)."""
     from . import ask
     pin, goal = LAST_MAP.get('pin'), LAST_MAP.get('goal')
-    q = (f'The world map: Tara = the magenta circle at the pin, the goal = the yellow circle (the {t.region}), red X '
-         f'= a dead end. Tara is at the {mark}, a dead end. Following the roads and paths drawn on the map (not '
-         f'straight across cliffs or water), which way must she walk first to reach the {t.region}? Answer one of N, '
-         f'NE, E, SE, S, SW, W, NW (north = up, as on the screen).')
+    q = (f'LEFT: the world map - Tara = the magenta circle at the pin, the goal = the yellow circle (the {t.region}), '
+         f'red X = a dead end. RIGHT: the game view now, Tara = the magenta circle at its centre. She is at the '
+         f'{mark}, a dead end: the straight line to the goal is blocked (rocks, cliffs, water). Find on the map the '
+         f'road from her pin to the goal, then on the RIGHT the path she stands on that starts that road. Which way '
+         f'must she walk first along that path? Answer one of N, NE, E, SE, S, SW, W, NW (north = up, as on the '
+         f'screen; the camera and the map both look north).')
     ask.ask('name', q, {'goal': res.get('goal'), 'params': res.get('params') or {}, 'map_dir': True, 'from': mark,
                         'to': t.node, 'pin': list(pin) if pin else None, 'map_goal': list(goal) if goal else None},
-            res, img=marked_map(mark))
+            res, img=way_image(mark))
 
 
 def walk_way(answer, pend, res):
@@ -407,7 +437,8 @@ def _map_progress(res):
     if not LAST_MAP:
         res['blind'] = 0
         return True
-    d = math.dist(LAST_MAP['pin'], LAST_MAP['goal'])
+    d = LAST_MAP.get('route_len') or math.dist(LAST_MAP['pin'], LAST_MAP['goal'])   # by road (live D188: a pocket
+    # by the river was closer in a straight line and taught a wrong way)
     best = res.get('map_best')
     if best is None or d < best - MAP_GAIN:
         if best is not None and res.get('way'):   # the answered/learned way brought her closer: the graph keeps it

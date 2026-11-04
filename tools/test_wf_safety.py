@@ -98,25 +98,6 @@ class Bubbles(unittest.TestCase):
         self.assertGreaterEqual(len([b for b in bs if 430 <= b[1] <= 540]), 2, bs)
 
 
-class GotoUsesWorld(unittest.TestCase):
-    def test_learned_place_in_this_area_walks_with_the_world(self):   # shadow-2: old estimate put her 6 units off
-        import nav
-        from game import walk
-        from world import model
-        w = model.World(facts=[], cache=os.devnull)
-        w.belief.scene('Farm', 3.34, -25.34)
-        facts = [{'scene': 'Farm', 'goal': 'well', 'result': 'arrived', 'to': [-1.09, -21.05]}]
-        calls = []
-        saved = (wf.world, nav.load, walk.walk)
-        wf.world, nav.load = (lambda: w), (lambda *a, **k: facts)
-        walk.walk = lambda target, reach=2.5: (calls.append((target.x, target.z)), 'ARRIVED well')[1]
-        try:
-            self.assertEqual(wf.goto('well'), 'ARRIVED well')
-            self.assertEqual(calls, [(-1.09, -21.05)])
-        finally:
-            wf.world, nav.load, walk.walk = saved
-
-
 class Mapping(unittest.TestCase):
     def check(self, w, x0, y0, sc):
         got = wf.content_box(w)

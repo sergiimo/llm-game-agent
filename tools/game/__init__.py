@@ -1,15 +1,13 @@
 """Game functions for agents (L77). `./wf py "<code>"` runs code with these names in scope; `./wf call garden.water_all`
-runs one. Add behaviour by adding a function to the module of its area."""
-from . import affordances, core, garden, move, track, ui, walk, well  # noqa: F401
+runs one. Chores are goals of the engine (`achieve`, L138); `smoke` holds the proven primitives (L147)."""
+from . import affordances, core, garden, smoke, track, ui  # noqa: F401
+from .ask import NeedVision  # noqa: F401
 from .core import Failed, bind  # noqa: F401
 from .engine import achieve  # noqa: F401
 from .garden import harvest_all, plant_all, replant_all, water_all  # noqa: F401
 from .nav import reach  # noqa: F401
-from .move import goto  # noqa: F401
+from .smoke import fill_can, morning, plant_garden  # noqa: F401
 from .ui import close, press, press_bubble, shows  # noqa: F401
-from .well import fill_can  # noqa: F401
-from objects import loop  # noqa: F401
-from objects.loop import answer, available, label  # noqa: F401  (asks + latest bubble-active graph nodes)
 
 
 def namespace():

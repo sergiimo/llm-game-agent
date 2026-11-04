@@ -173,125 +173,12 @@ class Game(unittest.TestCase):
     def setUp(self):
         self.g = FakeGame()
         game.bind(self.g)
-        self.graph_copy()                      # skills save the graph: never the live one
         track.LINES.clear()
         import tempfile
         from game import items
         items.ITEM_DIR, items._REFS = tempfile.mkdtemp(), []
         from evals import store
         store.PATH = os.path.join(tempfile.mkdtemp(), 'predictions.jsonl')   # never the real store
-
-    def fake_goto(self, calls=None):
-        from objects import loop
-        from game import well
-        g = self.g
-
-        def goto(q, wf, **kw):
-            if calls is not None:
-                calls.append(q)
-            g.at = 'well'
-            return loop.Arrival(None, 'Farm', (500, 300), 1)
-        self.old_goto, well.loop.goto = well.loop.goto, goto
-        self.addCleanup(setattr, well.loop, 'goto', self.old_goto)
-        return goto
-
-    def graph_copy(self):
-        import shutil
-        import tempfile
-        from game import well
-        from objects import graph as OG
-        p = os.path.join(tempfile.mkdtemp(), 'Farm.json')
-        shutil.copy(os.path.join(OG.DEFAULT_DIR, 'Farm.json'), p)
-        self.old_graph, well.GRAPH = well.GRAPH, p
-        self.addCleanup(setattr, well, 'GRAPH', self.old_graph)
-        return p
-
-    def test_fill_can_bubble_already_on_screen_one_click(self):
-        from objects import graph as OG
-        p = self.graph_copy()
-        calls = []
-        self.fake_goto(calls)
-        self.g.at = 'well'                                   # the can bubble shows: no goto
-        line = game.fill_can()
-        self.assertEqual(calls, [])
-        self.assertEqual(self.g.clicks_at_well, 1)
-        self.assertIn('target=Well', line)
-        g = OG.Graph()
-        g.load(p)
-        self.assertEqual(g.state_value('Well', 'can'), 'full')
-        self.assertEqual(g.node('Well').state['can']['source'], 'event')
-
-    def test_fill_can_goes_to_the_well_then_clicks_its_bubble(self):
-        p = self.graph_copy()
-        calls = []
-        self.fake_goto(calls)
-        self.g.at = None
-        game.fill_can()
-        self.assertEqual([(q.kind) for q in calls], ['Well'])
-        self.assertEqual(self.g.clicks_at_well, 1)
-
-    def test_fill_can_already_full_counts_as_done(self):
-        p = self.graph_copy()
-        self.fake_goto()
-        self.g.says_full = True
-        line = game.fill_can()
-        self.assertIn('already full', line)
-
-    def test_fill_can_full_can_bubble_named_full_watering_can(self):
-        self.graph_copy()
-        calls = []
-        self.fake_goto(calls)
-        self.g.at = 'well'
-        self.g.bubble_name, self.g.says_full = 'full_watering_can', True
-        self.g.says_text = 'Player: My watering can is already full!'
-        line = game.fill_can()
-        self.assertEqual(calls, [])
-        self.assertIn('already full', line)
-
-    def test_fill_can_need_vision_propagates(self):
-        from objects import loop
-        from game import well
-        self.graph_copy()
-        old = well.loop.goto
-        def boom(q, wf, **kw):
-            raise loop.NeedVision('/x/ask-1.png')
-        well.loop.goto = boom
-        self.addCleanup(setattr, well.loop, 'goto', old)
-        with self.assertRaises(loop.NeedVision):
-            game.fill_can()
-
-    def test_fill_can_goto_fills_then_asks_counts_as_done(self):
-        """L126 live: the click on the well walked there and filled the can (log event), but goto still waited for the
-        bubble and asked vision; the log event is the proof, no NeedVision, no extra clicks."""
-        from objects import loop
-        from game import well
-        self.graph_copy()
-        old = well.loop.goto
-        def fills_then_asks(q, wf, **kw):
-            self.g.log.append('[D184 8:45:20 AM] > fill_watering_can me=Player target=Well')
-            raise loop.NeedVision('/x/ask-1.png')
-        well.loop.goto = fills_then_asks
-        self.addCleanup(setattr, well.loop, 'goto', old)
-        line = game.fill_can()
-        self.assertIn('fill_watering_can', line)
-        self.assertEqual(getattr(self.g, 'clicks_at_well', 0), 0)
-
-    def test_fill_can_late_fill_line_no_second_click(self):
-        """D185 live: the fill line came ~1-3 s after goto's click; a 0.5 s wait missed it -> a 2nd click ("already full")."""
-        import threading
-        from game import well
-        self.graph_copy()
-        old = well.loop.goto
-        def fills_late(q, wf, **kw):
-            threading.Timer(1.0, lambda: self.g.log.append('[D185 9:24:58 AM] > fill_watering_can me=Player target=Well')).start()
-            return loop_arrival()
-        from collections import namedtuple
-        loop_arrival = lambda: namedtuple('A', 'point')((500, 300))
-        well.loop.goto = fills_late
-        self.addCleanup(setattr, well.loop, 'goto', old)
-        line = game.fill_can()
-        self.assertIn('fill_watering_can', line)
-        self.assertEqual(getattr(self.g, 'clicks_at_well', 0), 0)
 
     def test_drop_sub_icon_on_real_bubbles(self):            # user, D183: the drop goes with any crop icon
         from game import affordances
@@ -367,21 +254,6 @@ class Game(unittest.TestCase):
         game.ui.pick_card('Tulip')                            # 2nd time: the Tulip card is known by its icon
         self.assertEqual([c for c in clicks if c.startswith('click:') and c.split(':')[1] in ('118', '260', '400')],
                          ['click:400:532'])
-
-    def test_stuck_asks_for_the_next_step(self):
-        class Stuck(Exception):
-            pass
-
-        def stuck(*a, **k):
-            raise Stuck('STUCK (L75): position within 2 units')
-        self.g.goto = stuck
-        self.g.seg_estimate = lambda: ('Farm', -1.3, -21.7)
-        asked = []
-        self.g.stuck_vision = lambda place, d, why: (asked.append((place, d)), 'NEED_VISION step: GOAL …')[1]
-        with self.assertRaises(game.Failed) as e:
-            game.goto('Garden')
-        self.assertIn('NEED_VISION step', str(e.exception))
-        self.assertEqual(len(asked), 1)
 
     def test_skills_hook_records_hit_and_miss(self):
         import evals

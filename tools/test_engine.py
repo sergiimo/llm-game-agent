@@ -10,7 +10,7 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from game import act, affordances, ask, core, engine, learn, nav, observe, plan, screen, smoke, steps, ui, where, world  # noqa: E402
-from objects.loop import NeedVision  # noqa: E402
+from game.ask import NeedVision  # noqa: E402
 from objects import graph as OG  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
 

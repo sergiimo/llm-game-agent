@@ -20,6 +20,10 @@ LATE, EARLY = 23.0, 6.0                # game hours: no garden work after LATE /
 STATE = os.path.join(A.SHOTS, 'ask-state.json')
 
 
+class NeedVision(Exception):
+    """ONE question for model vision: the message carries the framed image and the answer call."""
+
+
 # ---- the vision grid ------------------------------------------------------------------------------------------
 FONTS = ('/System/Library/Fonts/Supplemental/Arial Bold.ttf', '/System/Library/Fonts/Helvetica.ttc',
          '/Library/Fonts/Arial.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')
@@ -118,7 +122,6 @@ def hint(goal, params):
 
 def ask(kind, question, pending, res):
     """Raise NeedVision for ONE question (`click` | `button` | `name`) with the frame; LawsStuck after MAX_ASKS."""
-    from objects.loop import NeedVision
     goal = pending.get('goal')
     st = load_state(goal)
     if st['asks'] >= MAX_ASKS:

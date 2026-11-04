@@ -8,9 +8,9 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, ask, core, laws, learn, nav, observe, ui, well  # noqa: E402
+from game import act, affordances, ask, core, laws, learn, nav, observe, ui  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
-from objects.loop import NeedVision  # noqa: E402
+from game.ask import NeedVision  # noqa: E402
 
 core.LOG_WAIT = 0.0
 SEED = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures', 'graph_seed.json')
@@ -231,8 +231,7 @@ class Base(unittest.TestCase):
         core.bind(f)
         self.addCleanup(core.bind, old)
         for mod, name, fn in ((affordances, 'scan', f.scan), (ui, 'texts', f.texts), (ui, 'shows', f.shows),
-                              (ui, 'press', f.press), (ui, 'press_bubble', f.press_bubble), (ui, 'pick_card', f.pick_card), (ui, 'close', f.close),
-                              (well, 'fill_can', f.fill_can)):
+                              (ui, 'press', f.press), (ui, 'press_bubble', f.press_bubble), (ui, 'pick_card', f.pick_card), (ui, 'close', f.close)):
             p = mock.patch.object(mod, name, fn)
             p.start()
             self.addCleanup(p.stop)

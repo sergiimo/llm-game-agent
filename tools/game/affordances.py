@@ -5,7 +5,6 @@ from dataclasses import dataclass
 
 from . import core
 
-SAME = 1.0              # world units; kept only for game/walk.py (_bubble_up), removed with it in the follow-up plan
 KINDS = {               # action -> bubble kinds (learned labels, L56) that offer it
     'water': {'water'}, 'fill_can': {'fill_can', 'full_watering_can'}, 'plant': {'plant'},
     'unplant': {'unplant'}, 'harvest': {'pickup'}, 'pickup': {'pickup'}, 'talk': {'talk'},
@@ -20,7 +19,7 @@ OWNER = {'fill_can': 'Well', 'full_watering_can': 'Well', 'sleep': 'Bed',
 @dataclass
 class Affordance:
     kind: str
-    entity: object       # always None now (no world projection); kept for game/walk.py
+    entity: object       # always None (no world projection); positional slot kept for callers
     pt: tuple
     highlighted: bool
     dist: float

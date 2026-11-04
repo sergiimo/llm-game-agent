@@ -1645,7 +1645,7 @@ def eval_cmd(args):
 def _NeedVision():
     if os.path.join(ROOT, 'tools') not in sys.path:
         sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    from objects.loop import NeedVision
+    from game.ask import NeedVision
     return NeedVision
 
 
@@ -3486,48 +3486,9 @@ def nav_places():
             for n in nav.nodes(nav.load()).values() if n['src'] == 'arrived' and n.get('x') is not None]
 
 
-class _Point:
-    KINDS = {'well': 'Well'}   # learned place → the object kind there (its unique bubbles mean "arrived")
-
-    def __init__(self, name, scene, x, z):
-        self.name, self.scene, self.x, self.z = name, scene, x, z
-        self.kind = self.KINDS.get(name)
-
-    def __str__(self):
-        return self.name
-
-
-def _goto_world(place):
-    """walk() to a learned place (an exact reading) in the world's current area; None if it doesn't apply."""
-    try:
-        import nav
-        from game import walk
-        area = world().tara()[0]
-        n = next((v for v in nav.nodes(nav.load()).values() if v['name'] == place and v['src'] == 'arrived'
-                  and v['scene'] == area and v.get('x') is not None), None)
-    except Exception:  # noqa: BLE001 (the old route still works without the world)
-        return None
-    if not n:
-        return None
-    import game
-    game.bind(sys.modules[__name__])
-    pt = _Point(place, area, n['x'], n['z'])
-    ent = next(iter(world().entities(kind=pt.kind, area=area)), None) if pt.kind else None
-    try:
-        if ent and walk.click_object(ent):  # the place's object is visible: click it, the game pathfinds (user)
-            return walk.walk(ent)
-        return walk.walk(ent or pt)
-    except game.Failed as e:
-        return f'goto {place}: {e}'
-
-
 def goto(place, max_hops=30):
     """Walk to a known place: the world graph when it knows the place, else the coarse map walk (map_walk, L72),
-    else (map won't open) a reading + the graph. Returns ARRIVED / NEAR / NOT REACHED messages.
-    A learned place in Tara's current area is walked on the world model (M3 walk): its belief, not the old estimate."""
-    via_world = _goto_world(place)
-    if via_world:
-        return via_world
+    else (map won't open) a reading + the graph. Returns ARRIVED / NEAR / NOT REACHED messages."""
     steps = graph_route(place)
     if steps:  # world graph (phase 2): walk / link / replay steps
         return run_route(place, steps)

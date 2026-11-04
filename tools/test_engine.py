@@ -1803,5 +1803,73 @@ class RainGate(EngineBase):
         self.assertTrue(m['stop'].startswith('rain'), m['stop'])
 
 
+class VisionAnswers(Base):
+    """User D188: "each vision need should produce a graph and vectors improvement". A vision click answer whose
+    result proves an object stores the clicked look as that kind, learns the direction toward the node it reached,
+    and is recorded with hit/miss."""
+
+    def setUp(self):
+        super().setUp()
+        self.stored = []
+        p = mock.patch.object(learn, 'relabel', lambda img, box, kind: self.stored.append((tuple(box), kind)) or True)
+        p.start()
+        self.addCleanup(p.stop)
+        import evals.store as ES
+        self.preds = os.path.join(self.tmp.name, 'p.jsonl')
+        for q in (mock.patch.object(ES, 'PATH', self.preds), mock.patch.object(ES, 'ENABLED', True)):
+            q.start()
+            self.addCleanup(q.stop)
+
+    def recs(self):
+        import json
+        try:
+            return [json.loads(l) for l in open(self.preds)]
+        except OSError:
+            return []
+
+    def test_an_answer_proven_by_an_event_stores_the_look_as_that_kind(self):
+        f = self.use(FakeGame([obj('a', pos=(NX[0], NZ[0]), zone='near', bubble=(1400, 700), body=(1400, 700),
+                                   stage='growing', watered=True, wilted=False)], GAME))
+        act.click((1400, 700), 'point')   # vision's cell on the bed: the click interacts (plant_growing)
+        self.assertEqual(self.stored, [((1310, 630, 1490, 770), 'GardenBed')])
+        hits = [r for r in self.recs() if r.get('hit') is True]
+        self.assertTrue(any(r.get('component') == 'vision' for r in self.recs()) and hits, self.recs())
+
+    def test_an_answer_whose_bubble_appears_under_it_names_the_kind(self):
+        f = self.use(FakeGame([obj('a', pos=(NX[0], NZ[0]), zone='far', bubble=(1000, 600), body=(1000, 640),
+                                   stage='empty', watered=False, wilted=False)], GAME))
+        act.click((1000, 640), 'point')   # walks there; the bed's bubble shows next to the answered point
+        self.assertEqual([k for _, k in self.stored], ['GardenBed'])
+
+    def test_entering_the_house_stores_the_door(self):
+        f = self.use(FakeGame([], GAME))
+        run = f.run_action
+        f.run_action = lambda a: (f.log.append('[D187 1:10:12 PM] [TRIGGER] OnEnterBuilding House')
+                                  if a.startswith('click') else None, run(a))[1]
+        act.click((1835, 380), 'point')
+        self.assertEqual([k for _, k in self.stored], ['HouseDoor'])
+
+    def test_free_ground_that_walks_stores_nothing_but_is_recorded(self):
+        f = self.use(FakeGame([], GAME))
+        f.step_zone = 'near'
+        act.click((960, 860), 'point')
+        self.assertEqual(self.stored, [])
+        self.assertTrue(any(r.get('component') == 'vision' for r in self.recs()))
+
+    def test_an_answer_that_reached_another_area_learns_the_direction(self):
+        f = self.use(FakeGame(beds('n', NX[:1], NZ[:1], 'x', 500, 300, stage='growing', watered=True, wilted=False)
+                              + [obj('s', pos=(SX[0], SZ[0]), bubble=(960, 900), body=(960, 900), stage='growing',
+                                     watered=True, wilted=False)], GAME))
+        g = OG.Graph()
+        g.load(SEED)
+        world.refresh(g, f.read_save()[1], [], None)
+        learn.MEMORY['graph'] = g
+        self.addCleanup(learn.MEMORY.__setitem__, 'graph', None)
+        learned = []
+        with mock.patch.object(OG, 'learn_toward', lambda gr, a, b, d, rate=0.5: learned.append((a, b, d))):
+            act.click((960, 900), 'point', here='Garden')   # the south bed's event says she reached GardenSouth
+        self.assertEqual([(a, b) for a, b, _ in learned], [('Garden', 'GardenSouth')])
+        self.assertGreater(learned[0][2][1], 0.9)   # the answered point was straight down
+
 if __name__ == '__main__':
     unittest.main()

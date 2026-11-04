@@ -435,3 +435,15 @@ def morning(seed='Tulip', region='GardenSouth', answer=None):
             res['stop'] = 'done' if w['stop'] == 'no dry bed left (world)' else f'water: {w["stop"]}'
     print(f"morning: planted {res['planted']}, watered {res['watered']}, fills {res['fills']}, stop: {res['stop']}")
     return res
+
+
+def vision_click(answer, here=None):
+    """A click that answers a vision question (a grid cell 'Q14' or (x, y)): through act.click(..., 'point') so what
+    it proves is learned (the look as its kind, the direction toward the area reached, an eval). Use it for every
+    supervisor / vision click instead of a raw click."""
+    from . import ask
+    pt = ask.parse_point(answer) if isinstance(answer, str) else tuple(answer)
+    c = A.click(pt, 'point', here=here)
+    print(f'vision_click {answer}: {"walked" if c.moved else "no move"}, events {c.events}, '
+          f'triggers {[l.split("] ", 1)[-1] for l in c.lines if "[TRIGGER]" in l][:3]}, bubbles {[str(a) for a in c.after][:3]}')
+    return c

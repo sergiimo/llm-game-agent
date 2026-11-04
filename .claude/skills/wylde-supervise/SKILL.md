@@ -110,7 +110,10 @@ Never let a child run the game blind. For every dispatch that touches the game:
    Read the click's saved frame (`<run>/clicks/`) yourself and decide (continue / stop / fix).
 3. **Gated steps:** the child makes ONE `./wf achieve` call per dispatch and returns its summary line; you read the
    watcher lines and decide the next instruction (continue via SendMessage). A `NEED_VISION` answer comes back to you
-   with the image path before it is used: check the image yourself.
+   with the image path before it is used: check the image yourself. **Every vision click (yours too) goes through the
+   answer path** - `./wf achieve <goal> answer=<cell>`, `smoke.plant_garden(answer=<cell>)` or
+   `./wf py "from game import smoke; smoke.vision_click('<cell>')"` - never a raw click: what the click proves becomes a
+   stored look, a learned direction and a scored answer (L151).
 4. **After the run:** `.venv/bin/python tools/runwatch.py <run> --report` writes `<run>/watch.md` (a table per attempt:
    clicks, walks, still, predictions hit/miss, alerts, stops); put it in the debrief.
 

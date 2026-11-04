@@ -253,3 +253,65 @@ def settle_rows():
 
 
 AGREE, REVISE = 2, 3
+
+
+# ---- vision answers (user D188: "each vision need should produce a graph and vectors improvement") ---------------
+ANSWER_BOX = (90, 70)   # px half-size of the crop stored around an answered point
+NEAR_ANSWER = 160       # px: a bubble this close to the answered point belongs to the object there
+
+
+def _triggers():
+    import json
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'kinds.json')) as f:
+            return json.load(f).get('_triggers', {})
+    except (OSError, ValueError):
+        return {}
+
+
+def answer_kind(c):
+    """The object a vision click proved: its event's target, a trigger that names it (OnEnterBuilding House =
+    HouseDoor), or the bubble that appeared under the answered point. None = free ground."""
+    for line in c.lines:
+        m = re.search(r'target=([A-Za-z]+)', line)
+        if m and m.group(1) != 'null':
+            return m.group(1)
+    for line in c.lines:
+        for trig, kind in _triggers().items():
+            if trig in line:
+                return kind
+    near = [a for a in c.after if O.d(a.pt, c.pt) <= NEAR_ANSWER]
+    if near:
+        node = O.node_of_bubble(min(near, key=lambda a: O.d(a.pt, c.pt)))
+        return kind_of(node) if node else None
+    return None
+
+
+def learn_answer(c, img0, here=None):
+    """A vision click answer -> (1) the look at the point stored as the proven kind (detection finds it next time),
+    (2) the direction from `here` to the area its event reached (graph), (3) an eval record. The kind or None."""
+    import math
+    kind = answer_kind(c)
+    x, y = c.pt
+    hx, hy = ANSWER_BOX
+    box = (max(0, x - hx), max(0, y - hy), x + hx, y + hy)
+    stored = relabel(img0, box, kind) if kind and img0 is not None else False
+    reached = None
+    g = MEMORY['graph']
+    if g is not None and c.at:
+        from . import world
+        reached = world.area_of(g, c.at)
+    if here and reached and reached != here:
+        from objects import graph as OG
+        dx, dy = x - O.CENTRE[0], y - O.CENTRE[1]
+        n = math.hypot(dx, dy) or 1.0
+        OG.learn_toward(g, here, reached, (dx / n, dy / n))
+    try:
+        import evals
+        evals.record('vision', 'answer', None, {'kind': kind, 'moved': c.moved, 'reached': reached},
+                     bool(kind) or c.moved is True, {'pt': list(c.pt), 'here': here})
+    except Exception:   # noqa: BLE001
+        pass
+    log_db('vision_answer', f'@{x},{y}: {kind or "free ground"}{" (look stored)" if stored else ""}'
+                            f'{f", {here} -> {reached}" if reached and here and reached != here else ""}')
+    return kind

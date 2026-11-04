@@ -93,13 +93,13 @@ def _not_paused(W):
     screen.require_world()
 
 
-def click(pt, what='point', before=None):
+def click(pt, what='point', before=None, here=None):
     """Click `pt` and record everything it did; LEARN gets it (bubble kind, memory). Returns a Click."""
     W = core.WF
     _not_paused(W)
     before = O.scan() if before is None else before
     x, y = round(pt[0]), round(pt[1])
-    img0 = W.grab() if what == 'bubble' else None   # the clicked bubble's crop, to learn its kind from the event
+    img0 = W.grab() if what in ('bubble', 'point') else None   # the clicked bubble / answered spot, to learn from
     mark = W.log_mark()
     W.run_action(f'click:{x}:{y}')
     t0, imgs = time.monotonic(), []
@@ -121,6 +121,8 @@ def click(pt, what='point', before=None):
         from . import where
         where.walked()
     learned = L.learn_bubble(c, img0)
+    if what == 'point':   # a vision answer: what its result proves becomes a look, a direction, a scored answer
+        learned = L.learn_answer(c, img0, here) or learned
     L.observe_card(c)   # a short-lived crop card -> the object's crop / days left / wilted (world graph)
     try:
         W.run_log('click', node=c.node, learned=learned, pt=[x, y], what=what, events=c.events, mode=mode,

@@ -262,7 +262,7 @@ def _answer(g, name, params, answer, res):
             pt = ask.parse_point(answer)
         except ValueError as e:
             raise core.Failed(f'answer rejected: {e}. Answer a grid cell A1-X16, or none') from None
-        c = A.click(pt, 'point')
+        c = A.click(pt, 'point', here=res.get('area'))
         res['clicks'] += 1
         if c.at:
             world.place(g, c.node.split('@')[0] if c.node else 'Object', c.at, c.events, stamp=_stamp())

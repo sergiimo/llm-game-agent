@@ -213,6 +213,8 @@ class Base(unittest.TestCase):
               mock.patch.object(learn, 'GRAPH', self._graph_copy()),
               mock.patch.object(act, 'BURST', (0.0, 0.0)), mock.patch.object(act, 'EVENT_WAIT', 0.0),
               mock.patch.object(act, 'SHOTS', self.tmp.name),   # click frames + the experience journal: temp only
+              mock.patch('game.badges.DIR', os.path.join(self.tmp.name, 'badges')),
+              mock.patch('game.icons.DIR', os.path.join(self.tmp.name, 'crop_icons')),
               mock.patch.object(learn, 'TRUTH', os.path.join(self.tmp.name, 'truth')),
               # default: no vector match on screen and no map (the vision path); Seek tests override these
               mock.patch.object(observe, 'see', lambda kind, tried=(): []),

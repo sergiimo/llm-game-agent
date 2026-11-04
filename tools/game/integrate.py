@@ -224,6 +224,9 @@ def propose(e):
             world.append(X.Update('world', 'card_state'))
         if e.action.what == 'bubble':
             memory.append(X.Update('memory', 'bubble_label'))
+            label = _badge_proof(e)
+            if label:   # wave 1 learns from what the click proved (user D189)
+                memory.append(X.Update('memory', 'badge', {'label': label}))
         if e.action.what == 'point':
             memory.append(X.Update('memory', 'answer_look', {'here': ctx.get('here')}))
         if ctx.get('det_box') and e.evidence.node and e.evidence.node != ctx.get('target'):
@@ -233,6 +236,24 @@ def propose(e):
     for i, ch in enumerate(e.verdict.checks):
         transitions.append(X.Update('transitions', 'observation', {'i': i}))
     return X.Correction(e.id, world=tuple(world), memory=tuple(memory), transitions=tuple(transitions))
+
+
+_DAYS = re.compile(r'\d+ days? remaining', re.I)
+
+
+def _badge_proof(e):
+    """What a bubble click proved about its badge: a Collect prompt = ready, a crop card's days left = none, a water
+    event = drop; None without proof."""
+    ev = e.evidence
+    texts = list(ev.texts) + list(ev.burst_texts)
+    if any(c.field == 'card' and str(c.expected).lower() == 'collect' and c.ok for c in e.verdict.checks) \
+            or any(str(t).strip().lower() == 'collect' for t in ev.texts):
+        return 'ready'
+    if any(_DAYS.search(str(t)) for t in texts):
+        return 'none'
+    if any(x in ('water', 'hazel_waterplant') for x in ev.events):
+        return 'drop'
+    return None
 
 
 def _ns(e, img_path=None):
@@ -276,6 +297,13 @@ def _run(u, e, img0):
             return LN.learn_bubble(_ns(e), img)
         if u.op == 'answer_look':
             return LN.learn_answer(_ns(e), img, u.args.get('here'), exp=e.id)
+        if u.op == 'badge':   # the clicked bubble's 140-px crop -> its corner is an example of the label
+            from . import badges
+            if img is None or not e.action.pt:
+                return None
+            x, y = e.action.pt
+            badges.add(u.args['label'], img.crop((x - 70, y - 70, x + 70, y + 70)), f'exp {e.id}')
+            return f'badge:{u.args["label"]}'
         if u.op == 'proven_look':   # a box on the frame before the click, named by a later log proof
             ok = LN.relabel(img, tuple(u.args['box']), u.args['kind'])
             return f'look:{u.args["kind"]}' if ok else None

@@ -11,7 +11,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, ask, core, engine, icons, learn, nav, observe, plan, screen, smoke, steps, ui, where, world  # noqa: E402
+from game import act, affordances, ask, badges, core, engine, icons, learn, nav, observe, plan, screen, smoke, steps, ui, where, world  # noqa: E402
 from game.ask import NeedVision  # noqa: E402
 from objects import graph as OG  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
@@ -404,6 +404,8 @@ class Base(unittest.TestCase):
               mock.patch.object(learn, 'TRUTH', os.path.join(self.tmp.name, 'truth')),
               mock.patch.object(where, 'WALK', os.path.join(self.tmp.name, 'where-walk.json')),
               mock.patch.object(act, 'SHOTS', self.tmp.name),   # click frames: never the real .shots/clicks
+              mock.patch.object(badges, 'DIR', os.path.join(self.tmp.name, 'badges')),   # never the real stores
+              mock.patch.object(icons, 'DIR', os.path.join(self.tmp.name, 'crop_icons')),
               mock.patch.object(act, 'BURST', (0.0, 0.0)), mock.patch.object(act, 'EVENT_WAIT', 0.0),
               mock.patch.object(observe, 'see', lambda kind, tried=(): []),
               mock.patch.object(observe, 'see_all', lambda: []),
@@ -411,6 +413,10 @@ class Base(unittest.TestCase):
         for p in ps:
             p.start()
             self.addCleanup(p.stop)
+        badges.reset()
+        icons.reset()
+        self.addCleanup(badges.reset)
+        self.addCleanup(icons.reset)
 
     def use(self, f):
         self.f = f

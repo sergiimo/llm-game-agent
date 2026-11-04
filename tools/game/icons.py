@@ -36,6 +36,31 @@ def _vec(img):
     return list(np.asarray(img.convert('L').resize((16, 16)), dtype=float).ravel() / 255.0)
 
 
+BADGE_MASK = (60, 0, 112, 52)   # px of the 112-px icon crop: the badge corner (wave 1 reads it; masked here, D189)
+
+
+def masked(icon112):
+    """Wave 2: the icon without its badge (the "!" / drop / nothing look the same on every crop): the corner is
+    filled with the bubble's own beige, so one example per crop serves every state."""
+    import numpy as np
+    from PIL import ImageDraw
+    im = icon112.convert('RGB').copy()
+    if im.size != (112, 112):
+        im = im.resize((112, 112))
+    a = np.asarray(im)[50:62, 8:22].reshape(-1, 3)   # the bubble's beige at its left edge
+    fill = tuple(int(v) for v in np.median(a, axis=0))
+    ImageDraw.Draw(im).rectangle(BADGE_MASK, fill=fill)
+    return im
+
+
+def crop112(crop140):
+    """The icon crop (112 px) out of a 140-px bubble crop."""
+    c = crop140.convert('RGB')
+    if c.size != (140, 140):
+        c = c.resize((140, 140))
+    return c.crop((14, 14, 126, 126))
+
+
 def _refs():
     if _LOADED[0] != DIR:
         from PIL import Image
@@ -45,7 +70,7 @@ def _refs():
             d = os.path.join(DIR, name)
             for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
                 if f.endswith('.png'):
-                    _REFS.append((name, _vec(Image.open(os.path.join(d, f)))))
+                    _REFS.append((name, _vec(masked(Image.open(os.path.join(d, f))))))
     return _REFS
 
 
@@ -62,13 +87,15 @@ def _dist(a, b):
 
 
 def match(icon):
-    v = _vec(icon)
+    v = _vec(masked(icon))
     best = min(((_dist(v, r), name) for name, r in _refs()), default=(9.0, None))
     return best[1].replace('_', ' ') if best[0] <= MAX_DIST else None
 
 
 def name_of(a):
-    """The crop the bubble `a` shows, or None (unknown: ask vision once)."""
+    """The crop the bubble `a` shows, or None (unknown: ask vision once). The scan's wave-2 reading when it has one."""
+    if getattr(a, 'icon', None):
+        return a.icon
     try:
         return match(crop(core.WF.grab(), a.pt))
     except Exception:   # noqa: BLE001

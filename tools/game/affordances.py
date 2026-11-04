@@ -26,6 +26,8 @@ class Affordance:
     drop: bool = False   # the water-drop sub-icon (top right): the crop needs water or has wilted (user, D183)
     ready: bool = False  # the orange "!" sub-icon (top right): its product is ready to collect - NOT an order to collect
                          # (user D185: flowers serve the bees); only `drop` means "needs water"
+    badge: str = None    # wave 1 (game/badges.py): 'ready' | 'drop' | 'none' from the badge store; None = colour readers
+    icon: str = None     # wave 2: the crop its icon shows (crop-icon memory, badge masked); None = unknown
 
     def __str__(self):
         return f'{self.kind}{"*" if self.highlighted else ""}{" +drop" if self.drop else ""}{" +ready" if self.ready else ""} @{self.pt[0]},{self.pt[1]}'
@@ -66,12 +68,23 @@ def scan():
         return []
     img = W.grab()
     out = []
+    from . import badges, icons
     for b in W.find_bubbles(img):
         kind, d = W.bubble_kind(img, b)
         crop = W.bubble_crop(img, b) if hasattr(W, 'bubble_crop') else None
-        drop = has_drop(crop) if crop is not None else False
-        ready = has_ready(crop) if crop is not None else False
-        out.append(Affordance(kind, None, tuple(b), bool(W.bubble_highlighted(img, b)), d, drop, ready))
+        badge = icon = None
+        if crop is not None:   # wave 1: the badge corner; wave 2: the icon with the badge masked (user D189)
+            try:
+                badge = badges.read(crop)
+                icon = icons.match(icons.crop112(crop))
+            except Exception:   # noqa: BLE001 (reading never breaks the scan)
+                badge = icon = None
+        if badge is not None:
+            drop, ready = badge == 'drop', badge == 'ready'
+        else:   # the store doesn't know this corner yet: the colour readers
+            drop = has_drop(crop) if crop is not None else False
+            ready = has_ready(crop) if crop is not None else False
+        out.append(Affordance(kind, None, tuple(b), bool(W.bubble_highlighted(img, b)), d, drop, ready, badge, icon))
     return out
 
 

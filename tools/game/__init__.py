@@ -1,6 +1,6 @@
 """Game functions for agents (L77). `./wf py "<code>"` runs code with these names in scope; `./wf call garden.water_all`
 runs one. Chores are goals of the engine (`achieve`, L138); `smoke` holds the proven primitives (L147)."""
-from . import affordances, core, garden, integrate, smoke, track, ui  # noqa: F401 (integrate: the click boundary)
+from . import affordances, badges, core, garden, integrate, smoke, track, ui  # noqa: F401 (integrate: the boundary)
 from .ask import NeedVision  # noqa: F401
 from .core import Failed, bind  # noqa: F401
 from .engine import achieve  # noqa: F401

@@ -2823,6 +2823,20 @@ class OneByOne(VisitBeds):
         a = engine._visit(g, tid, 'GardenBed', res, pick)
         self.assertTrue(a is None or a.kind != 'plant', a)
 
+    def test_the_search_never_takes_a_planting_icon_for_a_pick(self):
+        """Live D189 18:08: the search clicked the harvested bed's planting icon twice (read `plant +ready`: the
+        highlight ring), the first time before and again after a real pick."""
+        seed = obj('s', pos=(NX[0], NZ[0]), bubble=(964, 688), stage='empty', watered=False, wilted=False, ready=True)
+        bean = obj('b', pos=(NX[1], NZ[0]), bubble=(1248, 672), stage='produced', watered=True, wilted=False)
+        f = self.use(FakeGame([seed, bean], GAME, inventory={'TulipSeed': 2}))
+        with mock.patch.object(icons, 'name_of', lambda a: 'Green Bean'):
+            try:
+                engine.achieve('harvest', max_clicks=10)
+            except ask.NeedVision:
+                pass
+        self.assertNotIn((964, 688), f.clicks)
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing')
+
     def test_evidence_on_another_bed_turns_the_targets_visit_off_and_counts(self):
         f, g, tid, eid = self.setup_beds()
         res = {'visit_off': set(), 'fails': {}, 'surprises': [], 'btried': []}

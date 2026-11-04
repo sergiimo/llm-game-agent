@@ -265,6 +265,16 @@ def _other_kinds(kind, row):
     return out - set(str((row.get('bubble') or {}).get('kind') or '').split('|'))
 
 
+def _proven(g, a, res):
+    """The bubble sits at the predicted point of a bed already proven this call (picked, or shown not ready)."""
+    from . import where
+    src, here = where.position(far_ok=False, walk_ok=True)
+    if src not in ('event', 'walk'):
+        return False
+    return any(O.d(a.pt, screen_point(here, tuple(g.nodes[n].extra['pos']))) <= 60
+               for n in res.get('tried_nodes', ()) if n in g.nodes)
+
+
 def _settle_visit(tid, nid, res):
     """A click whose result proved ANOTHER bed (the evidence went to `nid`): the target's visit is off for this call
     and the attempt counts - the next round moves on instead of clicking the same bubble (live D189)."""
@@ -385,7 +395,10 @@ def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
     """A bubble that fits the row in the target's area. Her area unknown (she walked) and look-alike objects in
     another area -> ONE question: which area is she in? (answer area=<name>)."""
     tried = res.setdefault('btried', [])
-    ok = plan.fits(row)
+    fits_row, other = plan.fits(row), _other_kinds(kind, row)
+
+    def ok(a):   # another row's icon never fits this row (a planting icon is never a pick, live D189 18:08)
+        return fits_row(a) and a.kind not in other and not _proven(g, a, res)
     amb = bool(_ambiguous(g, row, kind, area))
 
     def icon_ok(a):   # skip_bubbles: the crop its icon shows (flowers stay for the bees, user D188)

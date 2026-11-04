@@ -127,6 +127,9 @@ def take_answer(goal):
 
 def hint(goal, params):
     ps = ' '.join(f'{k}={v}' for k, v in (params or {}).items())
+    if isinstance(goal, str) and goal.startswith('forage:'):   # the foraging strategy (game/forage.py)
+        return f'./wf forage {goal.split(":", 1)[1]}{" " + ps if ps else ""} answer='
+
     g = goal if isinstance(goal, str) and re.fullmatch(r'\w+', goal) else f"'{json.dumps(goal)}'"
     return f'./wf achieve {g}{" " + ps if ps else ""} answer='
 

@@ -7,7 +7,8 @@ detailed log"). One short line per click; rules from the live failures D185-D186
   ALERT a prediction miss (attempts 2-3: an empty bed's bubble read as `unplant`)
   ALERT a failed pick_card, an item icon learned under a junk name (attempt 3: 'ılbs')
   ALERT an engine call that stopped for anything but done
-  NOTE  `> plant` without its `totalPlanted` proof (a closed panel), STUCK, every vision question
+  NOTE  `> plant` without its `totalPlanted` proof (a closed panel), STUCK, every vision question, a forage answer
+        that reached no target
 
 Usage: .venv/bin/python tools/runwatch.py [run_dir] --follow   (live; for the Monitor tool: one line per event)
        .venv/bin/python tools/runwatch.py [run_dir] --report   (a table per attempt, written to <run>/watch.md)"""
@@ -100,6 +101,11 @@ class Watch:
                    f"vision {r.get('vision')}, stop {r.get('stop')}")
             stop = str(r.get('stop') or '')
             out.append(('INFO', msg) if stop.startswith('done') or not stop else ('ALERT', msg))
+        elif t == 'forage':   # the foraging strategy: one vision answer -> one result (spec §13)
+            msg = (f"forage {r.get('job')} @{(r.get('pt') or ['?', '?'])[0]},{(r.get('pt') or ['?', '?'])[1]}: "
+                   f"{r.get('result')} {r.get('object') or ''} (hits {r.get('hits')})")
+            proven = r.get('result') in ('destroying', 'grab_item')
+            out.append(('INFO', msg) if proven else ('NOTE', msg + ' - the answer did not reach a target'))
         elif t in ('plan_step', 'end', 'issue'):
             out.append(('INFO', f"{t}: {json.dumps({k: v for k, v in r.items() if k not in ('t', 'type')})[:160]}"))
         return out

@@ -23,6 +23,13 @@ class Rules(unittest.TestCase):
         w = RW.Watch()
         return [(lv, msg) for r in rows for lv, msg in w.feed(r) if lv != 'INFO']
 
+    def test_a_forage_step_without_proof_is_a_note_and_a_proven_one_info(self):   # spec §13: vision answers
+        out = self.levels([{'type': 'forage', 'job': 'rock', 'pt': [1320, 371], 'result': 'no bubble', 'hits': 0},
+                           {'type': 'forage', 'job': 'rock', 'pt': [1320, 371], 'result': 'destroying', 'hits': 2,
+                            'object': 'StoneRock'}])
+        self.assertEqual([lv for lv, _ in out], ['NOTE'])
+        self.assertIn('no bubble', out[0][1])
+
     def test_a_click_on_the_pause_menu_is_a_stop(self):   # attempt 4: the game exited
         out = self.levels([click((960, 840), mode='overlay', texts=PAUSED, moved=False)])
         self.assertEqual(out[0][0], 'STOP')

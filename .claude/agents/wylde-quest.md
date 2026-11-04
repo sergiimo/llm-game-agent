@@ -34,6 +34,11 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
   `NEED_VISION click` → (1) `./wf pause`; (2) Read the image on the `look:` line (grid A-X × 1-16, magenta circle = Tara,
   always the centre); (3) ONE grid cell on the target object (not a bubble), or open ground toward it; (4) `./wf resume`,
   then the printed `answer:` line, e.g. `./wf achieve water answer=Q14` (`answer=none` = nothing left).
+- **Foraging (rocks, trees, branches, drops, forage plants; L158):** `./wf forage chop|rock|pickup|forage`. Each call asks
+  ONE vision question (the nearest target's cell); answer with `answer=<cell>`, `walk:<cell>` (free ground toward more,
+  off-screen) or `none`. It walks there, clicks the bubble at her until the log proves it (`destroying` / `grab_item`),
+  records it and asks again. Stops on energy below the job's floor (`tools/game/forage.json`), clock, rain, dark. Never
+  graph nodes.
   `NEED_VISION button` → answer the exact on-screen text to press; `NEED_VISION name` → answer `key=value` (what changed
   on the object, e.g. `ready=false`). `NEED_INPUT <goal>: <param>? (seen: …)` → never guess: take it from the task text or
   return `need-help` to ask the user. **`WRONG_LANGUAGE: …`** = the game UI is not English: stop, ask the user to switch it

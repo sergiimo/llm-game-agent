@@ -1529,6 +1529,12 @@ def _LawsStuck():
     return LawsStuck
 
 
+def engine_parse(args):
+    from game import engine
+    goal, params, answer = engine.parse_cli(args)
+    return goal, {k: int(v) if str(v).isdigit() else v for k, v in params.items()}, answer
+
+
 def game_cmd(kind, args):
     """`wf py "<code>"` / `wf call <module.fn> [args…]`: game functions (tools/game, L77), each proven by the game log
     and tracked as an action tree in the run log."""
@@ -1542,6 +1548,11 @@ def game_cmd(kind, args):
             from game import engine
             goal, params, answer = engine.parse_cli(args)
             res = engine.summary(game.achieve(goal, answer=answer, **params))
+        elif kind == 'forage':
+            from game import forage
+            _, params, answer = engine_parse(args)
+            out = forage.run(args[0], answer=answer, **params)
+            res = forage.summary(out) if out else None
         elif kind == 'py':
             code = ' '.join(args)
             try:
@@ -4046,6 +4057,9 @@ def main(argv=None):
     p = sub.add_parser('achieve', help='the engine (L138): wf achieve <goal|json> [k=v ...] [answer=X]; goals in '
                                        'tools/game/goals.json, e.g. wf achieve plant seed=Tulip region=GardenSouth')
     p.add_argument('args', nargs='+')
+    p = sub.add_parser('forage', help='the foraging strategy (pure vision, never graph nodes; spec §13): wf forage '
+                                      'chop|rock|pickup|forage [answer=<cell>|walk:<cell>|none] [max_clicks=N]')
+    p.add_argument('args', nargs='+')
     p = sub.add_parser('py', help='run game functions (tools/game, L77): wf py "replant_all()"')
     p.add_argument('args', nargs='+')
     p = sub.add_parser('call', help='run one game function: wf call garden.water_all')
@@ -4271,7 +4285,7 @@ def _dispatch_input(a):
         img = grab()
         print(calibrate_road(img) if a.calibrate else to_road() if a.go else
               f'on road: {on_road(img):.0%} around her feet [{road_key(img)}]')
-    elif a.cmd in ('py', 'call', 'achieve'):
+    elif a.cmd in ('py', 'call', 'achieve', 'forage'):
         if game_cmd(a.cmd, a.args):
             sys.exit(1)
         return

@@ -1936,5 +1936,13 @@ class HarvestPolicy(EngineBase):
         self.assertIn('Green_Bean', os.listdir(icons.DIR))
 
 
+class PickBubble(Base):
+    def test_a_ready_crop_bubble_fits_pick_whatever_its_kind(self):
+        """Live D188: ripe beds show their crop icon + the "!" sub-icon, read as `plant_growing +ready` - not `pickup`."""
+        pick = next(r for r in plan.rows('GardenBed') if r['id'] == 'pick')
+        self.assertTrue(plan.fits(pick)(Affordance('plant_growing', None, (0, 0), False, 0.0, False, True)))
+        self.assertFalse(plan.fits(pick)(Affordance('plant_growing', None, (0, 0), False, 0.0, False, False)))
+
+
 if __name__ == '__main__':
     unittest.main()

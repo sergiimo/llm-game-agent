@@ -174,7 +174,7 @@
     "stage": "produced"
    },
    "bubble": {
-    "kind": "pickup"
+    "ready": true
    },
    "steps": [
     {
@@ -191,7 +191,7 @@
     "ready": false,
     "watered": false
    },
-   "source": "seed: game D150",
+   "source": "seed: game D150; live D188: the ready bubble is the crop icon + \"!\" (read as plant_growing +ready), not 'pickup'",
    "seen": 0,
    "ok": 0,
    "surprises": 0

@@ -112,6 +112,7 @@ def lost(res):
     if not res.get('lost_traced'):
         trace(res, f'LOST: {res["blind"]} walks without an event or a bubble of the target kind - which way?')
         res['lost_traced'] = True
+        _gap(res, f'nav: lost - {res["blind"]} walks without an event or a bubble of the target kind')
     return True
 
 
@@ -125,6 +126,7 @@ def stuck(res):
     if not res.get('stuck_traced'):
         trace(res, f'STUCK: {res["still"]} clicks in a row did not move her')
         res['stuck_traced'] = True
+        _gap(res, f'nav: stuck - {res["still"]} clicks in a row did not move her')
     return True
 
 

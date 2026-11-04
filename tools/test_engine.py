@@ -2563,6 +2563,17 @@ class NavLadder(MapWay):
         from game import integrate
         self.assertTrue(any(b['owner'] == 'nav' for b in integrate.gaps()))
 
+    def test_lost_writes_a_nav_gap_bundle(self):
+        self.lost()
+        with mock.patch.object(nav, 'map_direction', self.reading((300, 300))):   # walks, never closer
+            try:
+                engine.achieve('harvest', max_clicks=40)
+            except ask.NeedVision:
+                pass
+        from game import integrate
+        self.assertTrue(any(b['owner'] == 'nav' and ('lost' in b['invariant'] or 'stuck' in b['invariant'])
+                            for b in integrate.gaps()), integrate.gaps())
+
     def test_tara_keeps_her_tier_and_pin_in_the_graph_after_each_step(self):
         self.lost()
         with mock.patch.object(nav, 'map_direction', self.reading((300, 300))):

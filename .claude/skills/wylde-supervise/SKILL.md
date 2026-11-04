@@ -108,6 +108,9 @@ Never let a child run the game blind. For every dispatch that touches the game:
    from a look-alike node, a prediction miss, a failed `pick_card`, a junk icon name, an engine stop that isn't done;
    **NOTE** = `> plant` without `totalPlanted`, STUCK, every vision question.
 2. **STOP → `TaskStop` the child at once**, then `./wf pause` only if the game is running and not on a menu. **ALERT →**
+   An `idle Ns` ALERT (no call or click for 45 s while the game runs) = the child is thinking with the clock running:
+   pause the game or nudge the child. After a run, `.venv/bin/python tools/runwatch.py <run> --report` has the Time
+   table (wall, in calls, thinking, longest gap, game minutes, clicks, vision, picks) - put it in the review.
    Read the click's saved frame (`<run>/clicks/`) yourself and decide (continue / stop / fix). **Two ALERTs of the same
    kind in a row → Read the newest frame at once** (S40: the frame showed her by the river, far from the garden).
 3. **Gated steps:** the child makes ONE `./wf achieve` call per dispatch and returns its summary line; you read the

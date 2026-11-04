@@ -80,7 +80,7 @@ def run(row, params, bubble, node_state=None):
                 c = A.click(bubble.pt, 'bubble' if s['do'] == 'click_bubble' else 'object')
                 out['clicks'] += 1
                 lines, events = c.lines, c.events
-                out['after'] = c.after
+                out['after'], out['img0'], out['bubble_pt'] = c.after, c.img0, tuple(bubble.pt)
             elif s['do'] == 'press':
                 ui.press(s['arg'])
             elif s['do'] == 'press_space':

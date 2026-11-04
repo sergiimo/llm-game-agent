@@ -335,3 +335,31 @@ def learn_answer(c, img0, here=None):
     log_db('vision_answer', f'@{x},{y}: {kind or "free ground"}{" (look stored)" if stored else ""}'
                             f'{f", {here} -> {reached}" if reached and here and reached != here else ""}')
     return kind
+
+
+# ---- bubble truth (user D188: "icons that should and should not fire"): what a click result proved -------------
+TRUTH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'fixtures', 'bubble_truth')
+
+
+def save_truth(img, pt, proof, **labels):
+    """Store the bubble crop at `pt` of the frame before a click with what its result proved (ready/drop/crop);
+    test_affordances.BubbleTruth checks every stored case. The file name or None."""
+    import json
+    if img is None or pt is None:
+        return None
+    try:
+        os.makedirs(TRUTH, exist_ok=True)
+        x, y = int(pt[0]), int(pt[1])
+        name = f'{stamp() or "case"}-{x}-{y}'.replace(' ', '_').replace(':', '')
+        f = re.sub(r'[^\w.-]+', '_', name) + '.png'
+        img.convert('RGB').crop((x - 70, y - 70, x + 70, y + 70)).save(os.path.join(TRUTH, f))
+        p = os.path.join(TRUTH, 'labels.json')
+        try:
+            data = json.load(open(p))
+        except (OSError, ValueError):
+            data = {'_doc': 'bubble crops with what the click result proved (learn.save_truth)', 'cases': []}
+        data['cases'].append(dict(labels, file=f, proof=proof))
+        json.dump(data, open(p, 'w'), indent=1)
+        return f
+    except Exception:   # noqa: BLE001 (recording never breaks play)
+        return None

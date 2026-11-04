@@ -1,0 +1,12 @@
+{
+ "_doc": "Bubble crops (140 px, full-size frames) with what the click result proved: ready = a Collect prompt / grab_item; not ready = an info card with days remaining. Collected by the engine (learn.save_truth); checked by test_affordances.BubbleTruth.",
+ "cases": [
+  {
+   "file": "D188-carrot-growing.png",
+   "ready": false,
+   "drop": false,
+   "crop": "Carrot",
+   "proof": "click -> \"Carrot ... 2 days remaining\" (D188 8:10)"
+  }
+ ]
+}

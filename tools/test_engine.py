@@ -1,5 +1,6 @@
 """Offline tests for the generic gameplay engine (spec 2026-11-03): FakeGame + world, table, steps, ask, loop, learning.
 Run: .venv/bin/python -m unittest tools/test_engine.py"""
+import json
 import os
 import re
 import shutil
@@ -344,6 +345,7 @@ class Base(unittest.TestCase):
         self.addCleanup(where._WALK.clear)
         ps = [mock.patch.object(learn, 'GRAPH', g),
               mock.patch.object(ask, 'STATE', os.path.join(self.tmp.name, 'ask-state.json')),   # never the real one
+              mock.patch.object(learn, 'TRUTH', os.path.join(self.tmp.name, 'truth')),
               mock.patch.object(where, 'WALK', os.path.join(self.tmp.name, 'where-walk.json')),
               mock.patch.object(act, 'BURST', (0.0, 0.0)), mock.patch.object(act, 'EVENT_WAIT', 0.0),
               mock.patch.object(observe, 'see', lambda kind, tried=(): []),
@@ -2094,6 +2096,52 @@ class ReadyMisread(EngineBase):
                               GAME))
         f.behaviour = [dict(GAME[4], flash=['Carrot', 'Ш ПРРадр»'])]   # OCR junk; the screen itself reads English
         act.click((700, 400), 'bubble')   # no WrongLanguage
+
+
+class VisitBeds(EngineBase):
+    """User D188, strategy A: go bed by bed from her exact position; a bed's bubble is the one at the bed's expected
+    screen point, whatever its kind or "!" reading says; the click result decides and labels the bubble's truth."""
+
+    def setUp(self):
+        super().setUp()
+        for mod, name in ((icons, 'DIR'), (learn, 'TRUTH')):
+            p = mock.patch.object(mod, name, os.path.join(self.tmp.name, name.lower()))
+            p.start()
+            self.addCleanup(p.stop)
+        icons.reset()
+        p = mock.patch.object(icons, 'name_of', lambda a: 'Green Bean')
+        p.start()
+        self.addCleanup(p.stop)
+
+    def game(self, b_state):
+        a = obj('a', pos=(NX[0], NZ[0]), bubble=(960, 470), stage='growing', watered=True, wilted=False)
+        b = obj('b', pos=(NX[1], NZ[0]), bubble=(1104, 540), **b_state)
+        f = self.use(FakeGame([a, b], GAME, inventory={'TulipSeed': 2}))
+        f.log.append(L('9:00:00 AM', 'plant_growing', 'GardenBed', NX[0], NZ[0]))   # she stands at bed a: exact
+        return f
+
+    def test_the_bubble_at_the_beds_point_is_used_whatever_its_reading(self):
+        f = self.game(dict(stage='produced', watered=True, wilted=False))
+        f.relabel = {'pickup': 'water'}   # misread kind; the fake's ready flag is shown, kind is not trusted
+        res = engine.achieve('harvest')
+        self.assertEqual(f.clicks[0], (1104, 540), f.clicks)
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing', res)
+        labels = json.load(open(os.path.join(learn.TRUTH, 'labels.json')))['cases']
+        self.assertEqual([c['ready'] for c in labels], [True])   # the Collect prompt proved it ready
+
+    def test_a_seed_panel_is_evidence_the_bed_is_empty(self):
+        f = self.game(dict(stage='empty', watered=False, wilted=False))
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        nid = world.find(g, 'GardenBed', (NX[1], NZ[0]))
+        g.set_state(nid, 'stage', 'produced', None, 'save')   # the world believes it is ready
+        g.set_state(nid, 'ready', True, None, 'save')
+        g.save(learn.GRAPH)
+        res = engine.achieve('harvest')
+        self.assertEqual(res['vision'], 0, res)
+        g.load(learn.GRAPH)
+        self.assertEqual(g.state_value(nid, 'stage'), 'empty')
 
 
 if __name__ == '__main__':

@@ -33,6 +33,7 @@ class Click:
     burst_texts: list = field(default_factory=list)  # short-lived texts OCR'd from the burst frames
     node: str = None                            # the graph node the logged interaction names (target=...)
     at: tuple = None                            # world (x, z) of the logged interaction (`at (x, y, z)`), if any
+    img0: object = None                         # the frame just before the click (bubble / answer clicks)
 
     def has(self, *names):
         return any(e in names for e in self.events)
@@ -115,6 +116,7 @@ def click(pt, what='point', before=None, here=None):
               O.view_changed(imgs[0], imgs[-1]) if len(imgs) > 1 else None,
               save_frames(imgs, time.strftime('%H%M%S') + f'-{x}-{y}'), O.burst_texts(imgs))   # every click (~0.08 s/frame)
     from objects import graph as OG
+    c.img0 = img0
     c.node = next((n for n in map(OG.node_of_line, lines) if n), None)
     c.at = next((p for p in map(position_of, lines) if p), None)
     if c.moved and not c.at and mode == 'gameplay':   # she walked and nothing logged where: positions are stale

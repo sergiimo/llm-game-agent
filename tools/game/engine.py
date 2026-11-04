@@ -202,6 +202,51 @@ def _bubble_miss(row, area, mine, res):
     return False
 
 
+PX_PER_UNIT = 57.6     # screen px per world unit at the usual zoom (neighbour bed bubbles 216 px for 3.75 units, D186)
+OWN_PX = 140           # px: the bubble this close to a bed's expected screen point is that bed's
+
+
+def screen_point(tara, obj):
+    """Tara is the frame centre; the camera looks north: world +x = right, +z = up."""
+    return (round(O.CENTRE[0] + (obj[0] - tara[0]) * PX_PER_UNIT), round(O.CENTRE[1] - (obj[1] - tara[1]) * PX_PER_UNIT))
+
+
+def _visit(g, tid, kind, res):
+    """Strategy A (user D188): from her EXACT position (an event since the last walk), the target's bubble is the one
+    at its expected screen point - whatever its kind or "!" reading says; not in view -> one walk to the ground just
+    below that point, then the bubble in front of her. The bubble, or None (no exact position / nothing there)."""
+    from . import where
+    src, here = where.position(far_ok=False)
+    if src != 'event' or tid not in g.nodes:
+        return None
+    pt = screen_point(here, tuple(g.nodes[tid].extra['pos']))
+    if not O.on_frame(pt):
+        return None
+
+    def mine(affs, at, within):
+        hive = {O.NODE_OF.get(k) for k in O.NODE_OF if k != kind}
+        near = [a for a in affs if O.d(a.pt, at) <= within and O.node_of_bubble(a) not in hive]
+        return min(near, key=lambda a: O.d(a.pt, at)) if near else None
+    return mine(O.scan(), pt, OWN_PX)   # not in view: nav walks (free ground beside, never a bubble)
+
+
+def _evidence(g, nid, kind, row, out, res):
+    """A failed step whose card is what ANOTHER row of this kind starts with (a seed panel where Collect was
+    expected): that row's `when` is the object's true state. True when applied (no question needed)."""
+    screen = str(out.get('screen') or '')
+    for r in plan.rows(kind):
+        if r['id'] == row['id'] or not r['steps']:
+            continue
+        want = (r['steps'][0].get('expect') or {}).get('card')
+        if want and want.lower() in screen.lower():
+            st = {k: v for k, v in r['when'].items() if not (isinstance(v, str) and ('|' in v or '$' in v))}
+            if nid and st:
+                world._set(g, nid, dict(st, ready=False), _stamp(), 'card')
+                res['surprises'].append(f'{row["id"]}: the click showed "{want}" - {nid} is {st}')
+                return True
+    return False
+
+
 def finish_card(c, res):
     """A card opened by a non-step click (a walk) that the current row's first step expects (Collect for pick): the
     row finishes it instead of the walk closing it - when the crop under the click is known and not skipped
@@ -486,7 +531,7 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
     name, spec = _goal(goal)
     W = core.WF
     res = N.new_res(name)
-    res.update(goal=name, subgoals=0, learned=[], surprises=[], area=None, skip=[], fails={})
+    res.update(goal=name, subgoals=0, learned=[], surprises=[], area=None, skip=[], fails={}, btried=[])
     g = _open_graph()
     try:
         O.check_language()
@@ -607,7 +652,25 @@ def _loop(g, name, spec, params, save, max_clicks, res):
                     res['stop'] = res['stop'] or f'sub-goal {k}={v} failed'
         if res['stop']:
             break
-        a = _reach(g, name, params, t, kind, area, res, _marker(spec, where), _skip_names(spec, params))
+        skip_names = _skip_names(spec, params)
+        a = None if tid in res.setdefault('visit_off', set()) else _visit(g, tid, kind, res)
+        visited = a is not None
+        if a is not None and skip_names:   # the crop its icon shows: flowers stay; an unknown icon is asked now
+            from . import icons
+            crop = icons.name_of(a)
+            if crop is None:
+                path = icons.save_crop(a)
+                ask.ask('name', f'Which crop does the bubble at {a.pt[0]},{a.pt[1]} show (its icon)? Answer the crop '
+                                f'name, e.g. Green Bean, Carrot or Tulip.',
+                        {'goal': name, 'params': params, 'crop_icon': path}, res)
+            res.setdefault('icon_of', {})[tuple(a.pt)] = crop
+            if crop in skip_names:
+                g.set_state(tid, 'crop', crop, _stamp(), 'icon')
+                res['skip'].append(tid)
+                res['notes'].append(f'{tid}: {crop} stays (flower)')
+                continue
+        if a is None:
+            a = _reach(g, name, params, t, kind, area, res, _marker(spec, where), skip_names)
         runs = res.pop('card_runs', [])
         for out in runs:   # a card the row finished during a walk: its events update the world like a step's
             res['clicks'] += out['clicks']
@@ -633,6 +696,15 @@ def _loop(g, name, spec, params, save, max_clicks, res):
         if nid and crop:   # the icon said which crop this bed holds (the save never does)
             g.set_state(nid, 'crop', crop, _stamp(), 'icon')
         plan.count(t['id'], out['ok'])
+        if (t.get('bubble') or {}).get('ready') and out.get('img0') is not None:   # label the bubble's truth
+            if out['ok'] or out.get('failed_step') not in (None, 0):
+                L.save_truth(out['img0'], out.get('bubble_pt'), f'{t["id"]}: {out["events"]}', ready=True)
+            elif L.card_state(str(out.get('screen') or '').split(' / ')):
+                L.save_truth(out['img0'], out.get('bubble_pt'), f'{t["id"]}: {out.get("screen")}', ready=False)
+        if not out['ok'] and _evidence(g, nid or tid, kind, t, out, res):
+            A.gameplay()
+            res['btried'].append(a.pt)
+            continue
         info = L.card_state(str(out.get('screen') or '').split(' / ')) if not out['ok'] else {}
         if info:   # the click showed the object's info card (2 days remaining): evidence, not a prompt - no question
             res['surprises'].append(f'{t["id"]}: the bubble led to its info card {info} (not what the row expects)')
@@ -662,6 +734,8 @@ def _loop(g, name, spec, params, save, max_clicks, res):
         A.gameplay()
         if not out['events']:
             res['btried'].append(a.pt)
+        if visited:   # the bubble at the bed's point was not its bubble (zoom, geometry): search normally for it now
+            res['visit_off'].add(tid)
         res['fails'][tid] = res['fails'].get(tid, 0) + 1
         if res['fails'][tid] >= FAILS:
             res['skip'].append(tid)

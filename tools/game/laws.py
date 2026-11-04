@@ -4,5 +4,5 @@
 names older callers import."""
 from .act import BURST, EVENT_WAIT, Click, click as record_click  # noqa: F401
 from .ask import (CELL_H, CELL_W, COLS, EARLY, LATE, MAX_ASKS, ROWS, draw_grid, late, parse_point)  # noqa: F401
-from .nav import EXPLORE_R, SEEK_TURNS, STEP_R, STUCK_CLICKS, Target, reach  # noqa: F401
+from .nav import EXPLORE_R, MAP_STEP_R, SEEK_TURNS, STEP_R, STUCK_CLICKS, Target, reach  # noqa: F401
 from .observe import CENTRE, HUD, LawsStuck, WrongLanguage, check_language, closest_node  # noqa: F401

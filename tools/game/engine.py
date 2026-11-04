@@ -516,6 +516,9 @@ def _answer_name(g, pend, answer, res):
     """Vision named what an explored click changed ('key=value'): a learned row, applied to the clicked object; or
     which area she is in ('area=<name>')."""
     from .affordances import Affordance
+    if pend.get('map_dir'):   # vision read the map's roads: walk that way (the graph learns it when it gets closer)
+        N.walk_way(answer, pend, res)
+        return
     if pend.get('crop_icon'):   # vision named a crop icon: store it, the next bubble like it is known
         from . import icons
         if icons.learn_file(pend['crop_icon'], str(answer).strip()):
@@ -632,7 +635,7 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
     name, spec = _goal(goal)
     W = core.WF
     res = N.new_res(name)
-    res.update(goal=name, subgoals=0, learned=[], surprises=[], area=None, skip=[], fails={}, btried=[])
+    res.update(goal=name, subgoals=0, learned=[], surprises=[], area=None, skip=[], fails={}, btried=[], params=params)
     g = _open_graph()
     try:
         O.check_language()

@@ -266,9 +266,43 @@ def _neighbours(g, c):
 
 
 # ---- refresh / place ---------------------------------------------------------------------------------------------
+LANDMARK_PX = 80   # map px: the pin this close to a landmark's map point = she is at it
+
+
+def landmarks(g):
+    """kinds.json `_landmarks` -> unique graph nodes (fixed places that aren't save objects: the mine)."""
+    from objects import graph as OG
+    try:
+        with open(KINDS) as f:
+            marks = json.load(f).get('_landmarks', {})
+    except (OSError, ValueError):
+        marks = {}
+    for name, v in marks.items():
+        if name.startswith('_') or not isinstance(v, dict):
+            continue
+        extra = {k: v[k] for k in ('pos', 'dead_end', 'map', 'source') if k in v}
+        if name in g.nodes:
+            g.nodes[name].extra.update(extra)
+        else:
+            g.nodes[name] = OG.Node(name, 'unique', name, v.get('region', 'Farm'), **extra)
+
+
+def landmark_at(g, pin):
+    """The landmark whose map point is nearest the map pin (within LANDMARK_PX), or None."""
+    best = None
+    for n in g.nodes.values():
+        pt = (n.extra.get('map') or {}).get('point') if isinstance(n.extra.get('map'), dict) else None
+        if pt and pin:
+            dd = math.dist(tuple(pt), tuple(pin))
+            if dd <= LANDMARK_PX and (best is None or dd < best[0]):
+                best = (dd, n.id)
+    return best[1] if best else None
+
+
 def refresh(graph, save, today_lines, save_time_=None):
     """Save + today's log -> graph (module doc). Idempotent. {area: [new node ids]}."""
     g, changes = graph, {}
+    landmarks(g)
     stamp = save_time_ or save_time(save)
     prefabs = g.extra.setdefault('prefabs', {})
     objs = save_objects(save, prefabs)

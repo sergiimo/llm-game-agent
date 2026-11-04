@@ -28,7 +28,11 @@ MISS_MAX = 2            # arrival misses in a row: the detections are phantoms h
 BLIND_MAX = 6           # walk clicks in a row without an event or a bubble of the target kind = lost: stop, ask
 MAP_FLAT = 3            # map readings in a row with the pin no closer to the goal = lost (the map's own progress)
 MAP_GAIN = 5            # px on the map: closer by at least this = progress
-LAST_MAP = {}           # the last map reading: {'pin', 'goal'} (map_direction)
+LAST_MAP = {}           # the last map reading: {'pin', 'goal', 'img'} (map_direction)
+MAP_STEP_R = 460        # px: a map-led step goes near the frame edge (user D188: "steps are very small")
+MAP_STEPS = 3           # long steps per map reading
+COMPASS = {'N': (0.0, -1.0), 'NE': (0.707, -0.707), 'E': (1.0, 0.0), 'SE': (0.707, 0.707), 'S': (0.0, 1.0),
+           'SW': (-0.707, 0.707), 'W': (-1.0, 0.0), 'NW': (-0.707, -0.707)}   # screen = map: north is up
 
 
 @dataclass
@@ -128,10 +132,10 @@ def outcome(c, ok, target=None):
     return 'walked' if ok else f'blocked by {c.node}' if c.node else 'no move'
 
 
-def step(direction, res=None, label='step', target=None, learn=None):
-    """A few steps in `direction` (Tara is at the centre): click STEP_R px away; turn a little when she did not walk.
-    `learn=(a, b)`: a direction that reached b is learned as the graph's a->b. The Click that walked her, or None."""
-    for r in STEP_R:
+def step(direction, res=None, label='step', target=None, learn=None, radii=STEP_R):
+    """A few steps in `direction` (Tara is at the centre): click `radii[0]` px away; turn a little when she did not
+    walk. `learn=(a, b)`: a direction that reached b is learned as the graph's a->b. The Click that walked her, or None."""
+    for r in radii:
         for deg in STEP_TURN:
             a = math.radians(deg)
             x = direction[0] * math.cos(a) - direction[1] * math.sin(a)
@@ -222,7 +226,7 @@ def map_direction(region):
     n = math.hypot(dx, dy)
     log('seek', what='map', pin=list(pin), goal=list(m.point), score=round(m.score, 2), ahead=list(ahead))
     LAST_MAP.clear()
-    LAST_MAP.update(pin=tuple(pin), goal=tuple(m.point))
+    LAST_MAP.update(pin=tuple(pin), goal=tuple(m.point), img=img)
     return None if n < 1 else (dx / n, dy / n)
 
 
@@ -266,6 +270,11 @@ def seek(t, res):
                 return None
     if t.marker and res.get('inside'):   # inside the region the targets are marked (drop, dry soil), not just beds
         return explore(t, res)
+    if not here and not res.get('inside') and not res.get('map_first'):   # nowhere known: the map first (user D188)
+        res['map_first'] = True
+        c = map_walk(t, res)
+        if c is not None or res.get('lost_traced'):
+            return c
     for det in ([] if res.get('no_detect') else O.see(t.kind, tried)[:2]):
         pt = beside(det, O.scan())   # free ground just below the object, never its bubble (user D188)
         if pt is None:
@@ -298,6 +307,21 @@ def seek(t, res):
     if (res.get('inside') or inside(t, here)) and not res.get('no_detect'):
         res['inside'] = True
         return explore(t, res)
+    return map_walk(t, res)
+
+
+def _way_learned(g, a, b):
+    for e in (g.edges(a, 'toward') if g is not None else []):
+        if e['b'] == b and e.get('dir') and e.get('source') == 'learned':
+            return tuple(e['dir'])
+    return None
+
+
+def map_walk(t, res):
+    """One map reading, then MAP_STEPS long steps along the way. At a dead-end landmark that isn't the goal (the mine,
+    user D188) the route is not followed: a learned way from there, else vision reads the marked-up map for the road
+    direction (raises NeedVision). The Click that walked her, or None."""
+    from . import world
     LAST_MAP.clear()
     dd = map_direction(t.region)
     if dd is None:
@@ -305,7 +329,76 @@ def seek(t, res):
         return None
     if not _map_progress(res):
         return None
-    return step(dd, res, 'map', t.node)
+    g = L.MEMORY['graph']
+    mark = world.landmark_at(g, LAST_MAP.get('pin')) if g is not None else None
+    if mark and mark not in (t.region, t.node) and g.nodes[mark].extra.get('dead_end'):
+        way = _way_learned(g, mark, t.node)
+        if way is None:
+            ask_way(t, res, mark)
+        trace(res, f'map: at the {mark} (a dead end): the learned way {way}')
+        dd = way
+    c = None
+    for i in range(MAP_STEPS):
+        ci = step(dd, res, f'map {i + 1}/{MAP_STEPS}', t.node, radii=(MAP_STEP_R, STEP_R[0]))
+        if ci is None:
+            break
+        c = ci
+        if ci.node or any(t.fits(a) for a in ci.after):
+            break
+    return c
+
+
+def marked_map(mark=None):
+    """The last map with the pin (magenta), the goal (yellow) and dead ends (red X) drawn: the way question's image."""
+    img = LAST_MAP.get('img')
+    if img is None:
+        return None
+    from PIL import ImageDraw
+    from . import world
+    pic = img.convert('RGB').copy()
+    dr = ImageDraw.Draw(pic)
+    for pt, col in ((LAST_MAP.get('pin'), (255, 0, 255)), (LAST_MAP.get('goal'), (255, 220, 0))):
+        if pt:
+            dr.ellipse((pt[0] - 18, pt[1] - 18, pt[0] + 18, pt[1] + 18), outline=col, width=5)
+    g = L.MEMORY['graph']
+    for n in (g.nodes.values() if g is not None else []):
+        p = (n.extra.get('map') or {}).get('point') if isinstance(n.extra.get('map'), dict) else None
+        if p and n.extra.get('dead_end'):
+            dr.line((p[0] - 14, p[1] - 14, p[0] + 14, p[1] + 14), fill=(255, 0, 0), width=5)
+            dr.line((p[0] - 14, p[1] + 14, p[0] + 14, p[1] - 14), fill=(255, 0, 0), width=5)
+    return pic
+
+
+def ask_way(t, res, mark):
+    """Vision reads the map's roads for the first direction from a dead end (or between two distant places)."""
+    from . import ask
+    pin, goal = LAST_MAP.get('pin'), LAST_MAP.get('goal')
+    q = (f'The world map: Tara = the magenta circle at the pin, the goal = the yellow circle (the {t.region}), red X '
+         f'= a dead end. Tara is at the {mark}, a dead end. Following the roads and paths drawn on the map (not '
+         f'straight across cliffs or water), which way must she walk first to reach the {t.region}? Answer one of N, '
+         f'NE, E, SE, S, SW, W, NW (north = up, as on the screen).')
+    ask.ask('name', q, {'goal': res.get('goal'), 'params': res.get('params') or {}, 'map_dir': True, 'from': mark,
+                        'to': t.node, 'pin': list(pin) if pin else None, 'map_goal': list(goal) if goal else None},
+            res, img=marked_map(mark))
+
+
+def walk_way(answer, pend, res):
+    """Vision's compass answer: MAP_STEPS long steps that way; the next map reading that is closer learns the way
+    (graph: from -> to). The last Click or None."""
+    d = COMPASS.get(str(answer).strip().upper())
+    if d is None:
+        raise core.Failed(f'answer rejected: {answer!r} is not one of {", ".join(COMPASS)}')
+    if pend.get('pin') and pend.get('map_goal'):
+        res['map_best'] = math.dist(pend['pin'], pend['map_goal'])
+    res['way'] = (pend['from'], pend['to'], d)
+    res['map_first'] = True
+    c = None
+    for i in range(MAP_STEPS):
+        ci = step(d, res, f'way {answer} {i + 1}/{MAP_STEPS}', pend['to'], radii=(MAP_STEP_R, STEP_R[0]))
+        if ci is None:
+            break
+        c = ci
+    return c
 
 
 def _map_progress(res):
@@ -317,6 +410,10 @@ def _map_progress(res):
     d = math.dist(LAST_MAP['pin'], LAST_MAP['goal'])
     best = res.get('map_best')
     if best is None or d < best - MAP_GAIN:
+        if best is not None and res.get('way'):   # the answered/learned way brought her closer: the graph keeps it
+            from . import integrate as I
+            a, b, way = res.pop('way')
+            I.relation(a, b, way, f'map pin {best:.0f} -> {d:.0f} px from the goal')
         res['map_best'], res['map_flat'], res['blind'] = d, 0, 0
         return True
     res['map_flat'] = res.get('map_flat', 0) + 1

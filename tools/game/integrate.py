@@ -351,6 +351,23 @@ def prove(exp_id, op, img0=None, **args):
     return apply(e, corr, img0=img0).get(op)
 
 
+def relation(a, b, direction, proof):
+    """A traversal proved the way a -> b (the map pin got closer): the graph's learned `toward` edge, once per proof."""
+    from . import learn as LN
+    k = f'relation:{a}->{b}:{list(direction)}:{proof}'
+    keys = _applied()
+    if k in keys:
+        return False
+    LN.learn_toward(a, b, tuple(direction))
+    keys.add(k)
+    _append('applied.txt', k)
+    try:
+        core.WF.run_log('learn', what='way', msg=f'{a} -> {b}: {list(direction)} ({proof})')
+    except Exception:   # noqa: BLE001
+        pass
+    return True
+
+
 def world_facts(g, out, kind, row, stamp):
     """A row run (steps.run's result) -> proven world facts: its events by position (world.place, with the proof
     lines), stored card values, Tara's state from position-less events. The node records the run's experience ids.

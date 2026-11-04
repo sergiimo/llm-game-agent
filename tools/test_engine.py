@@ -1,6 +1,7 @@
 """Offline tests for the generic gameplay engine (spec 2026-11-03): FakeGame + world, table, steps, ask, loop, learning.
 Run: .venv/bin/python -m unittest tools/test_engine.py"""
 import json
+import math
 import os
 import re
 import shutil
@@ -1007,7 +1008,7 @@ class Nav(EngineBase):
         with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
             res = engine.achieve('water')
         self.assertEqual((len(res['done']), f.asks), (2, []))
-        self.assertEqual(f.clicks[0], (960 + nav.STEP_R[0], 540))
+        self.assertEqual(f.clicks[0], (960 + nav.MAP_STEP_R, 540))   # map-led steps are long (user D188)
 
     def test_a_blocked_step_turns_a_little(self):
         f = self.use(FakeGame(self.far(), GAME))
@@ -2335,13 +2336,21 @@ class Lost(EngineBase):
         f = self.lost_game()
 
         def flat_map(node):
-            nav.LAST_MAP.update(pin=(600, 446), goal=(690, 490))   # the pin never moves
+            nav.LAST_MAP.update(pin=(300, 300), goal=(690, 490))   # the pin never moves (far from any landmark)
             return (1.0, 0.0)
         with mock.patch.object(nav, 'map_direction', flat_map), mock.patch.object(nav, 'inside', lambda t, here: False):
             with self.assertRaises(ask.NeedVision) as e:
                 engine.achieve('harvest', max_clicks=40)
-        self.assertIn('no closer', str(e.exception))
-        self.assertLessEqual(len(f.clicks), nav.MAP_FLAT + 1, f.clicks)
+        self.assertIn('LOST', str(e.exception))   # 6 blind walks or 3 flat map readings: whichever comes first
+        self.assertLessEqual(len(f.clicks), nav.MAP_STEPS * nav.MAP_FLAT, f.clicks)
+
+    def test_a_dead_reckoned_position_expires(self):
+        """Live D188 13:02: a walk-end position left on disk by an earlier attempt sent the first clicks to her feet."""
+        self.lost_game()
+        where.walked(to=(1.0, 2.0))
+        self.assertEqual(where.position(far_ok=False, walk_ok=True), ('walk', (1.0, 2.0)))
+        with mock.patch.object(where.time, 'time', lambda: where._WALK['at'] + where.WALK_TTL + 1):
+            self.assertEqual(where.position(far_ok=False, walk_ok=True), (None, None))
 
     def test_an_unusable_map_calibration_is_reported(self):
         self.lost_game()
@@ -2359,6 +2368,102 @@ class Lost(EngineBase):
                 engine.achieve('harvest', max_clicks=40)
         self.assertIn('LOST', str(e.exception))
         self.assertLessEqual(len(f.clicks), nav.BLIND_MAX + 1, f.clicks)
+
+
+class Landmarks(EngineBase):
+    """User D188: "this is a mine, record it in map, vectors, graph" - a dead end at the farm's north-west corner."""
+
+    def test_a_landmark_from_kinds_is_a_graph_node_with_its_map_point_and_dead_end(self):
+        f = self.use(FakeGame([], GAME))
+        g = self.graph()
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        n = g.nodes['Mine']
+        self.assertEqual((n.type, n.kind, n.region), ('unique', 'Mine', 'Farm'))
+        self.assertTrue(n.extra['dead_end'])
+        self.assertEqual(n.extra['map']['kind'], 'MapMine')
+        self.assertEqual(tuple(n.extra['map']['point']), (562, 450))
+        self.assertEqual(world.landmark_at(g, (530, 425)), 'Mine')   # the pin by the mine
+        self.assertIsNone(world.landmark_at(g, (900, 700)))
+
+
+class MapWay(EngineBase):
+    """User D188 (at the mine): 1. map used too late 2. steps very small 3. wrong direction - the mine is a dead end
+    4. map and scene have roads: for two distant places the model guesses the way by map, graph and roads."""
+
+    def lost(self):
+        f = self.use(FakeGame([obj('b', pos=(NX[0], NZ[0]), zone='far', bubble=(700, 400), stage='produced',
+                                   watered=True, wilted=False)], GAME))
+        f.step_zone, f.steps_needed = 'nowhere', 99
+        rs = f.read_save
+
+        def far_save():   # live D188 15:30: the save had her by the mine, far from the garden
+            name, s_ = rs()
+            s_['currentPlayerPosition'] = {'x': -25.6, 'y': 1.1, 'z': 3.05}
+            return name, s_
+        f.read_save = far_save
+        return f
+
+    def reading(self, pin, goal=(690, 490), d=(1.0, 0.0), order=None):
+        def md(node):
+            if order is not None:
+                order.append('map')
+            nav.LAST_MAP.update(pin=tuple(pin), goal=tuple(goal), img=None)
+            return d
+        return md
+
+    def test_without_a_known_place_the_map_comes_before_detections(self):
+        self.lost()
+        order = []
+        Box = __import__('collections').namedtuple('Box', 'point box kind')
+        see = lambda kind, tried=(): order.append('see') or [Box((1300, 700), (1250, 650, 1350, 690), 'GardenBed')]
+        with mock.patch.object(observe, 'see', see), \
+                mock.patch.object(nav, 'map_direction', self.reading((300, 300), order=order)):
+            try:
+                engine.achieve('harvest', max_clicks=4)
+            except ask.NeedVision:
+                pass
+        self.assertEqual(order[0], 'map', order)
+
+    def test_map_led_steps_are_long(self):
+        f = self.lost()
+        with mock.patch.object(nav, 'map_direction', self.reading((300, 300))):
+            try:
+                engine.achieve('harvest', max_clicks=3)
+            except ask.NeedVision:
+                pass
+        x, y = f.clicks[0]
+        self.assertGreaterEqual(math.hypot(x - 960, y - 540), nav.MAP_STEP_R - 2, f.clicks)
+
+    def test_at_a_dead_end_vision_reads_the_map_for_a_road_direction(self):
+        f = self.lost()
+        with mock.patch.object(nav, 'map_direction', self.reading((530, 425))):   # the pin at the mine
+            with self.assertRaises(ask.NeedVision) as e:
+                engine.achieve('harvest', max_clicks=10)
+        msg = str(e.exception)
+        self.assertIn('dead end', msg)
+        self.assertIn('Mine', msg)
+        self.assertIn('NE', msg)
+        self.assertEqual(f.clicks, [])   # no step into the dead end
+
+    def test_the_answered_direction_walks_long_steps_and_progress_learns_the_way(self):
+        f = self.lost()
+        with mock.patch.object(nav, 'map_direction', self.reading((530, 425))):
+            with self.assertRaises(ask.NeedVision):
+                engine.achieve('harvest', max_clicks=10)
+        pins = iter([(560, 470), (590, 490), (620, 495), (650, 495)])
+        def closer(node):
+            nav.LAST_MAP.update(pin=next(pins, (650, 495)), goal=(690, 490), img=None)
+            return (1.0, 0.0)
+        with mock.patch.object(nav, 'map_direction', closer):
+            try:
+                engine.achieve('harvest', answer='S', max_clicks=8)
+            except ask.NeedVision:
+                pass
+        first = f.clicks[:nav.MAP_STEPS]
+        self.assertTrue(all(y > 540 + nav.MAP_STEP_R * 0.8 for x, y in first), f.clicks)   # south, long
+        g = self.graph()
+        way = [e for e in g.edges('Mine', 'toward')]
+        self.assertTrue(way and way[0]['dir'][1] > 0.9, g.edges('Mine'))
 
 
 if __name__ == '__main__':

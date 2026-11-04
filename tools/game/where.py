@@ -8,12 +8,14 @@ Pairs are added by `calibrate_here()` right after a positioned event (before she
 import json
 import os
 import re
+import time
 
 from . import core
 
 CALIB = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'map_calib.json')
 MIN_SPREAD = 5.0     # world units between pairs for a usable scale
 MAX_ERR = 2.0        # world units: a fit whose pairs disagree more than this is no calibration (D187: 10 units off)
+WALK_TTL = 30.0      # s: a dead-reckoned walk end is used this long (live D188: a stale one from an earlier attempt)
 _AT = re.compile(r' at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)')
 _WALK = {}           # {'mark': log mark} of the last walk (also on disk: a daemon restart must not forget it)
 WALK = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.shots',
@@ -66,10 +68,11 @@ def walked(to=None):
     by its expected point (engine strategy A), never for navigation."""
     _WALK['mark'] = core.WF.log_mark()
     _WALK['to'] = [round(to[0], 2), round(to[1], 2)] if to else None
+    _WALK['at'] = time.time()
     try:
         os.makedirs(os.path.dirname(WALK), exist_ok=True)
         with open(WALK, 'w') as f:
-            json.dump({'mark': _WALK['mark'], 'to': _WALK['to']}, f)
+            json.dump({'mark': _WALK['mark'], 'to': _WALK['to'], 'at': _WALK['at']}, f)
     except (OSError, TypeError):
         pass
 
@@ -79,7 +82,7 @@ def _walk_mark():
         try:
             with open(WALK) as f:
                 d = json.load(f)
-            _WALK['mark'], _WALK['to'] = d['mark'], d.get('to')
+            _WALK['mark'], _WALK['to'], _WALK['at'] = d['mark'], d.get('to'), d.get('at')
         except (OSError, ValueError, KeyError):
             return None
     return _WALK['mark']
@@ -119,7 +122,7 @@ def position(far_ok=True, walk_ok=False):
     p = _event_pos()
     if p is not None:
         return 'event', p
-    if walk_ok and _walk_mark() is not None and _WALK.get('to'):
+    if walk_ok and _walk_mark() is not None and _WALK.get('to') and time.time() - (_WALK.get('at') or 0) <= WALK_TTL:
         return 'walk', tuple(_WALK['to'])
     if not far_ok:
         return None, None

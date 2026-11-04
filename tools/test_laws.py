@@ -275,7 +275,7 @@ class Reach(Base):
         with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
             a = laws.reach(lambda a: a.kind == 'plant')
         self.assertEqual(a.pt, (700, 300))
-        self.assertEqual(f.clicks[0], (960 + laws.STEP_R[0], 540))
+        self.assertEqual(f.clicks[0], (960 + laws.MAP_STEP_R, 540))   # map-led steps are long (user D188)
 
     def test_nothing_found_asks_vision_with_the_trace(self):
         f = self.use(Fake({}))

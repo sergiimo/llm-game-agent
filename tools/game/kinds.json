@@ -1,106 +1,126 @@
 {
-  "_doc": "Optional per-kind overrides (spec 2026-11-03 \u00a73). save_has: userState fields that identify the kind in the save (prefab ids are opaque); state: save field -> one-vocabulary state key ([field, 'bool' | {value: state, '*': default}]); area: name stem for an area where this kind is the main one; markers: state -> frame marker nav can walk to. A kind without an entry still works (raw fields only; named from the log). _toward: seeded screen directions between frame nodes (D185 farm frame; learned edges replace them). node: the graph node a detection/bubble of this kind means on the frame (closest node). bubbles: bubble kinds only this kind shows. daily: state a new game day resets (watering), applied when today's log is a newer day than the save. _triggers: log triggers that prove which object a click used (no target= line: the farmhouse door). _lists: named value lists goals use as $params (flowers: docs/world/items/crops.md, sold to Violet's Violets or named Flower).",
-  "_toward": {
-    "Well->BeeHive": [
-      0.83,
-      0.55
-    ],
-    "Well->GardenBed@Garden": [
-      0.69,
-      0.73
-    ],
-    "BeeHive->GardenBed@Garden": [
-      0.0,
-      1.0
-    ],
-    "GardenBed@Garden->Well": [
-      -0.69,
-      -0.73
-    ],
-    "BeeHive->Well": [
-      -0.83,
-      -0.55
-    ],
-    "GardenBed@Garden->BeeHive": [
-      0.0,
-      -1.0
-    ]
-  },
-  "_triggers": {
-    "OnEnterBuilding House": "HouseDoor",
-    "OnExitBuilding House": "HouseExit"
-  },
-  "_lists": {
-    "flowers": [
-      "Anemone Flower",
-      "Crocus",
-      "Marigold",
-      "Moly Flower",
-      "Primrose",
-      "Snowdrop",
-      "Sunflower",
-      "Tiger Lily",
-      "Tulip",
-      "Turtlehead Flower"
-    ]
-  },
-  "GardenBed": {
-    "save_has": [
-      "isWatered",
-      "lastTimeRefreshed"
-    ],
-    "state": {
-      "stage": [
-        "plantState",
-        {
-          "##0": "empty",
-          "": "empty",
-          "##growing": "growing",
-          "##producing": "producing",
-          "##produced": "produced",
-          "##seed": "growing"
-        }
-      ],
-      "watered": [
-        "isWatered",
-        "bool"
-      ],
-      "wilted": [
-        "isWilted",
-        "bool"
-      ],
-      "ready": [
-        "plantState",
-        {
-          "##produced": true,
-          "*": false
-        }
-      ]
-    },
-    "area": "Garden",
-    "markers": {
-      "watered=false": "dry_soil"
-    },
-    "node": "GardenBed@Garden",
-    "bubbles": [
-      "water",
-      "plant",
-      "unplant",
-      "plant_growing",
-      "pickup"
-    ],
-    "daily": {
-      "watered": false
+ "_doc": "Optional per-kind overrides (spec 2026-11-03 \u00a73). save_has: userState fields that identify the kind in the save (prefab ids are opaque); state: save field -> one-vocabulary state key ([field, 'bool' | {value: state, '*': default}]); area: name stem for an area where this kind is the main one; markers: state -> frame marker nav can walk to. A kind without an entry still works (raw fields only; named from the log). _toward: seeded screen directions between frame nodes (D185 farm frame; learned edges replace them). node: the graph node a detection/bubble of this kind means on the frame (closest node). bubbles: bubble kinds only this kind shows. daily: state a new game day resets (watering), applied when today's log is a newer day than the save. _triggers: log triggers that prove which object a click used (no target= line: the farmhouse door). _lists: named value lists goals use as $params (flowers: docs/world/items/crops.md, sold to Violet's Violets or named Flower).",
+ "_toward": {
+  "Well->BeeHive": [
+   0.83,
+   0.55
+  ],
+  "Well->GardenBed@Garden": [
+   0.69,
+   0.73
+  ],
+  "BeeHive->GardenBed@Garden": [
+   0.0,
+   1.0
+  ],
+  "GardenBed@Garden->Well": [
+   -0.69,
+   -0.73
+  ],
+  "BeeHive->Well": [
+   -0.83,
+   -0.55
+  ],
+  "GardenBed@Garden->BeeHive": [
+   0.0,
+   -1.0
+  ]
+ },
+ "_triggers": {
+  "OnEnterBuilding House": "HouseDoor",
+  "OnExitBuilding House": "HouseExit"
+ },
+ "_lists": {
+  "flowers": [
+   "Anemone Flower",
+   "Crocus",
+   "Marigold",
+   "Moly Flower",
+   "Primrose",
+   "Snowdrop",
+   "Sunflower",
+   "Tiger Lily",
+   "Tulip",
+   "Turtlehead Flower"
+  ]
+ },
+ "GardenBed": {
+  "save_has": [
+   "isWatered",
+   "lastTimeRefreshed"
+  ],
+  "state": {
+   "stage": [
+    "plantState",
+    {
+     "##0": "empty",
+     "": "empty",
+     "##growing": "growing",
+     "##producing": "producing",
+     "##produced": "produced",
+     "##seed": "growing"
     }
+   ],
+   "watered": [
+    "isWatered",
+    "bool"
+   ],
+   "wilted": [
+    "isWilted",
+    "bool"
+   ],
+   "ready": [
+    "plantState",
+    {
+     "##produced": true,
+     "*": false
+    }
+   ]
   },
-  "BeeHive": {
-    "save_has": [
-      "pollen"
-    ],
-    "area": "Hives",
-    "node": "BeeHive"
+  "area": "Garden",
+  "markers": {
+   "watered=false": "dry_soil"
   },
-  "Well": {
-    "node": "Well"
+  "node": "GardenBed@Garden",
+  "bubbles": [
+   "water",
+   "plant",
+   "unplant",
+   "plant_growing",
+   "pickup"
+  ],
+  "daily": {
+   "watered": false
   }
+ },
+ "BeeHive": {
+  "save_has": [
+   "pollen"
+  ],
+  "area": "Hives",
+  "node": "BeeHive"
+ },
+ "Well": {
+  "node": "Well"
+ },
+ "_landmarks": {
+  "_doc": "Fixed places that are not save objects (user-recorded): a graph node each (world.refresh). map.point = its spot on the world map (full-frame px of the open map); dead_end = no way on from there (a route into it is wrong unless it is the goal).",
+  "Mine": {
+   "region": "Farm",
+   "pos": [
+    -22.0,
+    3.0
+   ],
+   "dead_end": true,
+   "map": {
+    "label": "farm-mine",
+    "kind": "MapMine",
+    "point": [
+     562,
+     450
+    ]
+   },
+   "source": "user D188: the mine at the farm's north-west corner, a dead end (Tara a few steps west of it at save pos -25.6, 3.0)"
+  }
+ }
 }

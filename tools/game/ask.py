@@ -134,8 +134,9 @@ def hint(goal, params):
     return f'./wf achieve {g}{" " + ps if ps else ""} answer='
 
 
-def ask(kind, question, pending, res):
-    """Raise NeedVision for ONE question (`click` | `button` | `name`) with the frame; LawsStuck after MAX_ASKS."""
+def ask(kind, question, pending, res, img=None):
+    """Raise NeedVision for ONE question (`click` | `button` | `name`) with the frame (or `img`: the map marked up for
+    a way question); LawsStuck after MAX_ASKS."""
     goal = pending.get('goal')
     st = load_state(goal)
     if st['asks'] >= MAX_ASKS:
@@ -155,7 +156,8 @@ def ask(kind, question, pending, res):
     ans = hint(goal, pending.get('params')) + f'<{how}>'
     q = question + (f' The search already tried, in order: {"; ".join(tr[-10:])}.' if tr else '')
     try:
-        prompt = core.WF.ask_vision(kind if kind == 'click' else 'game', q, core.WF.grab(), answer=ans)
+        prompt = core.WF.ask_vision(kind if kind == 'click' else 'game', q, img if img is not None else core.WF.grab(),
+                                    answer=ans)
     except Exception:   # noqa: BLE001
         prompt = f'NEED_VISION {kind}: {q} (no frame saved: ./wf look)'
     res['vision'] = res.get('vision', 0) + 1

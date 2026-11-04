@@ -317,6 +317,7 @@ GAME = [
     {'kind': 'GardenBed', 'when': {'stage': 'growing|producing', 'watered': False}, 'bubble': {'kind': 'water'},
      'needs': {'Tara.can': 'full'}, 'fail_event': 'out_of_water', 'event': 'water', 'effect': {'watered': True}},
     {'kind': 'GardenBed', 'when': {'stage': 'produced'}, 'bubble': {'kind': 'pickup'}, 'event': 'grab_item',
+     'card': [{'texts': ['Collect'], 'next': 'space'}],   # live D188: a Collect prompt, confirmed with Space
      'effect': {'stage': 'growing', 'watered': False}},
     {'kind': 'GardenBed', 'when': {'stage': 'growing|producing', 'watered': True}, 'bubble': {'kind': 'plant_growing'},
      'event': 'plant_growing', 'effect': {},
@@ -1954,6 +1955,18 @@ class OwnerKind(EngineBase):
         self.addCleanup(p.stop)
         engine.achieve('harvest')
         self.assertNotIn((960, 450), f.clicks)   # the honey stays: harvest is for beds
+
+
+class CollectPrompt(EngineBase):
+    def test_a_ready_bed_is_collected_with_space_on_the_collect_prompt(self):
+        """User D188: the harvest click was right but nothing confirmed the "Collect" button; Space confirms it."""
+        f = self.use(FakeGame([obj('b', pos=(NX[0], NZ[0]), bubble=(700, 400), stage='produced', watered=True,
+                                   wilted=False)], GAME))
+        with mock.patch.object(icons, 'name_of', lambda a: 'Green Bean'):
+            res = engine.achieve('harvest')
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing', res)
+        row = next(r for r in plan.rows() if r['id'] == 'pick')
+        self.assertEqual([s_['do'] for s_ in row['steps']], ['click_bubble', 'press_space'])
 
 
 if __name__ == '__main__':

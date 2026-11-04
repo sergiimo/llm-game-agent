@@ -14,23 +14,6 @@ TYPES = ('region', 'unique', 'group', 'member')
 NODE_KEYS = ('id', 'type', 'kind', 'region', 'state', 'vec', 'seen')   # known fields; the rest goes to Node.extra
 
 
-_CELL = re.compile(r'#r(\d+)c(\d+)$')
-_DAY = re.compile(r'D(\d+)')
-DIRS = {'N': (-1, 0), 'S': (1, 0), 'W': (0, -1), 'E': (0, 1)}
-
-
-def cell(member_id):
-    """(row, col), 1-based, from a pattern-cell member id such as `GardenBed@Garden#r2c3`."""
-    m = _CELL.search(member_id)
-    if not m:
-        raise ValueError(f'not a pattern cell id: {member_id}')
-    return int(m.group(1)), int(m.group(2))
-
-
-def order(node):
-    """Sort key of a member: its pattern cell (row, col) when the id is one, else its stored `index`."""
-    m = _CELL.search(node.id)
-    return (int(m.group(1)), int(m.group(2))) if m else (0, node.extra.get('index', 0))
 
 
 class Node:
@@ -106,9 +89,6 @@ class Graph:
             id = self.nodes[id].region
         return out[::-1]
 
-    def members(self, group_id):
-        return sorted((n for n in self.children(group_id) if n.type == 'member'), key=order)
-
     def add_edge(self, a, b, rel, **attrs):
         e = {'a': a, 'b': b, 'rel': rel, **attrs}
         if e not in self._edges:
@@ -125,52 +105,6 @@ class Graph:
         s = n.state.get(key) if n else None
         return s['value'] if s else None
 
-    def member_at(self, group_id, row, col):
-        return self.nodes.get(f'{group_id}#r{row}c{col}')
-
-    def neighbours(self, member_id):
-        """{'E'|'W'|'N'|'S': member_id} of the existing grid neighbours; generated from the group pattern, not stored."""
-        n = self.nodes.get(member_id)
-        if n is None or not _CELL.search(member_id):
-            return {}
-        r, c = cell(member_id)
-        out = {}
-        for d, (dr, dc) in DIRS.items():
-            m = self.member_at(n.region, r + dr, c + dc)
-            if m is not None:
-                out[d] = m.id
-        return out
-
-    def hops(self, a, b):
-        """[(direction, member_id)] steps from a to b inside one group: columns first, then rows. [] if a == b;
-        None if either is unknown, the groups differ or a step has no member."""
-        na, nb = self.nodes.get(a), self.nodes.get(b)
-        if na is None or nb is None or na.region != nb.region or not (_CELL.search(a) and _CELL.search(b)):
-            return None
-        (r, c), (r2, c2) = cell(a), cell(b)
-        out, cur = [], a
-        for d, count in (('E' if c2 > c else 'W', abs(c2 - c)), ('S' if r2 > r else 'N', abs(r2 - r))):
-            for _ in range(count):
-                cur = self.neighbours(cur).get(d)
-                if cur is None:
-                    return None
-                out.append((d, cur))
-        return out
-
-    def phase(self, id):
-        return self.state_value(id, 'phase')
-
-    def needs(self, group_id, pred):
-        return [n.id for n in self.members(group_id) if pred(n)]
-
-    def new_day(self, day):
-        """Yesterday's watered_today hints (game_time day != `day`) -> False, source 'event'."""
-        for n in self.nodes.values():
-            s = n.state.get('watered_today')
-            m = _DAY.search(str(s.get('game_time'))) if isinstance(s, dict) else None
-            if s and s.get('value') is True and m and int(m.group(1)) != day:
-                self.set_state(n.id, 'watered_today', False, f'D{day}', 'event')
-
     def view(self):
         """networkx DiGraph: `in` edges (node -> region) plus the stored edges."""
         g = nx.DiGraph()
@@ -181,46 +115,6 @@ class Graph:
         for e in self._edges:
             g.add_edge(e['a'], e['b'], **{k: v for k, v in e.items() if k not in ('a', 'b')})
         return g
-
-
-_STAMP = re.compile(r'^\[(D(\d+)) ([^\]]+)\]')
-_ACT = re.compile(r'>\s*(\w+)\b[^\n]*?target=(\w+)')
-
-
-def apply_log(graph, lines, at, skipped=None):
-    """Update node states from game-log lines (source 'event', game_time = the line's stamp 'D148 9:36:36 PM'). Only the
-    event type is read, never a position:
-    `> fill_watering_can|full_watering_can ... target=Well` -> Well can=full;
-    `> plant|water|unplant_impl ... target=GardenBed` -> the member `at` (the chain's current node; None = unknown,
-    skipped): plant phase=growing | water watered_today=True | unplant_impl phase=empty + crop=None.
-    Garden events that cannot be applied (at unknown) are appended to the `skipped` list, if given, as (act, game_time).
-    Returns [(node_id, key, value, game_time)] of the changes in order."""
-    out = []
-    for line in lines:
-        st, m = _STAMP.match(line), _ACT.search(line)
-        if not st or not m:
-            continue
-        act, target = m.group(1), m.group(2)
-        when = f'{st.group(1)} {st.group(3)}'
-        if act in ('fill_watering_can', 'full_watering_can') and target == 'Well' and 'Well' in graph.nodes:
-            chs = [('Well', 'can', 'full')]
-        elif target == 'GardenBed' and act in ('plant', 'water', 'unplant_impl'):
-            if at is None or at not in graph.nodes:
-                if skipped is not None:
-                    skipped.append((act, when))
-                continue
-            chs = [(at, 'phase', 'growing')] if act == 'plant' else [(at, 'watered_today', True)] \
-                if act == 'water' else [(at, 'phase', 'empty'), (at, 'crop', None)]
-        else:
-            continue
-        for ch in chs:
-            graph.set_state(*ch, when, 'event')
-            out.append((*ch, when))
-    return out
-
-
-# ---- interaction laws memory (L124): group-level, no per-bed identity ------------------------------------------
-_DAY_OF = re.compile(r'D(\d+)')
 
 
 def _seed_toward():

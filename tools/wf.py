@@ -1491,36 +1491,17 @@ def game_stamp():
 
 
 def graph_cmd(args):
-    """wf graph show [region] | where | path <Kind> [key=value ...] | view-add <region> | sync |
-    map-seed <map.png> | map-heatmap <node> <map.png> [out.png]: the object graph with nested regions
-    (tools/objects/graph). Reads the current frame only (WF_FRAME=<img> uses a saved one); no focus change, no input.
-    Env: WF_GRAPH=<json>, WF_VIEWS=<dir>, WF_SCENE=<scene> (tests), WF_OBJECTS_DB=<dir>, WF_MAP_DB=<dir>."""
+    """wf graph show [region] | map-seed <map.png> | map-heatmap <node> <map.png> [out.png]: the object graph
+    (tools/objects/graph, Farm.json) and its map representations. No focus change, no input.
+    Env: WF_GRAPH=<json>, WF_MAP_DB=<dir>."""
     if os.path.join(ROOT, 'tools') not in sys.path:
         sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    from objects import graph as OG, query as OQ, regions as OR, views as OV, store as OS, detect as OD
+    from objects import graph as OG, store as OS
     g = OG.Graph()
     g.load(os.environ.get('WF_GRAPH') or os.path.join(OG.DEFAULT_DIR, 'Farm.json'))
-    if not args or args[0] not in ('show', 'where', 'path', 'view-add', 'sync', 'map-seed', 'map-heatmap'):
+    if not args or args[0] not in ('show', 'map-seed', 'map-heatmap'):
         sys.exit(graph_cmd.__doc__)
     cmd, rest = args[0], args[1:]
-    if cmd == 'sync':   # game log since the last sync mark -> node states (plant / water / unplant / can), then save
-        import game
-        gpath = os.environ.get('WF_GRAPH') or os.path.join(OG.DEFAULT_DIR, 'Farm.json')
-        if game.core.WF is None:
-            game.bind(sys.modules[__name__])
-        mark, size = int(g.extra.get('_sync') or 0), log_mark()
-        if mark > size:   # the log was rotated
-            mark = 0
-        lines = _unhash(log_since(mark)).splitlines()
-        skipped = []
-        changes = OG.apply_log(g, lines, at=g.state_value('Tara', 'at'), skipped=skipped)
-        g.extra['_sync'] = size
-        g.save(gpath)
-        for nid, key, val, when in changes:
-            print(f'{nid} {key}={val} @{when}')
-        if skipped:
-            print(f'skipped {len(skipped)} garden events (Tara.at unknown)')
-        return print(f'synced {len(lines)} log lines since {mark}: {len(changes)} state changes')
     if cmd in ('map-seed', 'map-heatmap'):
         from PIL import Image
         from objects import map_vectors as OM
@@ -1549,78 +1530,20 @@ def graph_cmd(args):
         return print(f'{node_id} -> {match.representation.node_id}/{match.representation.kind}: '
                      f'peak={match.point[0]},{match.point[1]} z={match.score:.2f} raw={match.raw:.3f} wrote {output}')
 
-    def frame():
-        from PIL import Image
-        fp = os.environ.get('WF_FRAME')
-        return Image.open(fp).convert('RGB') if fp else grab()
-
     def states(n):
         return ' '.join(f"{k}={v['value']}@{v['game_time']}({v['source']})" for k, v in n.state.items())
 
     def tree(id, depth):
         n = g.nodes[id]
-        offers = ','.join(e['b'] for e in g.edges(id, 'offers'))
-        line = '  ' * depth + id
-        extra = [f'[{n.type}]']
-        if states(n):
-            extra.append(states(n))
-        if offers:
-            extra.append('offers ' + offers)
-        print(line + '  ' + ' '.join(extra))
-        for c in sorted(g.children(id), key=lambda c: (c.type == 'member', OG.order(c))):
+        print('  ' * depth + id + '  ' + ' '.join([f'[{n.type}]'] + ([states(n)] if states(n) else [])))
+        for c in sorted(g.children(id), key=lambda c: (c.type == 'member', c.id)):
             if c.id != id:
                 tree(c.id, depth + 1)
 
-    if cmd == 'show':
-        top = rest[0] if rest else next(n.id for n in g.nodes.values() if n.type == 'region' and n.region is None)
-        if top not in g.nodes:
-            return print(f'no such node: {top}')
-        return tree(top, 0)
-    scene = os.environ.get('WF_SCENE') or current_scene()
-    img = frame()
-    st = OS.Store(os.environ.get('WF_OBJECTS_DB') or OS.DEFAULT_ROOT)
-    vs = OV.ViewStore(os.environ.get('WF_VIEWS') or OV.DEFAULT_ROOT)
-    if cmd == 'view-add':
-        if len(rest) != 1 or rest[0] not in g.nodes or g.nodes[rest[0]].type != 'region':
-            return print(f'unknown region: {rest[0] if rest else None} (regions: '
-                         f'{", ".join(n.id for n in g.nodes.values() if n.type == "region")})')
-        vid = vs.add(rest[0], img, os.environ.get('WF_FRAME') or 'live')
-        return print(f'added view {vid} to {rest[0]}' if vid else f'duplicate view of {rest[0]}, skipped')
-    # where / path: a view region is inside when (nearly) all members of one of its groups are detected with its thresholds
-    near = vs.nearest(img)
-    view, vdist = near if near else (None, None)
-    probes = {}   # view region id -> detections with that region's thresholds
-
-    def probe_of(rid):
-        if rid not in probes:
-            probes[rid] = OD.detect(img, st, kinds=OR.scope(g, rid), region=rid)
-        return probes[rid]
-
-    region, uncertain = OR.current_region(g, scene, probe_of, view)
-    dets = probe_of(region)
-    if cmd == 'where':
-        vtxt = f'{view} {vdist:.3f}' if view else (f'none {vdist:.3f}' if vdist is not None else 'none')
-        seen = ' '.join(f'{d.kind} z{d.dist:.1f} {d.point[0]},{d.point[1]}' for d in dets) or '-'
-        return print(f'region {region}{" (uncertain)" if uncertain else ""} · scene {scene} · view {vtxt} · seen: {seen}')
-    if not rest:
-        sys.exit(graph_cmd.__doc__)
-    state = {}
-    for kv in rest[1:]:
-        k, _, v = kv.partition('=')
-        state[k] = None if v == 'None' else v
-    q = OQ.Q(kind=rest[0]).where(**state)
-    cands = q.run(g, region, visible={d.kind for d in dets})
-    if not cands:
-        return print(f'no node of kind {rest[0]}' + (f' with {state}' if state else ''))
-    best = cands[0]
-    steps = OQ.path(g, region, best)
-    print(f'from {region}: {best.id} ({len(cands)} candidates)')
-    for stp in steps:
-        print(f'  {stp.action} {stp.node.id}')
-    if steps:
-        first = steps[0].node
-        hit = next((d for d in dets if d.kind == first.kind), None)
-        print(f'  click {hit.point[0]},{hit.point[1]}' if hit else f'  not visible ({first.kind})')
+    top = rest[0] if rest else next(n.id for n in g.nodes.values() if n.type == 'region' and n.region is None)
+    if top not in g.nodes:
+        return print(f'no such node: {top}')
+    return tree(top, 0)
 
 
 def eval_cmd(args):
@@ -4210,7 +4133,7 @@ def main(argv=None):
     p.add_argument('args', nargs='*')
     p = sub.add_parser('objects', help='object examples + detection: wf objects list | add <kind> x0 y0 x1 y1 [state] | detect [kind..] | find <kind> | eval [dir] | calibrate [dir] | reembed')
     p.add_argument('args', nargs='*')
-    p = sub.add_parser('graph', help='object graph: show/where/path/view-add/sync/map-seed/map-heatmap')
+    p = sub.add_parser('graph', help='object graph: show [region] | map-seed | map-heatmap')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('eval', help='hits/misses of predictions: wf eval [all] | pending | mark <id> hit|miss')
     p.add_argument('args', nargs='*')

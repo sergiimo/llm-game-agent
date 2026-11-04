@@ -1944,5 +1944,17 @@ class PickBubble(Base):
         self.assertFalse(plan.fits(pick)(Affordance('plant_growing', None, (0, 0), False, 0.0, False, False)))
 
 
+class OwnerKind(EngineBase):
+    def test_a_ready_hive_bubble_is_not_a_ready_bed(self):
+        hive = obj('h', kind='BeeHive', pos=(1.5, -23.5), bubble=(960, 450), save={'pollen': '12'}, ready=True)
+        bed = obj('b', pos=(NX[0], NZ[0]), zone='far', bubble=(700, 400), stage='produced', watered=True, wilted=False)
+        f = self.use(FakeGame([hive, bed], GAME + [dict(HIVE, bubble={'kind': 'beehive_progress'})]))
+        p = mock.patch.object(icons, 'name_of', lambda a: 'Honey')
+        p.start()
+        self.addCleanup(p.stop)
+        engine.achieve('harvest')
+        self.assertNotIn((960, 450), f.clicks)   # the honey stays: harvest is for beds
+
+
 if __name__ == '__main__':
     unittest.main()

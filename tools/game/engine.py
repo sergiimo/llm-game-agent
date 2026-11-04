@@ -223,8 +223,12 @@ def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
         res.setdefault('icon_of', {})[tuple(a.pt)] = n
         return n not in skip
 
+    def owned(a):   # the bubble belongs to the target kind when its owner is known (a hive's "!" is not a bed's)
+        node = O.node_of_bubble(a)
+        return node is None or L.kind_of(node) == kind
+
     def free(a):
-        return ok(a) and not any(O.d(a.pt, p) < 60 for p in tried) and icon_ok(a)
+        return ok(a) and owned(a) and not any(O.d(a.pt, p) < 60 for p in tried) and icon_ok(a)
 
     def fits(a):
         return free(a) and (res.get('area') == area or (res.get('area') is None and not amb))

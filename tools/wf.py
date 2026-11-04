@@ -1085,43 +1085,6 @@ MOVES = [0]       # go: clicks in this daemon (every move attempt)
 TRACK = os.path.join(SHOT_DIR, 'track.json')   # her position after each command that tried to move her (L80)
 
 
-_WORLD = [None, None]   # (World, LogReader): the world model in shadow mode (M2, spec 2026-10-30 §3)
-
-
-def world():
-    """The daemon's World, created on first use from the facts, the entity cache and the whole current game log."""
-    if _WORLD[0] is None:
-        import nav
-        from runtime.log import LogReader
-        from world.model import World
-        _WORLD[0] = World(facts=nav.load(), spawn_inside=spawn_inside())
-        _WORLD[1] = LogReader(GAME_LOG, start=0, unhash=_unhash)  # the real log hashes names (review C1)
-        world_sync()  # replay this session's log first …
-        _WORLD[0].end_replay()
-        try:  # … then the save, which is newer than old log lines (review I3)
-            _, s = read_save()
-            p = s.get('currentPlayerPosition') or {}  # as save_summary reads it
-            if s.get('currentScene'):
-                _WORLD[0].scene = s['currentScene']
-                _WORLD[0].belief.scene(s['currentScene'])
-                _WORLD[0].belief._set(float(p.get('x', 0)), float(p.get('z', 0)), 5.0)  # the save may be stale
-        except Exception:  # noqa: BLE001
-            pass
-    return _WORLD[0]
-
-
-def world_sync():
-    """Feed new game-log evidence into the world (shadow mode: it only predicts and is scored)."""
-    if _WORLD[0] is None:
-        return
-    n = 0
-    for ev in _WORLD[1].new():
-        _WORLD[0].observe(ev)
-        n += 1
-    if n:
-        _WORLD[0].save()
-
-
 class Stuck(Exception):
     """The stuck rule fired (L75, L80): aborts the running command or game function."""
 
@@ -1278,30 +1241,13 @@ def run_cmd(sub_, args):
 
 
 def world_cmd(args):
-    """wf world kinds | nodes (the engine's graph) | entities [kind] | tara | route X Z | explain ID."""
+    """wf world kinds | nodes: the engine's world graph (game/world.py) from the save + today's log."""
     if args and args[0] in ('kinds', 'nodes'):
         from game import world as WD
         g = world_graph()
         if args[0] == 'kinds':
             return print(WD.catalogue(g))
         return print('\n'.join(json.dumps(r, sort_keys=True) for r in WD.nodes(g)))
-    w = world()
-    world_sync()
-    sub_ = args[0] if args else 'entities'
-    if sub_ == 'entities':
-        es = w.entities(kind=args[1]) if len(args) > 1 else w.entities()
-        return print('\n'.join(f'{e} uses={",".join(e.uses)} sources={len(e.sources)}' for e in es) or 'no entities')
-    if sub_ == 'tara':
-        area, x, z, u = w.tara()
-        r = w.in_reach()
-        return print(f'tara: {area} ({x:.2f}, {z:.2f}) ±{u:.2f}' + (f' · in reach: {r}' if r else '') +
-                     (' · NEEDS FIX' if w.needs_fix() else ''))
-    if sub_ == 'route' and len(args) == 3:
-        area = w.tara()[0]
-        wps = w.route((area, float(args[1]), float(args[2])), reach=1.0)
-        return print('no way known' if wps is None else ' → '.join(f'({x:.1f}, {z:.1f})' for x, z in wps))
-    if sub_ == 'explain' and len(args) == 2:
-        return print(w.explain(int(args[1])))
     sys.exit(world_cmd.__doc__)
 
 
@@ -1785,28 +1731,6 @@ def menu_open(s):
     return f'{s["mode"]}: {hit}' if hit else None
 
 
-UNDER_HER = 1.5   # world units: a click this close to her that lands on an object uses it instead of walking
-
-
-def object_under_her(x, y):
-    """The entity a short click (x, y) would land on next to Tara, when the world is sure where she is; else None."""
-    try:
-        w = world()
-        area, bx, bz, u = w.tara()
-        c = calib_load(area) if area else None
-        if not c or u > 1.0:
-            return None
-        import math
-        import nav
-        dx, dz = nav.screen_to_ground(c['H'], x, y)
-        if math.hypot(dx, dz) > UNDER_HER:
-            return None
-        hit = w.entities(area=area, near=(bx + dx, bz + dz), within=1.0)
-        return str(hit[0]) if hit else None
-    except Exception:  # noqa: BLE001 (a missing world never blocks a click)
-        return None
-
-
 def go_to(x, y, timeout=15.0, interval=0.15):
     """Click-to-move (L49): left-click a ground point or object; the game pathfinds around fences/objects and Tara
     walks there (clicking an object stops her in front of it, bubble shown, no interaction). Waits until the camera
@@ -1816,9 +1740,6 @@ def go_to(x, y, timeout=15.0, interval=0.15):
     why = menu_open(state())
     if why:  # not "NO MOVE": callers must stop, not treat the spot as unwalkable (review #2)
         return f'MENU OPEN ({why}): close it first, never click through menus'
-    under = object_under_her(x, y)
-    if under:  # a short click onto the object she stands at is an interaction, not a step (world-shadow-2)
-        return f'NO MOVE: the click would use {under} right under her (interaction, not a step)'
     tr = Tara()
     tr.update(_frame())
     mark = log_mark()
@@ -1932,21 +1853,17 @@ ZOOM_MIN = 0.08            # |k - 1| below this = the calibrated zoom
 
 def current_zoom(scene):
     """The camera zoom now (L85): Tara's height on screen (foreground mask) over the area's reference height."""
-    from world import zoom
+    import zoom
     ref = zoom.ref_load(scene)
     if not ref:
         return 1.0
     if time.time() - _ZOOM[0] < ZOOM_TTL and _ZOOM[1] == scene:
         return _ZOOM[2]
     box = zoom.tara_mask(grab())
-    area, x, z, u = world().tara()
-    if not zoom.plausible(box, ref):  # she's hidden (behind the hives): the zoom measured nearest to her (day-walk)
-        k = zoom.nearest(scene, x, z) if area == scene and u <= 3.0 else None
-        return k if k else (_ZOOM[2] if _ZOOM[1] == scene else 1.0)
+    if not zoom.plausible(box, ref):  # she's hidden (behind the hives): the last measurement in this area
+        return _ZOOM[2] if _ZOOM[1] == scene else 1.0
     k = zoom.gauge(box[3] - box[1], ref)
     _ZOOM[:] = [time.time(), scene, k]
-    if area == scene and u <= 1.0 and abs(k - 1.0) > ZOOM_MIN:
-        zoom.sample_add(scene, x, z, k, 'gauge')
     return k
 
 
@@ -1957,7 +1874,7 @@ def calib_load(scene):
     if not c:
         return c
     try:
-        from world import zoom
+        import zoom
         k = current_zoom(scene)
         if abs(k - 1.0) > ZOOM_MIN:
             c = dict(c, H=zoom.apply(c['H'], k), zoom=round(k, 2))
@@ -2086,18 +2003,10 @@ def checkpoint(result=None, goal=None, edge=None, target=None, refocus=True, pin
         img_guess, vec = img_locate() if is_frontmost() else (None, None)
     except Exception:  # Vision hiccup: the reading still counts
         img_guess, vec = None, None
-    try:
-        world_sync()  # the world's prediction includes all evidence up to this reading
-    except Exception:  # noqa: BLE001 (shadow mode never breaks play)
-        pass
     p = pos(refocus=refocus)
     inside = current_scene()  # buildings share the outdoor scene's world coords (D147: House = Farm at y 1.1)
     if inside and inside != p['scene']:
         p['scene'] = f"{p['scene']}/{inside}"
-    try:
-        world().reading(p['scene'], p['x'], p['z'])  # eval world_belief, then the exact fix
-    except Exception:  # noqa: BLE001
-        pass
     stuck = None
     try:
         track_point(p['scene'], p['x'], p['z'])
@@ -2157,10 +2066,6 @@ def note_click(x, y, moved, mark):
     checkpoint when the click changed scene (spawn/door point = a free anchor) or the walk got stuck."""
     import nav
     MOVES[0] += 1
-    try:
-        world_sync()  # evidence from before/at this click first, in order (review C2)
-    except Exception:  # noqa: BLE001
-        pass
     if moved is not None:  # eval (M0): did the click move her
         try:
             import evals
@@ -2195,14 +2100,6 @@ def note_click(x, y, moved, mark):
                 track_point(*est)
         return
     _seg_add(x, y)
-    try:  # shadow world: our click predicts her move
-        est0 = seg_estimate()
-        c0 = calib_load(est0[0]) if est0 else None
-        if c0 and moved:
-            world().clicked(*nav.screen_to_ground(c0['H'], x, y))
-            world_sync()  # what the walk itself logged (actions at the target) comes after the click
-    except Exception:  # noqa: BLE001
-        pass
     if not scene_change(mark, seg_estimate()):  # an exit is stored only when traced, never guessed
         lp = nav.log_position(_unhash(log_since(mark)))
         if lp:
@@ -2390,31 +2287,6 @@ SIDESTEP = 3.0   # world units: candidate first steps around her when the way is
 
 
 def goto_point(scene, x, z, r=None):
-    """goto_point_old, scored against the shadow world's route (eval `world_route`: the world said a way exists and
-    the walk arrived, or neither = hit)."""
-    try:
-        import nav
-        w = world()
-        w.facts = nav.load()  # refused clicks and walls learned since the daemon started (review I7)
-        fr = _seg()['from'] or {}
-        status, _ = w.route_status((scene, x, z), reach=r or 0.0,
-                                   now_hour=nav.game_hours(fr) if fr.get('hour') is not None else float('inf'))
-        predicted = None if status == 'unknown' else status == 'way'
-    except Exception:  # noqa: BLE001
-        predicted = None
-    msg = goto_point_old(scene, x, z, r)
-    if predicted is not None:
-        try:
-            import evals
-            arrived = msg.startswith(('ARRIVED', 'NEAR'))
-            evals.record('world_route', 'a way exists', predicted, arrived, predicted == arrived,
-                         {'goal': [scene, round(x, 2), round(z, 2)], 'msg': msg[:80]})
-        except Exception:  # noqa: BLE001
-            pass
-    return msg
-
-
-def goto_point_old(scene, x, z, r=None):
     """Walk to a world point in `scene` through the world graph (doors, proven trail, back links; L79): a temporary
     node at the point, planned like a place. A short straight hop in the same area goes directly. r = arrival
     radius (an object only needs to be within reach)."""
@@ -4126,8 +3998,7 @@ def main(argv=None):
     p.add_argument('--go', action='store_true')
     p.add_argument('--calibrate', action='store_true')
     sub.add_parser('tara-box', help="Tara's box on screen (tracker): the zoom gauge (L85), no game input")
-    p = sub.add_parser('world', help='the world: wf world kinds | nodes (engine graph from save + log); '
-                                     'entities [kind]|tara|route X Z|explain ID (old shadow model)')
+    p = sub.add_parser('world', help='the world: wf world kinds | nodes (engine graph from save + log)')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('bench', help='benchmark runs: wf bench start A|B|C | report [run dir] | compare [A|B|C]')
     p.add_argument('args', nargs='*')
@@ -4200,7 +4071,7 @@ def main(argv=None):
             tr.update(grab())
             time.sleep(0.1)
         x0, y0, x1, y1 = tr.box
-        from world import zoom
+        import zoom
         m = zoom.tara_mask(grab())
         print(f'tracker box ({x0:.0f}, {y0:.0f}, {x1:.0f}, {y1:.0f}) · height {y1 - y0:.0f} px (does not follow the zoom)')
         area = (seg_estimate() or (None,))[0] or 'Farm'
@@ -4478,10 +4349,6 @@ def serve():
                 except Exception as e:  # keep serving
                     print(f'ERROR: {type(e).__name__}: {e}')
                     code = 1
-                try:  # shadow world (M2): evidence after every command; its own try (review I8)
-                    world_sync()
-                except Exception:  # noqa: BLE001
-                    pass
                 if argv and argv[0] not in ('run', 'stop', 'status', 'eval', 'bench'):
                     try:
                         w = step_warning()

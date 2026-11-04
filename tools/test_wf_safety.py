@@ -60,26 +60,6 @@ class NoClickThroughMenus(unittest.TestCase):
         wf.state = lambda save=False: {'mode': 'overlay', 'text': ['0) Game Paused']}
         self.assertTrue(wf.go_to(900, 600).startswith('MENU OPEN'))
 
-    def test_short_click_on_the_object_under_her_refused(self):   # shadow-2: clicks at her feet opened the bed
-        import nav
-        from world import model
-        H = [[8.659732, -0.005814, -0.001597], [0.074748, -21.414692, 5.617554], [-0.005491, 0.509604, 1.0]]
-        w = model.World(facts=[], cache=os.devnull)
-        w.belief.scene('Farm', 3.34, -25.34)
-        w.ents.add('GardenBed', 'Farm', 3.34, -25.34, 'test')
-        self._w = (wf.world, wf.calib_load)
-        wf.world, wf.calib_load = (lambda: w), (lambda a: {'H': H})
-        try:
-            wf.state = lambda save=False: {'mode': 'gameplay', 'text': []}
-            sx, sy = nav.ground_to_screen(H, 0.3, -0.2)              # a click 0.4 units from her, on the bed
-            msg = wf.go_to(sx, sy)
-            self.assertTrue(msg and msg.startswith('NO MOVE'), msg)
-            self.assertIn('GardenBed', msg)
-            self.assertEqual(self.clicks, [])
-        finally:
-            wf.world, wf.calib_load = self._w
-
-
 class Bubbles(unittest.TestCase):
     def test_embedding_crop_excludes_the_human_orange_highlight_ring(self):
         from PIL import Image, ImageDraw

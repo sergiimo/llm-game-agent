@@ -269,6 +269,18 @@ def _triggers():
         return {}
 
 
+BLACK_MAX = 0.3   # share of near-black pixels above which an answer crop is the letterbox bar, not the object (D188)
+
+
+def _mostly_black(img, box):
+    try:
+        import numpy as np
+        a = np.asarray(img.convert('L').crop(box))
+        return a.size == 0 or float((a < 12).mean()) > BLACK_MAX
+    except Exception:   # noqa: BLE001
+        return False
+
+
 def answer_kind(c):
     """The object a vision click proved: its event's target, a trigger that names it (OnEnterBuilding House =
     HouseDoor), or the bubble that appeared under the answered point. None = free ground."""
@@ -295,7 +307,7 @@ def learn_answer(c, img0, here=None):
     x, y = c.pt
     hx, hy = ANSWER_BOX
     box = (max(0, x - hx), max(0, y - hy), x + hx, y + hy)
-    stored = relabel(img0, box, kind) if kind and img0 is not None else False
+    stored = relabel(img0, box, kind) if kind and img0 is not None and not _mostly_black(img0, box) else False
     reached = None
     g = MEMORY['graph']
     if g is not None and c.at:

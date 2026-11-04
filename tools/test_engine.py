@@ -1871,5 +1871,22 @@ class VisionAnswers(Base):
         self.assertEqual([(a, b) for a, b, _ in learned], [('Garden', 'GardenSouth')])
         self.assertGreater(learned[0][2][1], 0.9)   # the answered point was straight down
 
+class AnswerCrop(Base):
+    def test_a_crop_that_is_mostly_letterbox_black_is_not_stored(self):
+        """Live D188: the porch-steps answer at the frame's bottom edge stored a crop that was half black bar."""
+        from PIL import Image
+        stored = []
+        f = self.use(FakeGame([], GAME))
+        img = Image.new('RGB', (1920, 1080), (120, 90, 60))
+        img.paste((0, 0, 0), (0, 1018, 1920, 1080))   # the letterbox bar
+        c = act.Click((960, 1000), 'point', 0, lines=['[D188 7:16:00 AM] [TRIGGER] OnExitBuilding House'])
+        with mock.patch.object(learn, 'relabel', lambda im, box, kind: stored.append(kind) or True):
+            learn.learn_answer(c, img)
+            self.assertEqual(stored, [])
+            c2 = act.Click((960, 700), 'point', 0, lines=['[D188 7:16:00 AM] [TRIGGER] OnExitBuilding House'])
+            learn.learn_answer(c2, img)
+        self.assertEqual(stored, ['HouseExit'])
+
+
 if __name__ == '__main__':
     unittest.main()

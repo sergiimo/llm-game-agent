@@ -154,8 +154,12 @@ def click(pt, what='point', before=None, here=None, predict=None, goal=None, con
             except Exception:   # noqa: BLE001
                 pass
     try:
-        W.run_log('click', exp=c.exp, node=c.node, learned=learned, pt=[x, y], what=what, events=c.events, mode=mode,
-                  texts=ts[:4], before=[str(a) for a in before], after=[str(a) for a in c.after], moved=c.moved,
+        try:
+            gt = W.game_stamp()   # the game clock: game minutes per attempt (user D189: "do we record time?")
+        except Exception:   # noqa: BLE001
+            gt = None
+        W.run_log('click', exp=c.exp, gt=gt, node=c.node, learned=learned, pt=[x, y], what=what, events=c.events,
+                  mode=mode, texts=ts[:4], before=[str(a) for a in before], after=[str(a) for a in c.after], moved=c.moved,
                   frames=c.frames, burst_texts=c.burst_texts[:6])
     except Exception:   # noqa: BLE001
         pass

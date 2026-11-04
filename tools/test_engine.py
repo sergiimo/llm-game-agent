@@ -261,7 +261,8 @@ class FakeGame:
             drop = bool(s.get('wilted')) or (s.get('watered') is False and s.get('stage') in ('growing', 'producing'))
             ready = s['ready'] if 'ready' in s else s.get('stage') == 'produced'
             out.append(Affordance(self.relabel.get(b['bubble']['kind'], b['bubble']['kind']), None, tuple(o['bubble_pt']),
-                                  False, 0.0, drop and not self.hide_drop, bool(ready) and not self.hide_ready))
+                                  False, 0.0, drop and not self.hide_drop, bool(ready) and not self.hide_ready,
+                                  o.get('badge'), o.get('icon')))
         return out
 
     # ---- ui ------------------------------------------------------------------------------------------------------
@@ -2846,6 +2847,39 @@ class OneByOne(VisitBeds):
         res2 = {'visit_off': set(), 'fails': {}, 'surprises': [], 'btried': []}
         engine._settle_visit(tid, tid, res2)   # the click proved the target itself: no back-off
         self.assertNotIn(tid, res2['visit_off'])
+
+
+class SeenIsFresh(VisitBeds):
+    """User D189: "so issue is in thinking that 'I'm at ready beds' or 'I don't know where are the ready beds'": the
+    morning save said 4 beds ready; she stood at them, their bubbles showed no "!" - the world kept them ready."""
+
+    def test_the_bubble_at_a_beds_point_is_a_fresh_reading_of_that_bed(self):
+        x, z = NX[1], NZ[0]
+        b = obj('b', pos=(x, z), stage='growing', watered=True, wilted=False)
+        b.update(badge='none', icon='Carrot')   # what the waves read on its bubble
+        f = self.use(GeoGame([b], GAME, (x, z - 1.0), inventory={'TulipSeed': 2}))
+        f.log.append(L('8:30:00 AM', 'plant_growing', 'GardenBed', x, z - 1.0))
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        nid = world.find(g, 'GardenBed', (x, z))
+        for n in world.query(g, {'kind': 'GardenBed'}):   # the seed graph's other beds: not ready (only b matters)
+            if n != nid:
+                g.set_state(n, 'ready', False, 'D185 8:20:00 AM', 'card')
+        g.set_state(nid, 'stage', 'produced', 'D185 8:20:00 AM', 'card')   # the world believes it ready
+        g.set_state(nid, 'ready', True, 'D185 8:20:00 AM', 'card')
+        g.save(learn.GRAPH)
+        f.frozen = f.read_save()
+        try:
+            res = engine.achieve('harvest', max_clicks=6)
+        except ask.NeedVision:
+            res = engine.LAST
+        g.load(learn.GRAPH)
+        self.assertIs(g.state_value(nid, 'ready'), False)
+        self.assertEqual(g.nodes[nid].state['ready']['source'], 'bubble')
+        self.assertEqual(g.state_value(nid, 'crop'), 'Carrot')
+        self.assertEqual(f.clicks, [])
+        self.assertTrue(str(res.get('stop')).startswith('done'), res.get('stop'))
 
 
 if __name__ == '__main__':

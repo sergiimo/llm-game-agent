@@ -23,6 +23,8 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAUSE = ('game paused', 'пауза')
 MISS_STOP = 4   # arrival misses in a row = she is lost (live D188 12:31, S40): stop the agent
+IDLE_S = 45.0   # s without a call, click or step while the game runs (~75 game min at Relaxed): thinking too long
+_STAMP = re.compile(r'D(\d+) (\d+):(\d+):(\d+) (AM|PM)')
 JUNK = re.compile(r'^[A-Za-z][A-Za-z _]{2,}$')   # an item name: Latin letters, spaces or _ (folder names), 3+ chars
 
 
@@ -53,6 +55,18 @@ class Watch:
         self.alive = alive
         self.pending = None   # a `> plant` line waiting for its totalPlanted (logged when the panel opens, D186)
         self.misses = 0       # arrival misses in a row
+        self.last_t, self.last_cmd, self.idle_flagged = None, None, False
+
+    def idle(self, now):
+        """No call, click or step for IDLE_S while the game runs (the last command was not a pause): once per stretch
+        (user D189: "it was standing doing nothing for too long, so we should be able to spot that")."""
+        if self.last_t is None or self.idle_flagged or str(self.last_cmd or '').startswith('pause'):
+            return []
+        if now - self.last_t <= IDLE_S:
+            return []
+        self.idle_flagged = True
+        return [('ALERT', f'idle {now - self.last_t:.0f}s: no call or click while the game runs (last: '
+                          f'{self.last_cmd or "?"}) - the game clock runs ~100 game min per real min')]
 
     def health(self):
         return [] if self.alive() else [('STOP', 'the game process is gone (Wylde Flowers not running)')]
@@ -60,6 +74,10 @@ class Watch:
     def feed(self, r):
         t = r.get('type')
         out = []
+        if t in ('call', 'click', 'seek', 'action', 'engine', 'plan_step'):
+            self.last_t, self.idle_flagged = max(r.get('end') or 0, r.get('t') or 0), False
+            if t == 'call':
+                self.last_cmd = r.get('cmd')
         if t == 'click':
             ts = r.get('texts') or []
             moved = {True: 'walked', False: 'still'}.get(r.get('moved'), '?')
@@ -120,6 +138,68 @@ class Watch:
         return out
 
 
+def _game_s(stamp):
+    m = _STAMP.search(str(stamp or ''))
+    if not m:
+        return None
+    d, h, mi, s, ap = m.groups()
+    return int(d) * 86400 + (int(h) % 12 + (12 if ap == 'PM' else 0)) * 3600 + int(mi) * 60 + int(s)
+
+
+def times(rows, game_lines=()):
+    """Per attempt (each `plan_step 1 start`): wall minutes, minutes inside ./wf calls, thinking (the gaps between
+    calls: total and the longest), game minutes (first to last click's game clock), clicks, vision questions, picks
+    (the game log's `> harvest` lines inside the attempt's game window)."""
+    attempts, cur = [], None
+    for r in rows:
+        if (r.get('type') == 'plan_step' and str(r.get('n')) == '1' and r.get('state') == 'start') or cur is None:
+            cur = {'t0': r.get('t'), 't1': r.get('t'), 'calls': [], 'clicks': 0, 'vision': 0, 'gts': []}
+            attempts.append(cur)
+        cur['t1'] = max(cur['t1'] or 0, r.get('end') or r.get('t') or 0)
+        if r.get('type') == 'call' and r.get('end'):
+            cur['calls'].append((r['start'], r['end']))
+        elif r.get('type') == 'click':
+            cur['clicks'] += 1
+            g = _game_s(r.get('gt'))
+            if g is not None:
+                cur['gts'].append(g)
+        elif r.get('type') == 'vision':
+            cur['vision'] += 1
+    harvests = [g for g in (_game_s(l) for l in game_lines if '> harvest ' in l) if g is not None]
+    out = []
+    for a in attempts:
+        cs = sorted(a['calls'])
+        gaps = [max(0.0, cs[i][0] - cs[i - 1][1]) for i in range(1, len(cs))]
+        g0, g1 = (min(a['gts']), max(a['gts'])) if a['gts'] else (None, None)
+        out.append({'start': a['t0'], 'wall_min': round(((a['t1'] or 0) - (a['t0'] or 0)) / 60, 2),
+                    'calls': len(cs), 'in_calls_min': round(sum(e - s for s, e in cs) / 60, 2),
+                    'think_min': round(sum(gaps) / 60, 2), 'longest_think_s': round(max(gaps, default=0), 1),
+                    'game_min': round((g1 - g0) / 60) if g0 is not None else None,
+                    'clicks': a['clicks'], 'vision': a['vision'],
+                    'picks': sum(1 for h in harvests if g0 is not None and g0 <= h <= g1)})
+    return out
+
+
+def time_table(rows, game_lines=()):
+    lines = ['| attempt | wall min | in calls | thinking | longest think s | game min | clicks | vision | picks |',
+             '|---|---|---|---|---|---|---|---|---|']
+    for i, a in enumerate(times(rows, game_lines), 1):
+        lines.append(f"| {i} | {a['wall_min']} | {a['in_calls_min']} | {a['think_min']} | {a['longest_think_s']} | "
+                     f"{a['game_min'] if a['game_min'] is not None else '-'} | {a['clicks']} | {a['vision']} | "
+                     f"{a['picks']} |")
+    return '\n'.join(lines)
+
+
+def _game_log_lines():
+    try:
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import wf
+        with open(wf.GAME_LOG, errors='replace') as f:
+            return f.read().splitlines()
+    except Exception:   # noqa: BLE001
+        return []
+
+
 def rows_of(path, start=0):
     with open(path) as f:
         f.seek(start)
@@ -165,7 +245,7 @@ def report(path):
             lines += [f'- engine: {e}' for e in a['engine']]
             lines += [f'- STOP: {m}' for m in a['stops'][:5]]
             lines += [f'- ALERT: {m}' for m in a['alerts'][:8]]
-    md = '\n'.join(lines) + '\n'
+    md = '\n'.join(lines) + '\n\n## Time\n' + time_table(rows, _game_log_lines()) + '\n'
     try:
         with open(os.path.join(os.path.dirname(path), 'watch.md'), 'w') as f:
             f.write(md)
@@ -191,6 +271,8 @@ def follow(path, every=1.0, health_every=15.0):
         for r in rows:
             for lv, msg in w.feed(r):
                 print(f"{time.strftime('%H:%M:%S')} {lv} {msg}", flush=True)
+        for lv, msg in w.idle(time.time()):
+            print(f"{time.strftime('%H:%M:%S')} {lv} {msg}", flush=True)
         if time.time() - last >= health_every:
             last = time.time()
             for lv, msg in w.health():

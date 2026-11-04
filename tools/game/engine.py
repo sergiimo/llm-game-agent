@@ -275,6 +275,22 @@ def _proven(g, a, res):
                for n in res.get('tried_nodes', ()) if n in g.nodes)
 
 
+def _read_bubble(g, tid, a, row, res):
+    """The bubble at a bed's point is a fresh reading of that bed (user D189: "the issue is in thinking 'I'm at ready
+    beds' or 'I don't know where the ready beds are'"): its crop (wave 2) and, when wave 1 is sure, its badge - none
+    or drop = not ready now. True when the reading says the row's bubble is not there (move on, no click)."""
+    stamp = _stamp()
+    if getattr(a, 'icon', None):
+        g.set_state(tid, 'crop', a.icon, stamp, 'bubble')
+    badge = getattr(a, 'badge', None)
+    if badge in ('none', 'drop') and (row or {}).get('bubble', {}).get('ready'):
+        g.set_state(tid, 'ready', False, stamp, 'bubble')
+        res.setdefault('tried_nodes', set()).add(tid)
+        res.setdefault('notes', []).append(f'{tid}: seen not ready ({badge})')
+        return True
+    return False
+
+
 def _settle_visit(tid, nid, res):
     """A click whose result proved ANOTHER bed (the evidence went to `nid`): the target's visit is off for this call
     and the attempt counts - the next round moves on instead of clicking the same bubble (live D189)."""
@@ -311,7 +327,10 @@ def _visit(g, tid, kind, res, row=None):
                 and not any(O.d(a.pt, p) < 60 for p in tried)   # a bubble already tried this call: move on
                 and a.kind not in other]                        # another row's icon (a planting icon for a pick)
         if near:
-            return min(near, key=lambda a: O.d(a.pt, pt))
+            a = min(near, key=lambda a: O.d(a.pt, pt))
+            if _read_bubble(g, tid, a, row, res):   # what she sees there is the bed's state now: not this row's
+                return None
+            return a
         if hop == HOPS or (row is not None and any(plan.fits(row)(a) for a in affs)):
             return None   # a bubble that fits the row is in view: the search takes it, no walk
         ground = (pt[0], min(O.H_ - 60, pt[1] + BELOW_PX))
@@ -810,7 +829,8 @@ def _loop(g, name, spec, params, save, max_clicks, res):
         if res['clicks'] and ask.late(res):
             break
         unknown, stale = set(), {}
-        targets = [n for n in _targets(g, spec, where, working, unknown, stale) if n not in res['skip']]
+        targets = [n for n in _targets(g, spec, where, working, unknown, stale)
+                   if n not in res['skip'] and n not in res.get('seen', ())]
         res['stale'] = stale
         if unknown and not any('unknown' in n_ for n_ in res['notes']):
             res['notes'].append(f'{len(unknown)} matching objects have an unknown {", ".join(sorted(_strict(spec)))} '
@@ -858,6 +878,9 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             break
         skip_names = _skip_names(spec, params)
         a = None if tid in res.setdefault('visit_off', set()) else _visit(g, tid, kind, res, t)
+        if a is None and tid in res.get('tried_nodes', ()) and not _passes(g, tid, where):
+            res.setdefault('seen', []).append(tid)   # she saw it: not ready now (a fresh reading) - the next bed
+            continue
         visited = a is not None
         if a is not None and skip_names:   # the crop its icon shows: flowers stay; an unknown icon is asked now
             from . import icons
@@ -946,8 +969,8 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             working.append(nid)
         if out['ok']:
             res['btried'].clear()
-            if nid:   # done with this bed: its new bubble (the planting icon) is never the next bed's (live D189)
-                res.setdefault('tried_nodes', set()).add(nid)
+            if nid and _made(g, nid, make, params, world.state_of(g, nid)):   # done with this bed: its new bubble
+                res.setdefault('tried_nodes', set()).add(nid)   # (a planting icon) is never the next bed's (D189)
             ask.progress(name)
             if nid and _made(g, nid, make, params, world.state_of(g, nid)) and nid not in res['done']:
                 res['done'].append(nid)

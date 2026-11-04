@@ -130,5 +130,40 @@ class Report(unittest.TestCase):
         self.assertIn('| 2 | 1 | 0 | 1 | 0/0 | 0 | 1 |', md)
 
 
+class Time(unittest.TestCase):
+    """User D189: "do we record time we spend? or action timestamps, and thinking"; "it was standing doing nothing
+    for too long, so we should be able to spot that"."""
+
+    def test_no_action_for_too_long_while_the_game_runs_is_an_alert(self):
+        w = RW.Watch(alive=lambda: True)
+        w.feed({'t': 100.0, 'type': 'call', 'start': 99.0, 'end': 100.0, 'cmd': 'achieve harvest'})
+        self.assertEqual(w.idle(100.0 + RW.IDLE_S - 1), [])
+        out = w.idle(100.0 + RW.IDLE_S + 5)
+        self.assertEqual(out[0][0], 'ALERT')
+        self.assertIn('idle', out[0][1])
+        self.assertEqual(w.idle(100.0 + RW.IDLE_S + 9), [])   # once per idle stretch
+
+    def test_a_paused_game_is_not_idle(self):
+        w = RW.Watch(alive=lambda: True)
+        w.feed({'t': 100.0, 'type': 'call', 'start': 99.0, 'end': 100.0, 'cmd': 'pause'})
+        self.assertEqual(w.idle(100.0 + RW.IDLE_S * 10), [])
+
+    def test_times_per_attempt_split_calls_thinking_game_minutes_and_picks(self):
+        rows = [{'t': 0, 'type': 'plan_step', 'n': '1', 'state': 'start'},
+                {'t': 10, 'type': 'call', 'start': 10, 'end': 70, 'cmd': 'achieve harvest'},
+                {'t': 20, 'type': 'click', 'pt': [1, 1], 'gt': 'D189 8:30:00 AM'},
+                {'t': 190, 'type': 'call', 'start': 190, 'end': 200, 'cmd': 'achieve harvest answer=Q6'},
+                {'t': 199, 'type': 'click', 'pt': [2, 2], 'gt': 'D189 9:10:00 AM'},
+                {'t': 200, 'type': 'vision', 'kind': 'click', 'question': 'q'}]
+        lines = ['[D189 8:31:00 AM] > harvest me=Player target=GardenBed(Clone) at (0.84, 0.10, -29.09)',
+                 '[D189 9:20:00 AM] > harvest me=Player target=GardenBed(Clone) at (3.34, 0.10, -29.09)']
+        a, = RW.times(rows, lines)
+        self.assertEqual((a['calls'], a['clicks'], a['vision'], a['picks']), (2, 2, 1, 1))
+        self.assertAlmostEqual(a['in_calls_min'], 70 / 60, 2)
+        self.assertAlmostEqual(a['think_min'], 120 / 60, 2)        # the gap 70 -> 190
+        self.assertAlmostEqual(a['longest_think_s'], 120, 1)
+        self.assertEqual(a['game_min'], 40)
+
+
 if __name__ == '__main__':
     unittest.main()

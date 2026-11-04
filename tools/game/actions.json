@@ -231,13 +231,18 @@
     },
     {
      "do": "press",
-     "arg": "Yes"
+     "arg": "Yes",
+     "expect": {
+      "events": [
+       "sleep_transition"
+      ]
+     }
     }
    ],
    "effect": {
     "slept": true
    },
-   "source": "seed: game D186 (docs/ui/screens/sleep.md): the pink bed's zzz bubble -> 'Am I ready for bed? / Yes / Not yet' -> Yes -> the morning cutscene",
+   "source": "seed: game D186 (docs/ui/screens/sleep.md): the pink bed's zzz bubble -> 'Am I ready for bed? / Yes / Not yet' -> Yes -> the morning cutscene; live D188 7:13 PM (user put her to bed): > sleep1 target=Bed, > sleep_transition, > advance_day, Spawning player at Farm/Bed (D148 logged sleep7: the number varies, sleep_transition is the proof)",
    "seen": 0,
    "ok": 0,
    "surprises": 0

@@ -1011,7 +1011,8 @@ def _diff(a, b):
 # Older runs are flat runs/<…>.jsonl files. `wf run report` = timeline + summary.
 RUNS_DIR = os.path.join(ROOT, 'runs')
 RUN_CUR = os.path.join(SHOT_DIR, 'run.current')
-RUN_NOTES = ('attempt', 'issue', 'gap', 'decision', 'note', 'interrupt')  # interrupt = a user interrupt (bench)
+RUN_NOTES = ('attempt', 'issue', 'gap', 'decision', 'note', 'interrupt', 'think')  # interrupt = a user interrupt (bench);
+# think = the agent's reasoning before an answer (user D189: "tracing should be absolute, including agent reasoning")
 RUN_GAME = re.compile(r'\] > \w+ me=Player|totalPlanted|destroying|grab_item|\[QUEST\] (?!Posting)|\[STATS\]|\[REL\]|ChangeScene|OnEnterBuilding|'
                       r'OnExitBuilding|giveloot|out of strength|no strength|Spawning player')
 

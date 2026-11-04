@@ -165,5 +165,20 @@ class Time(unittest.TestCase):
         self.assertEqual(a['game_min'], 40)
 
 
+class Trace(unittest.TestCase):
+    """User D189: "tracing should be absolute, including agent reasoning"."""
+
+    def test_the_report_has_every_click_event_decision_and_thought_in_order(self):
+        rows = [{'t': 1.0, 'type': 'decide', 'target': 'GardenBed#-1.7,-31.6', 'why': 'nearest ready', 'dist': 4.4},
+                {'t': 2.0, 'type': 'click', 'pt': [960, 540], 'what': 'step', 'events': ['out_of_water'], 'moved': False},
+                {'t': 3.0, 'type': 'think', 'text': 'the bubble at M8 is a carrot with a drop - not ready'},
+                {'t': 4.0, 'type': 'vision', 'kind': 'click', 'question': 'which bed?'}]
+        lines = RW.trace_lines(rows)
+        self.assertEqual(len(lines), 4)
+        self.assertIn('out_of_water', lines[1])
+        self.assertIn('nearest ready', lines[0])
+        self.assertIn('carrot with a drop', lines[2])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -133,9 +133,46 @@ class Watch:
                    f"{r.get('result')} {r.get('object') or ''} (hits {r.get('hits')})")
             proven = r.get('result') in ('destroying', 'grab_item')
             out.append(('INFO', msg) if proven else ('NOTE', msg + ' - the answer did not reach a target'))
+        elif t in ('think', 'decide'):
+            out.append(('INFO', trace_lines([r])[0][9:]))
         elif t in ('plan_step', 'end', 'issue'):
             out.append(('INFO', f"{t}: {json.dumps({k: v for k, v in r.items() if k not in ('t', 'type')})[:160]}"))
         return out
+
+
+TRACED = ('decide', 'click', 'think', 'vision', 'call', 'action', 'engine', 'game', 'gap', 'learn', 'plan_step')
+
+
+def trace_lines(rows):
+    """Every decision, click (with its game events), thought, question, answer call and result, in order - the
+    absolute trace (user D189). One short line each."""
+    out = []
+    for r in rows:
+        t = r.get('type')
+        if t not in TRACED:
+            continue
+        ts = time.strftime('%H:%M:%S', time.localtime(r.get('t') or 0))
+        if t == 'decide':
+            body = (f"decide {r.get('target')} ({r.get('dist')} units): {r.get('why')}"
+                    f"{' row ' + str(r.get('row')) if r.get('row') else ''}")
+        elif t == 'click':
+            body = (f"click {r.get('what')} @{(r.get('pt') or ['?', '?'])[0]},{(r.get('pt') or ['?', '?'])[1]}"
+                    f" {r.get('gt') or ''}: events {r.get('events') or '-'}, "
+                    f"{'walked' if r.get('moved') else 'still'}{', screen ' + ' / '.join(r.get('texts') or [])[:60] if r.get('texts') else ''}")
+        elif t == 'think':
+            body = f"think: {r.get('text')}"
+        elif t == 'vision':
+            body = f"vision {r.get('kind')}: {str(r.get('question'))[:120]}"
+        elif t == 'call':
+            body = f"call {r.get('cmd')} ({(r.get('end') or 0) - (r.get('start') or 0):.1f}s)"
+        elif t == 'engine':
+            body = f"engine {r.get('goal')}: done {r.get('done')}, left {r.get('left')}, stop {r.get('stop')}"
+        elif t == 'game':
+            body = f"game {r.get('line')}"
+        else:
+            body = f"{t} " + json.dumps({k: v for k, v in r.items() if k not in ('t', 'type')})[:120]
+        out.append(f'{ts} {body}')
+    return out
 
 
 def _game_s(stamp):
@@ -245,7 +282,9 @@ def report(path):
             lines += [f'- engine: {e}' for e in a['engine']]
             lines += [f'- STOP: {m}' for m in a['stops'][:5]]
             lines += [f'- ALERT: {m}' for m in a['alerts'][:8]]
-    md = '\n'.join(lines) + '\n\n## Time\n' + time_table(rows, _game_log_lines()) + '\n'
+    md = ('\n'.join(lines) + '\n\n## Time\n' + time_table(rows, _game_log_lines()) + '\n\n## Trace (last attempt)\n'
+          + '\n'.join(trace_lines(rows[max((i for i, r in enumerate(rows) if r.get('type') == 'plan_step'
+                                              and r.get('state') == 'start'), default=0):])) + '\n')
     try:
         with open(os.path.join(os.path.dirname(path), 'watch.md'), 'w') as f:
             f.write(md)

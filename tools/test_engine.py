@@ -2075,8 +2075,8 @@ class NavNeverInteracts(EngineBase):
         self.assertEqual(f.objects['r']['state']['stage'], 'produced')   # nothing collected by a walk
 
     def test_a_nav_click_that_opens_a_card_is_a_surprise(self):
-        f = self.use(FakeGame([obj('r', pos=(NX[0], NZ[0]), bubble=(1000, 900), body=(1000, 900), stage='produced',
-                                   watered=True, wilted=False)], GAME))
+        f = self.use(FakeGame([obj('r', pos=(NX[0], NZ[0]), bubble=None, body=(960, 860), stage='produced',
+                                   watered=True, wilted=False)], GAME))   # an object with no bubble in view
         res = nav.new_res('t')
         res['surprises'] = []
         c = nav.step((0.0, 1.0), res, 'step', 'Garden')   # straight down lands on the bed: it opens the Collect prompt
@@ -3047,6 +3047,35 @@ class EventWait(EngineBase):
     def test_an_events_click_and_a_hard_case_wait(self):
         self.assertTrue(self.waits(what='bubble', predict={'events': ['water']}))
         self.assertTrue(self.waits(what='point', wait_event=True))
+
+
+class SafeWalks(EngineBase):
+    """User D189: "she moved few steps - tried to water carrot, moved few steps - tried to water another carrot":
+    a walk click at the frame centre (her own spot) and walk clicks on bubbles interacted instead of walking."""
+
+    def test_a_walk_point_on_her_spot_or_a_bubble_is_not_ground(self):
+        from game.affordances import Affordance
+        affs = [Affordance('water', None, (956, 504), False, 0.0, True, False)]
+        self.assertFalse(nav.walkable((960, 540), affs))          # her own spot
+        self.assertFalse(nav.walkable((990, 560), affs))          # next to her, under the bubble she faces
+        self.assertFalse(nav.walkable((1300, 700), affs + [Affordance('plant', None, (1310, 690), False, 0.0)]))
+        self.assertTrue(nav.walkable((1300, 760), affs))
+
+    def test_a_step_never_clicks_a_bubble(self):
+        f = self.use(FakeGame([obj('c', bubble=(1280, 540), stage='growing', watered=False, wilted=False)], GAME))
+        f.step_zone, f.steps_needed = 'nowhere', 99
+        nav.step((1.0, 0.0), nav.new_res('t'))   # straight right: the first point is the carrot's bubble
+        self.assertNotIn((1280, 540), f.clicks)
+        self.assertEqual(f.objects['c']['state']['watered'], False)
+
+    def test_an_event_of_another_goal_is_a_red_flag_that_stops_the_call(self):
+        """Watering during a harvest: no harvest row logs it - stop at once, a gap for the code factory."""
+        f = self.use(FakeGame([obj('c', bubble=(700, 400), stage='growing', watered=False, wilted=False)], GAME))
+        res = {'allowed_events': {'harvest', 'grab_item', 'plant_growing'}, 'stop': None, 'notes': []}
+        c = act.Click((700, 400), 'step', 0, events=['out_of_water', 'complete'])
+        self.assertTrue(engine.red_flag(c, res))
+        self.assertIn('RED FLAG', res['stop'])
+        self.assertFalse(engine.red_flag(act.Click((1, 1), 'step', 0, events=['complete']), {'allowed_events': set()}))
 
 
 if __name__ == '__main__':

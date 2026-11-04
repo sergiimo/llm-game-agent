@@ -102,6 +102,8 @@ its `run end`: wait for its task notification (retro 2026-10-28: my Escapes foug
 ## 3c. Watch every live run (user D186: "the supervisor was meant to control the execution and see a detailed log")
 Never let a child run the game blind. For every dispatch that touches the game:
 1. **Start the watcher before the child:** Monitor tool on `.venv/bin/python tools/runwatch.py --follow` (the open run).
+   **Keep every line, not only alerts** (user D189: "tracing should be absolute"): the click lines with their game
+   events, `decide` (which object and why) and `think` (the child's reasoning). `--report` ends with the full trace.
    It prints one line per click (what, point, walked/still, events, screen, bubbles) and flags rules from the live
    failures: **STOP** = a click or close with the pause menu on screen, the game process gone, 4 arrival misses in a row
    or a `LOST` trace (no progress: live D188 S40, 15+ clicks lost under ALERTs only); **ALERT** = a graph step

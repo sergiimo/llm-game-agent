@@ -44,6 +44,9 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
 - **Sleep (only when the CONSTRAINTS approve it):** `./wf achieve '{"kind": "Bed", "where": {}, "make": {"slept":
   true}}'` from anywhere: it walks her home and runs the `sleep` row (zzz bubble -> Yes); then `./wf advance`
   through the morning cutscene (docs/actions.md A11).
+- **Every answer is traced (user D189: "tracing should be absolute, including agent reasoning"):** before each
+  `answer=` call run `./wf run think "<what the image shows - where Tara is, which bubbles, why this answer>"`
+  (one line, its own Bash call). The run report puts it next to the clicks and events it caused.
 - **After your final report you send no game input** (no resume, no map, no clicks) unless the supervisor or the
   user tells you to in a new message.
 - **Foraging (rocks, trees, branches, drops, forage plants; L158):** `./wf forage chop|rock|pickup|forage`. Each call asks

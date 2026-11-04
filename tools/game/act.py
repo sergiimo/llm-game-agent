@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from . import core, observe as O, ui
 
 ON_CLICK = None            # the improvement loop's boundary (integrate.on_click registers itself): (c, img0, here)
+ON_EVENT = None            # the running goal's red-flag check (engine): (c) -> True = an event no row of it logs
 
 BURST = (0.0, 0.5, 1.5)    # s after the click: frames that catch short-lived text and bubble changes
 EVENT_WAIT = 2.5           # s more for a late log line (D149: `> water` came after ~3 s)
@@ -168,6 +169,9 @@ def click(pt, what='point', before=None, here=None, predict=None, goal=None, con
                   frames=c.frames, burst_texts=c.burst_texts[:6])
     except Exception:   # noqa: BLE001
         pass
+    if ON_EVENT is not None and c.events and ON_EVENT(c):   # a red flag: stop the call now (user D189)
+        from .observe import LawsStuck
+        raise LawsStuck(f'RED FLAG: the click @{x},{y} ({what}) logged {c.events} - not this goal\'s; stopped')
     cyr = [t for t in c.burst_texts if O.CYRILLIC.search(str(t))]
     if len(cyr) >= 2:   # recorded first; a non-English card is terminal
         O.check_texts(cyr)

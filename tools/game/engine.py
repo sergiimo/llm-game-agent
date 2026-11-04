@@ -292,6 +292,47 @@ def _read_bubble(g, tid, a, row, res):
     return False
 
 
+NEUTRAL_EVENTS = {'complete', 'plant', 'plant_growing'}   # an action ended; a panel opened; a crop's info card
+
+
+def red_flag(c, res):
+    """An event no row of this goal can log (watering during a harvest, live D189): a red flag - the call stops at
+    once, a gap bundle for the code factory (user D189: "yes, it's already red flag"). True when raised."""
+    red, allowed = res.get('red_events'), res.get('allowed_events')
+    if red is None and allowed is None:
+        return False
+    bad = sorted({e for e in (c.events or ()) if e not in NEUTRAL_EVENTS
+                  and (e in red if red is not None else e not in allowed)})
+    if not bad:
+        return False
+    res['stop'] = (f'RED FLAG: the click @{c.pt[0]},{c.pt[1]} ({c.what}) logged {bad}, which no row of '
+                   f'{res.get("goal")} logs - stopped')
+    res.setdefault('notes', []).append(res['stop'])
+    I.gap([getattr(c, 'exp', None)], res['stop'], 'nav' if c.what in ('step', 'explore', 'soil') else 'act')
+    return True
+
+
+def _row_events(r):
+    out = set(plan._events_of(r))
+    for s in r.get('steps', []):
+        ev = (s.get('expect') or {}).get('events')
+        if isinstance(ev, list):
+            for alt in ev:
+                out |= set(alt.split('|'))
+    return out
+
+
+def _red_events(kind, make):
+    """A deny list: the events of KNOWN rows outside this goal's path and needs (for harvest: watering, the can,
+    removing, planting proof). Unknown events are what exploration learns from - never red."""
+    rows = plan.rows()
+    path = [r for r in rows if r['kind'] == kind and any(k in (make or {}) for k in r.get('effect', {}))]
+    needs = {k for r in path for k in (r.get('needs') or {})}
+    ok = path + [r for r in rows if any(k in needs for k in r.get('effect', {}))]
+    allowed = set().union(*[_row_events(r) for r in ok]) if ok else set()
+    return set().union(*[_row_events(r) for r in rows]) - allowed - NEUTRAL_EVENTS
+
+
 def _settle_visit(tid, nid, res):
     """A click whose result proved ANOTHER bed (the evidence went to `nid`): the target's visit is off for this call
     and the attempt counts - the next round moves on instead of clicking the same bubble (live D189)."""
@@ -335,7 +376,7 @@ def _visit(g, tid, kind, res, row=None):
         if hop == HOPS or (row is not None and any(plan.fits(row)(a) for a in affs)):
             return None   # a bubble that fits the row is in view: the search takes it, no walk
         ground = (pt[0], min(O.H_ - 60, pt[1] + BELOW_PX))
-        if not O.on_frame(ground):
+        if not N.walkable(ground, affs):   # her own spot / a bubble: a click there interacts (live D189 watering)
             return None
         c = A.click(ground, 'step')
         res['clicks'] += 1
@@ -827,6 +868,7 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
         except OSError:
             pass
         L.MEMORY['graph'] = None
+        A.ON_EVENT = None
         LAST.clear()
         LAST.update(res)
         _log(res)
@@ -855,6 +897,8 @@ def _log(res):
 
 def _loop(g, name, spec, params, save, max_clicks, res):
     W, kind, make = core.WF, spec['kind'], spec.get('make', {})
+    res['red_events'] = _red_events(kind, make)
+    A.ON_EVENT = lambda c: red_flag(c, res)   # every click's events are checked against the goal (red flags)
     where = _where(spec, params)
     working = []
     while not res['stop']:
@@ -878,6 +922,9 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             break
         here = world.tara_pos(g)
         tid = min(targets, key=lambda n: math.dist(here, tuple(g.nodes[n].extra['pos'])) if here else 0)
+        N.log('decide', target=tid, dist=round(math.dist(here, tuple(g.nodes[tid].extra['pos'])), 1) if here else None,
+              why=f'nearest of {len(targets)} listed ({", ".join(sorted(targets))[:120]})',
+              state={k: v for k, v in world.state_of(g, tid).items() if k in ('stage', 'ready', 'crop')})
         st, area = world.state_of(g, tid), world.area_of(g, tid)
         assumed = _assumed(st, where)
         p = plan.path(kind, dict(st, **assumed), make, params)

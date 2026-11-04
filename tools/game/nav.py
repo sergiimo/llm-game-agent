@@ -168,13 +168,14 @@ def outcome(c, ok, target=None):
 def step(direction, res=None, label='step', target=None, learn=None, radii=STEP_R):
     """A few steps in `direction` (Tara is at the centre): click `radii[0]` px away; turn a little when she did not
     walk. `learn=(a, b)`: a direction that reached b is learned as the graph's a->b. The Click that walked her, or None."""
+    affs = O.scan()
     for r in radii:
         for deg in STEP_TURN:
             a = math.radians(deg)
             x = direction[0] * math.cos(a) - direction[1] * math.sin(a)
             y = direction[0] * math.sin(a) + direction[1] * math.cos(a)
             pt = (int(O.CENTRE[0] + x * r), int(O.CENTRE[1] + y * r))
-            if O.hud(pt):
+            if not walkable(pt, affs):   # never a bubble, her own spot, the HUD (live D189)
                 continue
             ctx = {'toward': [learn[0], learn[1], [x, y]], 'target': target} if learn else None
             c = A.click(pt, 'step', context=ctx)   # the boundary learns a direction that reached the target
@@ -204,6 +205,16 @@ def beside(det, affs):
 
 def free(pt, avoid):
     return O.on_frame(pt) and all(O.d(pt, a) >= FREE_GAP for a in avoid)
+
+
+SELF_PX = 110   # px around the frame centre: her own spot and the bed she faces (a click there interacts, D189)
+
+
+def walkable(pt, affs):
+    """A walk click point: on the frame, off the HUD, off her own spot, away from every bubble (a click on a bubble or
+    an object interacts - live D189 she watered two carrots on "walks")."""
+    return (O.on_frame(pt) and not O.hud(pt) and O.d(pt, O.CENTRE) >= SELF_PX
+            and all(O.d(pt, a.pt) >= FREE_GAP for a in affs))
 
 
 def explore(t, res):

@@ -144,6 +144,8 @@ Never let a child run the game blind. For every dispatch that touches the game:
 - decision-needed → **ask the user** (purchases, choices, sleeping/ending the day, romance), then re-dispatch.
   Exception (user, 2026-10-30): **"pass quest X" pre-approves sleeping** as many nights as the quest needs (waiting for
   honey, crops); put "sleeping approved" in CONSTRAINTS. Due routines still come first each morning; spending still asks.
+  **How to sleep:** one engine call from anywhere, `./wf achieve '{"kind": "Bed", "where": {}, "make": {"slept": true}}'`
+  (goes home, zzz -> Yes), then `./wf advance` (docs/actions.md A11). Before 02:00: passing out risks sickness.
 
 ## 5. Debrief: you own the shared docs (mandatory, before the next goal)
 Agents only write raw attempt notes in the quest file and report GAPS. **You** turn them into docs.

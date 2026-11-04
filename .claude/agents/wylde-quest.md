@@ -41,6 +41,9 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
   direction along that path. Never the bearing to the goal; never into rocks, cliffs or water. If she is not on
   that path in the view, say so and answer the direction to reach it. A question for a cell ON THE PATH = a cell on
   the dirt road a few steps from her.
+- **Sleep (only when the CONSTRAINTS approve it):** `./wf achieve '{"kind": "Bed", "where": {}, "make": {"slept":
+  true}}'` from anywhere: it walks her home and runs the `sleep` row (zzz bubble -> Yes); then `./wf advance`
+  through the morning cutscene (docs/actions.md A11).
 - **After your final report you send no game input** (no resume, no map, no clicks) unless the supervisor or the
   user tells you to in a new message.
 - **Foraging (rocks, trees, branches, drops, forage plants; L158):** `./wf forage chop|rock|pickup|forage`. Each call asks

@@ -36,6 +36,10 @@ def holds(when, state):
     """`when` ({key: value | "a|b"}) holds for `state` (a missing key is None)."""
     for k, v in (when or {}).items():
         got = state.get(k)
+        if isinstance(v, str) and v.startswith('!'):   # not one of these (an unknown value passes: law 6)
+            if got is not None and str(got) in v[1:].split('|'):
+                return False
+            continue
         if isinstance(v, str) and '|' in v:
             if str(got) not in v.split('|'):
                 return False

@@ -3,5 +3,5 @@
   "water": {"kind": "GardenBed", "where": {"stage": "growing|producing", "watered": false, "wilted": false}, "make": {"watered": true}},
   "replant": {"kind": "GardenBed", "where": {"wilted": true}, "make": {"crop": "$same", "watered": true}, "light": "day"},
   "plant": {"kind": "GardenBed", "where": {"region": "$region", "stage": "empty"}, "make": {"stage": "growing", "crop": "$seed"}, "required": ["seed", "region"], "light": "day"},
-  "harvest": {"kind": "GardenBed", "where": {"ready": true, "crop": "$crops"}, "make": {"ready": false}, "required": ["crops"], "light": "day"}
+  "harvest": {"kind": "GardenBed", "where": {"ready": true, "crop": "!$flowers"}, "make": {"ready": false}, "skip_bubbles": {"crop": "$flowers"}, "light": "day"}
 }

@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, ask, core, engine, learn, nav, observe, plan, screen, smoke, steps, ui, where, world  # noqa: E402
+from game import act, affordances, ask, core, engine, icons, learn, nav, observe, plan, screen, smoke, steps, ui, where, world  # noqa: E402
 from game.ask import NeedVision  # noqa: E402
 from objects import graph as OG  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
@@ -1773,7 +1773,8 @@ class StrictParams(EngineBase):
         world.refresh(g, f.read_save()[1], [], None)
         g.set_state(world.find(g, 'GardenBed', (NX[1], NZ[0])), 'crop', 'Carrot', None, 'card')
         g.save(learn.GRAPH)
-        res = engine.achieve('harvest', crops='Carrot')
+        res = engine.achieve({'kind': 'GardenBed', 'where': {'ready': True, 'crop': '$crops'}, 'make': {'ready': False}},
+                             crops='Carrot')   # a goal that names the crop (harvest itself now takes every non-flower)
         self.assertEqual(f.objects['t']['state']['stage'], 'produced')   # the tulip stays (flowers serve the bees)
         self.assertEqual(f.objects['c']['state']['stage'], 'growing')    # the known carrot is picked
         self.assertTrue(any('unknown crop' in n for n in res['notes']), res)
@@ -1891,6 +1892,48 @@ class AnswerCrop(Base):
             c2 = act.Click((960, 700), 'point', 0, lines=['[D188 7:16:00 AM] [TRIGGER] OnExitBuilding House'])
             learn.learn_answer(c2, img)
         self.assertEqual(stored, ['HouseExit'])
+
+
+class HarvestPolicy(EngineBase):
+    """User D188: "all crops except flowers for bees should be collected when they are ready"."""
+
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(icons, 'DIR', os.path.join(self.tmp.name, 'crop_icons'))
+        p.start()
+        self.addCleanup(p.stop)
+        icons.reset()
+
+    def ripe(self):
+        return [obj('b', pos=(NX[0], NZ[0]), bubble=(700, 400), stage='produced', watered=True, wilted=False,
+                    crop='Green Bean'),
+                obj('t', pos=(NX[1], NZ[0]), bubble=(1100, 400), stage='produced', watered=True, wilted=False,
+                    crop='Tulip')]
+
+    def test_negation_in_filters(self):
+        self.assertFalse(plan.holds({'crop': '!Tulip|Crocus'}, {'crop': 'Tulip'}))
+        self.assertTrue(plan.holds({'crop': '!Tulip|Crocus'}, {'crop': 'Green Bean'}))
+
+    def test_every_ready_crop_but_flowers_is_picked_without_asking_which(self):
+        f = self.use(FakeGame(self.ripe(), GAME))
+        names = {(700, 400): 'Green Bean', (1100, 400): 'Tulip'}
+        with mock.patch.object(icons, 'name_of', lambda a: names.get(tuple(a.pt))):
+            res = engine.achieve('harvest')
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing')    # the beans are picked
+        self.assertEqual(f.objects['t']['state']['stage'], 'produced')   # the tulip stays for the bees
+        self.assertEqual(res['vision'], 0)
+        self.assertTrue(res['stop'].startswith('done'), res['stop'])
+
+    def test_an_unknown_crop_icon_is_asked_once_then_known(self):
+        f = self.use(FakeGame(self.ripe()[:1], GAME))
+        with self.assertRaises(NeedVision) as cm:
+            engine.achieve('harvest')
+        self.assertIn('crop', str(cm.exception).lower())
+        self.assertEqual(f.objects['b']['state']['stage'], 'produced')   # nothing picked on a guess
+        res = engine.achieve('harvest', answer='Green Bean')
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing')
+        self.assertEqual(res['vision'], 0)
+        self.assertIn('Green_Bean', os.listdir(icons.DIR))
 
 
 if __name__ == '__main__':

@@ -33,16 +33,37 @@ def _goal(goal):
     return goal, lib[goal]
 
 
+def _param(name, params):
+    """A goal parameter: the call's, else a named list from kinds.json `_lists` (flowers)."""
+    if name in params:
+        return params[name]
+    try:
+        with open(os.path.join(os.path.dirname(GOALS), 'kinds.json')) as f:
+            return json.load(f).get('_lists', {}).get(name)
+    except (OSError, ValueError):
+        return None
+
+
 def _where(spec, params):
-    """The goal's filter with $params; a list param becomes alternatives ('Carrot|Tulip')."""
+    """The goal's filter with $params; a list becomes alternatives ('Carrot|Tulip'); '!$x' = none of them."""
     out = {}
     for k, v in spec.get('where', {}).items():
-        if isinstance(v, str) and v.startswith('$'):
-            p = params.get(v[1:])
+        neg = isinstance(v, str) and v.startswith('!$')
+        if isinstance(v, str) and (v.startswith('$') or neg):
+            p = _param(v.lstrip('!$'), params)
             if p is None:
                 continue
-            v = '|'.join(p) if isinstance(p, (list, tuple)) else p
+            v = ('!' if neg else '') + ('|'.join(p) if isinstance(p, (list, tuple)) else p)
         out[k] = v
+    return out
+
+
+def _skip_names(spec, params):
+    """Bubble values to leave alone (skip_bubbles: {crop: $flowers}): a set of names, or empty."""
+    out = set()
+    for v in (spec.get('skip_bubbles') or {}).values():
+        p = _param(str(v).lstrip('$'), params) if str(v).startswith('$') else v
+        out |= set(p if isinstance(p, (list, tuple)) else [p]) - {None}
     return out
 
 
@@ -181,15 +202,29 @@ def _bubble_miss(row, area, mine, res):
     return False
 
 
-def _reach(g, name, params, row, kind, area, res, marker):
+def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
     """A bubble that fits the row in the target's area. Her area unknown (she walked) and look-alike objects in
     another area -> ONE question: which area is she in? (answer area=<name>)."""
     tried = res.setdefault('btried', [])
     ok = plan.fits(row)
     amb = bool(_ambiguous(g, row, kind, area))
 
+    def icon_ok(a):   # skip_bubbles: the crop its icon shows (flowers stay for the bees, user D188)
+        if not skip:
+            return True
+        from . import icons
+        key = (a.pt, res['clicks'])
+        if key not in res.setdefault('icon_cache', {}):
+            res['icon_cache'][key] = icons.name_of(a)
+        n = res['icon_cache'][key]
+        if n is None:
+            res['icon_unknown'] = a
+            return False
+        res.setdefault('icon_of', {})[tuple(a.pt)] = n
+        return n not in skip
+
     def free(a):
-        return ok(a) and not any(O.d(a.pt, p) < 60 for p in tried)
+        return ok(a) and not any(O.d(a.pt, p) < 60 for p in tried) and icon_ok(a)
 
     def fits(a):
         return free(a) and (res.get('area') == area or (res.get('area') is None and not amb))
@@ -205,9 +240,16 @@ def _reach(g, name, params, row, kind, area, res, marker):
             return _bubble_miss(row, area, mine, res)
         return False
     t = N.Target(name, fits, f'a {kind} in {area} whose bubble fits "{row["id"]}"', None, kind, area, area, marker)
+    res.pop('icon_unknown', None)
     a = N.search(t, res, halt=halt)
     if a is None and res['stop']:
         return None
+    if a is None and res.get('icon_unknown') is not None:   # a ready bubble whose crop nobody knows: ask, never guess
+        from . import icons
+        b = res['icon_unknown']
+        path = icons.save_crop(b)
+        ask.ask('name', f'Which crop does the bubble at {b.pt[0]},{b.pt[1]} show (its icon)? Answer the crop name, '
+                        f'e.g. Green Bean, Carrot or Tulip.', {'goal': name, 'params': params, 'crop_icon': path}, res)
     if a is not None and expect:
         try:
             import evals
@@ -301,6 +343,11 @@ def _answer_name(g, pend, answer, res):
     """Vision named what an explored click changed ('key=value'): a learned row, applied to the clicked object; or
     which area she is in ('area=<name>')."""
     from .affordances import Affordance
+    if pend.get('crop_icon'):   # vision named a crop icon: store it, the next bubble like it is known
+        from . import icons
+        if icons.learn_file(pend['crop_icon'], str(answer).strip()):
+            res['learned'].append(f'crop icon: {answer}')
+        return
     if pend.get('area_question') or str(answer).strip().startswith('area='):
         a = str(answer).split('=', 1)[-1].strip()
         if a in g.nodes:
@@ -324,7 +371,8 @@ def _answer_name(g, pend, answer, res):
 def _assumed(st, where):
     """The goal's literal `where` values for keys the object never had (it was selected as maybe having them)."""
     return {k: v for k, v in where.items()
-            if k not in st and k != 'region' and not (isinstance(v, str) and ('|' in v or v.startswith('$')))}
+            if k not in st and k != 'region'
+            and (not (isinstance(v, str) and ('|' in v or v.startswith('$'))) or str(v).startswith('!'))}
 
 
 def _only_maybes(g, targets, where, res):
@@ -526,7 +574,7 @@ def _loop(g, name, spec, params, save, max_clicks, res):
                     res['stop'] = res['stop'] or f'sub-goal {k}={v} failed'
         if res['stop']:
             break
-        a = _reach(g, name, params, t, kind, area, res, _marker(spec, where))
+        a = _reach(g, name, params, t, kind, area, res, _marker(spec, where), _skip_names(spec, params))
         if a is None:
             if res['stop'] or _only_maybes(g, targets, where, res):
                 break
@@ -537,6 +585,9 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             out['at'], out['kind'] = tuple(g.nodes[tid].extra['pos']), kind
             res['surprises'].append(f'{t["id"]}: no position in the event lines {out["events"]}; counted on {tid}')
         nid = _learn(g, out, kind, t, res)
+        crop = (res.get('icon_of') or {}).get(tuple(a.pt))
+        if nid and crop:   # the icon said which crop this bed holds (the save never does)
+            g.set_state(nid, 'crop', crop, _stamp(), 'icon')
         plan.count(t['id'], out['ok'])
         if not out['ok'] and (out.get('why') or out.get('screen')) and not _really_missing(save, item, out):
             st = t['steps'][out['failed_step']]

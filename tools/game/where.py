@@ -13,6 +13,7 @@ from . import core
 
 CALIB = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'map_calib.json')
 MIN_SPREAD = 5.0     # world units between pairs for a usable scale
+MAX_ERR = 2.0        # world units: a fit whose pairs disagree more than this is no calibration (D187: 10 units off)
 _AT = re.compile(r' at \(([-\d.]+), [-\d.]+, ([-\d.]+)\)')
 _WALK = {}           # {'mark': log mark} of the last walk (also on disk: a daemon restart must not forget it)
 WALK = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.shots',
@@ -45,7 +46,10 @@ def fit():
         A.append([x, 1, 0]); y.append(mx)
         A.append([-z, 0, 1]); y.append(my)
     s, ox, oy = np.linalg.lstsq(np.array(A, float), np.array(y, float), rcond=None)[0]
-    return float(s), float(ox), float(oy)
+    if s <= 0:
+        return None
+    err = max(math.dist((x, z), ((mx - ox) / s, -(my - oy) / s)) for (x, z), (mx, my) in ps)
+    return (float(s), float(ox), float(oy)) if err <= MAX_ERR else None
 
 
 def to_world(pin):
@@ -104,11 +108,14 @@ def pin_now():
         return None
 
 
-def position():
-    """('event' | 'map', (x, z)) or (None, None)."""
+def position(far_ok=True):
+    """('event' | 'map', (x, z)) or (None, None). The map pin only with `far_ok` (user D187: the map is imprecise -
+    use it only for very-far navigation; near decisions use events and visible objects)."""
     p = _event_pos()
     if p is not None:
         return 'event', p
+    if not far_ok:
+        return None, None
     w = to_world(pin_now())
     return ('map', w) if w is not None else (None, None)
 

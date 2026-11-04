@@ -78,6 +78,21 @@ class Bubbles(unittest.TestCase):
         self.assertGreaterEqual(len([b for b in bs if 430 <= b[1] <= 540]), 2, bs)
 
 
+class GotoByLook(unittest.TestCase):
+    def test_a_place_whose_object_is_seen_next_to_her_is_arrived(self):
+        """Live D187: goto said SHORT 10 units off, the frame showed her at the well (its old estimate was stale)."""
+        Det = __import__('collections').namedtuple('Det', 'kind point')
+        saved = (wf._goto, wf._seen_near)
+        wf._goto = lambda place, max_hops=30: 'SHORT of well: 10.44 units off'
+        wf._seen_near = lambda kind: Det('Well', (730, 390)) if kind == 'Well' else None
+        try:
+            self.assertTrue(wf.goto('well').startswith('ARRIVED well (seen'), wf.goto('well'))
+            wf._seen_near = lambda kind: None
+            self.assertTrue(wf.goto('well').startswith('SHORT'))
+        finally:
+            wf._goto, wf._seen_near = saved
+
+
 class Mapping(unittest.TestCase):
     def check(self, w, x0, y0, sc):
         got = wf.content_box(w)

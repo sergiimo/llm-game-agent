@@ -3281,7 +3281,37 @@ def nav_places():
             for n in nav.nodes(nav.load()).values() if n['src'] == 'arrived' and n.get('x') is not None]
 
 
+def _seen_near(kind):
+    """A detection of `kind` by its look within NEAR_NODE px of Tara (the frame centre), or None."""
+    try:
+        from game import observe as O
+        dets = [d for d in O.see_all() if d.kind == kind and O.d(d.point, O.CENTRE) <= O.NEAR_NODE]
+        return min(dets, key=lambda d: O.d(d.point, O.CENTRE)) if dets else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def goto(place, max_hops=30):
+    """Walk to a known place (_goto); then the frame decides arrival (interaction laws): the place's object seen next
+    to her = ARRIVED, whatever the old position estimate says (D187: SHORT 10 units off while she stood at the well)."""
+    msg = _goto(place, max_hops)
+    if not msg.startswith('ARRIVED'):
+        kind = next((k for k in _kind_names() if k.lower() == place.lower()), None)
+        det = _seen_near(kind) if kind else None
+        if det is not None:
+            return f'ARRIVED {place} (seen: {kind} @{det.point[0]},{det.point[1]}; the route said: {msg[:80]})'
+    return msg
+
+
+def _kind_names():
+    try:
+        with open(os.path.join(ROOT, 'tools', 'game', 'kinds.json')) as f:
+            return [k for k in json.load(f) if not k.startswith('_')]
+    except (OSError, ValueError):
+        return []
+
+
+def _goto(place, max_hops=30):
     """Walk to a known place: the world graph when it knows the place, else the coarse map walk (map_walk, L72),
     else (map won't open) a reading + the graph. Returns ARRIVED / NEAR / NOT REACHED messages."""
     steps = graph_route(place)

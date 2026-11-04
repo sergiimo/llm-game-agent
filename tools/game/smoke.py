@@ -172,7 +172,9 @@ def plant_garden(seed='Tulip', region=None, rounds=12, answer=None):
         if g is not None and not world.query(g, {'kind': 'GardenBed', 'region': region, 'stage': 'empty'}):
             total['stop'] = f'no empty bed left in {region} (world)'
             break
-        src, pos = where.position()
+        src, pos = where.position(far_ok=True)
+        if src == 'map' and apos and math.dist(pos, apos) <= MAP_FAR:
+            src, pos = None, None   # near by the map = unknown: a visible bed first
         if apos and pos is not None and math.dist(pos, apos) > AREA_NEAR:   # unknown: a visible bed first
             walk_to_area(apos, arrive=AREA_NEAR * 0.6)
             total['walks'] += 1
@@ -229,6 +231,7 @@ def walk_until(direction, kind='plant', max_steps=8):
 
 
 MIN_GAIN = 1.5            # world units a step must bring her closer
+MAP_FAR = 25.0            # world units: the map steers only while the goal is farther (user D187: it's imprecise)
 TURNS = (0, 35, -35)      # degrees off the goal direction after a step without progress
 
 
@@ -247,6 +250,9 @@ def walk_to_area(goal, arrive=6.0, kind='plant', max_steps=14):
         d = math.dist(pos, goal)
         if d <= arrive:
             res['stop'] = 'arrived'
+            return res
+        if src == 'map' and d <= MAP_FAR:   # near: the map can't tell; the caller goes by visible objects / events
+            res['stop'] = 'near (map imprecise)'
             return res
         if kind and any(a.kind == kind and not a.drop for a in O.scan()):
             res['stop'] = 'bubble'

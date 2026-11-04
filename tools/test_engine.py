@@ -1544,6 +1544,14 @@ class Where(Base):
         self.assertAlmostEqual(s, 2.0, delta=0.05)
         self.assertEqual(tuple(round(v) for v in where.to_world((766, 556))), (5, -44))
 
+    def test_near_decisions_never_use_the_map(self):
+        f = self.use(FakeGame([], GAME))
+        where.add_pair((2.0, -26.0), (760, 520))
+        where.add_pair((8.0, -63.0), (772, 594))
+        where.walked()
+        f.map_snapshot, f.map_pin = (lambda: 'map'), (lambda img: (766, 556))
+        self.assertEqual(where.position(far_ok=False), (None, None))
+
     def test_position_is_the_event_until_a_walk_then_the_map(self):
         f = self.use(FakeGame([], GAME))
         where.add_pair((2.0, -26.0), (760, 520))
@@ -1555,6 +1563,13 @@ class Where(Base):
         f.map_pin = lambda img: (766, 556)
         src, pos = where.position()
         self.assertEqual((src, tuple(round(v) for v in pos)), ('map', (5, -44)))
+
+    def test_pairs_that_disagree_give_no_calibration(self):
+        """Live D187: beds 3.75 units apart gave the same pin; the map then put her 10 units off. A fit with a large
+        error is no calibration: the position is unknown, not wrong."""
+        for w, pin in (((6.39, -66.86), (634, 614)), ((2.64, -63.11), (598, 596)), ((2.64, -66.86), (598, 596))):
+            where.add_pair(w, pin)
+        self.assertIsNone(where.fit())
 
     def test_a_fresh_event_and_a_pin_become_a_pair(self):
         f = self.use(FakeGame([], GAME))
@@ -1576,21 +1591,30 @@ class WalkCloser(Base):
 
     def steps(self, positions):
         it = iter(positions)
-        return mock.patch.object(where, 'position', lambda: ('map', next(it)))
+        return mock.patch.object(where, 'position', lambda far_ok=True: ('map', next(it)))
 
-    def test_steps_toward_the_goal_until_arrived(self):
+    def test_steps_toward_a_far_goal_until_the_map_is_too_coarse(self):
+        """User D187: the map only for very-far navigation (it's imprecise): steps while far, then 'near'."""
         f = self.use(FakeGame([], GAME))
-        f.walk_frames = 0
         f.step_zone = 'near'
-        with self.steps([(8.0, -40.0), (8.0, -46.0), (8.0, -52.0), (8.0, -58.0), (8.0, -62.0)]):
+        with self.steps([(8.0, 10.0), (8.0, 0.0), (8.0, -10.0), (8.0, -20.0), (8.0, -30.0), (8.0, -40.0)]):
+            res = smoke.walk_to_area((8.27, -63.11), arrive=4.0)
+        self.assertEqual(res['stop'], 'near (map imprecise)')
+        self.assertTrue(all(y > 540 for _, y in f.clicks))   # south = down
+        self.assertEqual(res['steps'], 5)
+
+    def test_an_event_position_walks_all_the_way(self):
+        f = self.use(FakeGame([], GAME))
+        f.step_zone = 'near'
+        it = iter([(8.0, -40.0), (8.0, -46.0), (8.0, -52.0), (8.0, -58.0), (8.0, -62.0)])
+        with mock.patch.object(where, 'position', lambda far_ok=True: ('event', next(it))):
             res = smoke.walk_to_area((8.27, -63.11), arrive=4.0)
         self.assertEqual(res['stop'], 'arrived')
-        self.assertTrue(all(y > 540 for _, y in f.clicks))   # south = down
 
     def test_no_progress_turns_then_asks_vision(self):
         f = self.use(FakeGame([], GAME))
         f.step_zone = 'near'
-        with self.steps([(8.0, -40.0)] * 10):
+        with self.steps([(8.0, 10.0)] * 10):
             with self.assertRaises(NeedVision) as cm:
                 smoke.walk_to_area((8.27, -63.11), arrive=4.0)
         self.assertIn('no closer', str(cm.exception))

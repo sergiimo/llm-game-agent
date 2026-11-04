@@ -2750,6 +2750,19 @@ class CollectProof(EngineBase):
         self.assertTrue(engine.finish_card(c, res))
         self.assertEqual(f.objects['b']['state']['stage'], 'growing')
 
+    def test_a_vision_answer_that_opens_collect_on_a_bean_bed_finishes_the_pick(self):
+        """Live D189 17:52: the answer to the generic click question landed on a bean bed, Collect opened - closed."""
+        f, _ = self.game()
+        f.relabel = {'pickup': 'water'}            # misread, as live: only the answer's Collect can pick it
+        f.objects['b']['state']['ready'] = False
+        ask.save_state({'goal': 'harvest', 'asks': 1, 'history': [], 'pending': {'kind': 'click', 'goal': 'harvest',
+                                                                                   'params': {}}})
+        try:
+            engine.achieve('harvest', answer='O12', max_clicks=6)   # (1160, 776): on the bean bed's body
+        except ask.NeedVision:
+            pass
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing', f.clicks)
+
     def test_skipped_flowers_do_not_hide_the_misread_beds_from_the_start_question(self):
         f, _ = self.game()
         f.relabel = {'pickup': 'water'}

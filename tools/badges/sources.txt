@@ -1,2 +1,2 @@
-20261104-174007-0.png	none	fixture D188-carrot-growing.png: click -> "Carrot ... 2 days remaining" (D188 8:10)
-20261104-174504-0.png	ready	exp d551579451f0b79f
+20261104-175640-0.png	ready	exp d551579451f0b79f (re-centred)
+20261104-175640-0.png	none	fixture D188-carrot-growing.png (re-centred)

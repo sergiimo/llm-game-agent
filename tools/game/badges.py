@@ -27,11 +27,17 @@ def reset():
 
 
 def corner(crop140):
-    """The badge corner of a 140-px bubble crop."""
+    """The badge corner of a bubble crop, taken relative to the disc centre (icons.disc_centre: the finder's point is
+    up to ~20 px off, live D189)."""
+    from PIL import Image
     c = crop140.convert('RGB')
     if c.size != (140, 140):
         c = c.resize((140, 140))
-    return c.crop(CORNER)
+    cx, cy = icons._centroid(c) or (70, 70)
+    pad = Image.new('RGB', (280, 280), (90, 60, 40))
+    pad.paste(c, (70, 70))
+    x0, y0 = round(cx - 70 + 70), round(cy - 70 + 70)   # the 140 box centred on the disc, in pad coordinates
+    return pad.crop((x0 + CORNER[0], y0 + CORNER[1], x0 + CORNER[2], y0 + CORNER[3]))
 
 
 def _refs():

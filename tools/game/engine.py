@@ -495,6 +495,17 @@ def _answer(g, name, params, answer, res):
             world.place(g, c.node.split('@')[0] if c.node else 'Object', c.at, c.events, stamp=_stamp())
             res['area'] = world.area_of(g, c.at)
         row = next((r for r in plan.rows() if r['id'] == pend.get('row')), None)
+        if row is None and A.on_card(c) and res.get('spec'):   # any card the goal's rows start with (live D189:
+            kind = res['spec'].get('kind')                    # a generic answer click opened Collect - closed)
+            row = next((r for r in plan.rows(kind) if r['steps'] and (r['steps'][0].get('expect') or {}).get('card')
+                        and any(r['steps'][0]['expect']['card'].lower() in t.lower() for t in c.texts)), None)
+            if row is not None and res.get('skip_names'):   # never a flower: the crop of the bubble by the click
+                res['row_now'] = dict(row, params={})
+                if finish_card(c, res):
+                    res['done'].append(f'answer@{pt[0]},{pt[1]}')
+                    ask.progress(name)
+                A.gameplay()
+                return
         want = ((row or {}).get('steps') or [{}])[0].get('expect', {}).get('card') if row else None
         if want and c.mode != 'gameplay' and any(want.lower() in t.lower() for t in c.texts):
             out = steps.run(dict(row, steps=row['steps'][1:]), row.get('params', {}), None)   # vision chose the bed
@@ -697,6 +708,7 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
             res['notes'].append(f'map calibration unusable ({len(WH.pairs())} pairs disagree > {WH.MAX_ERR} units): '
                                 f'far navigation has only the map compass')
         if answer is not None:
+            res['spec'], res['skip_names'] = spec, _skip_names(spec, params)
             _answer(g, name, params, answer, res)
         _loop(g, name, spec, params, save, max_clicks, res)
         return res

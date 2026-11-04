@@ -37,6 +37,48 @@ def _vec(img):
 
 
 BADGE_MASK = (60, 0, 112, 52)   # px of the 112-px icon crop: the badge corner (wave 1 reads it; masked here, D189)
+INNER = 84          # px: the icon itself, centred on the disc (the ring, the badge and the background mostly outside)
+SEARCH = 90         # px around the finder's point where the disc is looked for
+
+
+def _beige(a):
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    return (r > 195) & (g > 180) & (b > 155) & (r - b > 15) & (r - b < 60)
+
+
+def _centroid(im):
+    import numpy as np
+    ys, xs = np.nonzero(_beige(np.asarray(im.convert('RGB')).astype(int)))
+    return (float(xs.mean()), float(ys.mean())) if len(xs) > 200 else None
+
+
+def disc_centre(img, pt):
+    """The bubble disc's centre near `pt` (the beige pixels' centroid): the finder's point is up to ~20 px off it
+    (live D189), and every crop of both waves is taken around the disc centre."""
+    x, y = pt
+    box = (max(0, x - SEARCH), max(0, y - SEARCH), x + SEARCH, y + SEARCH)
+    c = _centroid(img.crop(box))
+    return (round(box[0] + c[0]), round(box[1] + c[1])) if c else (round(x), round(y))
+
+
+def bubble140(img, pt):
+    """The 140-px bubble crop around the disc centre near `pt` (both waves read it)."""
+    x, y = disc_centre(img, pt)
+    return img.crop((x - 70, y - 70, x + 70, y + 70))
+
+
+def inner(crop):
+    """Wave 2's input: the INNER-px icon centred on its disc (any bubble crop, centred or not), badge corner masked."""
+    from PIL import Image
+    im = crop.convert('RGB')
+    c = _centroid(im) or (im.width / 2, im.height / 2)
+    pad = Image.new('RGB', (im.width + 2 * INNER, im.height + 2 * INNER), (222, 206, 186))
+    pad.paste(im, (INNER, INNER))
+    x, y = c[0] + INNER, c[1] + INNER
+    out = pad.crop((round(x - INNER / 2), round(y - INNER / 2), round(x + INNER / 2), round(y + INNER / 2)))
+    from PIL import ImageDraw
+    ImageDraw.Draw(out).rectangle((INNER - 18, 0, INNER, 18), fill=(222, 206, 186))   # the badge's edge, if inside
+    return out
 
 
 def masked(icon112):
@@ -70,12 +112,12 @@ def _refs():
             d = os.path.join(DIR, name)
             for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
                 if f.endswith('.png'):
-                    _REFS.append((name, _vec(masked(Image.open(os.path.join(d, f))))))
+                    _REFS.append((name, _vec(inner(Image.open(os.path.join(d, f))))))
     return _REFS
 
 
 def crop(img, pt):
-    x, y = pt
+    x, y = disc_centre(img, pt)
     return img.crop((x - HALF, y - HALF, x + HALF, y + HALF))
 
 
@@ -87,7 +129,7 @@ def _dist(a, b):
 
 
 def match(icon):
-    v = _vec(masked(icon))
+    v = _vec(inner(icon))
     best = min(((_dist(v, r), name) for name, r in _refs()), default=(9.0, None))
     return best[1].replace('_', ' ') if best[0] <= MAX_DIST else None
 

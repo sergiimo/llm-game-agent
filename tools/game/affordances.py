@@ -72,18 +72,24 @@ def scan():
     for b in W.find_bubbles(img):
         kind, d = W.bubble_kind(img, b)
         crop = W.bubble_crop(img, b) if hasattr(W, 'bubble_crop') else None
+        if crop is not None:
+            try:
+                crop = icons.bubble140(img, b)   # around the disc centre (the finder's point is up to ~20 px off)
+            except Exception:   # noqa: BLE001
+                pass
         badge = icon = None
-        if crop is not None:   # wave 1: the badge corner; wave 2: the icon with the badge masked (user D189)
+        if crop is not None:   # wave 1: the badge corner; wave 2: the icon - both around the disc centre (D189)
             try:
                 badge = badges.read(crop)
-                icon = icons.match(icons.crop112(crop))
+                icon = icons.match(crop)
             except Exception:   # noqa: BLE001 (reading never breaks the scan)
                 badge = icon = None
+        blue = has_drop(crop) if crop is not None else False   # the pale-blue drop by colour is reliable
         if badge is not None:
-            drop, ready = badge == 'drop', badge == 'ready'
+            drop, ready = badge == 'drop' or blue, badge == 'ready' and not blue   # a drop is never "ready" (D189)
         else:   # the store doesn't know this corner yet: the colour readers
-            drop = has_drop(crop) if crop is not None else False
-            ready = has_ready(crop) if crop is not None else False
+            drop = blue
+            ready = (has_ready(crop) if crop is not None else False) and not blue
         out.append(Affordance(kind, None, tuple(b), bool(W.bubble_highlighted(img, b)), d, drop, ready, badge, icon))
     return out
 

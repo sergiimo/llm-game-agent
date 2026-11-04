@@ -301,8 +301,8 @@ def _run(u, e, img0):
             from . import badges
             if img is None or not e.action.pt:
                 return None
-            x, y = e.action.pt
-            badges.add(u.args['label'], img.crop((x - 70, y - 70, x + 70, y + 70)), f'exp {e.id}')
+            from . import icons
+            badges.add(u.args['label'], icons.bubble140(img, e.action.pt), f'exp {e.id}')
             return f'badge:{u.args["label"]}'
         if u.op == 'proven_look':   # a box on the frame before the click, named by a later log proof
             ok = LN.relabel(img, tuple(u.args['box']), u.args['kind'])

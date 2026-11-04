@@ -64,17 +64,30 @@ class Store(Base):
 class IconWave(unittest.TestCase):
     def test_the_icon_vector_ignores_the_badge(self):
         a, b = bubble(None), bubble('ready')
-        self.assertEqual(icons._vec(icons.masked(icons.crop112(a))), icons._vec(icons.masked(icons.crop112(b))))
+        self.assertEqual(icons._vec(icons.inner(a)), icons._vec(icons.inner(b)))
+
+    def test_crops_are_centred_on_the_bubble_disc(self):
+        """Live D189: the bubble point is up to ~20 px off the disc centre; fixed crops cut different parts."""
+        frame = Image.new('RGB', (400, 400), (90, 60, 40))
+        frame.paste(bubble('ready'), (150, 150))          # disc centre at (220, 220)
+        cx, cy = icons.disc_centre(frame, (200, 238))     # the finder's point, off by (-20, +18)
+        self.assertLess(abs(cx - 220) + abs(cy - 220), 6, (cx, cy))
+        got = icons.bubble140(frame, (200, 238))              # cropped around the disc centre, not the finder's point
+        on = frame.crop((150, 150, 290, 290))
+        self.assertLess(icons._dist(icons._vec(icons.inner(got)), icons._vec(icons.inner(on))), 0.05)
 
 
 class Scan(Base):
     def wf(self, crop):
+        frame = Image.new('RGB', (1920, 1080), (90, 60, 40))
+        frame.paste(crop, (890, 470))   # the bubble on the frame, its disc centred at (960, 540)
+
         class W:
             find_bubbles = staticmethod(lambda img: [(960, 540)])
             bubble_kind = staticmethod(lambda img, b: ('water', 0.1))
             bubble_crop = staticmethod(lambda img, b: crop)
             bubble_highlighted = staticmethod(lambda img, b: False)
-            grab = staticmethod(lambda: Image.new('RGB', (1920, 1080)))
+            grab = staticmethod(lambda: frame)
         return W
 
     def test_wave_one_decides_ready_and_drop_when_the_store_knows_the_badge(self):
@@ -85,6 +98,14 @@ class Scan(Base):
         self.assertTrue(a.ready)
         self.assertFalse(a.drop)
         self.assertEqual(a.badge, 'ready')
+
+    def test_a_water_drop_is_never_read_as_ready(self):
+        """Live D189 17:50: with ready/none examples only, the carrot's drop corner read `ready` - it got watered."""
+        B.add('ready', bubble('ready'), 'test')
+        B.add('none', bubble(None), 'test')
+        with mock.patch.object(AF.core, 'WF', self.wf(bubble('drop'))), mock.patch.object(B, 'read', lambda c: 'ready'):
+            a, = AF.scan()
+        self.assertEqual((a.drop, a.ready), (True, False))
 
     def test_an_empty_store_falls_back_to_the_colour_readers(self):
         with mock.patch.object(AF.core, 'WF', self.wf(bubble('drop'))), \

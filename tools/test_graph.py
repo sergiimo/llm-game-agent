@@ -103,5 +103,28 @@ class GraphCli(unittest.TestCase):
         self.assertIn('GardenBed@Garden', r.stdout)
 
 
+class Compass(unittest.TestCase):
+    """User D188: "graph as before should store compass direction for nodes connections"."""
+
+    def test_a_way_between_nodes_keeps_its_compass_direction(self):
+        from objects import graph as OG
+        g = OG.Graph()
+        OG.learn_toward(g, 'Mine', 'Garden', (0.0, 1.0))
+        e, = g.edges('Mine', 'toward')
+        self.assertEqual(e['compass'], 'S')
+        g.add_edge('Well', 'BeeHive', 'toward', dir=[0.83, 0.55])
+        self.assertEqual(g.edges('Well', 'toward')[0]['compass'], 'SE')
+        self.assertEqual(OG.compass((-0.7, -0.7)), 'NW')
+        self.assertEqual(OG.compass_dir('W'), (-1.0, 0.0))
+
+    def test_a_compass_only_edge_gives_the_direction(self):
+        from objects import graph as OG
+        g = OG.Graph()
+        g.add_edge('Mine', 'Garden', 'toward', compass='SW', source='vision')
+        d = OG.toward(g, 'Mine', 'Garden')
+        self.assertAlmostEqual(d[0], -0.707, 2)
+        self.assertAlmostEqual(d[1], 0.707, 2)
+
+
 if __name__ == '__main__':
     unittest.main()

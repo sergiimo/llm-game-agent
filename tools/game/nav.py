@@ -31,8 +31,7 @@ MAP_GAIN = 5            # px on the map: closer by at least this = progress
 LAST_MAP = {}           # the last map reading: {'pin', 'goal', 'img'} (map_direction)
 MAP_STEP_R = 460        # px: a map-led step goes near the frame edge (user D188: "steps are very small")
 MAP_STEPS = 3           # long steps per map reading
-COMPASS = {'N': (0.0, -1.0), 'NE': (0.707, -0.707), 'E': (1.0, 0.0), 'SE': (0.707, 0.707), 'S': (0.0, 1.0),
-           'SW': (-0.707, 0.707), 'W': (-1.0, 0.0), 'NW': (-0.707, -0.707)}   # screen = map: north is up
+from objects.graph import COMPASS  # noqa: E402 (N..NW -> screen direction; the graph's ways keep it too)
 
 
 @dataclass
@@ -95,6 +94,9 @@ def walked(c, target=None, res=None):
     if ok and c.moved and res is not None and res.get('area'):
         res['area'] = None   # she walked: the area known from the last event may be left behind
     if res is not None:
+        if getattr(c, 'exp', None):
+            res.setdefault('exps', []).append(c.exp)
+            del res['exps'][:-12]
         res['still'] = 0 if (ok or c.moved is True) else res.get('still', 0) + 1
         own = O.NODE_OF.get(target.split('@')[0]) if target else None
         progress = bool(c.events) or (own is not None and any(O.node_of_bubble(a) == own for a in c.after))
@@ -232,33 +234,29 @@ def map_direction(region):
 
 
 def seek(t, res):
-    """One search round (module doc). The Click that got her somewhere, or None (stuck / nothing more: then vision)."""
+    """One round of the ladder (spec 2026-11-04 nav ladder, user D188): the distance tier first (graph, then one
+    map reading); map-far -> the map rung only; near -> the target visible by vectors -> walk beside it; else the
+    graph's direction -> a step that way (a blocked step turns: obstacles); else explore inside the region; else the
+    map. Tara's place in the graph is updated after the step. The Click that got her somewhere, or None."""
     tried = res.setdefault('tried', [])   # screen points that led nowhere; cleared when she walks
     if stuck(res):
         res['still'] = 0
         return None
-    # the area known from the last event (engine) first: look-alike bubbles (beds in two gardens) can't tell; then the
-    # frame; the last event only when the frame shows no node
     cn = O.closest_node()
     if cn in res.get('lookalike', ()) and not res.get('area'):
         cn = None   # beds look alike in every garden: the frame can't say which one she is at
     here = res.get('area') or cn or res.get('here')
     res['inside'] = inside(t, here) if here else res.get('inside')
-    if here and here != t.node:
-        dd = L.toward(here, t.node)
-        if dd:
-            log('seek', what='graph', here=here, to=t.node, dir=list(dd))
-            c = step(dd, res, f'graph {here}->{t.node}', t.node, learn=(here, t.node))
-            if c is not None:
-                res['here'], res['heading'], res['heading_n'] = c.node, dd, 0
-                return c
-    if not here and res.get('heading') and res.get('heading_n', 0) < HEADING_MAX:   # between nodes: keep going
-        res['heading_n'] = res.get('heading_n', 0) + 1
-        c = step(res['heading'], res, f'heading {res["heading_n"]}/{HEADING_MAX}', t.node)
-        if c is not None:
-            res['here'] = c.node
-            return c
-    if t.marker == 'dry_soil' and res.get('light') in ('day', None):
+    tier = tier_of(t, res, here)
+    c = _rung(t, res, tier, cn, here, tried)
+    update_tara(res, tier, cn or here, c)
+    return c
+
+
+def _rung(t, res, tier, cn, here, tried):
+    if tier == 'map-far':
+        return map_walk(t, res, read=False)
+    if t.marker == 'dry_soil' and res.get('light') in ('day', None):   # a visible marker of the targets
         for x, y, n in dry_spots(tried)[:2]:
             c = A.click((x, y), 'soil')
             res['clicks'] += 1
@@ -271,13 +269,34 @@ def seek(t, res):
                 return None
     if t.marker and res.get('inside'):   # inside the region the targets are marked (drop, dry soil), not just beds
         return explore(t, res)
-    if not here and not res.get('inside') and not res.get('map_first'):   # nowhere known: the map first (user D188)
-        res['map_first'] = True
-        c = map_walk(t, res)
-        if c is not None or res.get('lost_traced'):
+    c = _visible(t, res, tried)   # rung 1: the target visible by vectors (screen-far)
+    if c is not None or stuck(res):
+        return c
+    at = cn or here
+    if at and at != t.node:   # rung 2: the graph says close and knows the direction
+        dd = L.toward(at, t.node)
+        if dd:
+            log('seek', what='graph', here=at, to=t.node, dir=list(dd))
+            c = step(dd, res, f'graph {at}->{t.node}', t.node, learn=(at, t.node))
+            if c is not None:
+                res['here'], res['heading'], res['heading_n'] = c.node, dd, 0
+                return c
+    if not at and res.get('heading') and res.get('heading_n', 0) < HEADING_MAX:   # between nodes: keep going
+        res['heading_n'] = res.get('heading_n', 0) + 1
+        c = step(res['heading'], res, f'heading {res["heading_n"]}/{HEADING_MAX}', t.node)
+        if c is not None:
+            res['here'] = c.node
             return c
+    if (res.get('inside') or inside(t, here)) and not res.get('no_detect'):
+        res['inside'] = True
+        return explore(t, res)
+    return map_walk(t, res, read=not res.get('map_fresh'))   # rung 3: the map
+
+
+def _visible(t, res, tried):
+    """The target kind seen by its vectors: free ground just below it (never its bubble, user D188)."""
     for det in ([] if res.get('no_detect') else O.see(t.kind, tried)[:2]):
-        pt = beside(det, O.scan())   # free ground just below the object, never its bubble (user D188)
+        pt = beside(det, O.scan())
         if pt is None:
             tried.append(det.point)
             trace(res, f'{t.kind} seen @{det.point[0]},{det.point[1]}: no free ground beside it')
@@ -286,10 +305,12 @@ def seek(t, res):
         c = A.click(pt, 'step', context={'det_box': list(box) if box else None, 'det_kind': t.kind, 'target': t.node})
         res['clicks'] += 1
         tried.append(det.point)
+        res['tier_now'] = 'screen-far'
         res['misses'] = 0 if _predicted_arrival(t, c) else res.get('misses', 0) + 1
         if res['misses'] >= MISS_MAX and not res.get('no_detect'):
             res['no_detect'] = True
             trace(res, f'{MISS_MAX} arrival misses: the {t.kind} detections here are not {t.kind}s; the map leads')
+            _gap(res, f'nav: {MISS_MAX} arrival misses on {t.kind} detections (phantoms)')
         ok = walked(c, t.node, res)
         trace(res, f'{t.kind} seen @{det.point[0]},{det.point[1]}: ' + outcome(c, ok, t.node))
         if c.node == t.node and not any(t.fits(a) for a in c.after):   # a bed, but not one this target needs
@@ -301,14 +322,74 @@ def seek(t, res):
             continue
         if c.node and c.node != t.node and str(c.learned or '').startswith('look:'):   # the boundary relabelled it
             trace(res, f'learned: the look @{det.point[0]},{det.point[1]} is a {c.learned[5:]}')
-        if ok or c.node:   # walked / arrived, or another node took it: the event tells where she is
+        if ok or c.node:
             return c
         if stuck(res):
             return None
-    if (res.get('inside') or inside(t, here)) and not res.get('no_detect'):
-        res['inside'] = True
-        return explore(t, res)
-    return map_walk(t, res)
+    return None
+
+
+NEAR_MAP_PX = 60    # map px from the target's map point: nearer = near (the mine -> garden is ~100)
+PIN_JUMP = 150      # map px between two readings in one call: more = a misread pin (D188: 598,461 -> 1320,419)
+
+
+def tier_of(t, res, here):
+    """The distance tier, cheapest evidence first: a bubble of the target kind in view = steps-far; inside the
+    target's region (graph) = near; else one map reading: far from the target's map point = map-far, else near;
+    no reading = unknown."""
+    own = O.NODE_OF.get(t.kind)
+    if own and any(O.node_of_bubble(a) == own for a in O.scan()):
+        return 'steps-far'
+    if res.get('inside') or (here and inside(t, here)):
+        return 'near'
+    dd = read_map(t, res)
+    if dd is None or not LAST_MAP.get('pin') or not LAST_MAP.get('goal'):
+        return 'unknown'
+    d = math.dist(LAST_MAP['pin'], LAST_MAP['goal'])
+    return 'map-far' if d > NEAR_MAP_PX else 'near'
+
+
+def read_map(t, res):
+    """One map reading for this round (direction, pin, goal), checked: a pin that jumped more than PIN_JUMP from the
+    last good one is a misread - rejected, a gap, and vision is asked the way from the last good pin."""
+    LAST_MAP.clear()
+    res['map_fresh'] = False
+    dd = map_direction(t.region)
+    res['map_dd'] = dd
+    pin, ok = LAST_MAP.get('pin'), res.get('pin_ok')
+    if dd is not None and pin and ok and math.dist(pin, ok) > PIN_JUMP:
+        trace(res, f'map: the pin read at {list(pin)} jumped {math.dist(pin, ok):.0f} px from {list(ok)}: rejected')
+        _gap(res, f'nav: map pin jumped {math.dist(pin, ok):.0f} px in one call ({list(ok)} -> {list(pin)})')
+        LAST_MAP['pin'] = tuple(ok)
+        ask_way(t, res, None, why=f'the map pin was misread (it jumped to {list(pin)})')
+    if dd is not None and pin:
+        res['pin_ok'] = tuple(pin)
+    res['map_fresh'] = dd is not None
+    return dd
+
+
+def update_tara(res, tier, near, c):
+    """After each step: Tara's place in the graph - tier, last good pin, the node she is at, exact pos, time."""
+    g = L.MEMORY['graph']
+    if g is None or 'Tara' not in g.nodes:
+        return
+    import time as _t
+    ex = g.nodes['Tara'].extra
+    ex.update(tier=res.pop('tier_now', None) or tier, near=near, t=round(_t.time(), 1))
+    if res.get('pin_ok'):
+        ex['pin'] = list(res['pin_ok'])
+    if c is not None and getattr(c, 'at', None):
+        ex['pos'] = [round(c.at[0], 2), round(c.at[1], 2)]
+    log('seek', what='tara', tier=ex['tier'], near=near, pin=ex.get('pin'))
+
+
+def _gap(res, invariant):
+    """A navigation failure for the code factory: the experiences of this call's clicks."""
+    try:
+        from . import integrate as I
+        I.gap(res.get('exps') or [], invariant, 'nav')
+    except Exception:   # noqa: BLE001
+        pass
 
 
 def _route_len(pin, route, goal):
@@ -326,13 +407,13 @@ def _way_learned(g, a, b):
     return None
 
 
-def map_walk(t, res):
-    """One map reading, then MAP_STEPS long steps along the way. At a dead-end landmark that isn't the goal (the mine,
-    user D188) the route is not followed: a learned way from there, else vision reads the marked-up map for the road
-    direction (raises NeedVision). The Click that walked her, or None."""
+def map_walk(t, res, read=True):
+    """The map rung: this round's reading (`read` = take one now), then MAP_STEPS long steps along the way. At a
+    dead-end landmark that isn't the goal (the mine, user D188) the route is not followed: a learned way from there,
+    else vision reads the marked-up map for the road direction (raises NeedVision). The Click that walked her, or None."""
     from . import world
-    LAST_MAP.clear()
-    dd = map_direction(t.region)
+    dd = read_map(t, res) if read else res.get('map_dd')
+    res['map_fresh'] = False   # one reading, one walk
     if dd is None:
         trace(res, 'map: no direction')
         return None
@@ -397,14 +478,16 @@ def way_image(mark=None):
     return pic
 
 
-def ask_way(t, res, mark):
-    """Vision reads the map's roads for the first direction from a dead end (or between two distant places)."""
+def ask_way(t, res, mark, why=None):
+    """Vision reads the map's roads for the first direction: from a dead end, after a misread map pin (`why`), or
+    between two distant places."""
     from . import ask
     pin, goal = LAST_MAP.get('pin'), LAST_MAP.get('goal')
+    where_ = (f'She is at the {mark}, a dead end: the straight line to the goal is blocked (rocks, cliffs, water).'
+              if mark else f'The map reading is unsure: {why}; the magenta circle is her last good map pin.')
     q = (f'LEFT: the world map - Tara = the magenta circle at the pin, the goal = the yellow circle (the {t.region}), '
-         f'red X = a dead end. RIGHT: the game view now, Tara = the magenta circle at its centre. She is at the '
-         f'{mark}, a dead end: the straight line to the goal is blocked (rocks, cliffs, water). Find on the map the '
-         f'road from her pin to the goal, then on the RIGHT the path she stands on that starts that road. Which way '
+         f'red X = a dead end. RIGHT: the game view now, Tara = the magenta circle at its centre. {where_} '
+         f'Find on the map the road from her pin to the goal, then on the RIGHT the path she stands on that starts that road. Which way '
          f'must she walk first along that path? Answer one of N, NE, E, SE, S, SW, W, NW (north = up, as on the '
          f'screen; the camera and the map both look north).')
     ask.ask('name', q, {'goal': res.get('goal'), 'params': res.get('params') or {}, 'map_dir': True, 'from': mark,

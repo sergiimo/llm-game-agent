@@ -2495,5 +2495,85 @@ class MapWay(EngineBase):
         self.assertTrue(way and way[0]['dir'][1] > 0.9, g.edges('Mine'))
 
 
+class NavLadder(MapWay):
+    """User D188: each step - target visible by vectors? -> graph close + direction? -> map. Tara's place in the
+    graph after each step; distance tiers map-far / screen-far / steps-far; failures -> vision + gap bundle."""
+    Box = __import__('collections').namedtuple('Box', 'point box kind')
+
+    def setUp(self):
+        super().setUp()
+        from game import integrate
+        p = mock.patch.object(integrate, 'JOURNAL_DIR', os.path.join(self.tmp.name, 'journal'))
+        p.start()
+        self.addCleanup(p.stop)
+
+    def dets(self, calls):
+        return lambda kind, tried=(): calls.append(kind) or [self.Box((1300, 700), (1250, 650, 1350, 690), 'GardenBed')]
+
+    def test_map_far_never_uses_detections(self):
+        self.lost()
+        calls = []
+        with mock.patch.object(observe, 'see', self.dets(calls)), \
+                mock.patch.object(nav, 'map_direction', self.reading((300, 300))):
+            try:
+                engine.achieve('harvest', max_clicks=6)
+            except ask.NeedVision:
+                pass
+        self.assertEqual(calls, [])
+
+    def test_near_on_the_map_the_vectors_lead(self):
+        f = self.lost()
+        calls = []
+        with mock.patch.object(observe, 'see', self.dets(calls)), \
+                mock.patch.object(nav, 'map_direction', self.reading((670, 480))):   # 22 px from the garden
+            try:
+                engine.achieve('harvest', max_clicks=3)
+            except ask.NeedVision:
+                pass
+        self.assertTrue(calls)
+        self.assertEqual(f.clicks[0], nav.beside(self.Box((1300, 700), (1250, 650, 1350, 690), 'GardenBed'), []))
+
+    def test_close_without_a_visible_target_the_graph_direction_leads(self):
+        f = self.lost()
+        g = self.graph()
+        g.add_edge('Well', 'Garden', 'toward', dir=[0.0, 1.0], source='learned')   # the target node is the area
+        g.save(learn.GRAPH)
+        with mock.patch.object(observe, 'closest_node', lambda affs=None: 'Well'), \
+                mock.patch.object(nav, 'map_direction', self.reading((670, 480))):
+            try:
+                engine.achieve('harvest', max_clicks=2)
+            except ask.NeedVision:
+                pass
+        x, y = f.clicks[0]
+        self.assertEqual(x, 960)
+        self.assertGreater(y, 540)   # south, the learned way
+
+    def test_a_pin_that_jumps_is_rejected_with_a_question_and_a_gap(self):
+        f = self.lost()
+        pins = iter([(300, 300), (1320, 419)])
+
+        def jumpy(node):
+            nav.LAST_MAP.update(pin=next(pins, (1320, 419)), goal=(690, 490), img=None)
+            return (1.0, 0.0)
+        with mock.patch.object(nav, 'map_direction', jumpy):
+            with self.assertRaises(ask.NeedVision) as e:
+                engine.achieve('harvest', max_clicks=20)
+        self.assertIn('pin', str(e.exception).lower())
+        self.assertEqual(len(f.clicks), nav.MAP_STEPS)   # the first reading's steps only
+        from game import integrate
+        self.assertTrue(any(b['owner'] == 'nav' for b in integrate.gaps()))
+
+    def test_tara_keeps_her_tier_and_pin_in_the_graph_after_each_step(self):
+        self.lost()
+        with mock.patch.object(nav, 'map_direction', self.reading((300, 300))):
+            try:
+                engine.achieve('harvest', max_clicks=3)
+            except ask.NeedVision:
+                pass
+        t = self.graph().nodes['Tara'].extra
+        self.assertEqual(t.get('tier'), 'map-far')
+        self.assertEqual(tuple(t.get('pin')), (300, 300))
+
+
 if __name__ == '__main__':
     unittest.main()

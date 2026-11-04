@@ -90,6 +90,8 @@ class Graph:
         return out[::-1]
 
     def add_edge(self, a, b, rel, **attrs):
+        if rel == 'toward' and attrs.get('dir') and not attrs.get('compass'):   # user D188: ways keep a compass
+            attrs['compass'] = compass(attrs['dir'])
         e = {'a': a, 'b': b, 'rel': rel, **attrs}
         if e not in self._edges:
             self._edges.append(e)
@@ -132,12 +134,29 @@ def _seed_toward():
 TOWARD = _seed_toward()
 
 
+COMPASS = {'N': (0.0, -1.0), 'NE': (0.707, -0.707), 'E': (1.0, 0.0), 'SE': (0.707, 0.707), 'S': (0.0, 1.0),
+           'SW': (-0.707, 0.707), 'W': (-1.0, 0.0), 'NW': (-0.707, -0.707)}   # screen = map: north is up
+
+
+def compass(d):
+    """The compass point (N..NW) nearest a screen direction (dx, dy; +y = south)."""
+    import math
+    ang = math.degrees(math.atan2(d[0], -d[1])) % 360   # 0 = N, clockwise
+    return ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[int((ang + 22.5) // 45) % 8]
+
+
+def compass_dir(c):
+    return COMPASS.get(str(c).strip().upper())
+
+
 def toward(graph, a, b):
     """Screen direction from node `a` to node `b`: a `toward` edge in the graph, else the TOWARD default, else from
     their world positions (`pos` of the nodes or their regions, e.g. one garden to another, L137); None if unknown."""
     for e in graph.edges(a, 'toward') if graph is not None else []:
         if e['b'] == b and e.get('dir'):
             return tuple(e['dir'])
+        if e['b'] == b and compass_dir(e.get('compass')):   # a way known only by its compass point
+            return compass_dir(e['compass'])
     if (a, b) in TOWARD:
         return TOWARD[(a, b)]
     pa, pb = pos_of(graph, a), pos_of(graph, b)

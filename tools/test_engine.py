@@ -324,7 +324,8 @@ class GeoGame(FakeGame):
         import math as _m
         for o in self.objects.values():
             o['zone'] = 'near'
-            o['bubble_pt'] = self._pt(o['pos']) if _m.dist(o['pos'], self.pos) <= self.SHOW else None
+            near = _m.dist(o['pos'], self.pos) <= self.SHOW and not o.get('no_bubble')
+            o['bubble_pt'] = self._pt(o['pos']) if near else None
 
     def scan(self):
         self._place()
@@ -2786,6 +2787,51 @@ class FirstHarvest(EngineBase):
         toast = screen.Screen('card', ['Where Have You Bean?', 'New quest', 'Pick some beans for Gramma'])
         self.assertTrue(screen.passive(toast))
         self.assertFalse(screen.passive(screen.Screen('card', ['Green Bean', 'Collect'])))
+
+
+class OneByOne(VisitBeds):
+    """Live D189 11:13-11:37 (user: "the problem is in 'go one by one' logic - it stucks"): beds the world believed
+    ready had their predicted points on a neighbouring, already-picked bed's sprout; each click opened the Seeds
+    panel, the evidence went to the clicked bed, the targets stayed ready, the same bubble was clicked again."""
+
+    def setup_beds(self):
+        x, z = NX[1], NZ[0]
+        e = obj('e', pos=(x, z), stage='empty', watered=False, wilted=False)
+        t1 = obj('t1', pos=(x - 1.2, z), no_bubble=True, stage='growing', watered=True, wilted=False)
+        f = self.use(GeoGame([e, t1], GAME, (x, z - 1.0), inventory={'TulipSeed': 2}))
+        f.log.append(L('8:30:00 AM', 'plant_growing', 'GardenBed', x, z - 1.0))   # an exact position by the beds
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        return f, g, world.find(g, 'GardenBed', t1['pos']), world.find(g, 'GardenBed', e['pos'])
+
+    def test_a_tried_bubble_is_never_the_visit_again(self):
+        f, g, tid, eid = self.setup_beds()
+        res = {'clicks': 0, 'btried': []}
+        a = engine._visit(g, tid, 'GardenBed', res)
+        self.assertIsNotNone(a)                        # the neighbour's bubble at the target's point
+        engine._settle_visit(tid, eid, res)            # its click proved the neighbour (e)
+        b = engine._visit(g, tid, 'GardenBed', res)
+        self.assertTrue(b is None or math.dist(b.pt, f._pt(f.objects['e']['pos'])) > 60, (b, f.clicks))
+
+    def test_a_planting_icon_is_never_a_pick(self):
+        """The bubble at the target's point is the just-harvested bed's planting icon: move on, never click it."""
+        f, g, tid, _ = self.setup_beds()
+        f.objects['e']['state']['stage'] = 'empty'
+        pick = next(r for r in plan.rows() if r['id'] == 'pick')
+        res = {'clicks': 0, 'btried': []}
+        a = engine._visit(g, tid, 'GardenBed', res, pick)
+        self.assertTrue(a is None or a.kind != 'plant', a)
+
+    def test_evidence_on_another_bed_turns_the_targets_visit_off_and_counts(self):
+        f, g, tid, eid = self.setup_beds()
+        res = {'visit_off': set(), 'fails': {}, 'surprises': [], 'btried': []}
+        engine._settle_visit(tid, eid, res)
+        self.assertIn(tid, res['visit_off'])
+        self.assertEqual(res['fails'][tid], 1)
+        res2 = {'visit_off': set(), 'fails': {}, 'surprises': [], 'btried': []}
+        engine._settle_visit(tid, tid, res2)   # the click proved the target itself: no back-off
+        self.assertNotIn(tid, res2['visit_off'])
 
 
 if __name__ == '__main__':

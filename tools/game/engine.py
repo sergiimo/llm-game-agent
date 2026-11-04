@@ -252,6 +252,30 @@ def world_of(tara, pt):
     return (tara[0] + (pt[0] - O.CENTRE[0]) / PX_PER_UNIT, tara[1] - (pt[1] - O.CENTRE[1]) / PX_PER_UNIT)
 
 
+def _other_kinds(kind, row):
+    """Bubble kinds that belong to OTHER rows of `kind` (the planting icon = the plant row): never this row's bubble
+    (live D189: the pick clicked the just-harvested bed's planting icon again and again)."""
+    if row is None:
+        return set()
+    out = set()
+    for r in plan.rows(kind):
+        k = (r.get('bubble') or {}).get('kind')
+        if r['id'] != row['id'] and k:
+            out |= set(str(k).split('|'))
+    return out - set(str((row.get('bubble') or {}).get('kind') or '').split('|'))
+
+
+def _settle_visit(tid, nid, res):
+    """A click whose result proved ANOTHER bed (the evidence went to `nid`): the target's visit is off for this call
+    and the attempt counts - the next round moves on instead of clicking the same bubble (live D189)."""
+    if nid:
+        res.setdefault('tried_nodes', set()).add(nid)   # its bubble is known now: never the visit again this call
+    if nid and nid != tid:
+        res.setdefault('visit_off', set()).add(tid)
+        res.setdefault('fails', {})[tid] = res.get('fails', {}).get(tid, 0) + 1
+        res.setdefault('surprises', []).append(f'{tid}: the bubble at its point was {nid}\'s - moving on')
+
+
 def _visit(g, tid, kind, res, row=None):
     """Strategy A (user D188): from her position (an event since the last walk, or the end of a short walk to a
     visible point), the target's bubble is the one at its expected screen point - whatever its kind or "!" reading
@@ -270,7 +294,12 @@ def _visit(g, tid, kind, res, row=None):
         if not O.on_frame(pt):
             return None
         affs = O.scan()
-        near = [a for a in affs if O.d(a.pt, pt) <= OWN_PX and O.node_of_bubble(a) not in hive]
+        tried = list(res.get('btried') or []) + [screen_point(here, tuple(g.nodes[n].extra['pos']))   # beds proven
+                                                 for n in res.get('tried_nodes', ()) if n in g.nodes]  # this call
+        other = _other_kinds(kind, row)
+        near = [a for a in affs if O.d(a.pt, pt) <= OWN_PX and O.node_of_bubble(a) not in hive
+                and not any(O.d(a.pt, p) < 60 for p in tried)   # a bubble already tried this call: move on
+                and a.kind not in other]                        # another row's icon (a planting icon for a pick)
         if near:
             return min(near, key=lambda a: O.d(a.pt, pt))
         if hop == HOPS or (row is not None and any(plan.fits(row)(a) for a in affs)):
@@ -874,6 +903,9 @@ def _loop(g, name, spec, params, save, max_clicks, res):
                 I.resolved(x)   # another row's card explained the miss: no gap
             A.gameplay()
             res['btried'].append(a.pt)
+            _settle_visit(tid, nid, res)
+            if res['fails'].get(tid, 0) >= FAILS:
+                res['skip'].append(tid)
             continue
         info = L.card_state(str(out.get('screen') or '').split(' / ')) if not out['ok'] else {}
         if info:   # the click showed the object's info card (2 days remaining): evidence, not a prompt - no question
@@ -882,6 +914,9 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             res['surprises'].append(f'{t["id"]}: the bubble led to its info card {info} (not what the row expects)')
             A.gameplay()
             res['btried'].append(a.pt)
+            _settle_visit(tid, nid, res)
+            if res['fails'].get(tid, 0) >= FAILS:
+                res['skip'].append(tid)
             continue
         if not out['ok'] and (out.get('why') or out.get('screen')) and not _really_missing(save, item, out):
             st = t['steps'][out['failed_step']]
@@ -898,6 +933,8 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             working.append(nid)
         if out['ok']:
             res['btried'].clear()
+            if nid:   # done with this bed: its new bubble (the planting icon) is never the next bed's (live D189)
+                res.setdefault('tried_nodes', set()).add(nid)
             ask.progress(name)
             if nid and _made(g, nid, make, params, world.state_of(g, nid)) and nid not in res['done']:
                 res['done'].append(nid)

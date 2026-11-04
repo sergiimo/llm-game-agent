@@ -1755,5 +1755,24 @@ class SmokeRain(Base):
         self.assertEqual((res['planted'], res['watered']), (2, 0), res['stop'])
 
 
+class StrictParams(EngineBase):
+    def test_a_named_crop_must_be_known_before_picking(self):
+        """User D187 "harvest carrots": the save has no crop type; a ripe bed of unknown crop is never picked as a
+        carrot - it is reported."""
+        f = self.use(FakeGame([obj('t', pos=(NX[0], NZ[0]), bubble=(700, 400), stage='produced', watered=True,
+                                   wilted=False, crop='Tulip'),
+                               obj('c', pos=(NX[1], NZ[0]), bubble=(900, 400), stage='produced', watered=True,
+                                   wilted=False, crop='Carrot')], GAME))
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], [], None)
+        g.set_state(world.find(g, 'GardenBed', (NX[1], NZ[0])), 'crop', 'Carrot', None, 'card')
+        g.save(learn.GRAPH)
+        res = engine.achieve('harvest', crops='Carrot')
+        self.assertEqual(f.objects['t']['state']['stage'], 'produced')   # the tulip stays (flowers serve the bees)
+        self.assertEqual(f.objects['c']['state']['stage'], 'growing')    # the known carrot is picked
+        self.assertTrue(any('unknown crop' in n for n in res['notes']), res)
+
+
 if __name__ == '__main__':
     unittest.main()

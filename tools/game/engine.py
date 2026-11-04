@@ -52,12 +52,27 @@ def _passes(g, nid, where):
     return plan.holds({k: v for k, v in where.items() if k in st}, st)
 
 
-def _targets(g, spec, where, working):
+def _strict(spec):
+    """`where` keys bound from a goal parameter (`crop: $crops`): the user named the value, so it must be KNOWN on
+    the object - an unknown one is never assumed (D187: harvest carrots, the save has no crop type)."""
+    return {k for k, v in spec.get('where', {}).items() if isinstance(v, str) and v.startswith('$') and k != 'region'}
+
+
+def _targets(g, spec, where, working, unknown=None):
     base = {'kind': spec['kind']}
     if 'region' in where:
         base['region'] = where['region']
     rest = {k: v for k, v in where.items() if k != 'region'}
-    found = [n for n in world.query(g, base) if _passes(g, n, rest)]
+    strict = _strict(spec) & set(rest)
+    found = []
+    for n in world.query(g, base):
+        st = world.state_of(g, n)
+        if any(k not in st or st[k] is None for k in strict):
+            if unknown is not None and _passes(g, n, {k: v for k, v in rest.items() if k not in strict}):
+                unknown.add(n)
+            continue
+        if _passes(g, n, rest):
+            found.append(n)
     return sorted(set(found) | {n for n in working if n in g.nodes})
 
 
@@ -468,7 +483,11 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             break
         if res['clicks'] and ask.late(res):
             break
-        targets = [n for n in _targets(g, spec, where, working) if n not in res['skip']]
+        unknown = set()
+        targets = [n for n in _targets(g, spec, where, working, unknown) if n not in res['skip']]
+        if unknown and not any('unknown' in n_ for n_ in res['notes']):
+            res['notes'].append(f'{len(unknown)} matching objects have an unknown {", ".join(sorted(_strict(spec)))} '
+                                f'(unknown crop/value: not acted on): {sorted(unknown)[:4]}')
         working = [n for n in working if not _made(g, n, make, params, world.state_of(g, n))]
         targets = [n for n in targets if n in working or not _made(g, n, make, params, world.state_of(g, n))]
         if not targets:

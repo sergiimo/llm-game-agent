@@ -182,3 +182,15 @@ missing item → stop (never buy); no seeds/can → sub-goal or stop; clock/lang
 2. Other positioned save entities: the generic save walk (§3) takes any record with `x`/`z`; Task 2 reports what the
    real save holds.
 3. Region names: automatic (`<stem><Compass>`); the agent routes chat requests to nodes via `./wf world nodes`.
+
+## 13. Two strategies: garden vs foraging (user D188, 2026-11-04)
+- **Garden (graph strategy):** fixed objects (beds, hives, well) live in the world graph. Visit them one by one,
+  nearest first (strategy A: the bubble at the node's expected screen point; the click result decides). Every visit
+  updates the node's state with a freshness stamp. Stop point = the graph: no node fits `where`, where a stale or
+  unknown node counts as "maybe".
+- **Foraging (vision strategy):** rocks, trees, forage spots, wood. They grow and get destroyed, so they are **never
+  graph nodes** (too hard to keep current). Each step is a model-vision task on the current frame: what is the nearest
+  fitting object and its click point. Click it, record the result, repeat. Stop = nothing fitting in view after
+  looking around, or the budget (energy, time, clicks) runs out. The daylight rule still applies.
+- The two are kept **separate** (no shared sweep abstraction). Only the primitives are shared: the click, the screen
+  rules, result recording and the vision call. The graph update belongs to the garden strategy only.

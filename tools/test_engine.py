@@ -1372,7 +1372,8 @@ class PauseMenu(Base):
 
     def test_an_escape_that_opens_the_pause_menu_is_undone_and_reported(self):
         f = self.use(FakeGame([], GAME))
-        f.blank_overlay, f.overlay_texts = True, ['Bee Hive', 'Plant flowers nearby', 'to encourage the bees']   # Escape doesn't close it
+        f.blank_overlay, f.overlay_texts = True, ['Bee Hive', 'Plant flowers nearby', 'Collect']   # Escape doesn't close it
+        # (a card WITH a button: buttonless cards are waited out, never escaped - live D189 quest toast)
         with self.assertRaises(core.Failed) as cm:
             self.close.__wrapped__()
         self.assertFalse(f.paused)
@@ -2757,6 +2758,21 @@ class CollectProof(EngineBase):
         with self.assertRaises(ask.NeedVision) as e:
             engine.achieve('harvest', max_clicks=12)
         self.assertIn('orange', str(e.exception))
+
+
+class FirstHarvest(EngineBase):
+    """Live D189 8:36 (the first real pick): Space on Collect logged `> harvest` (not grab_item), then a quest toast
+    "Where Have You Bean?" - Escape on it opened the pause menu."""
+
+    def test_the_pick_is_proven_by_its_harvest_event(self):
+        row = next(r for r in plan.rows() if r['id'] == 'pick')
+        self.assertIn('harvest', plan._events_of(row))
+        self.assertEqual(plan.effects_of_event('harvest').get('ready'), False)
+
+    def test_a_card_without_a_button_is_waited_out_never_escaped(self):
+        toast = screen.Screen('card', ['Where Have You Bean?', 'New quest', 'Pick some beans for Gramma'])
+        self.assertTrue(screen.passive(toast))
+        self.assertFalse(screen.passive(screen.Screen('card', ['Green Bean', 'Collect'])))
 
 
 if __name__ == '__main__':

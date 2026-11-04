@@ -19,9 +19,9 @@ HINT_WAIT = 4.0   # s a short hint gets to fade (the watering-can hint lasts lon
 
 
 def passive(s):
-    """A short card without a button (a hint/tooltip): Escape doesn't close it (it opened the pause menu, D186), it
-    fades by itself, and a world click is safe under it (S13 passive info cards)."""
-    return s.kind == 'card' and len(s.texts) <= 2 and not any(t.strip().lower() in BUTTONS for t in s.texts)
+    """A card without a button (a hint, a crop info flash, a quest toast): Escape doesn't close it (it opened the pause
+    menu, D186 and D189 "Where Have You Bean?"), it fades by itself, and a world click is safe under it (S13)."""
+    return s.kind == 'card' and not any(t.strip().lower() in BUTTONS for t in s.texts)
 
 
 def _wait_hint(s):

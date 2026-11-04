@@ -187,7 +187,7 @@
      "do": "press_space",
      "expect": {
       "events": [
-       "grab_item"
+       "harvest|grab_item"
       ]
      }
     }
@@ -197,10 +197,10 @@
     "ready": false,
     "watered": false
    },
-   "source": "seed: game D150; live D188: the ready bubble is the crop icon + \"!\" (read as plant_growing +ready), not 'pickup'; user D188: the click opens a Collect prompt, Space confirms it",
-   "seen": 2,
+   "source": "seed: game D150; live D188: the ready bubble is the crop icon + \"!\" (read as plant_growing +ready), not 'pickup'; user D188: the click opens a Collect prompt, Space confirms it; live D189 8:36 (the first engine pick): Space on Collect logs `> harvest target=GardenBed at (...)`, then a quest toast",
+   "seen": 3,
    "ok": 0,
-   "surprises": 2
+   "surprises": 3
   },
   {
    "id": "info_growing",

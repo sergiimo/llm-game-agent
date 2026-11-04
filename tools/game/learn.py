@@ -1,6 +1,6 @@
 """LEARN: what the game's answers teach (framework: observe -> act -> learn -> nav).
 
-- memory (law 6, a hint, never a gate): the group's tally per game day, crops, can, soil view (objects/graph)
+- the graph in memory for directions (objects/graph Farm.json); object state lives in game/world.py
 - bubble kinds: a clicked bubble is labelled by the event the game logs next (wf.learn_bubble)
 - the transition table (actions.json): rows learned from play (new_row/add_row); gaps fill from 2 agreeing
   observations, expectations revised after 3 agreeing contradictions (settle_rows)
@@ -11,7 +11,6 @@ import re
 from . import core, observe as O
 
 GRAPH = None        # Farm.json path (None = objects/graph/Farm.json)
-GROUP = 'GardenBed@Garden'
 MEMORY = {'graph': None}
 SURPRISES = []      # this run's surprises (steps.run reports its own)
 
@@ -31,7 +30,7 @@ def open_memory():
         g.load(graph_path())
     except (OSError, ValueError):
         g = None
-    MEMORY['graph'] = g if g is not None and GROUP in g.nodes else None
+    MEMORY['graph'] = g
 
 
 def close_memory():
@@ -48,31 +47,6 @@ def stamp():
         return core.WF.game_stamp()
     except Exception:   # noqa: BLE001
         return None
-
-
-def remember(events, crop=None):
-    """A click's events (and a crop read from a card) -> the group's memory (objects/graph.note_click)."""
-    g = MEMORY['graph']
-    if g is None or not (events or crop):
-        return
-    from objects import graph as OG
-    OG.note_click(g, GROUP, list(events), stamp(), crop=crop)
-
-
-def remember_soil(counts):
-    """The soil heat map's dry/wet cells on this frame: the group's latest soil view."""
-    g = MEMORY['graph']
-    if g is None or not counts:
-        return
-    g.set_state(GROUP, 'soil_seen', {'dry_cells': counts[0], 'wet_cells': counts[1]}, stamp(), 'frame', 0.6)
-
-
-def memory_hint():
-    g = MEMORY['graph']
-    if g is None:
-        return ''
-    from objects import graph as OG
-    return OG.hint(g, GROUP)
 
 
 def toward(a, b):

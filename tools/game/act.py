@@ -122,7 +122,6 @@ def click(pt, what='point', before=None):
         where.walked()
     learned = L.learn_bubble(c, img0)
     L.observe_card(c)   # a short-lived crop card -> the object's crop / days left / wilted (world graph)
-    L.remember(c.events)
     try:
         W.run_log('click', node=c.node, learned=learned, pt=[x, y], what=what, events=c.events, mode=mode,
                   texts=ts[:4], before=[str(a) for a in before], after=[str(a) for a in c.after], moved=c.moved,

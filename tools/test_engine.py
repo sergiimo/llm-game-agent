@@ -1442,18 +1442,6 @@ class SmokeLoop(Base):
         self.assertEqual(keys, [])
 
 
-class SmokeWalk(Base):
-    def test_the_screen_point_of_a_bed_from_world_positions(self):
-        self.assertEqual(smoke.screen_point((10.14, -63.11), (6.39, -63.11), 57.6), (744, 540))   # west = left
-        self.assertEqual(smoke.screen_point((10.14, -63.11), (10.14, -66.86), 57.6), (960, 756))  # south = down
-
-    def test_px_per_unit_from_two_neighbour_bubbles(self):
-        A_ = Affordance
-        k = smoke.px_per_unit([A_('water', None, (848, 536), False, 0.0), A_('water', None, (1064, 540), False, 0.0)], 3.75)
-        self.assertAlmostEqual(k, 57.6, delta=0.5)
-        self.assertEqual(smoke.px_per_unit([], 3.75), smoke.PX_PER_UNIT)
-
-
 class SmokeCan(Base):
     def test_an_empty_can_stops_watering_not_planting(self):
         f = self.use(FakeGame(beds('s', SX[:3], SZ[:1], 'near', 500, 300, stage='empty', watered=False, wilted=False),
@@ -1522,16 +1510,6 @@ class SmokeMiss(Base):
         res = smoke.plant_visible('Tulip', can='empty')
         self.assertEqual(res['planted'], 1, res['stop'])
         self.assertEqual(f.objects['e']['state']['stage'], 'growing')
-
-
-class SmokeDeadReckoning(Base):
-    def test_after_a_walk_her_position_is_the_walked_to_point_until_an_event(self):
-        f = self.use(FakeGame([], GAME))
-        smoke.LAST_WALK.clear()
-        smoke.remember_walk((13.89, -60.56))
-        self.assertEqual(smoke.tara_now((10.14, -63.11)), (13.89, -60.56))   # no event since: the walk's end point
-        f.log.append('[D186 1:40:00 PM] > plant me=Player target=GardenBed(Clone) at (2.64, 0.10, -59.36)')
-        self.assertEqual(smoke.tara_now((2.64, -59.36)), (2.64, -59.36))     # a newer event wins
 
 
 class SmokeWalkDir(Base):

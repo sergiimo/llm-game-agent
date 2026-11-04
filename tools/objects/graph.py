@@ -220,64 +220,6 @@ def apply_log(graph, lines, at, skipped=None):
 
 
 # ---- interaction laws memory (L124): group-level, no per-bed identity ------------------------------------------
-TALLY = {'unplant_impl': 'removed', 'plant': 'planted', 'water': 'watered', 'grab_item': 'harvested',
-         'plant_growing': 'growing_seen', 'out_of_water': 'can_ran_dry'}
-
-
-def note_click(graph, group, events, when, crop=None):
-    """One click's events -> the group's memory: today's tally per event type (reset on a new game day), the crops grown
-    here (from cards/seeds), the last event, and the can (out_of_water -> empty, a fill -> full). Returns the changes."""
-    out = []
-    day = _DAY_OF.match(when or '')
-    day = int(day.group(1)) if day else None
-    t = dict(graph.state_value(group, 'today') or {})
-    if t.get('day') != day:
-        t = {'day': day}
-    for e in events:
-        if e in TALLY:
-            t[TALLY[e]] = t.get(TALLY[e], 0) + 1
-    if len(t) > 1 or events:
-        graph.set_state(group, 'today', t, when, 'event')
-        out.append((group, 'today', t))
-    if events:
-        graph.set_state(group, 'last_event', events[-1], when, 'event')
-        out.append((group, 'last_event', events[-1]))
-    if crop:
-        crops = list(graph.state_value(group, 'crops') or [])
-        if crop not in crops:
-            graph.set_state(group, 'crops', crops + [crop], when, 'event')
-            out.append((group, 'crops', crops + [crop]))
-    can = 'empty' if 'out_of_water' in events else 'full' if any(e in ('fill_watering_can', 'full_watering_can')
-                                                                    for e in events) else None
-    if can and 'Tara' in graph.nodes:
-        graph.set_state('Tara', 'can', can, when, 'event')
-        out.append(('Tara', 'can', can))
-    return out
-
-
-def hint(graph, group):
-    """What memory tells vision about the group: crops grown, today's tally, the other objects of its region."""
-    n = graph.nodes.get(group)
-    if n is None:
-        return ''
-    parts = []
-    crops = graph.state_value(group, 'crops')
-    if crops:
-        parts.append('crops grown here: ' + ', '.join(crops))
-    t = graph.state_value(group, 'today') or {}
-    tally = ', '.join(f'{k} {v}' for k, v in t.items() if k != 'day')
-    if tally:
-        parts.append(f'today (D{t.get("day")}): {tally}')
-    if n.region and n.region in graph.nodes:
-        near = sorted({c.kind for c in graph.children(n.region) if c.id != group and c.kind and c.kind != 'Tara'})
-        if near:
-            parts.append(f'the {n.region} also has: ' + ', '.join(near))
-    can = graph.state_value('Tara', 'can') if 'Tara' in graph.nodes else None
-    if can:
-        parts.append(f'can: {can}')
-    return '; '.join(parts)
-
-
 _DAY_OF = re.compile(r'D(\d+)')
 
 

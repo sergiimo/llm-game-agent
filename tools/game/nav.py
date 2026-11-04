@@ -152,8 +152,7 @@ def explore(t, res):
 
 def dry_spots(tried=()):
     """The soil heat map's dry spots (observe.soil), nearest first; the soil view goes to memory."""
-    spots, counts = O.soil(tried)
-    L.remember_soil(counts)
+    spots, _ = O.soil(tried)
     return spots
 
 
@@ -193,8 +192,6 @@ def seek(t, res):
     if cn in res.get('lookalike', ()) and not res.get('area'):
         cn = None   # beds look alike in every garden: the frame can't say which one she is at
     here = res.get('area') or cn or res.get('here')
-    if here and here.startswith('GardenBed@') and (res.get('here') or '').startswith('GardenBed@'):
-        here = res['here']   # bed bubbles look alike in every garden: the last bed event's position says which (L137)
     res['inside'] = inside(t, here) if here else res.get('inside')
     if here and here != t.node:
         dd = L.toward(here, t.node)

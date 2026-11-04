@@ -198,9 +198,9 @@
     "watered": false
    },
    "source": "seed: game D150; live D188: the ready bubble is the crop icon + \"!\" (read as plant_growing +ready), not 'pickup'; user D188: the click opens a Collect prompt, Space confirms it",
-   "seen": 0,
+   "seen": 1,
    "ok": 0,
-   "surprises": 0
+   "surprises": 1
   },
   {
    "id": "info_growing",
@@ -211,6 +211,33 @@
    "steps": [],
    "effect": {},
    "source": "seed: game D183",
+   "seen": 0,
+   "ok": 0,
+   "surprises": 0
+  },
+  {
+   "id": "sleep",
+   "kind": "Bed",
+   "when": {},
+   "bubble": {
+    "kind": "sleep"
+   },
+   "steps": [
+    {
+     "do": "click_bubble",
+     "expect": {
+      "card": "Yes"
+     }
+    },
+    {
+     "do": "press",
+     "arg": "Yes"
+    }
+   ],
+   "effect": {
+    "slept": true
+   },
+   "source": "seed: game D186 (docs/ui/screens/sleep.md): the pink bed's zzz bubble -> 'Am I ready for bed? / Yes / Not yet' -> Yes -> the morning cutscene",
    "seen": 0,
    "ok": 0,
    "surprises": 0

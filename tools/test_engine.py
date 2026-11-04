@@ -1997,5 +1997,70 @@ class NavNeverInteracts(EngineBase):
         self.assertTrue(any('interact' in str(s_) for s_ in res['surprises']), res)
 
 
+class AskBeforeMoving(EngineBase):
+    """Live D188: ready bubbles with unknown crop icons were in view; the engine explored, a click opened the Collect
+    prompt, the walk closed it, and only then it asked about a tulip. The question comes first, with zero clicks."""
+
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(icons, 'DIR', os.path.join(self.tmp.name, 'crop_icons'))
+        p.start()
+        self.addCleanup(p.stop)
+        icons.reset()
+
+    def test_an_unknown_ready_icon_in_view_is_asked_before_any_click(self):
+        f = self.use(FakeGame([obj('b', pos=(NX[0], NZ[0]), bubble=(700, 400), stage='produced', watered=True,
+                                   wilted=False)], GAME))
+        with self.assertRaises(NeedVision) as cm:
+            engine.achieve('harvest')
+        self.assertEqual(f.clicks, [])
+        self.assertIn('700,400', str(cm.exception))
+
+
+class CardFromAWalk(EngineBase):
+    def test_a_collect_prompt_opened_by_a_walk_is_finished_by_the_row(self):
+        """Live D188: a walk click opened the Collect prompt and the walk closed it. A card the current row expects is
+        finished by that row (Space) when the crop under the click is known and not a flower."""
+        f = self.use(FakeGame([obj('b', pos=(NX[0], NZ[0]), bubble=(1260, 500), body=(1260, 540), stage='produced',
+                                   watered=True, wilted=False)], GAME))
+        f.interact(f.objects['b'])   # the walk's click opened the bed's Collect prompt
+        pick = next(r for r in plan.rows() if r['id'] == 'pick')
+        before = [Affordance('plant_growing', None, (1260, 500), False, 0.0, False, True)]
+        c = act.Click((1260, 540), 'explore', 0, before=before, mode='overlay', texts=['Collect'])
+        res = nav.new_res('harvest')
+        res.update(row_now=pick, skip_names={'Tulip'}, icon_of={(1260, 500): 'Green Bean'})
+        self.assertTrue(engine.finish_card(c, res))
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing')
+        res['icon_of'] = {(1260, 500): 'Tulip'}
+        f.objects['b']['state']['stage'] = 'produced'
+        f.interact(f.objects['b'])
+        self.assertFalse(engine.finish_card(c, res))   # a flower: the card is left to be closed
+
+
+class CardRunCounts(EngineBase):
+    def test_a_card_finished_during_a_walk_counts_as_done(self):
+        f = self.use(FakeGame([obj('b', pos=(NX[0], NZ[0]), bubble=(1260, 500), body=(1260, 540), stage='produced',
+                                   watered=True, wilted=False)], GAME))
+        p = mock.patch.object(icons, 'name_of', lambda a: 'Green Bean')
+        p.start()
+        self.addCleanup(p.stop)
+        real = nav.search
+
+        def walk_opens_the_card(t, res, rounds=nav.SEEK_TURNS, halt=None):
+            if f.objects['b']['state']['stage'] == 'produced' and not res.get('walked_once'):
+                res['walked_once'] = True
+                res['icon_of'] = {(1260, 500): 'Green Bean'}
+                f.interact(f.objects['b'])
+                c = act.Click((1260, 540), 'explore', 0, before=f.scan() or [Affordance('plant_growing', None,
+                              (1260, 500), False, 0.0, False, True)], mode='overlay', texts=['Collect'])
+                res['on_card'](c)
+                return None
+            return real(t, res, rounds, halt)
+        with mock.patch.object(nav, 'search', walk_opens_the_card):
+            res = engine.achieve('harvest')
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing')
+        self.assertEqual(len(res['done']), 1, res)
+
+
 if __name__ == '__main__':
     unittest.main()

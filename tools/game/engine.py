@@ -202,6 +202,27 @@ def _bubble_miss(row, area, mine, res):
     return False
 
 
+def finish_card(c, res):
+    """A card opened by a non-step click (a walk) that the current row's first step expects (Collect for pick): the
+    row finishes it instead of the walk closing it - when the crop under the click is known and not skipped
+    (flowers). True when the row ran its remaining steps."""
+    row = res.get('row_now')
+    if not row or c.mode == 'gameplay' or not row['steps']:
+        return False
+    want = (row['steps'][0].get('expect') or {}).get('card')
+    if not want or not any(want.lower() in t.lower() for t in c.texts):
+        return False
+    near = [a for a in c.before if O.d(a.pt, c.pt) <= 160]
+    b = min(near, key=lambda a: O.d(a.pt, c.pt)) if near else None
+    crop = (res.get('icon_of') or {}).get(tuple(b.pt)) if b else None
+    if res.get('skip_names') and (crop is None or crop in res['skip_names']):
+        return False
+    rest = dict(row, steps=row['steps'][1:])
+    out = steps.run(rest, row.get('params', {}), b)
+    res.setdefault('card_runs', []).append(out)
+    return bool(out['ok'])
+
+
 def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
     """A bubble that fits the row in the target's area. Her area unknown (she walked) and look-alike objects in
     another area -> ONE question: which area is she in? (answer area=<name>)."""
@@ -239,11 +260,19 @@ def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
     def halt(affs):
         if res.get('area') is None and amb and any(free(a) for a in affs):
             return True
+        if skip:   # a fitting bubble whose crop icon is unknown is in view: ask about it now, before any click (D188)
+            for a in affs:
+                if ok(a) and owned(a) and not any(O.d(a.pt, p) < 60 for p in tried):
+                    icon_ok(a)
+                    if res.get('icon_unknown') is a:
+                        return True
         mine = [a for a in affs if O.node_of_bubble(a) == own]
         if expect and mine and res.get('area') in (None, area) and not any(fits(a) for a in affs):
             return _bubble_miss(row, area, mine, res)
         return False
     t = N.Target(name, fits, f'a {kind} in {area} whose bubble fits "{row["id"]}"', None, kind, area, area, marker)
+    res['row_now'], res['skip_names'] = row, set(skip)
+    res['on_card'] = lambda c: finish_card(c, res)
     res.pop('icon_unknown', None)
     a = N.search(t, res, halt=halt)
     if a is None and res['stop']:
@@ -579,6 +608,17 @@ def _loop(g, name, spec, params, save, max_clicks, res):
         if res['stop']:
             break
         a = _reach(g, name, params, t, kind, area, res, _marker(spec, where), _skip_names(spec, params))
+        runs = res.pop('card_runs', [])
+        for out in runs:   # a card the row finished during a walk: its events update the world like a step's
+            res['clicks'] += out['clicks']
+            nid = _learn(g, out, kind, t, res)
+            plan.count(t['id'], out['ok'])
+            if nid and out['ok'] and nid not in working:
+                working.append(nid)
+            if nid and out['ok'] and _made(g, nid, make, params, world.state_of(g, nid)) and nid not in res['done']:
+                res['done'].append(nid)
+        if runs and a is None:
+            continue
         if a is None:
             if res['stop'] or _only_maybes(g, targets, where, res):
                 break

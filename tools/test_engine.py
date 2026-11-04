@@ -2697,5 +2697,61 @@ class ButtonAnswers(EngineBase):
         self.assertEqual(steps_[1]['do'], 'press_space')
 
 
+class CollectProof(EngineBase):
+    """Live D189 7:28 (user: "again and again this collect issue"): the bean bubbles read `water` without "!", the
+    ready tulips were skipped (flowers), explore clicks on bean beds opened Collect - and the engine closed it (crop
+    unknown) every time. A Collect prompt is the game's proof the bed is ready: name the crop by its icon and pick."""
+
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(icons, 'DIR', os.path.join(self.tmp.name, 'icons'))
+        p.start()
+        self.addCleanup(p.stop)
+
+    def game(self):
+        bean = obj('b', pos=(NX[1], NZ[0]), bubble=(1260, 670), body=(1170, 750), stage='produced', watered=True,
+                   wilted=False)
+        tulip = obj('t', pos=(NX[1], NZ[1]), bubble=(970, 516), stage='produced', watered=True, wilted=False)
+        f = self.use(FakeGame([bean, tulip], GAME))
+        names = {(1260, 670): 'Green Bean', (970, 516): 'Tulip'}
+        p = mock.patch.object(icons, 'name_of', lambda a: names.get(tuple(a.pt)))
+        p.start()
+        self.addCleanup(p.stop)
+        return f, names
+
+    def test_a_collect_prompt_on_a_bean_bed_is_finished(self):
+        f, _ = self.game()
+        f.relabel = {'pickup': 'water'}
+        f.objects['b']['state']['ready'] = False   # the bean's "!" is not read (live)
+        with self.assertRaises(ask.NeedVision):    # the start question (no exact position, readings disagree)
+            engine.achieve('harvest', max_clicks=12)
+        try:
+            engine.achieve('harvest', answer='P10', max_clicks=12)   # vision: the bean's bubble (1260, 670)
+        except ask.NeedVision:
+            pass
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing', f.clicks)   # picked
+        self.assertEqual(f.objects['t']['state']['stage'], 'produced')            # the tulip stays for the bees
+
+    def test_a_walk_click_that_opens_collect_on_a_bean_bed_finishes_the_pick(self):
+        f, _ = self.game()
+        before = f.scan()
+        f.run_action('click:1170:750')   # an explore click on the bean bed: the game offers Collect
+        self.assertEqual(f.texts(), ['Collect'])
+        row = next(r for r in plan.rows() if r['id'] == 'pick')
+        res = {'row_now': dict(row, params={}), 'skip_names': {'Tulip'}}
+        c = act.Click((1170, 750), 'explore', 0, before=before, mode='overlay', texts=['Collect'])
+        self.assertTrue(engine.finish_card(c, res))
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing')
+
+    def test_skipped_flowers_do_not_hide_the_misread_beds_from_the_start_question(self):
+        f, _ = self.game()
+        f.relabel = {'pickup': 'water'}
+        f.objects['b']['state']['ready'] = False
+        f.objects['b']['body_pt'] = None   # no explore can stumble on it: the question must come
+        with self.assertRaises(ask.NeedVision) as e:
+            engine.achieve('harvest', max_clicks=12)
+        self.assertIn('orange', str(e.exception))
+
+
 if __name__ == '__main__':
     unittest.main()

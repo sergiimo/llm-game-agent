@@ -304,7 +304,7 @@ def _evidence(g, nid, kind, row, out, res):
     return False
 
 
-def _blind_near(kind, row, area, res):
+def _blind_near(kind, row, area, res, skip=frozenset()):
     """No exact position, bubbles of `kind` in view, none fits the row: she is near its objects but the readings
     disagree with the world (live D188: a ready bed read as `water`, then a search walk away) - vision's start
     question beats a search walk."""
@@ -313,7 +313,15 @@ def _blind_near(kind, row, area, res):
         return None
     own = O.NODE_OF.get(kind)
     mine = [b for b in O.scan() if O.node_of_bubble(b) == own]
-    return mine if mine and not any(plan.fits(row)(b) for b in mine) else None
+
+    def wanted(b):   # a fitting bubble the goal does not skip (the ready tulips stay: they don't count, live D189)
+        if not plan.fits(row)(b):
+            return False
+        if not skip:
+            return True
+        from . import icons
+        return icons.name_of(b) not in skip
+    return mine if mine and not any(wanted(b) for b in mine) else None
 
 
 def finish_card(c, res):
@@ -329,6 +337,13 @@ def finish_card(c, res):
     near = [a for a in c.before if O.d(a.pt, c.pt) <= 160]
     b = min(near, key=lambda a: O.d(a.pt, c.pt)) if near else None
     crop = (res.get('icon_of') or {}).get(tuple(b.pt)) if b else None
+    if crop is None and b is not None and res.get('skip_names'):   # the prompt is the readiness proof (live D189):
+        from . import icons                                        # name the crop by its icon, don't drop it
+        crop = icons.name_of(b)
+        if crop is not None:
+            res.setdefault('icon_of', {})[tuple(b.pt)] = crop
+        else:
+            res['icon_unknown'] = b   # asked next (vision names the icon), never a silent close
     if res.get('skip_names') and (crop is None or crop in res['skip_names']):
         return False
     rest = dict(row, steps=row['steps'][1:])
@@ -804,7 +819,7 @@ def _loop(g, name, spec, params, save, max_clicks, res):
                 res['skip'].append(tid)
                 res['notes'].append(f'{tid}: {crop} stays (flower)')
                 continue
-        blind = None if a is not None or res.get('asked_start') else _blind_near(kind, t, area, res)
+        blind = None if a is not None or res.get('asked_start') else _blind_near(kind, t, area, res, skip_names)
         if blind:
             res['asked_start'] = True
             if _bubble_miss(t, area, blind, res):   # recorded; at dusk it stops (icons unreliable)

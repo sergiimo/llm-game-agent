@@ -70,6 +70,12 @@ def inside(t, here):
 def walked(c, target=None, res=None):
     """The click got her somewhere: the frames moved, or the event is on the target node (arrived). Counts res['still']."""
     arrived = bool(target and c.node == target)
+    if res is not None and (c.mode != 'gameplay' or (c.events and not arrived)):
+        # a walk click that interacted (a card, an event): an interaction is a step's job, never a walk's (user D188)
+        res.setdefault('surprises', []).append(
+            f'nav click @{c.pt[0]},{c.pt[1]} interacted: events {c.events or "-"}, screen {c.mode}'
+            f'{" (" + " / ".join(c.texts[:2]) + ")" if c.texts else ""}')
+        log('seek', what='surprise', msg=res['surprises'][-1])
     if c.mode != 'gameplay' or (c.node and not arrived):
         A.gameplay()
     ok = arrived or (not c.node and c.moved is True)
@@ -118,6 +124,19 @@ def step(direction, res=None, label='step', target=None, learn=None):
                 return c
             if stuck(res):
                 return None
+    return None
+
+
+def beside(det, affs):
+    """A click point on free ground just below a detected object (click-to-move stops her in front of it), at least
+    FREE_GAP from every bubble; None when there is none on the frame."""
+    box = getattr(det, 'box', None)
+    x = det.point[0]
+    y = (box[3] if box else det.point[1]) + 40
+    for _ in range(4):
+        if O.on_frame((x, y)) and all(O.d((x, y), a.pt) >= FREE_GAP for a in affs):
+            return (int(x), int(y))
+        y += FREE_GAP
     return None
 
 
@@ -222,7 +241,12 @@ def seek(t, res):
         return explore(t, res)
     for det in O.see(t.kind, tried)[:2]:
         img = core.WF.grab()
-        c = A.click(det.point, 'object')
+        pt = beside(det, O.scan())   # free ground just below the object, never its bubble (user D188)
+        if pt is None:
+            tried.append(det.point)
+            trace(res, f'{t.kind} seen @{det.point[0]},{det.point[1]}: no free ground beside it')
+            continue
+        c = A.click(pt, 'step')
         res['clicks'] += 1
         tried.append(det.point)
         _predicted_arrival(t, c)

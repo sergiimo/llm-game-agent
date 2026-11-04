@@ -1969,5 +1969,33 @@ class CollectPrompt(EngineBase):
         self.assertEqual([s_['do'] for s_ in row['steps']], ['click_bubble', 'press_space'])
 
 
+class NavNeverInteracts(EngineBase):
+    """User D188: "clicking bubbles can't be a navigation, it's interaction". A walk toward a detected object clicks
+    free ground beside it, never its bubble; a nav click that still interacts is a surprise, not noise."""
+
+    def test_a_walk_to_a_detected_bed_never_clicks_a_bubble(self):
+        ripe = obj('r', pos=(NX[0], NZ[0]), bubble=(1400, 600), stage='produced', watered=True, wilted=False)
+        far = obj('f', pos=(NX[1], NZ[0]), zone='far', bubble=(700, 400), body=(1400, 760), stage='empty',
+                  watered=False, wilted=False)
+        f = self.use(FakeGame([ripe, far], GAME, inventory={'TulipSeed': 2}))
+        Box = __import__('collections').namedtuple('Box', 'point box kind')
+        with mock.patch.object(observe, 'see', lambda kind, tried=(): [Box((1400, 600), (1340, 560, 1460, 660), 'GardenBed')]
+                               if f.zone == 'near' else []):
+            res = nav.new_res('t')
+            t = nav.Target('t', lambda a: a.kind == 'plant', 'x', None, 'GardenBed', 'Garden', 'Garden', None)
+            nav.seek(t, res)
+        self.assertTrue(f.clicks, 'nav clicked nothing')
+        self.assertFalse([c for c in f.clicks if observe.d(c, (1400, 600)) < nav.FREE_GAP], f.clicks)
+        self.assertEqual(f.objects['r']['state']['stage'], 'produced')   # nothing collected by a walk
+
+    def test_a_nav_click_that_opens_a_card_is_a_surprise(self):
+        f = self.use(FakeGame([obj('r', pos=(NX[0], NZ[0]), bubble=(1000, 900), body=(1000, 900), stage='produced',
+                                   watered=True, wilted=False)], GAME))
+        res = nav.new_res('t')
+        res['surprises'] = []
+        c = nav.step((0.0, 1.0), res, 'step', 'Garden')   # straight down lands on the bed: it opens the Collect prompt
+        self.assertTrue(any('interact' in str(s_) for s_ in res['surprises']), res)
+
+
 if __name__ == '__main__':
     unittest.main()

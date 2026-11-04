@@ -189,7 +189,8 @@ def plant_garden(seed='Tulip', region=None, rounds=12, answer=None):
                                                                          'params': {'region': region}}, total)
         d = dets[0]
         tried.append(d.point)
-        c = A.click(d.point, 'object')
+        from . import nav as N
+        c = A.click(N.beside(d, O.scan()) or d.point, 'step')   # beside it, never its bubble (user D188)
         total['walks'] += 1
         print(f'bed: clicked the bed seen @{d.point[0]},{d.point[1]}: {"walked" if c.moved else "no move"}, '
               f'events {c.events}, bubbles {[str(a) for a in c.after] or "-"}')
@@ -357,7 +358,8 @@ def fill_can(attempts=4):
         dets = O.see('Well')
         if dets:
             res['trace'].append(f'well seen @{dets[0].point}')
-            A.click(dets[0].point, 'object')
+            from . import nav as N
+            A.click(N.beside(dets[0], O.scan()) or dets[0].point, 'step')
             A.gameplay()
             continue
         break
@@ -399,7 +401,8 @@ def water_garden(region, rounds=10):
                              f'or none. Answer: ./wf py "from game import smoke; smoke.morning(answer=\'<cell>\')"',
                     {'goal': 'morning', 'params': {'region': region}}, total)
         tried.append(dets[0].point)
-        A.click(dets[0].point, 'object')
+        from . import nav as N
+        A.click(N.beside(dets[0], O.scan()) or dets[0].point, 'step')
         A.gameplay()
     else:
         total['stop'] = f'{rounds} rounds'

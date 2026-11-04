@@ -59,6 +59,12 @@ def frames_dir():
     return os.path.join(d or SHOTS, 'clicks')
 
 
+def on_card(c):
+    """The click left a screen with text over the world (a card, prompt, menu). A textless overlay is gameplay: the
+    HUD hides while the camera zooms on the garden (L144; live D188 every garden click read `overlay`, no text)."""
+    return c.mode != 'gameplay' and bool(c.texts)
+
+
 def save_frames(imgs, tag):
     out = []
     try:

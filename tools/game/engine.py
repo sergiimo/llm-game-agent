@@ -250,23 +250,48 @@ def screen_point(tara, obj):
     return (round(O.CENTRE[0] + (obj[0] - tara[0]) * PX_PER_UNIT), round(O.CENTRE[1] - (obj[1] - tara[1]) * PX_PER_UNIT))
 
 
-def _visit(g, tid, kind, res):
-    """Strategy A (user D188): from her EXACT position (an event since the last walk), the target's bubble is the one
-    at its expected screen point - whatever its kind or "!" reading says; not in view -> one walk to the ground just
-    below that point, then the bubble in front of her. The bubble, or None (no exact position / nothing there)."""
-    from . import where
-    src, here = where.position(far_ok=False)
-    if src != 'event' or tid not in g.nodes:
-        return None
-    pt = screen_point(here, tuple(g.nodes[tid].extra['pos']))
-    if not O.on_frame(pt):
-        return None
+BELOW_PX = 70          # px below a bed's point: the path between rows, where she stands to work it
+HOPS = 2               # short walks per visit before the bed goes back to the search
 
-    def mine(affs, at, within):
-        hive = {O.NODE_OF.get(k) for k in O.NODE_OF if k != kind}
-        near = [a for a in affs if O.d(a.pt, at) <= within and O.node_of_bubble(a) not in hive]
-        return min(near, key=lambda a: O.d(a.pt, at)) if near else None
-    return mine(O.scan(), pt, OWN_PX)   # not in view: nav walks (free ground beside, never a bubble)
+
+def world_of(tara, pt):
+    """The world point under screen point `pt` (the inverse of screen_point)."""
+    return (tara[0] + (pt[0] - O.CENTRE[0]) / PX_PER_UNIT, tara[1] - (pt[1] - O.CENTRE[1]) / PX_PER_UNIT)
+
+
+def _visit(g, tid, kind, res, row=None):
+    """Strategy A (user D188): from her position (an event since the last walk, or the end of a short walk to a
+    visible point), the target's bubble is the one at its expected screen point - whatever its kind or "!" reading
+    says. Its point on screen but no bubble there -> a short walk to the ground just below it (up to HOPS), then look
+    again. The bubble, or None (no position / off-screen / not there after the walks: the search takes over)."""
+    from . import where
+    if tid not in g.nodes:
+        return None
+    obj = tuple(g.nodes[tid].extra['pos'])
+    hive = {O.NODE_OF.get(k) for k in O.NODE_OF if k != kind}
+    for hop in range(HOPS + 1):
+        src, here = where.position(far_ok=False, walk_ok=True)
+        if src not in ('event', 'walk'):
+            return None
+        pt = screen_point(here, obj)
+        if not O.on_frame(pt):
+            return None
+        affs = O.scan()
+        near = [a for a in affs if O.d(a.pt, pt) <= OWN_PX and O.node_of_bubble(a) not in hive]
+        if near:
+            return min(near, key=lambda a: O.d(a.pt, pt))
+        if hop == HOPS or (row is not None and any(plan.fits(row)(a) for a in affs)):
+            return None   # a bubble that fits the row is in view: the search takes it, no walk
+        ground = (pt[0], min(O.H_ - 60, pt[1] + BELOW_PX))
+        if not O.on_frame(ground):
+            return None
+        c = A.click(ground, 'step')
+        res['clicks'] += 1
+        if c.events or A.on_card(c) or c.moved is False:   # an interaction, or she didn't move: no reckoning
+            A.gameplay()
+            return None
+        where.walked(to=world_of(here, ground))
+    return None
 
 
 def _evidence(g, nid, kind, row, out, res):
@@ -284,6 +309,18 @@ def _evidence(g, nid, kind, row, out, res):
                 res['surprises'].append(f'{row["id"]}: the click showed "{want}" - {nid} is {st}')
                 return True
     return False
+
+
+def _blind_near(kind, row, area, res):
+    """No exact position, bubbles of `kind` in view, none fits the row: she is near its objects but the readings
+    disagree with the world (live D188: a ready bed read as `water`, then a search walk away) - vision's start
+    question beats a search walk."""
+    from . import where
+    if where.position(far_ok=False)[0] == 'event' or res.get('area') not in (None, area):
+        return None
+    own = O.NODE_OF.get(kind)
+    mine = [b for b in O.scan() if O.node_of_bubble(b) == own]
+    return mine if mine and not any(plan.fits(row)(b) for b in mine) else None
 
 
 def finish_card(c, res):
@@ -383,11 +420,27 @@ def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
     return a
 
 
-def _ask_click(name, params, what, area, res):
+def _ask_click(name, params, what, area, res, row=None):
     q = (f'Goal {name}: no bubble for {what} is in reach. Tara is the magenta circle (always the frame centre). Give '
          f'the grid cell of the nearest {what} in {area}, on the object (not on a bubble), or of free ground toward '
          f'it if it is off-screen. Answer none if there is none left.')
     ask.ask('click', q, {'goal': name, 'params': params, 'node': area}, res)
+
+
+def _wants(row):
+    """What vision looks for to start a row: its bubble's sub-icon (ready = an orange "!") in words."""
+    b = row.get('bubble') or {}
+    return ' whose bubble shows an orange "!" (not a flower)' if b.get('ready') else (
+        ' whose bubble shows a blue water drop' if b.get('drop') else '')
+
+
+def _ask_start(name, params, kind, row, area, res):
+    """No exact position (she walked; no event since): vision's start question (interaction laws: the click point of
+    the first node) - its click logs an event, and from that exact position the beds go one by one (strategy A)."""
+    q = (f'Goal {name}: Tara is the magenta circle (the frame centre). Give the grid cell ON THE BUBBLE of the nearest '
+         f'{kind}{_wants(row)} in {area}; if none is in view, a cell of free ground toward the {area}. Answer none if '
+         f'no such {kind} is left.')
+    ask.ask('click', q, {'goal': name, 'params': params, 'node': area, 'row': row['id']}, res)
 
 
 def _subgoal(g, key, value, name, params, res):
@@ -426,6 +479,16 @@ def _answer(g, name, params, answer, res):
         if c.at:
             world.place(g, c.node.split('@')[0] if c.node else 'Object', c.at, c.events, stamp=_stamp())
             res['area'] = world.area_of(g, c.at)
+        row = next((r for r in plan.rows() if r['id'] == pend.get('row')), None)
+        want = ((row or {}).get('steps') or [{}])[0].get('expect', {}).get('card') if row else None
+        if want and c.mode != 'gameplay' and any(want.lower() in t.lower() for t in c.texts):
+            out = steps.run(dict(row, steps=row['steps'][1:]), row.get('params', {}), None)   # vision chose the bed
+            res['clicks'] += out['clicks']
+            nid = _learn(g, out, row['kind'], row, res)
+            plan.count(row['id'], out['ok'])
+            if out['ok'] and nid:
+                res['done'].append(nid)
+                ask.progress(name)
         A.gameplay()
     elif pend['kind'] == 'button':
         rs = plan.rows()
@@ -496,6 +559,10 @@ def _only_maybes(g, targets, where, res):
     """Every target left was selected only because its state is unknown (or from an earlier day), and no fitting
     bubble shows: done."""
     stale = res.get('stale') or {}
+    from . import where as WH
+    src, here = WH.position(far_ok=False)
+    if src != 'event' or not all(O.on_frame(screen_point(here, tuple(g.nodes[n].extra['pos']))) for n in targets):
+        return False   # she can't see where they are: no conclusion (live D188: 'done' with 7 ready beds away)
     if targets and all(_assumed(world.state_of(g, n), where) or n in stale for n in targets):
         res['stop'] = f'done: no fitting bubble left in view ({len(targets)} with unknown state)'
         return True
@@ -702,7 +769,7 @@ def _loop(g, name, spec, params, save, max_clicks, res):
         if res['stop']:
             break
         skip_names = _skip_names(spec, params)
-        a = None if tid in res.setdefault('visit_off', set()) else _visit(g, tid, kind, res)
+        a = None if tid in res.setdefault('visit_off', set()) else _visit(g, tid, kind, res, t)
         visited = a is not None
         if a is not None and skip_names:   # the crop its icon shows: flowers stay; an unknown icon is asked now
             from . import icons
@@ -718,6 +785,12 @@ def _loop(g, name, spec, params, save, max_clicks, res):
                 res['skip'].append(tid)
                 res['notes'].append(f'{tid}: {crop} stays (flower)')
                 continue
+        blind = None if a is not None or res.get('asked_start') else _blind_near(kind, t, area, res)
+        if blind:
+            res['asked_start'] = True
+            if _bubble_miss(t, area, blind, res):   # recorded; at dusk it stops (icons unreliable)
+                break
+            _ask_start(name, params, kind, t, area, res)
         if a is None:
             a = _reach(g, name, params, t, kind, area, res, _marker(spec, where), skip_names)
         runs = res.pop('card_runs', [])

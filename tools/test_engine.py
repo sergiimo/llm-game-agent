@@ -53,6 +53,7 @@ class FakeGame:
         self.hour, self.minute = 13.0, 0
         self.no_pos, self.steps_needed, self.steps_done = False, 1, 0
         self.light, self.relabel, self.hide_drop = 'day', {}, False   # dusk vision: wrong kinds, no drop
+        self.hide_ready = False   # live D188: a ready bed's "!" not read
         self.flash = []   # a short-lived card (a few seconds): only the burst frames' OCR sees it
         self.paused, self.blank_overlay, self.menu_clicks = False, False, []   # Escape toggles the pause menu
         self.overlay_texts = []
@@ -259,7 +260,7 @@ class FakeGame:
             drop = bool(s.get('wilted')) or (s.get('watered') is False and s.get('stage') in ('growing', 'producing'))
             ready = s['ready'] if 'ready' in s else s.get('stage') == 'produced'
             out.append(Affordance(self.relabel.get(b['bubble']['kind'], b['bubble']['kind']), None, tuple(o['bubble_pt']),
-                                  False, 0.0, drop and not self.hide_drop, bool(ready)))
+                                  False, 0.0, drop and not self.hide_drop, bool(ready) and not self.hide_ready))
         return out
 
     # ---- ui ------------------------------------------------------------------------------------------------------
@@ -2018,7 +2019,10 @@ class OwnerKind(EngineBase):
         p = mock.patch.object(icons, 'name_of', lambda a: 'Honey')
         p.start()
         self.addCleanup(p.stop)
-        engine.achieve('harvest')
+        try:
+            engine.achieve('harvest')
+        except ask.NeedVision:   # the bed is out of view: a question, never a false 'done' (live D188)
+            pass
         self.assertNotIn((960, 450), f.clicks)   # the honey stays: harvest is for beds
 
 
@@ -2264,6 +2268,34 @@ class VisitBeds(EngineBase):
         row = next(l for l in world.status(g, 'GardenBed', today=185) if nid in l)
         self.assertIn('ready=False (card D185 11:20', row)
         self.assertNotIn('CHECK', row)
+
+    def test_without_an_exact_position_vision_gives_the_first_bed_and_its_collect_finishes(self):
+        """Live D188 12:20: no event since her walk, the ready bed's bubble misread as `water`; nav wandered and the
+        engine stopped 'done' with 7 ready beds left. Now: vision's start question, never a false done."""
+        ready = dict(stage='produced', watered=True, wilted=False)
+        f = self.use(GeoGame([obj('b', pos=(NX[1], NZ[0]), **ready), obj('c', pos=(NX[2], NZ[0]), **ready)],
+                             GAME, (NX[1] - 1.0, NZ[0] - 1.5), inventory={'TulipSeed': 2}))
+        f.relabel, f.hide_ready = {'pickup': 'water'}, True   # read as `water`, no "!" (live D188 12:20)
+        with self.assertRaises(ask.NeedVision) as e:
+            engine.achieve('harvest')
+        self.assertIn('orange', str(e.exception))
+        # the misread goes on: after vision's answer the beds go by position (strategy A)
+        self.assertEqual(f.objects['b']['state']['stage'], 'produced')
+        bx, by = f._pt(f.objects['b']['pos'])
+        cell = f'{chr(65 + int(bx // ask.CELL_W))}{int(by // ask.CELL_H) + 1}'
+        res = engine.achieve('harvest', answer=cell)
+        self.assertEqual([f.objects[k]['state']['stage'] for k in 'bc'], ['growing', 'growing'], res)
+        self.assertTrue(res['stop'].startswith('done'), res)
+
+    def test_a_textless_overlay_after_a_walk_is_gameplay_not_an_interaction(self):
+        """Live D188: every garden click read `overlay` with no text (the HUD hides on zoom); nav logged each walk
+        as a surprise interaction and closed the screen."""
+        c = act.Click((700, 600), 'step', 0, mode='overlay', texts=[], moved=True)
+        res = {}
+        self.assertTrue(nav.walked(c, None, res))
+        self.assertEqual(res.get('surprises', []), [])
+        self.assertFalse(act.on_card(c))
+        self.assertTrue(act.on_card(act.Click((700, 600), 'step', 0, mode='overlay', texts=['Collect'])))
 
 
 if __name__ == '__main__':

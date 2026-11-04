@@ -70,17 +70,17 @@ def inside(t, here):
 def walked(c, target=None, res=None):
     """The click got her somewhere: the frames moved, or the event is on the target node (arrived). Counts res['still']."""
     arrived = bool(target and c.node == target)
-    if res is not None and c.mode != 'gameplay' and res.get('on_card') and res['on_card'](c):
+    if res is not None and A.on_card(c) and res.get('on_card') and res['on_card'](c):
         res.setdefault('surprises', []).append(f'nav click @{c.pt[0]},{c.pt[1]} opened {c.texts[:1]}: finished by '
                                                f'the row')
         return True   # the card the row expects was finished by the row (the walk reached the object)
-    if res is not None and (c.mode != 'gameplay' or (c.events and not arrived)):
+    if res is not None and (A.on_card(c) or (c.events and not arrived)):
         # a walk click that interacted (a card, an event): an interaction is a step's job, never a walk's (user D188)
         res.setdefault('surprises', []).append(
             f'nav click @{c.pt[0]},{c.pt[1]} interacted: events {c.events or "-"}, screen {c.mode}'
             f'{" (" + " / ".join(c.texts[:2]) + ")" if c.texts else ""}')
         log('seek', what='surprise', msg=res['surprises'][-1])
-    if c.mode != 'gameplay' or (c.node and not arrived):
+    if A.on_card(c) or (c.node and not arrived):
         A.gameplay()
     ok = arrived or (not c.node and c.moved is True)
     if ok and c.moved and res is not None and res.get('area'):

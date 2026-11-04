@@ -60,13 +60,16 @@ def to_world(pin):
     return ((pin[0] - ox) / s, -(pin[1] - oy) / s)
 
 
-def walked():
-    """A walk click: the event position is stale from now until the next positioned event."""
+def walked(to=None):
+    """A walk click: the event position is stale from now until the next positioned event. `to` = where a short
+    walk to a visible ground point took her (the game pathfinds to the clicked point): good enough to find a bubble
+    by its expected point (engine strategy A), never for navigation."""
     _WALK['mark'] = core.WF.log_mark()
+    _WALK['to'] = [round(to[0], 2), round(to[1], 2)] if to else None
     try:
         os.makedirs(os.path.dirname(WALK), exist_ok=True)
         with open(WALK, 'w') as f:
-            json.dump({'mark': _WALK['mark']}, f)
+            json.dump({'mark': _WALK['mark'], 'to': _WALK['to']}, f)
     except (OSError, TypeError):
         pass
 
@@ -75,7 +78,8 @@ def _walk_mark():
     if 'mark' not in _WALK:
         try:
             with open(WALK) as f:
-                _WALK['mark'] = json.load(f)['mark']
+                d = json.load(f)
+            _WALK['mark'], _WALK['to'] = d['mark'], d.get('to')
         except (OSError, ValueError, KeyError):
             return None
     return _WALK['mark']
@@ -108,12 +112,15 @@ def pin_now():
         return None
 
 
-def position(far_ok=True):
-    """('event' | 'map', (x, z)) or (None, None). The map pin only with `far_ok` (user D187: the map is imprecise -
-    use it only for very-far navigation; near decisions use events and visible objects)."""
+def position(far_ok=True, walk_ok=False):
+    """('event' | 'walk' | 'map', (x, z)) or (None, None). 'walk' (with `walk_ok`) = the end of the last short walk
+    to a visible point. The map pin only with `far_ok` (user D187: the map is imprecise - use it only for very-far
+    navigation; near decisions use events and visible objects)."""
     p = _event_pos()
     if p is not None:
         return 'event', p
+    if walk_ok and _walk_mark() is not None and _WALK.get('to'):
+        return 'walk', tuple(_WALK['to'])
     if not far_ok:
         return None, None
     w = to_world(pin_now())

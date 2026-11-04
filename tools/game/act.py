@@ -125,7 +125,8 @@ def click(pt, what='point', before=None, here=None):
     c.img0 = img0
     c.node = next((n for n in map(OG.node_of_line, lines) if n), None)
     c.at = next((p for p in map(position_of, lines) if p), None)
-    if c.moved and not c.at and mode == 'gameplay':   # she walked and nothing logged where: positions are stale
+    if c.moved and not c.at and not on_card(c):   # she walked, nothing logged where: positions are stale (a textless
+        # overlay is gameplay: live D188 the garden zoom hid the HUD, the mark was never set, an old event looked exact)
         from . import where
         where.walked()
     learned = L.learn_bubble(c, img0)

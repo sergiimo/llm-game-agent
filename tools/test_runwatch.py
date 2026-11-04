@@ -30,6 +30,17 @@ class Rules(unittest.TestCase):
         self.assertEqual([lv for lv, _ in out], ['NOTE'])
         self.assertIn('no bubble', out[0][1])
 
+    def test_arrival_misses_in_a_row_are_a_stop(self):   # live D188 12:31 (S40): 15+ clicks lost, only ALERTs
+        miss = {'type': 'predict', 'component': 'nav', 'what': 'arrive', 'expected': 'GardenBed', 'got': [], 'hit': False}
+        out = self.levels([miss] * RW.MISS_STOP)
+        self.assertEqual([lv for lv, _ in out], ['ALERT'] * (RW.MISS_STOP - 1) + ['STOP'], out)
+        hit = dict(miss, hit=True, got=['pickup @1,1'])
+        self.assertNotIn('STOP', [lv for lv, _ in self.levels([miss] * (RW.MISS_STOP - 1) + [hit, miss])])
+
+    def test_a_lost_trace_is_a_stop(self):
+        out = self.levels([{'type': 'seek', 'what': 'trace', 'msg': 'LOST: 6 walks without an event or a bubble'}])
+        self.assertEqual(out[0][0], 'STOP')
+
     def test_a_click_on_the_pause_menu_is_a_stop(self):   # attempt 4: the game exited
         out = self.levels([click((960, 840), mode='overlay', texts=PAUSED, moved=False)])
         self.assertEqual(out[0][0], 'STOP')

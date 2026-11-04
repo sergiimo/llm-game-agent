@@ -13,6 +13,7 @@ from . import act as A, ask, core, learn as L, nav as N, observe as O, plan, ste
 
 GOALS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'goals.json')
 MAX_CLICKS = 40
+LAST = {}            # the last call's result (also when it ended in a question): for the summary and tests
 FAILS = 3            # failed attempts on one target before it is skipped this call
 
 
@@ -668,6 +669,10 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
                            + f' - {region!r} is not an area')
             return res
         res['lookalike'] = _lookalikes(g)
+        from . import where as WH
+        if len(WH.pairs()) >= 2 and WH.fit() is None:   # the map can't place her: say so, never a silent fallback
+            res['notes'].append(f'map calibration unusable ({len(WH.pairs())} pairs disagree > {WH.MAX_ERR} units): '
+                                f'far navigation has only the map compass')
         if answer is not None:
             _answer(g, name, params, answer, res)
         _loop(g, name, spec, params, save, max_clicks, res)
@@ -687,6 +692,8 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
         except OSError:
             pass
         L.MEMORY['graph'] = None
+        LAST.clear()
+        LAST.update(res)
         _log(res)
 
 

@@ -3,6 +3,7 @@ detailed log"). One short line per click; rules from the live failures D185-D186
 
   STOP  a click while the pause menu is on screen, or a close that leaves it (attempt 4: the game exited)
   STOP  the game process is gone (health check, follow mode)
+  STOP  MISS_STOP arrival misses in a row, or a LOST trace (live D188 12:31: 15+ clicks lost, only ALERTs)
   ALERT a graph step from a look-alike frame node (attempt 2: walked away from the beds she stood at)
   ALERT a prediction miss (attempts 2-3: an empty bed's bubble read as `unplant`)
   ALERT a failed pick_card, an item icon learned under a junk name (attempt 3: 'ılbs')
@@ -21,6 +22,7 @@ import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAUSE = ('game paused', 'пауза')
+MISS_STOP = 4   # arrival misses in a row = she is lost (live D188 12:31, S40): stop the agent
 JUNK = re.compile(r'^[A-Za-z][A-Za-z _]{2,}$')   # an item name: Latin letters, spaces or _ (folder names), 3+ chars
 
 
@@ -50,6 +52,7 @@ class Watch:
     def __init__(self, alive=game_alive):
         self.alive = alive
         self.pending = None   # a `> plant` line waiting for its totalPlanted (logged when the panel opens, D186)
+        self.misses = 0       # arrival misses in a row
 
     def health(self):
         return [] if self.alive() else [('STOP', 'the game process is gone (Wylde Flowers not running)')]
@@ -78,10 +81,16 @@ class Watch:
                            if r.get('here') in LOOKALIKE else ('INFO', msg))
             elif r.get('what') == 'trace':
                 msg = str(r.get('msg'))
-                out.append(('NOTE', msg) if msg.startswith('STUCK') else ('INFO', f'seek: {msg}'))
+                out.append(('STOP', f'{msg}: stop the agent') if msg.startswith('LOST') else
+                           ('NOTE', msg) if msg.startswith('STUCK') else ('INFO', f'seek: {msg}'))
         elif t == 'predict':
             line = f"predict {r.get('component')} {r.get('what')}: expected {r.get('expected')}, got {r.get('got')}"
-            out.append(('INFO', line + ' - hit') if r.get('hit') else ('ALERT', line + ' - MISS'))
+            if r.get('what') == 'arrive':
+                self.misses = 0 if r.get('hit') else self.misses + 1
+            if not r.get('hit') and r.get('what') == 'arrive' and self.misses >= MISS_STOP:
+                out.append(('STOP', f'{line} - MISS #{self.misses} in a row: she is lost, stop the agent'))
+            else:
+                out.append(('INFO', line + ' - hit') if r.get('hit') else ('ALERT', line + ' - MISS'))
         elif t == 'learn' and r.get('what') == 'item_icon' and not JUNK.match(str(r.get('name', ''))):
             out.append(('ALERT', f"an item icon was learned under the name {r.get('name')!r} (not a readable name)"))
         elif t == 'game':

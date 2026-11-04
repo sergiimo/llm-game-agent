@@ -2298,5 +2298,68 @@ class VisitBeds(EngineBase):
         self.assertTrue(act.on_card(act.Click((700, 600), 'step', 0, mode='overlay', texts=['Collect'])))
 
 
+class Lost(EngineBase):
+    """Live D188 12:31 (S40): far from the garden she followed phantom bed detections in the grass for 15+ clicks,
+    the map was used once, nothing measured progress, and an old event position was trusted as exact."""
+    Box = __import__('collections').namedtuple('Box', 'point box kind')
+
+    def lost_game(self):
+        f = self.use(FakeGame([obj('b', pos=(NX[0], NZ[0]), zone='far', bubble=(700, 400), stage='produced',
+                                   watered=True, wilted=False)], GAME))
+        f.step_zone, f.steps_needed = 'nowhere', 99   # every step walks, none arrives
+        return f
+
+    def test_a_walk_under_a_textless_overlay_makes_the_old_position_stale(self):
+        f = self.lost_game()
+        f.log.append(L('9:00:00 AM', 'plant_growing', 'GardenBed', NX[0], NZ[0]))
+        f.blank_overlay = True   # the HUD hides on zoom: mode overlay, no text
+        self.assertEqual(where.position(far_ok=False)[0], 'event')
+        act.click((1300, 540), 'step')
+        self.assertEqual(where.position(far_ok=False), (None, None))
+
+    def test_two_arrival_misses_turn_detections_off_and_the_map_leads(self):
+        f = self.lost_game()
+        maps = []
+        with mock.patch.object(observe, 'see', lambda kind, tried=(): [self.Box((1300, 700), (1250, 650, 1350, 690),
+                                                                                'GardenBed')]), \
+                mock.patch.object(nav, 'map_direction', lambda node: maps.append(node) or (1.0, 0.0)):
+            try:
+                engine.achieve('harvest', max_clicks=12)
+            except ask.NeedVision:
+                pass
+        seen = [c for c in f.clicks if c == nav.beside(self.Box((1300, 700), (1250, 650, 1350, 690), 'GardenBed'), [])]
+        self.assertLessEqual(len(seen), nav.MISS_MAX, f.clicks)
+        self.assertTrue(maps, f.clicks)
+
+    def test_map_steps_that_get_no_closer_on_the_map_are_lost(self):
+        f = self.lost_game()
+
+        def flat_map(node):
+            nav.LAST_MAP.update(pin=(600, 446), goal=(690, 490))   # the pin never moves
+            return (1.0, 0.0)
+        with mock.patch.object(nav, 'map_direction', flat_map), mock.patch.object(nav, 'inside', lambda t, here: False):
+            with self.assertRaises(ask.NeedVision) as e:
+                engine.achieve('harvest', max_clicks=40)
+        self.assertIn('no closer', str(e.exception))
+        self.assertLessEqual(len(f.clicks), nav.MAP_FLAT + 1, f.clicks)
+
+    def test_an_unusable_map_calibration_is_reported(self):
+        self.lost_game()
+        with mock.patch.object(where, 'pairs', lambda: [[[0, 0], [100, 100]], [[10, 0], [900, 100]], [[0, 10], [100, 0]]]):
+            try:
+                res = engine.achieve('harvest', max_clicks=2)
+            except ask.NeedVision:
+                res = None
+        self.assertIn('map calibration', ' '.join(engine.LAST.get('notes', [])))
+
+    def test_walks_without_progress_stop_with_one_question(self):
+        f = self.lost_game()
+        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+            with self.assertRaises(ask.NeedVision) as e:
+                engine.achieve('harvest', max_clicks=40)
+        self.assertIn('LOST', str(e.exception))
+        self.assertLessEqual(len(f.clicks), nav.BLIND_MAX + 1, f.clicks)
+
+
 if __name__ == '__main__':
     unittest.main()

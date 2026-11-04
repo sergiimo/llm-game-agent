@@ -24,6 +24,11 @@ STUCK_CLICKS = 3        # seek clicks in a row that did not move her = stuck (L7
 EXPLORE = [(1, 0), (0.7, 0.7), (0, 1), (-0.7, 0.7), (-1, 0), (-0.7, -0.7), (0, -1), (0.7, -0.7)]
 EXPLORE_R = 300         # px: a free-ground click this far out shows a new part of the region
 FREE_GAP = 110          # px: a free-ground point keeps this far from every bubble and object detection
+MISS_MAX = 2            # arrival misses in a row: the detections are phantoms here (grass read as beds), map leads
+BLIND_MAX = 6           # walk clicks in a row without an event or a bubble of the target kind = lost: stop, ask
+MAP_FLAT = 3            # map readings in a row with the pin no closer to the goal = lost (the map's own progress)
+MAP_GAIN = 5            # px on the map: closer by at least this = progress
+LAST_MAP = {}           # the last map reading: {'pin', 'goal'} (map_direction)
 
 
 @dataclass
@@ -87,11 +92,28 @@ def walked(c, target=None, res=None):
         res['area'] = None   # she walked: the area known from the last event may be left behind
     if res is not None:
         res['still'] = 0 if (ok or c.moved is True) else res.get('still', 0) + 1
+        own = O.NODE_OF.get(target.split('@')[0]) if target else None
+        progress = bool(c.events) or (own is not None and any(O.node_of_bubble(a) == own for a in c.after))
+        res['blind'] = 0 if progress else res.get('blind', 0) + (1 if c.moved else 0)
     return ok
 
 
+def lost(res):
+    """BLIND_MAX walks in a row without an event or a bubble of the target kind (live D188 12:31: 15+ clicks in the
+    wrong part of the farm, nobody noticed): stop clicking, traced once for the question."""
+    if res is None or res.get('blind', 0) < BLIND_MAX:
+        return False
+    if not res.get('lost_traced'):
+        trace(res, f'LOST: {res["blind"]} walks without an event or a bubble of the target kind - which way?')
+        res['lost_traced'] = True
+    return True
+
+
 def stuck(res):
-    """STUCK_CLICKS seek clicks in a row did not move her: stop clicking (traced once for vision)."""
+    """STUCK_CLICKS seek clicks in a row did not move her, or she is lost (BLIND_MAX walks without progress): stop
+    clicking (traced once for vision)."""
+    if lost(res):
+        return True
     if res is None or res.get('still', 0) < STUCK_CLICKS:
         return False
     if not res.get('stuck_traced'):
@@ -200,6 +222,8 @@ def map_direction(region):
     dx, dy = ahead[0] - pin[0], ahead[1] - pin[1]
     n = math.hypot(dx, dy)
     log('seek', what='map', pin=list(pin), goal=list(m.point), score=round(m.score, 2), ahead=list(ahead))
+    LAST_MAP.clear()
+    LAST_MAP.update(pin=tuple(pin), goal=tuple(m.point))
     return None if n < 1 else (dx / n, dy / n)
 
 
@@ -243,7 +267,7 @@ def seek(t, res):
                 return None
     if t.marker and res.get('inside'):   # inside the region the targets are marked (drop, dry soil), not just beds
         return explore(t, res)
-    for det in O.see(t.kind, tried)[:2]:
+    for det in ([] if res.get('no_detect') else O.see(t.kind, tried)[:2]):
         img = core.WF.grab()
         pt = beside(det, O.scan())   # free ground just below the object, never its bubble (user D188)
         if pt is None:
@@ -253,7 +277,10 @@ def seek(t, res):
         c = A.click(pt, 'step')
         res['clicks'] += 1
         tried.append(det.point)
-        _predicted_arrival(t, c)
+        res['misses'] = 0 if _predicted_arrival(t, c) else res.get('misses', 0) + 1
+        if res['misses'] >= MISS_MAX and not res.get('no_detect'):
+            res['no_detect'] = True
+            trace(res, f'{MISS_MAX} arrival misses: the {t.kind} detections here are not {t.kind}s; the map leads')
         ok = walked(c, t.node, res)
         trace(res, f'{t.kind} seen @{det.point[0]},{det.point[1]}: ' + outcome(c, ok, t.node))
         if c.node == t.node and not any(t.fits(a) for a in c.after):   # a bed, but not one this target needs
@@ -270,14 +297,36 @@ def seek(t, res):
             return c
         if stuck(res):
             return None
-    if res.get('inside') or inside(t, here):
+    if (res.get('inside') or inside(t, here)) and not res.get('no_detect'):
         res['inside'] = True
         return explore(t, res)
+    LAST_MAP.clear()
     dd = map_direction(t.region)
     if dd is None:
         trace(res, 'map: no direction')
         return None
+    if not _map_progress(res):
+        return None
     return step(dd, res, 'map', t.node)
+
+
+def _map_progress(res):
+    """A map-led walk is measured on the map: the pin closer to the goal (MAP_GAIN px) = progress (the blind count
+    resets); MAP_FLAT readings without a gain = lost. No reading (a fake, no pin) = trusted."""
+    if not LAST_MAP:
+        res['blind'] = 0
+        return True
+    d = math.dist(LAST_MAP['pin'], LAST_MAP['goal'])
+    best = res.get('map_best')
+    if best is None or d < best - MAP_GAIN:
+        res['map_best'], res['map_flat'], res['blind'] = d, 0, 0
+        return True
+    res['map_flat'] = res.get('map_flat', 0) + 1
+    if res['map_flat'] >= MAP_FLAT:
+        trace(res, f'LOST: the map pin is no closer to the goal after {MAP_FLAT} readings ({d:.0f} px) - which way?')
+        res['lost_traced'] = True
+        return False
+    return True
 
 
 def _predicted_arrival(t, c):

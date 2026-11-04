@@ -103,11 +103,13 @@ its `run end`: wait for its task notification (retro 2026-10-28: my Escapes foug
 Never let a child run the game blind. For every dispatch that touches the game:
 1. **Start the watcher before the child:** Monitor tool on `.venv/bin/python tools/runwatch.py --follow` (the open run).
    It prints one line per click (what, point, walked/still, events, screen, bubbles) and flags rules from the live
-   failures: **STOP** = a click or close with the pause menu on screen, the game process gone; **ALERT** = a graph step
+   failures: **STOP** = a click or close with the pause menu on screen, the game process gone, 4 arrival misses in a row
+   or a `LOST` trace (no progress: live D188 S40, 15+ clicks lost under ALERTs only); **ALERT** = a graph step
    from a look-alike node, a prediction miss, a failed `pick_card`, a junk icon name, an engine stop that isn't done;
    **NOTE** = `> plant` without `totalPlanted`, STUCK, every vision question.
 2. **STOP → `TaskStop` the child at once**, then `./wf pause` only if the game is running and not on a menu. **ALERT →**
-   Read the click's saved frame (`<run>/clicks/`) yourself and decide (continue / stop / fix).
+   Read the click's saved frame (`<run>/clicks/`) yourself and decide (continue / stop / fix). **Two ALERTs of the same
+   kind in a row → Read the newest frame at once** (S40: the frame showed her by the river, far from the garden).
 3. **Gated steps:** the child makes ONE `./wf achieve` call per dispatch and returns its summary line; you read the
    watcher lines and decide the next instruction (continue via SendMessage). A `NEED_VISION` answer comes back to you
    with the image path before it is used: check the image yourself. **Every vision click (yours too) goes through the

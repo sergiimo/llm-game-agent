@@ -12,7 +12,8 @@ It is not one giant vision model clicking pixels. It is a hybrid AI system with:
 - local perception from NumPy, OCR, tracking and pretrained vision embeddings;
 - a persistent world graph and a learned transition model;
 - an LLM/VLM used at uncertainty boundaries rather than on every frame;
-- an outer agentic code factory that turns live failures into tests, patches and another measured run.
+- one evidence-driven improvement loop that can update state, learn new knowledge or escalate a systemic gap into a
+  tested code change.
 
 <p align="center">
   <img src="docs/media/quest-1.gif" width="720" alt="An agent moving through a 3D town, entering a shop and talking to a character"><br>
@@ -22,74 +23,57 @@ It is not one giant vision model clicking pixels. It is a hybrid AI system with:
 
 ---
 
-## Three nested feedback loops
+## One recursive improvement loop
 
-The central architectural decision is to separate intelligence by timescale.
+The system has one loop, closed around evidence:
+
+**goal → observe → predict and plan → act → verify → improve → repeat**
 
 ```mermaid
-flowchart TB
-    subgraph EXEC["1 · Execution loop — seconds"]
-        O["observe"] --> P["predict / plan"]
-        P --> A["act"]
-        A --> V["verify from the application"]
-        V --> O
-    end
-
-    subgraph LEARN["2 · Learning loop — a task"]
-        D["prediction disagrees with evidence"] --> C["capture the informative case"]
-        C --> M["update vectors, graph or transitions"]
-        M --> R["retry / measure"]
-    end
-
-    subgraph EVOLVE["3 · Code-evolution loop — a run"]
-        F["live failure"] --> T["reproducible test"]
-        T --> X["agent writes the smallest patch"]
-        X --> G["offline suite + live gate"]
-        G --> B["benchmark, docs, commit"]
-    end
-
-    V -- "surprise" --> D
-    R -- "systemic failure" --> F
-    B -- "new implementation" --> O
+flowchart LR
+    G["goal"] --> O["observe"]
+    O --> P["predict / plan"]
+    P --> A["act once"]
+    A --> V["verify from application evidence"]
+    V --> D{"smallest sufficient correction"}
+    D -->|"current fact"| S["update world state"]
+    D -->|"unknown appearance"| M["add a vector example"]
+    D -->|"missing behavior"| T["add or revise a transition"]
+    D -->|"missing capability"| C["fixture · patch · test · gate"]
+    S --> O
+    M --> O
+    T --> O
+    C --> O
 ```
 
-### 1. Execution loop
+Execution, learning and code evolution are not separate machines. They are correction depths inside the same loop:
 
-The fast loop is closed around evidence:
+| Evidence says… | Smallest correction | Commit point |
+|---|---|---|
+| The world changed | Update object or agent state in the graph | Immediately, from proof |
+| Perception did not recognise something | Store a labelled vector example or relation | Immediately or after agreement |
+| The system did not know what an action does | Add or revise a checked transition | After repeated evidence |
+| The implementation cannot represent or solve the case | Reproduce it, patch the responsible layer and run gates | Offline, under supervisor control |
 
-**observe → plan → act → verify**
+Routine perception is local and cheap. The controller acts once and captures the before/after frames, bubbles,
+movement, screen text and new log lines. The application log and decoded save determine whether the prediction was
+right. Missing or contradictory evidence stops the action instead of being replaced with a plausible explanation.
 
-Routine perception is local and cheap. The controller acts once, captures the result immediately, and changes its
-world state only when the game proves the expected outcome. If evidence is missing or contradictory, it stops instead
-of inventing an explanation.
-
-### 2. Learning loop
-
-The runtime stores information where it was wrong or uncertain:
+The loop preserves the informative cases:
 
 - an unknown prompt becomes a labelled vector example after the game event names its action;
 - a clicked object can be relabelled when the event proves its real kind;
 - a model answer can name a previously unknown crop icon or state;
 - repeated observations can add or revise a transition;
-- successful movement teaches a relation between graph nodes.
+- successful movement can teach a relation between graph nodes;
+- a systemic failure becomes a fixture, a minimal patch and another measured run.
 
-Correct, familiar cases are mostly discarded. Disagreements carry the useful information.
+Correct, familiar cases mostly pass through. Disagreements decide how deeply the system must change.
 
-### 3. Code-evolution loop
-
-Some failures are not missing data; they expose a wrong abstraction or algorithm. Those enter an outer loop:
-
-1. Every task starts from a reviewed plan with explicit signals, budgets and stop conditions.
-2. Every click records the before/after frames, bubbles, movement, screen text and new engine-log lines.
-3. A live watcher raises STOP or ALERT at the first unsafe click, prediction miss or broken expectation.
-4. The run artifact preserves the exact evidence; benchmark reports also record the toolkit revision.
-5. A coding agent turns the failure into a failing offline test.
-6. The agent changes code, data or documentation at the smallest responsible layer.
-7. Offline tests run before one-object live smoke tests and repeatable benchmarks.
-8. Only verified changes are committed; the new behavior becomes the next runtime.
-
-This is **agent-assisted self-evolution**, not uncontrolled hot-patching. The gameplay process never rewrites its own
-code during an action. Code changes pass tests and live gates under supervisor control.
+The final correction depth is **agent-assisted self-evolution**, not uncontrolled hot-patching. Gameplay never
+rewrites its own code during an action. It emits the same evidence record used by the earlier correction depths; a
+coding agent consumes that record offline, and code changes pass tests, live gates and benchmarks before becoming the
+next runtime.
 
 ---
 
@@ -216,22 +200,15 @@ cleanup, so diagnosis starts from evidence rather than from the agent’s story 
 
 ---
 
-## The code factory
+## The deepest correction: changing code
 
-The repository is also the production line for the next version of the agent:
+When state, visual memory and transition knowledge cannot express the fix, the same improvement loop escalates its
+evidence into the repository's code factory:
 
-```mermaid
-flowchart LR
-    LIVE["live run"] --> ART["plan · events · click frames · predictions"]
-    ART --> WATCH["watcher / retrospective"]
-    WATCH --> TEST["minimal failing test"]
-    TEST --> PATCH["code, data or docs patch"]
-    PATCH --> OFF["offline suite"]
-    OFF --> SMOKE["live smoke test"]
-    SMOKE --> BENCH["benchmark / comparison"]
-    BENCH --> RELEASE["commit + shared knowledge"]
-    RELEASE --> LIVE
-```
+**live discrepancy → preserved experience → minimal failing fixture → patch → offline suite → live gate → benchmark → next runtime**
+
+The captured experience contains the goal, prediction, action, application evidence, discrepancy and frame artifacts.
+That makes the failure replayable and keeps the code change causally connected to what actually happened.
 
 The hierarchy separates responsibilities:
 
@@ -244,6 +221,9 @@ The hierarchy separates responsibilities:
 
 Run logs, retrospectives and benchmarks make evolution measurable. A fix is not “better” because an agent says so; it
 must remove a reproduced failure without regressing the existing corpus.
+
+The proposed code refactor that gives all correction depths one evidence protocol is documented in
+[Unified improvement loop refactor](docs/superpowers/specs/2026-11-04-unified-improvement-loop-refactor.md).
 
 ---
 

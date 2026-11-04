@@ -91,7 +91,7 @@ def _work(name, job, pt, res):
     """Walk to the answered point (a click on it), then click the bubble at her until the proof or max_hits."""
     W = core.WF
     mark = W.log_mark()
-    c = A.click(pt, 'point')
+    c = A.click(pt, 'point', wait_event=True)   # a hard case: the log says what the answered cell was
     res['clicks'] += 1
     what, obj = _proof(job, c.lines)
     hits = 0

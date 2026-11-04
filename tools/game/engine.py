@@ -571,7 +571,7 @@ def _answer(g, name, params, answer, res):
             pt = ask.parse_point(answer)
         except ValueError as e:
             raise core.Failed(f'answer rejected: {e}. Answer a grid cell A1-X16, or none') from None
-        c = A.click(pt, 'point', here=res.get('area'))
+        c = A.click(pt, 'point', here=res.get('area'), wait_event=True)   # a hard case: its log line says what it hit
         res['clicks'] += 1
         if pend.get('path_cell') and c.moved and not c.events and c.exp:   # she walked onto it: a Path look
             hx, hy = L.ANSWER_BOX
@@ -715,7 +715,8 @@ def _explore(g, tid, kind, area, where, name, params, res, working, make):
         if res['stop'] or _only_maybes(g, listed, where, res):
             return 'stop'
         _ask_click(name, params, f'a {kind} (no known action yet)', area, res, settle=_in_view(g, listed))
-    row = {'id': 'explore', 'kind': kind, 'when': {}, 'bubble': {}, 'steps': [{'do': 'click_bubble'}], 'effect': {}}
+    row = {'id': 'explore', 'kind': kind, 'when': {}, 'bubble': {}, 'effect': {},   # a hard case: wait for its line
+           'steps': [{'do': 'click_bubble', 'expect': {'events': '?'}}]}         # ('?' = observe what comes)
     out = steps.run(row, {}, a)
     res['clicks'] += out['clicks']
     nid = _learn(g, out, kind, row, res)

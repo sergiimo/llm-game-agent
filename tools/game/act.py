@@ -16,7 +16,6 @@ ON_CLICK = None            # the improvement loop's boundary (integrate.on_click
 BURST = (0.0, 0.5, 1.5)    # s after the click: frames that catch short-lived text and bubble changes
 EVENT_WAIT = 2.5           # s more for a late log line (D149: `> water` came after ~3 s)
 EVENT = re.compile(r'> (\w+)(?:\s|$)')
-INTERACT = ('bubble', 'point', 'object')   # clicks that interact (their event can come late); walks log nothing
 SHOTS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.shots')
 
 
@@ -111,7 +110,7 @@ def _not_paused(W):
     screen.require_world()
 
 
-def click(pt, what='point', before=None, here=None, predict=None, goal=None, context=None):
+def click(pt, what='point', before=None, here=None, predict=None, goal=None, context=None, wait_event=None):
     """Click `pt` and record everything it did; the boundary (ON_CLICK) turns it into an experience and learns from it.
     `predict` / `goal` / `context`: what the caller expects and knows (they go into the experience). Returns a Click."""
     W = core.WF
@@ -126,7 +125,9 @@ def click(pt, what='point', before=None, here=None, predict=None, goal=None, con
         time.sleep(max(0.0, t0 + t - time.monotonic()))
         imgs.append(W.grab())
     W.wait_settle()
-    if what in INTERACT and not core.seen(EVENT.pattern, mark, 0):   # a walk logs nothing: no 2.5 s wait (D189 speed)
+    if wait_event is None:   # wait only for what the step expects (user D189: "remove it, keep manual for hard cases")
+        wait_event = bool((predict or {}).get('events'))
+    if wait_event and not core.seen(EVENT.pattern, mark, 0):   # a late log line (D149: `> water` ~3 s after)
         core.seen(EVENT.pattern, mark, EVENT_WAIT)
     lines = core.log_text(mark).splitlines()
     mode, ts = O.texts()

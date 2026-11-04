@@ -3029,5 +3029,25 @@ class PauseWhileAsking(EngineBase):
         self.assertEqual(calls, [])
 
 
+class EventWait(EngineBase):
+    """User D189: "so remove it, keep manual for hard cases": a click waits for a log line only when asked - a step
+    expecting events (water) or a hard case by hand (a vision answer); never a card click (Collect) or a walk."""
+
+    def waits(self, **kw):
+        self.use(FakeGame([], GAME))
+        calls = []
+        with mock.patch.object(core, 'seen', lambda pat, mark, wait: calls.append(wait) or False):
+            act.click((700, 600), **kw)
+        return calls
+
+    def test_a_card_click_and_a_walk_never_wait(self):
+        self.assertEqual(self.waits(what='bubble', predict={'card': 'Collect'}), [])
+        self.assertEqual(self.waits(what='step'), [])
+
+    def test_an_events_click_and_a_hard_case_wait(self):
+        self.assertTrue(self.waits(what='bubble', predict={'events': ['water']}))
+        self.assertTrue(self.waits(what='point', wait_event=True))
+
+
 if __name__ == '__main__':
     unittest.main()

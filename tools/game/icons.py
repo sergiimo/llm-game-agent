@@ -144,6 +144,14 @@ def name_of(a):
         return None
 
 
+def save_bubble(a):
+    """The bubble's 140-px crop around its disc (wave 1's input), saved for a vision question; the path."""
+    os.makedirs(DIR, exist_ok=True)
+    p = os.path.join(DIR, f'_ask140-{time.strftime("%H%M%S")}.png')
+    bubble140(core.WF.grab(), a.pt).convert('RGB').save(p)
+    return p
+
+
 def save_crop(a):
     """The bubble's icon saved for a vision question; the path."""
     os.makedirs(DIR, exist_ok=True)

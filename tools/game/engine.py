@@ -520,10 +520,7 @@ def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
         return None
     if a is None and res.get('icon_unknown') is not None:   # a ready bubble whose crop nobody knows: ask, never guess
         from . import icons
-        b = res['icon_unknown']
-        path = icons.save_crop(b)
-        ask.ask('name', f'Which crop does the bubble at {b.pt[0]},{b.pt[1]} show (its icon)? Answer the crop name, '
-                        f'e.g. Green Bean, Carrot or Tulip.', {'goal': name, 'params': params, 'crop_icon': path}, res)
+        _ask_bubble(res['icon_unknown'], name, params, res)
     if a is not None and expect:
         try:
             import evals
@@ -538,6 +535,19 @@ def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
                         f'in {", ".join(areas)}. Which area is she in? Answer area=<one of {", ".join(areas)}>.',
                 {'goal': name, 'params': params, 'area_question': True}, res)
     return a
+
+
+def _ask_bubble(b, name, params, res):
+    """An unknown bubble in the scan (wave 2 can't name the icon, wave 1 may not read the badge): ONE question for
+    both, at once (user D189: "ask vision to fill the gaps the moment we run the scan and see unknown bubbles"). The
+    answer fills the icon memory and the badge store."""
+    from . import icons
+    path = icons.save_crop(b)
+    p140 = icons.save_bubble(b)
+    ask.ask('name', f'The bubble at {b.pt[0]},{b.pt[1]}: what does its icon show, and what is in its top-right corner? '
+                    f'Answer "<icon>, <corner>": the icon = the crop name (Green Bean, Carrot, Tulip...) or what it '
+                    f'is (Seedling, Honey, Watering Can...); the corner = ready (an orange "!"), drop (a water drop) '
+                    f'or none.', {'goal': name, 'params': params, 'crop_icon': path, 'bubble140': p140}, res)
 
 
 def _ask_click(name, params, what, area, res, row=None, settle=()):
@@ -688,10 +698,16 @@ def _answer_name(g, pend, answer, res):
     if pend.get('map_dir'):   # vision read the map's roads: walk that way (the graph learns it when it gets closer)
         N.walk_way(answer, pend, res)
         return
-    if pend.get('crop_icon'):   # vision named a crop icon: store it, the next bubble like it is known
-        from . import icons
-        if icons.learn_file(pend['crop_icon'], str(answer).strip()):
-            res['learned'].append(f'crop icon: {answer}')
+    if pend.get('crop_icon'):   # vision named the bubble: its icon (wave 2) and its corner (wave 1) are stored
+        from . import badges, icons
+        icon, _, corner = str(answer).partition(',')
+        icon, corner = icon.strip(), corner.strip().lower()
+        if icon and icons.learn_file(pend['crop_icon'], icon):
+            res['learned'].append(f'icon: {icon}')
+        if corner in badges.LABELS and pend.get('bubble140') and os.path.exists(pend['bubble140']):
+            from PIL import Image
+            badges.add(corner, Image.open(pend['bubble140']).convert('RGB'), f'vision: {answer}')
+            res['learned'].append(f'badge: {corner}')
         return
     if pend.get('area_question') or str(answer).strip().startswith('area='):
         a = str(answer).split('=', 1)[-1].strip()
@@ -968,10 +984,7 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             from . import icons
             crop = icons.name_of(a)
             if crop is None:
-                path = icons.save_crop(a)
-                ask.ask('name', f'Which crop does the bubble at {a.pt[0]},{a.pt[1]} show (its icon)? Answer the crop '
-                                f'name, e.g. Green Bean, Carrot or Tulip.',
-                        {'goal': name, 'params': params, 'crop_icon': path}, res)
+                _ask_bubble(a, name, params, res)
             res.setdefault('icon_of', {})[tuple(a.pt)] = crop
             if crop in skip_names:
                 g.set_state(tid, 'crop', crop, _stamp(), 'icon')

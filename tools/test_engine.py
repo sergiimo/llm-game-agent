@@ -3078,5 +3078,27 @@ class SafeWalks(EngineBase):
         self.assertFalse(engine.red_flag(act.Click((1, 1), 'step', 0, events=['complete']), {'allowed_events': set()}))
 
 
+class UnknownBubbles(EngineBase):
+    """User D189: "we should ask vision to fill the gaps the moment we run the scan and see unknown bubbles": an icon
+    wave 2 can't name and a badge wave 1 can't read are asked about at once, and the answer fills both stores."""
+
+    def test_an_unknown_bubble_is_asked_before_any_click_and_the_answer_fills_both_stores(self):
+        b = obj('b', pos=(NX[0], NZ[0]), bubble=(700, 400), stage='produced', watered=True, wilted=False)
+        f = self.use(FakeGame([b], GAME))   # the fake's bubbles carry no icon/badge: both unknown
+        with self.assertRaises(ask.NeedVision) as e:
+            engine.achieve('harvest')
+        self.assertIn('700,400', str(e.exception))
+        self.assertEqual(f.clicks, [])
+        learned = []
+        with mock.patch.object(icons, 'learn_file', lambda path, name: learned.append(('icon', name)) or True), \
+                mock.patch.object(badges, 'add', lambda label, crop, src: learned.append(('badge', label))):
+            try:
+                engine.achieve('harvest', answer='Green Bean, ready')
+            except ask.NeedVision:
+                pass
+        self.assertIn(('icon', 'Green Bean'), learned)
+        self.assertIn(('badge', 'ready'), learned)
+
+
 if __name__ == '__main__':
     unittest.main()

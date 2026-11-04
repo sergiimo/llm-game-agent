@@ -198,9 +198,9 @@
     "watered": false
    },
    "source": "seed: game D150; live D188: the ready bubble is the crop icon + \"!\" (read as plant_growing +ready), not 'pickup'; user D188: the click opens a Collect prompt, Space confirms it",
-   "seen": 1,
+   "seen": 2,
    "ok": 0,
-   "surprises": 1
+   "surprises": 2
   },
   {
    "id": "info_growing",

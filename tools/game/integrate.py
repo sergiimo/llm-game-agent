@@ -23,6 +23,7 @@ from . import act as A, core, experience as X, observe as O
 
 JOURNAL_DIR = None     # None = the open run's dir, else act.SHOTS (tests: a temp dir)
 GAP_REPEAT = 2         # the same unresolved check failing this many times = a gap bundle
+CARD_WAIT = 3.0        # s an expected card gets to show after the action (live D189: Collect came late)
 _APPLIED = {}          # journal dir -> set of applied update keys (cache of applied.txt)
 _RESOLVED = set()      # experience ids a later rule explained (an info card, another row's card): never a gap
 
@@ -127,6 +128,10 @@ def verify(expect, lines, events, card=None):
         elif fld == 'card':
             got = card if card is not None else _card()
             ok = want.lower() in got.lower()
+            if not ok and card is None:   # it may show a moment later (she walks to the bed first, live D189)
+                from . import ui
+                if ui.shows(want, wait=CARD_WAIT):
+                    got, ok = _card(), True
         elif fld == 'log':
             got = next((l for l in lines if re.search(want, l)), None)
             ok = got is not None

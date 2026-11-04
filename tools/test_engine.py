@@ -2682,5 +2682,20 @@ class PathSteps(MapWay):
         self.assertIn('Path', stored)
 
 
+class ButtonAnswers(EngineBase):
+    """Live D189: a late Collect prompt nearly turned a vision `button` answer into a rewrite of the pick row's
+    click_bubble step. A click step is never overwritten: the answered button goes in after it."""
+
+    def test_a_button_answer_after_a_click_step_is_inserted_not_a_rewrite(self):
+        self.use(FakeGame([], GAME))
+        ask.save_state({'goal': 'harvest', 'asks': 1, 'history': [], 'pending': {'kind': 'button', 'goal': 'harvest',
+                                                                                   'row': 'pick', 'step': 0}})
+        res = {'learned': [], 'clicks': 0}
+        engine._answer(self.graph(), 'harvest', {}, 'space', res)
+        steps_ = next(r for r in plan.rows() if r['id'] == 'pick')['steps']
+        self.assertEqual(steps_[0]['do'], 'click_bubble')
+        self.assertEqual(steps_[1]['do'], 'press_space')
+
+
 if __name__ == '__main__':
     unittest.main()

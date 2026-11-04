@@ -494,8 +494,14 @@ def _answer(g, name, params, answer, res):
         rs = plan.rows()
         for r in rs:
             if r['id'] == pend.get('row') and pend.get('step') is not None:
-                r['steps'][pend['step']] = button_step(answer, r['steps'][pend['step']])
-                r['source'] = f'{r["source"]}; step {pend["step"]} from vision ({answer})'
+                i, old = pend['step'], r['steps'][pend['step']]
+                if old['do'] in ('click_bubble', 'click_object'):   # the click happened: the button comes after it
+                    new = button_step(answer, {})
+                    r['steps'].insert(i + 1, new)   # (live D189: never rewrite the click step itself)
+                    r['source'] = f'{r["source"]}; step {i + 1} inserted from vision ({answer})'
+                else:
+                    r['steps'][i] = button_step(answer, old)
+                    r['source'] = f'{r["source"]}; step {i} from vision ({answer})'
         plan.save_rows(rs)
         res['learned'].append(f'{pend.get("row")}[{pend.get("step")}] press {answer}')
     else:

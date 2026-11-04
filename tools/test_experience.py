@@ -155,5 +155,26 @@ class Safety(unittest.TestCase):
                 self.assertNotRegex(src, r'git\s+apply|git\s+commit|patch\s+-p|apply_patch', f)
 
 
+class LateCard(unittest.TestCase):
+    """Live D189 7:11: the Collect prompt showed after the check had read an empty screen -> a false miss and a
+    button question that would have rewritten the pick row's click step."""
+
+    def test_an_expected_card_that_shows_late_is_a_hit(self):
+        from game import ui
+        seq = iter([[], ['Collect']])
+        with mock.patch.object(ui, 'texts', lambda: next(seq, ['Collect'])), \
+                mock.patch.object(ui, 'shows', lambda word, wait=2.0: True):
+            checks, bad = I.verify({'card': 'Collect'}, [], [])
+        self.assertEqual(bad, [])
+        self.assertTrue(checks[0].ok)
+
+    def test_a_card_that_never_shows_is_still_a_miss(self):
+        from game import ui
+        with mock.patch.object(ui, 'texts', lambda: ['Seeds']), \
+                mock.patch.object(ui, 'shows', lambda word, wait=2.0: False):
+            _, bad = I.verify({'card': 'Collect'}, [], [])
+        self.assertEqual(bad[0][0], 'card')
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -102,12 +102,17 @@ class FakeGame:
         self.zone, self.walk_frames = zone, 1
 
     # ---- WF API --------------------------------------------------------------------------------------------------
+    _FRAMES = {}
+
     def grab(self):
+        """Real-size frames (cached): a walk makes the next frame differ."""
         from PIL import Image
+        v = 0 if self.walk_frames else 200
         if self.walk_frames:
             self.walk_frames -= 1
-            return Image.new('L', (8, 8), 0)
-        return Image.new('L', (8, 8), 200)
+        if v not in FakeGame._FRAMES:
+            FakeGame._FRAMES[v] = Image.new('L', (1920, 1080), v)
+        return FakeGame._FRAMES[v]
 
     def log_mark(self):
         return len(self.log)

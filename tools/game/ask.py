@@ -82,26 +82,37 @@ def parse_point(ans):
 
 
 # ---- cross-call state ----------------------------------------------------------------------------------------------
-def load_state(goal, path=None):
+def _all(path=None):
     try:
         with open(path or STATE) as fh:
             s = json.load(fh)
     except (OSError, ValueError):
-        s = {}
-    return s if s.get('goal', s.get('task')) == goal else {'goal': goal, 'asks': 0, 'history': []}
+        return {}
+    if 'goal' in s or 'task' in s:   # the old single-goal file: one entry
+        return {s.get('goal', s.get('task')): s}
+    return s
+
+
+def load_state(goal, path=None):
+    """This goal's question state (vision counter, history, trace, pending): kept per goal, so progress on one goal
+    never erases another goal's pending question (D188)."""
+    st = _all(path).get(str(goal))
+    return st if st else {'goal': goal, 'asks': 0, 'history': []}
 
 
 def save_state(s, path=None):
     try:
+        allst = _all(path)
+        allst[str(s.get('goal', s.get('task')))] = s
         os.makedirs(os.path.dirname(path or STATE), exist_ok=True)
         with open(path or STATE, 'w') as fh:
-            json.dump(s, fh)
+            json.dump(allst, fh)
     except OSError:
         pass
 
 
 def progress(goal):
-    """Progress resets the vision counter (and drops a pending question)."""
+    """Progress resets the vision counter (and drops this goal's pending question)."""
     save_state({'goal': goal, 'asks': 0, 'history': []})
 
 

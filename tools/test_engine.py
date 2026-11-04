@@ -343,6 +343,7 @@ class Base(unittest.TestCase):
         where._WALK.clear()
         self.addCleanup(where._WALK.clear)
         ps = [mock.patch.object(learn, 'GRAPH', g),
+              mock.patch.object(ask, 'STATE', os.path.join(self.tmp.name, 'ask-state.json')),   # never the real one
               mock.patch.object(where, 'WALK', os.path.join(self.tmp.name, 'where-walk.json')),
               mock.patch.object(act, 'BURST', (0.0, 0.0)), mock.patch.object(act, 'EVENT_WAIT', 0.0),
               mock.patch.object(observe, 'see', lambda kind, tried=(): []),
@@ -652,6 +653,13 @@ class Ask(Base):
         msg = str(cm.exception)
         self.assertIn('./wf achieve plant seed=Tulip region=GardenSouth answer=', msg)
         self.assertNotIn('_all(', msg)
+
+    def test_progress_on_another_goal_keeps_this_goals_question(self):
+        """Live D188: progress of plant_garden erased harvest's pending crop question (one shared state)."""
+        with self.assertRaises(NeedVision):
+            ask.ask('name', 'which crop?', dict(self.pending(), goal='harvest'), {'goal': 'harvest', 'vision': 0})
+        ask.progress('plant_garden')
+        self.assertEqual(ask.take_answer('harvest')['goal'], 'harvest')
 
     def test_stuck_after_max_asks_without_progress(self):
         for _ in range(ask.MAX_ASKS):

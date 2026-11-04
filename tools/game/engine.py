@@ -9,7 +9,7 @@ import json
 import math
 import os
 
-from . import act as A, ask, core, learn as L, nav as N, observe as O, plan, steps, world
+from . import act as A, ask, core, integrate as I, learn as L, nav as N, observe as O, plan, steps, world
 
 GOALS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'goals.json')
 MAX_CLICKS = 40
@@ -181,20 +181,12 @@ def _really_missing(save, item, out):
 
 
 def _learn(g, out, kind, row, res):
-    """A run's events -> the world (by position); stored card values; where she is now. The object id or None."""
-    nid = None
+    """A row run's proven facts -> the world, through the improvement loop's boundary (integrate.world_facts: by
+    position, card values, Tara's can; the nodes keep the experience ids). The object id or None."""
+    from . import integrate as I
+    nid, area = I.world_facts(g, out, kind, row, _stamp())
     if out['at']:
-        nid = world.place(g, out['kind'] or kind, out['at'], out['events'], stamp=_stamp(),
-                          params=row.get('params'), lines=out['lines'])
-        res['area'] = world.area_of(g, nid)
-    for k, v in out['stored'].items():
-        if nid and v:
-            g.set_state(nid, k, v, _stamp(), 'card')
-    if not out['at']:   # an event without a position (Tara's can): its effects still count
-        for ev in out['events']:
-            for k, v in plan.effects_of_event(ev).items():
-                if k.startswith('Tara.') and 'Tara' in g.nodes:
-                    g.set_state('Tara', k.split('.', 1)[1], v, _stamp(), 'event')
+        res['area'] = area
     return nid
 
 
@@ -688,6 +680,10 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
         except Exception:   # noqa: BLE001 (the table never breaks play)
             pass
         try:
+            res['gaps'] = I.settle()   # repeated unresolved misses -> gap bundles (offline code factory)
+        except Exception:   # noqa: BLE001
+            res['gaps'] = []
+        try:
             g.save(L.graph_path())
         except OSError:
             pass
@@ -831,17 +827,24 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             elif L.card_state(str(out.get('screen') or '').split(' / ')):
                 L.save_truth(out['img0'], out.get('bubble_pt'), f'{t["id"]}: {out.get("screen")}', ready=False)
         if not out['ok'] and _evidence(g, nid or tid, kind, t, out, res):
+            for x in out.get('exps') or ():
+                I.resolved(x)   # another row's card explained the miss: no gap
             A.gameplay()
             res['btried'].append(a.pt)
             continue
         info = L.card_state(str(out.get('screen') or '').split(' / ')) if not out['ok'] else {}
         if info:   # the click showed the object's info card (2 days remaining): evidence, not a prompt - no question
+            for x in out.get('exps') or ():
+                I.resolved(x)
             res['surprises'].append(f'{t["id"]}: the bubble led to its info card {info} (not what the row expects)')
             A.gameplay()
             res['btried'].append(a.pt)
             continue
         if not out['ok'] and (out.get('why') or out.get('screen')) and not _really_missing(save, item, out):
             st = t['steps'][out['failed_step']]
+            I.gap(out.get('exps') or [], f'row {t["id"]} step {out["failed_step"]} ({st["do"]} {st.get("arg", "")}): '
+                                        f'no step the table knows moves this screen on ({out.get("screen") or "?"})',
+                  'table')   # the table can't represent the next step: a capability gap for the code factory
             ask.ask('button', f'Goal {name}: step {out["failed_step"]} of "{t["id"]}" ({st["do"]} {st.get("arg", "")}) '
                               f'did not work ({str(out.get("why") or out["surprises"])[:120]}). On screen: '
                               f'{out.get("screen") or "?"}. '

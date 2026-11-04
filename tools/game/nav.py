@@ -139,14 +139,13 @@ def step(direction, res=None, label='step', target=None, learn=None):
             pt = (int(O.CENTRE[0] + x * r), int(O.CENTRE[1] + y * r))
             if O.hud(pt):
                 continue
-            c = A.click(pt, 'step')
+            ctx = {'toward': [learn[0], learn[1], [x, y]], 'target': target} if learn else None
+            c = A.click(pt, 'step', context=ctx)   # the boundary learns a direction that reached the target
             if res is not None:
                 res['clicks'] = res.get('clicks', 0) + 1
             ok = walked(c, target, res)
             trace(res, f'{label} @{pt[0]},{pt[1]}: ' + outcome(c, ok, target))
             if ok:
-                if learn and (c.node == target or O.closest_node(c.after) == target):
-                    L.learn_toward(learn[0], learn[1], (x, y))
                 return c
             if stuck(res):
                 return None
@@ -268,13 +267,13 @@ def seek(t, res):
     if t.marker and res.get('inside'):   # inside the region the targets are marked (drop, dry soil), not just beds
         return explore(t, res)
     for det in ([] if res.get('no_detect') else O.see(t.kind, tried)[:2]):
-        img = core.WF.grab()
         pt = beside(det, O.scan())   # free ground just below the object, never its bubble (user D188)
         if pt is None:
             tried.append(det.point)
             trace(res, f'{t.kind} seen @{det.point[0]},{det.point[1]}: no free ground beside it')
             continue
-        c = A.click(pt, 'step')
+        box = getattr(det, 'box', None)
+        c = A.click(pt, 'step', context={'det_box': list(box) if box else None, 'det_kind': t.kind, 'target': t.node})
         res['clicks'] += 1
         tried.append(det.point)
         res['misses'] = 0 if _predicted_arrival(t, c) else res.get('misses', 0) + 1
@@ -290,9 +289,8 @@ def seek(t, res):
             if stuck(res):
                 return None
             continue
-        if c.node and c.node != t.node:   # the game proved it is another object: learn its look as that kind
-            if L.relabel(img, getattr(det, 'box', None), L.kind_of(c.node)):
-                trace(res, f'learned: the look @{det.point[0]},{det.point[1]} is a {L.kind_of(c.node)}')
+        if c.node and c.node != t.node and str(c.learned or '').startswith('look:'):   # the boundary relabelled it
+            trace(res, f'learned: the look @{det.point[0]},{det.point[1]} is a {c.learned[5:]}')
         if ok or c.node:   # walked / arrived, or another node took it: the event tells where she is
             return c
         if stuck(res):
@@ -337,7 +335,7 @@ def _predicted_arrival(t, c):
     got = c.node or [str(a) for a in c.after][:4]
     try:
         import evals
-        evals.record('nav', 'arrive', t.kind, got, hit, {'pt': list(c.pt), 'target': t.node})
+        evals.record('nav', 'arrive', t.kind, got, hit, {'pt': list(c.pt), 'target': t.node, 'exp': c.exp})
     except Exception:   # noqa: BLE001 (scoring never breaks play)
         pass
     log('predict', component='nav', what='arrive', expected=t.kind, got=got, hit=hit, pt=list(c.pt))

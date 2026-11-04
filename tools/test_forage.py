@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from test_engine import Base, FakeGame  # noqa: E402
@@ -74,6 +75,10 @@ class Forage(Base):
     def setUp(self):
         super().setUp()
         self.graph_file = learn.GRAPH
+        self.stored = []   # looks the boundary would store (never the real objects db, D188 test pollution)
+        p = mock.patch.object(learn, 'relabel', lambda img, box, kind: self.stored.append((kind, box)) or True)
+        p.start()
+        self.addCleanup(p.stop)
 
     def game(self, things, **kw):
         return self.use(ForageGame(things, **kw))
@@ -156,14 +161,11 @@ class Forage(Base):
     def test_a_proven_answer_stores_its_look_under_the_games_name(self):
         """Every vision answer improves the vectors (user D188): the destroyed object's name labels the answered crop."""
         self.game([{'name': 'StoneRock', 'pt': (1300, 400), 'hp': 1}])
-        stored = []
-        from unittest import mock
-        with mock.patch.object(learn, 'relabel', lambda img, box, kind: stored.append((kind, box)) or True):
-            with self.assertRaises(ask.NeedVision):
-                forage.run('rock')
-            with self.assertRaises(ask.NeedVision):
-                forage.run('rock', answer='Q6')
-        self.assertEqual(stored, [('StoneRock', (1230, 301, 1410, 441))])
+        with self.assertRaises(ask.NeedVision):
+            forage.run('rock')
+        with self.assertRaises(ask.NeedVision):
+            forage.run('rock', answer='Q6')
+        self.assertEqual(self.stored, [('StoneRock', (1230, 301, 1410, 441))])
 
 
 if __name__ == '__main__':

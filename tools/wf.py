@@ -1256,6 +1256,34 @@ def world_cmd(args):
     sys.exit(world_cmd.__doc__)
 
 
+def gaps_cmd(args):
+    """wf gaps [list] | fixture <id> | replay | experiences [N]: the open run's experience journal and its gap bundles
+    (spec 2026-11-04 unified improvement loop). fixture = an offline test fixture (tools/fixtures/gaps/<id>.json)."""
+    if os.path.join(ROOT, 'tools') not in sys.path:
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import game
+    from game import integrate as I
+    game.bind(sys.modules[__name__])
+    sub_ = args[0] if args else 'list'
+    if sub_ == 'list':
+        bs = I.gaps()
+        for b in bs:
+            print(f"{b['id']} [{b['kind']}, {b['owner']}] {b['invariant']} ({len(b['experiences'])} experiences)")
+        return print(f'{len(bs)} gap bundles in {I._dir()}')
+    if sub_ == 'fixture' and len(args) == 2:
+        return print(I.fixture(args[1]))
+    if sub_ == 'replay':
+        return print(f'replay: {I.replay()} updates applied (0 = every update already applied)')
+    if sub_ == 'experiences':
+        es = I.journal()[-int(args[1]) if len(args) > 1 else -10:]
+        for e in es:
+            a = e.action
+            print(f"{e.id} {a.kind} {a.what or a.arg or ''} {list(a.pt) if a.pt else ''} -> {e.verdict.value} "
+                  f"events {list(e.evidence.events)} row {e.goal.row}[{e.goal.step}]")
+        return None
+    sys.exit(gaps_cmd.__doc__)
+
+
 def bench_cmd(args):
     """wf bench start A|B|C | report [run dir] | compare [A|B|C] (spec 2026-10-30 §7.2)."""
     import shutil
@@ -4046,6 +4074,9 @@ def main(argv=None):
     sub.add_parser('tara-box', help="Tara's box on screen (tracker): the zoom gauge (L85), no game input")
     p = sub.add_parser('world', help='the world: wf world kinds | nodes (engine graph from save + log)')
     p.add_argument('args', nargs='*')
+    p = sub.add_parser('gaps', help='improvement-loop gap bundles (offline code factory): wf gaps [list] | fixture <id> '
+                                    '| replay | experiences [N]')
+    p.add_argument('args', nargs='*')
     p = sub.add_parser('bench', help='benchmark runs: wf bench start A|B|C | report [run dir] | compare [A|B|C]')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('objects', help='object examples + detection: wf objects list | add <kind> x0 y0 x1 y1 [state] | detect [kind..] | find <kind> | eval [dir] | calibrate [dir] | reembed')
@@ -4129,6 +4160,8 @@ def main(argv=None):
                      f'{zoom.gauge(m[3] - m[1], ref) if m and ref else "?"}')
     if a.cmd == 'world':  # inspection of the shadow world model, no game input
         return world_cmd(a.args)
+    if a.cmd == 'gaps':   # the improvement loop's escalations, no game input
+        return gaps_cmd(a.args)
     if a.cmd == 'bench':  # bookkeeping: no focus, no game input (review #1)
         return bench_cmd(a.args)
     if a.cmd == 'objects':

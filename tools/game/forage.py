@@ -12,7 +12,7 @@ import json
 import os
 import re
 
-from . import act as A, ask, core, learn as L, observe as O
+from . import act as A, ask, core, integrate as I, learn as L, observe as O
 
 JOBS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'forage.json')
 NEAR_HER = 200       # px from the frame centre: a bubble this close is the one at her (she stands at the object)
@@ -111,7 +111,8 @@ def _work(name, job, pt, res):
     stored = False
     if obj and c.img0 is not None:   # the answered look, named by the game's proof: detection finds it next time
         hx, hy = L.ANSWER_BOX
-        stored = L.relabel(c.img0, (max(0, pt[0] - hx), max(0, pt[1] - hy), pt[0] + hx, pt[1] + hy), obj)
+        box = [max(0, pt[0] - hx), max(0, pt[1] - hy), pt[0] + hx, pt[1] + hy]
+        stored = I.prove(c.exp, 'proven_look', img0=c.img0, box=box, kind=obj) if c.exp else None
     _record(res, job=name, pt=list(pt), result=what, object=obj, hits=hits, look_stored=bool(stored))
     return True
 

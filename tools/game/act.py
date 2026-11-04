@@ -1,14 +1,17 @@
 """ACT: one click and its full record (framework: observe -> act -> learn -> nav; law 3).
 
 `click(pt, what)` clicks, catches a burst of frames (short-lived text, bubble changes, movement), waits for the late log
-line, reads the screen, and hands the result to LEARN (bubble kind, memory). State comes from the record:
-log event > card > bubble change > text > vision."""
+line, reads the screen, and hands the raw record to the improvement loop's boundary (`ON_CLICK` = integrate.on_click:
+an immutable experience, then its corrections). ACT captures, never interprets (spec 2026-11-04 unified loop): no
+learning here. State comes from the record: log event > card > bubble change > text > vision."""
 import os
 import re
 import time
 from dataclasses import dataclass, field
 
-from . import core, learn as L, observe as O, ui
+from . import core, observe as O, ui
+
+ON_CLICK = None            # the improvement loop's boundary (integrate.on_click registers itself): (c, img0, here)
 
 BURST = (0.0, 0.5, 1.5)    # s after the click: frames that catch short-lived text and bubble changes
 EVENT_WAIT = 2.5           # s more for a late log line (D149: `> water` came after ~3 s)
@@ -34,6 +37,12 @@ class Click:
     node: str = None                            # the graph node the logged interaction names (target=...)
     at: tuple = None                            # world (x, z) of the logged interaction (`at (x, y, z)`), if any
     img0: object = None                         # the frame just before the click (bubble / answer clicks)
+    predict: dict = None                        # what the caller expects (a step's `expect`)
+    goal: dict = None                           # {'name', 'params', 'target', 'row', 'step'}
+    context: dict = None                        # what the caller knows (det_box, det_kind, toward, target)
+    exp: str = None                             # the experience id (integrate)
+    learned: str = None                         # what the loop learned from it
+    checks: tuple = ()                          # the experience's checked expectations (experience.Check)
 
     def has(self, *names):
         return any(e in names for e in self.events)
@@ -100,13 +109,14 @@ def _not_paused(W):
     screen.require_world()
 
 
-def click(pt, what='point', before=None, here=None):
-    """Click `pt` and record everything it did; LEARN gets it (bubble kind, memory). Returns a Click."""
+def click(pt, what='point', before=None, here=None, predict=None, goal=None, context=None):
+    """Click `pt` and record everything it did; the boundary (ON_CLICK) turns it into an experience and learns from it.
+    `predict` / `goal` / `context`: what the caller expects and knows (they go into the experience). Returns a Click."""
     W = core.WF
     _not_paused(W)
     before = O.scan() if before is None else before
     x, y = round(pt[0]), round(pt[1])
-    img0 = W.grab() if what in ('bubble', 'point') else None   # the clicked bubble / answered spot, to learn from
+    img0 = W.grab() if what in ('bubble', 'point') or (context or {}).get('det_box') else None   # to learn from
     mark = W.log_mark()
     W.run_action(f'click:{x}:{y}')
     t0, imgs = time.monotonic(), []
@@ -129,12 +139,22 @@ def click(pt, what='point', before=None, here=None):
         # overlay is gameplay: live D188 the garden zoom hid the HUD, the mark was never set, an old event looked exact)
         from . import where
         where.walked()
-    learned = L.learn_bubble(c, img0)
-    if what == 'point':   # a vision answer: what its result proves becomes a look, a direction, a scored answer
-        learned = L.learn_answer(c, img0, here) or learned
-    L.observe_card(c)   # a short-lived crop card -> the object's crop / days left / wilted (world graph)
+    c.predict, c.goal, c.context = predict, goal, context
+    learned = None
+    if ON_CLICK is not None:   # the boundary: experience -> world facts, evals, memory, transitions
+        try:
+            exp, learned = ON_CLICK(c, img0, here)
+            c.exp, c.learned = exp.id, learned
+            c.checks = exp.verdict.checks
+        except Exception as e:   # noqa: BLE001 (learning never breaks play)
+            c.learned = None
+            c.checks = ()
+            try:
+                W.run_log('issue', what='integrate', msg=str(e)[:200])
+            except Exception:   # noqa: BLE001
+                pass
     try:
-        W.run_log('click', node=c.node, learned=learned, pt=[x, y], what=what, events=c.events, mode=mode,
+        W.run_log('click', exp=c.exp, node=c.node, learned=learned, pt=[x, y], what=what, events=c.events, mode=mode,
                   texts=ts[:4], before=[str(a) for a in before], after=[str(a) for a in c.after], moved=c.moved,
                   frames=c.frames, burst_texts=c.burst_texts[:6])
     except Exception:   # noqa: BLE001

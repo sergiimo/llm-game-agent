@@ -65,7 +65,7 @@ def log_end(start, argv):
 
 
 READ_ONLY = {'log', 'save', 'state', 'look', 'shot', 'objects', 'graph', 'run', 'eval', 'bench', 'wiki', 'tips', 'actions',
-             'routines', 'learn', 'status', 'focus-mode', 'coverage', 'world'}
+             'routines', 'learn', 'status', 'focus-mode', 'coverage', 'world', 'gaps'}
 _CALL = re.compile(r'(?:^|[\s;&|(\'"`])(?:\./wf|\S*wf\.py|\S*wfc\.py)(?=\s|$)')
 _JOIN = re.compile(r';|&&|\|\||\n')
 

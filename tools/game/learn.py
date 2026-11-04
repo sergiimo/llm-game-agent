@@ -307,7 +307,7 @@ def answer_kind(c):
     return None
 
 
-def learn_answer(c, img0, here=None):
+def learn_answer(c, img0, here=None, exp=None):
     """A vision click answer -> (1) the look at the point stored as the proven kind (detection finds it next time),
     (2) the direction from `here` to the area its event reached (graph), (3) an eval record. The kind or None."""
     import math
@@ -329,7 +329,7 @@ def learn_answer(c, img0, here=None):
     try:
         import evals
         evals.record('vision', 'answer', None, {'kind': kind, 'moved': c.moved, 'reached': reached},
-                     bool(kind) or c.moved is True, {'pt': list(c.pt), 'here': here})
+                     bool(kind) or c.moved is True, {'pt': list(c.pt), 'here': here, 'exp': exp})
     except Exception:   # noqa: BLE001
         pass
     log_db('vision_answer', f'@{x},{y}: {kind or "free ground"}{" (look stored)" if stored else ""}'

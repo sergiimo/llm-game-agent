@@ -1,28 +1,21 @@
 """STEPS: run one transition row's steps (spec 2026-11-03 §4) with checked expectations.
 
 Primitives are the only code per step type: click_bubble, click_object, press <label>, press_space, pick_card <name>,
-close, read_card (stores the card's first line into a state key). Each step's `expect` (events, card, log) is checked;
-every checked field is written to OBSERVED (row, step, field, expected, got, verdict) for the table's learning. A failed
-expectation stops the row and closes cards (law 5: failure = reset)."""
+close, read_card (stores the card's first line into a state key). Each step is one action = one experience (the
+improvement loop's boundary, integrate.py): a click step's `expect` goes with the click and comes back checked; any
+other step is recorded by integrate.record. The boundary writes the checked fields to OBSERVED (row, step, field,
+expected, got, verdict, exp) for the table's learning. A failed expectation stops the row and closes cards (law 5)."""
 import json
 import os
 import re
 import time
 
-from . import act as A, core, ui
+from . import act as A, core, integrate as I, ui
 
 OBSERVED = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'observed-steps.jsonl')
 _TARGET = re.compile(r'target=(\w+)')
-
-
-def observe(row, step, field, expected, got, ok):
-    try:
-        with open(OBSERVED, 'a') as f:
-            f.write(json.dumps({'t': time.strftime('%Y-%m-%d %H:%M:%S'), 'row': row, 'step': step, 'field': field,
-                                'expected': expected, 'got': got,
-                                'verdict': 'gap' if ok is None else 'ok' if ok else 'surprise'}) + '\n')
-    except OSError:
-        pass
+KIND = {'press': 'press', 'press_space': 'space', 'pick_card': 'pick', 'close': 'close', 'click_cell': 'cell',
+        'read_card': 'read'}   # step -> the experience's action kind
 
 
 def _lines_since(mark):
@@ -38,31 +31,6 @@ def _card():
         return ''
 
 
-def _check(expect, lines, events):
-    """[(field, expected, got)] of the expectations that failed, and the ones checked."""
-    bad, checked = [], []
-    for field, want in (expect or {}).items():
-        if want == '?':   # a gap: observe what the game shows, never a failure
-            got = events if field == 'events' else _card() if field == 'card' else next(iter(lines), None)
-            checked.append((field, want, got, None))
-            continue
-        if field == 'events':
-            got = events
-            ok = all(any(e in got for e in alt.split('|')) for alt in want)
-        elif field == 'card':
-            got = _card()
-            ok = want.lower() in got.lower()
-        elif field == 'log':
-            got = next((l for l in lines if re.search(want, l)), None)
-            ok = got is not None
-        else:
-            continue   # bubble/text: observed by act.click's record, not a gate here
-        checked.append((field, want, got, ok))
-        if not ok:
-            bad.append((field, want, got))
-    return bad, checked
-
-
 def run(row, params, bubble, node_state=None):
     """Run `row` on the fitting `bubble` (an Affordance in reach). Returns {'ok', 'events', 'lines', 'at', 'kind',
     'frame' (the bubble's sub-icons before the click), 'surprises' [(step, field, expected, got)], 'clicks',
@@ -70,16 +38,19 @@ def run(row, params, bubble, node_state=None):
     from .plan import resolve
     r = resolve(row, params or {})
     out = {'ok': True, 'events': [], 'lines': [], 'at': None, 'kind': None, 'surprises': [], 'clicks': 0,
-           'failed_step': None, 'missing': None, 'stored': {}, 'row': r['id'], 'after': [],
+           'failed_step': None, 'missing': None, 'stored': {}, 'row': r['id'], 'after': [], 'exps': [],
            'frame': {'drop': bool(getattr(bubble, 'drop', False)), 'ready': bool(getattr(bubble, 'ready', False))}}
     for i, s in enumerate(r['steps']):
         mark = core.WF.log_mark()
-        lines, events = [], []
+        lines, events, c = [], [], None
+        goal = {'row': r['id'], 'step': i, 'params': params or {}}
         try:
             if s['do'] in ('click_bubble', 'click_object'):
-                c = A.click(bubble.pt, 'bubble' if s['do'] == 'click_bubble' else 'object')
+                c = A.click(bubble.pt, 'bubble' if s['do'] == 'click_bubble' else 'object', predict=s.get('expect'),
+                            goal=goal)
                 out['clicks'] += 1
                 lines, events = c.lines, c.events
+                out['exps'].append(c.exp)
                 out['after'], out['img0'], out['bubble_pt'] = c.after, c.img0, tuple(bubble.pt)
             elif s['do'] == 'press':
                 ui.press(s['arg'])
@@ -101,15 +72,21 @@ def run(row, params, bubble, node_state=None):
             out.update(ok=False, failed_step=i, why=str(e)[:200], screen=_card())
             if s['do'] == 'pick_card':
                 out['missing'] = s.get('arg')
+            e_, _ = I.record(KIND.get(s['do'], s['do']), s.get('arg'), mark, core.log_text(mark).splitlines(), [],
+                             None, goal)
+            out['exps'].append(e_.id)
             break
-        if s['do'] not in ('click_bubble', 'click_object'):
+        if c is not None:   # the click's experience checked its expectation (the same evidence)
+            bad = [(ch.field, ch.expected, ch.got) for ch in (c.checks or ()) if ch.ok is False]
+            if c.exp is None:   # no boundary registered (a bare act): check here, record nothing
+                _, bad = I.verify(s.get('expect'), lines, events)
+        else:
             lines = _lines_since(mark) if s['do'] in ('press', 'press_space') else core.log_text(mark).splitlines()
             events = A.events_of(lines)
+            e_, bad = I.record(KIND.get(s['do'], s['do']), s.get('arg'), mark, lines, events, s.get('expect'), goal)
+            out['exps'].append(e_.id)
         out['lines'] += lines
         out['events'] += events
-        bad, checked = _check(s.get('expect'), lines, events)
-        for field, want, got, ok in checked:
-            observe(r['id'], i, field, want, got, ok)
         if bad:
             out['surprises'] += [(i, f, w, g) for f, w, g in bad]
             out.update(ok=False, failed_step=i, screen=_card())   # the card still open: what vision is asked about

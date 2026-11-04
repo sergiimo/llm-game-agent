@@ -4,7 +4,12 @@
 > the smallest sufficient correction: world state, learned memory, transition knowledge or an offline code-change
 > bundle. Unify the evidence protocol and lifecycle, not all responsibilities in one module.
 
-**Status:** proposal, 2026-11-04. This document suggests a refactor; it does not change runtime behavior.
+**Status:** proposal, 2026-11-04. **Implemented 2026-11-04 (D188), migration steps 1–7** (step 8, removing the
+adapters, waits for the one-object live gate): `tools/game/experience.py` (records), `tools/game/integrate.py` (the
+boundary: capture/record → propose → apply in order, idempotent replay, `settle`/`gap` bundles, `fixture`),
+`act.click` capture-only (`ON_CLICK` hook), nav passes context (det_box, toward) instead of learning, steps checks
+come back with the click's experience, the engine's world facts go through `integrate.world_facts` (nodes keep
+`extra.exps`), `./wf gaps [list|fixture <id>|replay|experiences]`. Tests: `tools/test_experience.py`.
 
 ## Why refactor
 

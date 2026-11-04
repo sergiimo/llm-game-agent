@@ -123,6 +123,7 @@ def card_state(lines):
         m = DAYS.search(t)
         if m:
             st['days_left'] = int(m.group(1))
+            st['ready'] = False   # days still to grow: not ready, whatever the bubble's "!" looked like (D188)
         if 'has wilted' in t.lower():
             st['wilted'] = True
     return st

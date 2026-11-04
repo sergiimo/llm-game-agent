@@ -130,7 +130,11 @@ def click(pt, what='point', before=None, here=None):
                   frames=c.frames, burst_texts=c.burst_texts[:6])
     except Exception:   # noqa: BLE001
         pass
-    O.check_texts(c.burst_texts)   # recorded first; a non-English card is terminal
+    cyr = [t for t in c.burst_texts if O.CYRILLIC.search(str(t))]
+    if len(cyr) >= 2:   # recorded first; a non-English card is terminal
+        O.check_texts(cyr)
+    elif cyr:           # one line can be OCR junk ('Ш ПРРадр»', D188): only the screen read can confirm it
+        O.check_language()
     return c
 
 

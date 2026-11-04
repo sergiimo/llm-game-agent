@@ -1153,7 +1153,7 @@ class FlashText(Base):
 
     def test_card_state_reads_crop_days_and_wilted(self):
         self.assertEqual(learn.card_state(['Green Bean', 'The unripe fruit of the', 'common bean plant. Grows',
-                                           '2 days remaining']), {'crop': 'Green Bean', 'days_left': 2})
+                                           '2 days remaining']), {'crop': 'Green Bean', 'days_left': 2, 'ready': False})
         self.assertEqual(learn.card_state(['Carrot', 'A crisp orange vegetable', 'This plant has wilted. You']),
                          {'crop': 'Carrot', 'wilted': True})
         self.assertEqual(learn.card_state(['Bee Hive', 'Plant flowers nearby to', 'encourage the bees to']), {})
@@ -2068,6 +2068,32 @@ class CardRunCounts(EngineBase):
             res = engine.achieve('harvest')
         self.assertEqual(f.objects['b']['state']['stage'], 'growing')
         self.assertEqual(len(res['done']), 1, res)
+
+
+class ReadyMisread(EngineBase):
+    """Live D188: a growing carrot's bubble was read as ready; the click showed its info card ("2 days remaining")."""
+
+    def test_a_crop_card_after_a_failed_pick_updates_the_bed_without_asking(self):
+        grow = dict(GAME[4], when={'stage': 'produced'}, bubble={'kind': 'plant_growing'}, click_event='plant_growing',
+                    card=[{'texts': ['Carrot', 'A crisp orange vegetable', '2 days remaining'], 'next': 'space'}],
+                    flash=['Carrot', 'A crisp orange vegetable', '2 days remaining'],
+                    effect={})   # the game: the bed is still growing - its card, not a Collect prompt
+        f = self.use(FakeGame([obj('b', pos=(NX[0], NZ[0]), bubble=(700, 400), stage='produced', watered=True,
+                                   wilted=False)], [grow] + GAME))
+        with mock.patch.object(icons, 'name_of', lambda a: 'Carrot'):
+            res = engine.achieve('harvest')
+        self.assertEqual(res['vision'], 0, res)
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        nid = world.find(g, 'GardenBed', (NX[0], NZ[0]))
+        self.assertEqual((g.state_value(nid, 'crop'), g.state_value(nid, 'ready'), g.state_value(nid, 'days_left')),
+                         ('Carrot', False, 2))
+
+    def test_one_junk_cyrillic_burst_line_is_not_a_wrong_language(self):
+        f = self.use(FakeGame([obj('b', bubble=(700, 400), stage='growing', watered=True, wilted=False, crop='Carrot')],
+                              GAME))
+        f.behaviour = [dict(GAME[4], flash=['Carrot', 'Ш ПРРадр»'])]   # OCR junk; the screen itself reads English
+        act.click((700, 400), 'bubble')   # no WrongLanguage
 
 
 if __name__ == '__main__':

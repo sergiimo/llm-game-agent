@@ -633,6 +633,12 @@ def _loop(g, name, spec, params, save, max_clicks, res):
         if nid and crop:   # the icon said which crop this bed holds (the save never does)
             g.set_state(nid, 'crop', crop, _stamp(), 'icon')
         plan.count(t['id'], out['ok'])
+        info = L.card_state(str(out.get('screen') or '').split(' / ')) if not out['ok'] else {}
+        if info:   # the click showed the object's info card (2 days remaining): evidence, not a prompt - no question
+            res['surprises'].append(f'{t["id"]}: the bubble led to its info card {info} (not what the row expects)')
+            A.gameplay()
+            res['btried'].append(a.pt)
+            continue
         if not out['ok'] and (out.get('why') or out.get('screen')) and not _really_missing(save, item, out):
             st = t['steps'][out['failed_step']]
             ask.ask('button', f'Goal {name}: step {out["failed_step"]} of "{t["id"]}" ({st["do"]} {st.get("arg", "")}) '

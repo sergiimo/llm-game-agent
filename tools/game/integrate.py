@@ -351,14 +351,19 @@ def prove(exp_id, op, img0=None, **args):
     return apply(e, corr, img0=img0).get(op)
 
 
-def relation(a, b, direction, proof):
-    """A traversal proved the way a -> b (the map pin got closer): the graph's learned `toward` edge, once per proof."""
+def relation(a, b, direction, proof, **dist):
+    """A traversal proved the way a -> b (the map pin got closer): the graph's learned `toward` edge (with its
+    compass point and distance: route_px / map_px / steps), once per proof."""
     from . import learn as LN
     k = f'relation:{a}->{b}:{list(direction)}:{proof}'
     keys = _applied()
     if k in keys:
         return False
     LN.learn_toward(a, b, tuple(direction))
+    g = LN.MEMORY['graph']
+    for e in (g.edges(a, 'toward') if g is not None else []):
+        if e['b'] == b:
+            e.update({k: v for k, v in dist.items() if v is not None})
     keys.add(k)
     _append('applied.txt', k)
     try:

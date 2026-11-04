@@ -2581,9 +2581,61 @@ class NavLadder(MapWay):
                 engine.achieve('harvest', max_clicks=3)
             except ask.NeedVision:
                 pass
-        t = self.graph().nodes['Tara'].extra
-        self.assertEqual(t.get('tier'), 'map-far')
-        self.assertEqual(tuple(t.get('pin')), (300, 300))
+        g = self.graph()
+        self.assertEqual(tuple(g.nodes['Tara'].extra.get('pin')), (300, 300))
+        e = next(e for e in g.edges('Tara', 'distance') if e['b'] == 'Garden')   # the tier lives on the edge
+        self.assertEqual(e['tier'], 'map-far')
+
+
+class DistanceEdges(NavLadder):
+    """User D188: "so a new distance edge?" - "yes": Tara -> target `distance` edge each step (tier, map px, route
+    px); ways between nodes carry their distance next to the compass point."""
+
+    def edge(self, b='Garden'):
+        return next((e for e in self.graph().edges('Tara', 'distance') if e['b'] == b), None)
+
+    def test_each_step_rewrites_the_tara_to_target_distance_edge(self):
+        self.lost()
+        with mock.patch.object(nav, 'map_direction', self.reading((300, 300))):
+            try:
+                engine.achieve('harvest', max_clicks=3)
+            except ask.NeedVision:
+                pass
+        e = self.edge()
+        self.assertIsNotNone(e, self.graph().edges('Tara'))
+        self.assertEqual(e['tier'], 'map-far')
+        self.assertEqual(round(e['map_px']), round(math.dist((300, 300), (690, 490))))
+        self.assertEqual(len([x for x in self.graph().edges('Tara', 'distance') if x['b'] == 'Garden']), 1)
+
+    def test_progress_is_judged_against_the_edge_across_calls(self):
+        self.lost()
+        with mock.patch.object(nav, 'map_direction', self.reading((300, 300))):
+            for _ in range(2):
+                try:
+                    engine.achieve('harvest', max_clicks=3)
+                except ask.NeedVision:
+                    pass
+            res = {'params': {}}
+            g = self.graph()
+            learn.MEMORY['graph'] = g
+            try:
+                nav.LAST_MAP.clear()
+                nav.LAST_MAP.update(pin=(300, 300), goal=(690, 490))
+                nav._map_progress(res, 'Garden')
+            finally:
+                learn.MEMORY['graph'] = None
+        self.assertGreaterEqual(res.get('map_flat', 0), 1)   # the same distance as the edge: no progress
+
+    def test_a_learned_way_carries_its_distance(self):
+        from game import integrate
+        g = self.graph()
+        learn.MEMORY['graph'] = g
+        try:
+            integrate.relation('Mine', 'Garden', (0.0, 1.0), 'test', route_px=172.0)
+        finally:
+            learn.MEMORY['graph'] = None
+        e, = g.edges('Mine', 'toward')
+        self.assertEqual((e['compass'], e['route_px']), ('S', 172.0))
 
 
 if __name__ == '__main__':

@@ -251,7 +251,7 @@ def seek(t, res):
     res['inside'] = inside(t, here) if here else res.get('inside')
     tier = tier_of(t, res, here)
     c = _rung(t, res, tier, cn, here, tried)
-    update_tara(res, tier, cn or here, c)
+    update_tara(res, tier, cn or here, c, t.node)
     return c
 
 
@@ -366,23 +366,53 @@ def read_map(t, res):
         ask_way(t, res, None, why=f'the map pin was misread (it jumped to {list(pin)})')
     if dd is not None and pin:
         res['pin_ok'] = tuple(pin)
+        res['goal_ok'] = tuple(LAST_MAP['goal']) if LAST_MAP.get('goal') else None
+        res['route_ok'] = LAST_MAP.get('route_len')
     res['map_fresh'] = dd is not None
     return dd
 
 
-def update_tara(res, tier, near, c):
-    """After each step: Tara's place in the graph - tier, last good pin, the node she is at, exact pos, time."""
+DIST_STALE = 600.0   # s: a distance edge older than this is not a baseline (another trip)
+
+
+def update_tara(res, tier, near, c, target=None):
+    """After each step: Tara's place in the graph - her node (last good pin, the node she is at, exact pos, time)
+    and the Tara -> target `distance` edge (user D188: tier map-far / screen-far / steps-far, map px, route px)."""
     g = L.MEMORY['graph']
     if g is None or 'Tara' not in g.nodes:
         return
     import time as _t
+    from objects import graph as OG
+    tier = res.pop('tier_now', None) or tier
     ex = g.nodes['Tara'].extra
-    ex.update(tier=res.pop('tier_now', None) or tier, near=near, t=round(_t.time(), 1))
+    ex.update(near=near, t=round(_t.time(), 1))
+    ex.pop('tier', None)   # the tier lives on the distance edge
     if res.get('pin_ok'):
         ex['pin'] = list(res['pin_ok'])
     if c is not None and getattr(c, 'at', None):
         ex['pos'] = [round(c.at[0], 2), round(c.at[1], 2)]
-    log('seek', what='tara', tier=ex['tier'], near=near, pin=ex.get('pin'))
+    if target:
+        old = distance(g, target) or {}
+        pin, goal = res.get('pin_ok'), res.get('goal_ok')
+        attrs = {'tier': tier, 't': ex['t'], 'source': 'map' if pin and goal else 'graph'}
+        if pin and goal:
+            attrs['map_px'] = round(math.dist(pin, goal), 1)
+        if res.get('route_ok') is not None:
+            attrs['route_px'] = round(res['route_ok'], 1)
+        for k in ('map_px', 'route_px'):   # a step without a reading keeps the last one
+            if k not in attrs and k in old:
+                attrs[k] = old[k]
+        OG.set_edge(g, 'Tara', target, 'distance', **attrs)
+    log('seek', what='tara', tier=tier, near=near, pin=ex.get('pin'), target=target)
+
+
+def distance(g, target):
+    """The Tara -> target distance edge (fresh: younger than DIST_STALE), or None."""
+    import time as _t
+    for e in (g.edges('Tara', 'distance') if g is not None else []):
+        if e['b'] == target and _t.time() - (e.get('t') or 0) <= DIST_STALE:
+            return e
+    return None
 
 
 def _gap(res, invariant):
@@ -419,7 +449,7 @@ def map_walk(t, res, read=True):
     if dd is None:
         trace(res, 'map: no direction')
         return None
-    if not _map_progress(res):
+    if not _map_progress(res, t.node):
         return None
     g = L.MEMORY['graph']
     mark = world.landmark_at(g, LAST_MAP.get('pin')) if g is not None else None
@@ -516,20 +546,26 @@ def walk_way(answer, pend, res):
     return c
 
 
-def _map_progress(res):
+def _map_progress(res, target=None):
     """A map-led walk is measured on the map: the pin closer to the goal (MAP_GAIN px) = progress (the blind count
-    resets); MAP_FLAT readings without a gain = lost. No reading (a fake, no pin) = trusted."""
+    resets); MAP_FLAT readings without a gain = lost. The baseline is this call's best, else the Tara -> target
+    distance edge (a fresh one from the last call). No reading (a fake, no pin) = trusted."""
     if not LAST_MAP:
         res['blind'] = 0
         return True
     d = LAST_MAP.get('route_len') or math.dist(LAST_MAP['pin'], LAST_MAP['goal'])   # by road (live D188: a pocket
     # by the river was closer in a straight line and taught a wrong way)
     best = res.get('map_best')
+    if best is None and target:
+        e = distance(L.MEMORY['graph'], target)
+        best = (e.get('route_px') if LAST_MAP.get('route_len') else e.get('map_px')) if e else None
+        if best is not None:
+            res['map_best'] = best
     if best is None or d < best - MAP_GAIN:
         if best is not None and res.get('way'):   # the answered/learned way brought her closer: the graph keeps it
             from . import integrate as I
             a, b, way = res.pop('way')
-            I.relation(a, b, way, f'map pin {best:.0f} -> {d:.0f} px from the goal')
+            I.relation(a, b, way, f'map pin {best:.0f} -> {d:.0f} px from the goal', route_px=round(best, 1))
         res['map_best'], res['map_flat'], res['blind'] = d, 0, 0
         return True
     res['map_flat'] = res.get('map_flat', 0) + 1

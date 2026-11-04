@@ -20,7 +20,8 @@ and then forgotten. Each fix patched one branch; the next run hit another.
 2. **map-far**: the map rung only (`map_walk`: long steps, dead ends, the vision way question). Detections are
    never used here (they are phantoms far from the target).
 3. **near / unknown**:
-   a. the target kind **visible by vectors** (`observe.see`) -> walk to free ground beside it (**screen-far**);
+   a. the target kind **visible by vectors** = embeddings (`observe.see`: DINOv2 patch embeddings against the
+      labelled crops of `tools/objects/db/<kind>`) -> walk to free ground beside it (**screen-far**);
    b. the **graph's direction** from the node she is at (`toward`) -> a step that way; a blocked step turns
       (obstacles);
    c. inside the region without a direction -> explore free ground;
@@ -28,10 +29,17 @@ and then forgotten. Each fix patched one branch; the next run hit another.
 4. **After each step** (`nav.update_tara`): the graph's Tara node keeps `tier`, `pin` (last good map pin), `near`
    (the node she is at), `pos` (exact, from an event), `t`.
 
+## Distance is a graph edge (user D188: "so a new distance edge?" - "yes")
+- **Tara -> target** `distance` edge, rewritten after each step (`nav.update_tara`, `objects.graph.set_edge`):
+  `tier` (map-far / near / screen-far / steps-far), `map_px` (straight, pin to the target's map point), `route_px`
+  (along the map's roads), `source`, `t`. A step without a map reading keeps the last distances.
+- Progress is judged against it: this call's best, else a fresh edge (< 10 min) from the last call.
+- The map rung's target point comes from map embeddings (`map_vectors.locate`: DINO features of `map_db` crops).
+
 ## Ways between nodes keep a compass point
 Every `toward` edge (seeded, learned, or from a vision way answer) stores `compass` (N..NW) next to `dir`
 (user D188: "graph as before should store compass direction for nodes connections"); an edge known only by its
-compass point gives the direction too.
+compass point gives the direction too. A learned way also keeps its distance (`route_px` from where it started).
 
 ## Readings are checked
 - A map pin more than `PIN_JUMP` (150 map px) from the last good pin within the call is rejected (no step), logged,

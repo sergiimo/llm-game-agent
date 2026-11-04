@@ -138,6 +138,12 @@ COMPASS = {'N': (0.0, -1.0), 'NE': (0.707, -0.707), 'E': (1.0, 0.0), 'SE': (0.70
            'SW': (-0.707, 0.707), 'W': (-1.0, 0.0), 'NW': (-0.707, -0.707)}   # screen = map: north is up
 
 
+def set_edge(graph, a, b, rel, **attrs):
+    """The one a -> b edge of `rel`, replaced by these attributes (a distance edge is rewritten each step)."""
+    graph._edges = [e for e in graph._edges if not (e['a'] == a and e['b'] == b and e['rel'] == rel)]
+    graph.add_edge(a, b, rel, **attrs)
+
+
 def compass(d):
     """The compass point (N..NW) nearest a screen direction (dx, dy; +y = south)."""
     import math

@@ -275,8 +275,17 @@ BLACK_MAX = 0.3   # share of near-black pixels above which an answer crop is the
 def _mostly_black(img, box):
     try:
         import numpy as np
-        a = np.asarray(img.convert('L').crop(box))
-        return a.size == 0 or float((a < 12).mean()) > BLACK_MAX
+        w, h = img.size
+        x0, y0, x1, y1 = max(0, box[0]), max(0, box[1]), min(w, box[2]), min(h, box[3])
+        if x1 <= x0 or y1 <= y0:
+            return False   # the box is outside this frame: can't tell
+        a = np.asarray(img.convert('L').crop((x0, y0, x1, y1)))
+        # the part of the box beyond the frame counts as black (it is the letterbox edge in a full frame)
+        inside = (x1 - x0) * (y1 - y0)
+        total = (box[2] - box[0]) * (box[3] - box[1])
+        full = w >= 1000   # a real frame; tiny fake frames are judged on their pixels only
+        black = float((a < 12).sum()) + ((total - inside) if full else 0)
+        return black / (total if full else inside) > BLACK_MAX
     except Exception:   # noqa: BLE001
         return False
 

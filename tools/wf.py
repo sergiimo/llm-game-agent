@@ -2559,9 +2559,8 @@ def ask_step(place, d, why, ahead=()):
     for gy in range(180, img.height, 180):
         o.line((0, gy, img.width, gy), fill=(255, 255, 255, 60), width=2)
         o.text((4, gy + 4), str(gy), fill=(255, 255, 255, 255))
-    small = Image.alpha_composite(base, over).convert('RGB').resize(
-        (round(img.width * ASK_SCALE), round(img.height * ASK_SCALE)))
-    small.save(ASK_IMG, quality=85)
+    full = Image.alpha_composite(base, over).convert('RGB')   # full scale (user D188: small copies misread)
+    full.save(ASK_FRAME)
     ang = math.atan2(-d[1], d[0])
     ns = nav.nodes(nav.load(), places())
     gn = next((n for k, n in ns.items() if k == place or n['name'] == place), None)
@@ -2580,11 +2579,11 @@ def ask_step(place, d, why, ahead=()):
          f'red X = walls / refused clicks ({shown["walls"]}). What is the NEXT CLICK toward the goal? Open walkable '
          f'ground she can reach from where she stands, within ~400 px of her; follow roads and green where they lead '
          f'toward the goal; if she is enclosed, the way out toward a road that leads there. Never fences, rails, '
-         f'hedges, rocks, water, a fenced plot, or a red X. Estimate game coordinates from the white tick labels '
-         f'(image px x 2).')
+         f'hedges, rocks, water, a fenced plot, or a red X. Game coordinates = image px (full size; the white tick '
+         f'labels).')
     json.dump({'kind': 'step', 'question': q, 'place': place, 'feet': [fx, fy]}, open(ASK_CTX, 'w'))
     run_log('vision', what='ask', kind='step', question=q)
-    return f'NEED_VISION step: {q}\n  look: {ASK_IMG}\n  answer: ./wf teach step X:Y   e.g. ./wf teach step {fx - 300}:{fy + 120}'
+    return f'NEED_VISION step: {q}\n  look: {ASK_FRAME} (full size)\n  answer: ./wf teach step X:Y   e.g. ./wf teach step {fx - 300}:{fy + 120}'
 
 
 def calibrate(moves=CALIB_MOVES):
@@ -2977,19 +2976,21 @@ def ask_vision(kind, question, img, **ctx):
         return (f'NEED_VISION {kind}: {question}\n  look: {ASK_FRAME} (full size {img.size[0]}x{img.size[1]}, grid columns '
                 f'A-X x rows 1-16, magenta circle = Tara)\n  answer: {ctx.get("answer", "a grid cell, e.g. Q14")}   '
                 f'(one grid cell on the target bed itself; or click=\'none\' when none is left)')
-    img.save(ASK_FRAME)
-    small = img.resize((768, 432))
-    d = ImageDraw.Draw(small)
-    cw, ch = 768 / GRID_COLS, 432 / GRID_ROWS
-    for c in range(GRID_COLS):
-        for r in range(GRID_ROWS):
-            d.rectangle((c * cw, r * ch, (c + 1) * cw, (r + 1) * ch), outline=(255, 255, 0))
-            d.text((c * cw + 3, r * ch + 2), f'{chr(65 + c)}{r + 1}', fill=(255, 255, 0))
-    small.save(ASK_IMG, quality=80)
     json.dump({'kind': kind, 'question': question, **ctx}, open(ASK_CTX, 'w'))
     run_log('vision', what='ask', kind=kind, question=question)
-    ex = {'road': 'C5 D5 D6', 'next': 'D6'}.get(kind, '…')
-    return (f'NEED_VISION {kind}: {question}\n  look: {ASK_IMG} (grid A-L × 1-8)\n'
+    if kind not in ('road', 'next'):   # always FULL scale, no grid (user D188: a 768-px copy made the map unreadable)
+        img.convert('RGB').save(ASK_FRAME)
+        return (f'NEED_VISION {kind}: {question}\n  look: {ASK_FRAME} (full size {img.size[0]}x{img.size[1]})')
+    full = img.convert('RGB').copy()   # the old teach kinds: their grid, drawn on the full-size frame
+    d = ImageDraw.Draw(full)
+    cw, ch = full.size[0] / GRID_COLS, full.size[1] / GRID_ROWS
+    for c in range(GRID_COLS):
+        for r in range(GRID_ROWS):
+            d.rectangle((c * cw, r * ch, (c + 1) * cw, (r + 1) * ch), outline=(255, 255, 0), width=2)
+            d.text((c * cw + 6, r * ch + 4), f'{chr(65 + c)}{r + 1}', fill=(255, 255, 0))
+    full.save(ASK_FRAME)
+    ex = {'road': 'C5 D5 D6', 'next': 'D6'}[kind]
+    return (f'NEED_VISION {kind}: {question}\n  look: {ASK_FRAME} (full size, grid A-L × 1-8)\n'
             f'  answer: ./wf teach {kind} <cells>   e.g. ./wf teach {kind} {ex}')
 
 
@@ -3581,8 +3582,9 @@ def do(specs, look_scale=None, crop=None):
     return s
 
 
-def look(scale=0.5, crop=None, quality=70):
-    """Low-token screenshot for a vision model: JPEG at `scale` (optionally cropped first).
+def look(scale=1.0, crop=None, quality=85):
+    """Screenshot for a vision model: JPEG at `scale` - FULL scale by default (user D188: "Scale was a major cause -
+    let's always screenshot full scale"); optionally cropped first.
 
     Prints the path and the factor to convert image coords back to game coords.
     """
@@ -4021,11 +4023,11 @@ def main(argv=None):
                                   "(+ --look). Actions: go:x:y (click-to-move, game pathfinds) key:space walk:left:0.5 path:up:1,left:2 click:x:y "
                                   "text:<label> route:<name> bubble:<dir>[:max_s] wait:<s>")
     p.add_argument('actions', nargs='+')
-    p.add_argument('--look', type=float, nargs='?', const=0.4, default=None, help='also save a low-res look (scale, default 0.4)')
+    p.add_argument('--look', type=float, nargs='?', const=1.0, default=None, help='also save a look (scale, default 1.0 = full, D188)')
     p.add_argument('--crop', nargs=4, type=int, metavar=('X', 'Y', 'W', 'H'))
     p = sub.add_parser('bubble', help='detect the interaction prompt bubble on the current frame (prints x,y or NONE)')
-    p = sub.add_parser('look', help='low-res JPEG for viewing (default scale 0.4 = 768x432); prints path + coord factor')
-    p.add_argument('--scale', type=float, default=0.4)
+    p = sub.add_parser('look', help='JPEG for viewing, FULL scale by default (D188); prints path + coord factor')
+    p.add_argument('--scale', type=float, default=1.0)
     p.add_argument('--crop', nargs=4, type=int, metavar=('X', 'Y', 'W', 'H'), help='crop first (game coords)')
     p = sub.add_parser('until', help='poll until text appears and/or mode reached')
     p.add_argument('--text')
@@ -4034,7 +4036,7 @@ def main(argv=None):
     p.add_argument('--interval', type=float, default=1.0)
     p = sub.add_parser('advance', help='Space ONLY while cutscene/dialogue/confirm-popup; stops on anything else')
     p.add_argument('--max', type=int, default=40)
-    p.add_argument('--look', type=float, nargs='?', const=0.4, default=None, help='also save a low-res look at the end')
+    p.add_argument('--look', type=float, nargs='?', const=1.0, default=None, help='also save a look at the end (full scale)')
     p = sub.add_parser('route', help='replay recorded walking route from routes/<name>.txt (--list)')
     p.add_argument('name', nargs='?')
     p.add_argument('--list', action='store_true')

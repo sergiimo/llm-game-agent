@@ -64,7 +64,7 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
 1. **One call per step:** `./wf do <actions> [--look]` acts, waits for the screen to settle and prints a one-line state.
    Observe with the game files first: `./wf log` (live events: quests, dialogue, scenes, pickups; input commands
    print new lines as `log: …`) and `./wf save` (exact money/time/quests/inventory as of the last autosave), see
-   `docs/ui/game-files.md`. Then `./wf state` (text) → `./wf look` (small JPEG, then Read it) → `./wf shot` (full) only if needed.
+   `docs/ui/game-files.md`. Then `./wf state` (text) → `./wf look` (full-scale JPEG, then Read it; **every screenshot and vision image is full scale**, user D188: small copies made the map unreadable).
    **Move only by clicking (L54, user rule):** `./wf do go:<x>:<y>` (click-to-move; the game pathfinds, L49) to a
    spot/object from a look. There is no keyboard fallback: `walk:`/`path:`/`route:`/`bubble:` are disabled. `NO MOVE`
    → click a nearer ground point; `ALREADY THERE` → act (Space).

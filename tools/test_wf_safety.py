@@ -191,5 +191,25 @@ class BubbleLabels(unittest.TestCase):
         self.assertEqual(wf.event_kind(['[D183 12:24:32 PM] > unplant me=Player target=GardenBed(Clone) at (3.34, 0.10, -29.09)']), 'unplant')
 
 
+class FullScaleVision(unittest.TestCase):
+    """User D188: "Scale was a major cause - let's always screenshot full scale" (the map was ~280 px wide)."""
+
+    def test_every_vision_question_gets_its_image_at_full_size(self):
+        import re
+        import tempfile
+        from unittest import mock
+        from PIL import Image
+        d = tempfile.mkdtemp()
+        with mock.patch.object(wf, 'ASK_IMG', os.path.join(d, 'ask.jpg')), \
+                mock.patch.object(wf, 'ASK_FRAME', os.path.join(d, 'ask_frame.png')), \
+                mock.patch.object(wf, 'ASK_CTX', os.path.join(d, 'ask.json')), \
+                mock.patch.object(wf, 'run_log', lambda *a, **k: None):
+            for size in ((1920, 1080), (1920, 2160)):
+                msg = wf.ask_vision('game', 'Which way?', Image.new('RGB', size, (10, 20, 30)), answer='N..NW')
+                path = re.search(r'look: (\S+)', msg).group(1)
+                self.assertEqual(Image.open(path).size, size, msg)
+                self.assertNotIn('wf teach', msg)
+
+
 if __name__ == '__main__':
     unittest.main()

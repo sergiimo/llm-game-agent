@@ -491,8 +491,31 @@ def marked_map(mark=None):
     return pic
 
 
+WAY_MARGIN = 140    # map px around the pin and the goal in the zoomed map
+
+
+def way_box():
+    """The map crop (x0, y0, x1, y1) around the pin and the goal: 16:9, WAY_MARGIN around both, inside the frame."""
+    pin, goal = LAST_MAP.get('pin'), LAST_MAP.get('goal')
+    pts = [p for p in (pin, goal) if p] or [(960, 540)]
+    x0, x1 = min(p[0] for p in pts) - WAY_MARGIN, max(p[0] for p in pts) + WAY_MARGIN
+    y0, y1 = min(p[1] for p in pts) - WAY_MARGIN, max(p[1] for p in pts) + WAY_MARGIN
+    w, h = x1 - x0, y1 - y0
+    if w / h < 16 / 9:   # widen to 16:9 around the centre
+        cx, w = (x0 + x1) / 2, h * 16 / 9
+        x0, x1 = cx - w / 2, cx + w / 2
+    else:
+        cy, h = (y0 + y1) / 2, w * 9 / 16
+        y0, y1 = cy - h / 2, cy + h / 2
+    dx = max(0, -x0) - max(0, x1 - 1920)
+    dy = max(0, -y0) - max(0, y1 - 1080)
+    return (round(x0 + dx), round(y0 + dy), round(x1 + dx), round(y1 + dy))
+
+
 def way_image(mark=None):
-    """The way question's picture: the marked-up map (left) and the game view now (right, Tara at its centre)."""
+    """The way question's picture at FULL scale (user D188: "Scale was a major cause - let's always screenshot full
+    scale"): the marked-up map zoomed to the box around her pin and the goal (top, 1920x1080), the game view now
+    (bottom, 1920x1080, Tara at its centre)."""
     from PIL import Image, ImageDraw
     m = marked_map(mark)
     if m is None:
@@ -501,12 +524,12 @@ def way_image(mark=None):
         frame = core.WF.grab().convert('RGB')
     except Exception:   # noqa: BLE001
         frame = Image.new('RGB', (1920, 1080), (0, 0, 0))
-    pic = Image.new('RGB', (1920, 540), (0, 0, 0))
-    pic.paste(m.resize((960, 540)), (0, 0))
-    pic.paste(frame.resize((960, 540)), (960, 0))
+    pic = Image.new('RGB', (1920, 2160), (0, 0, 0))
+    pic.paste(m.crop(way_box()).resize((1920, 1080)), (0, 0))
+    pic.paste(frame.resize((1920, 1080)), (0, 1080))
     dr = ImageDraw.Draw(pic)
-    dr.ellipse((1440 - 14, 270 - 14, 1440 + 14, 270 + 14), outline=(255, 0, 255), width=4)   # Tara in the view
-    dr.line((960, 0, 960, 540), fill=(255, 255, 255), width=3)
+    dr.ellipse((960 - 28, 1620 - 28, 960 + 28, 1620 + 28), outline=(255, 0, 255), width=6)   # Tara in the view
+    dr.line((0, 1080, 1920, 1080), fill=(255, 255, 255), width=6)
     return pic
 
 
@@ -517,9 +540,10 @@ def ask_way(t, res, mark, why=None):
     pin, goal = LAST_MAP.get('pin'), LAST_MAP.get('goal')
     where_ = (f'She is at the {mark}, a dead end: the straight line to the goal is blocked (rocks, cliffs, water).'
               if mark else f'The map reading is unsure: {why}; the magenta circle is her last good map pin.')
-    q = (f'LEFT: the world map - Tara = the magenta circle at the pin, the goal = the yellow circle (the {t.region}), '
-         f'red X = a dead end. RIGHT: the game view now, Tara = the magenta circle at its centre. {where_} '
-         f'Find on the map the road from her pin to the goal, then on the RIGHT the path she stands on that starts that road. Which way '
+    q = (f'TOP: the world map, zoomed around her - Tara = the magenta circle at the pin, the goal = the yellow circle '
+         f'(the {t.region}), red X = a dead end. BOTTOM: the game view now, Tara = the magenta circle at its centre. '
+         f'{where_} Trace on the TOP the road from her pin to the goal (never the straight line), then on the BOTTOM '
+         f'the path she stands on that starts that road. Which way '
          f'must she walk first along that path? Answer one of N, NE, E, SE, S, SW, W, NW (north = up, as on the '
          f'screen; the camera and the map both look north).')
     ask.ask('name', q, {'goal': res.get('goal'), 'params': res.get('params') or {}, 'map_dir': True, 'from': mark,

@@ -2471,8 +2471,18 @@ class MapWay(EngineBase):
         nav.LAST_MAP.clear()
         nav.LAST_MAP.update(pin=(530, 425), goal=(690, 490), img=Image.new('RGB', (1920, 1080), (40, 120, 200)))
         pic = nav.way_image()
-        self.assertEqual(pic.size, (1920, 540))
-        self.assertNotEqual(pic.getpixel((480, 270)), pic.getpixel((1440, 270)))   # map left, game view right
+        self.assertEqual(pic.size, (1920, 2160))   # full scale (user D188): the zoomed map on top, the view below
+        self.assertNotEqual(pic.getpixel((960, 300)), pic.getpixel((960, 1600)))
+
+    def test_the_way_map_is_zoomed_to_the_pin_and_the_goal(self):
+        self.use(FakeGame([], GAME))
+        from PIL import Image
+        nav.LAST_MAP.clear()
+        nav.LAST_MAP.update(pin=(530, 425), goal=(690, 490), img=Image.new('RGB', (1920, 1080), (40, 120, 200)))
+        box = nav.way_box()
+        self.assertTrue(box[0] < 530 and box[2] > 690 and box[1] < 425 and box[3] > 490, box)
+        self.assertLess(box[2] - box[0], 1920 / 2)   # zoomed in at least 2x
+        self.assertAlmostEqual((box[2] - box[0]) / (box[3] - box[1]), 16 / 9, 1)
 
     def test_the_answered_direction_walks_long_steps_and_progress_learns_the_way(self):
         f = self.lost()

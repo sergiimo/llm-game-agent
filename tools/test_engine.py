@@ -304,6 +304,60 @@ class FakeGame:
         self.card, self.picked = None, None
 
 
+class GeoGame(FakeGame):
+    """The fake game with geometry (strategy A walking): Tara has a world position; a bed's bubble shows only within
+    SHOW units of her, just above the bed's screen point; a ground click walks her to the clicked world point (the
+    game pathfinds); `blocked` = clicks that don't move her."""
+    SHOW = 3.0
+
+    def __init__(self, objects, behaviour, at, save_day=185, **kw):
+        super().__init__(objects, behaviour, **kw)
+        self.pos, self.save_day, self.blocked, self.walks = tuple(at), save_day, False, []
+        self._place()
+
+    def _pt(self, p):
+        return (round(960 + (p[0] - self.pos[0]) * 57.6), round(540 - (p[1] - self.pos[1]) * 57.6) - 40)
+
+    def _place(self):
+        import math as _m
+        for o in self.objects.values():
+            o['zone'] = 'near'
+            o['bubble_pt'] = self._pt(o['pos']) if _m.dist(o['pos'], self.pos) <= self.SHOW else None
+
+    def scan(self):
+        self._place()
+        return super().scan()
+
+    def run_action(self, a):
+        self._place()
+        m = re.match(r'click:(-?\d+):(-?\d+)', a)
+        if m and not self.card and not self.paused:
+            x, y = int(m.group(1)), int(m.group(2))
+            hit = any(o['bubble_pt'] and abs(o['bubble_pt'][0] - x) < 30 and abs(o['bubble_pt'][1] - y) < 30
+                      for o in self.objects.values())
+            if not hit:
+                self.clicks.append((x, y))
+                self.walks.append((x, y))
+                if not self.blocked:
+                    self.pos = (self.pos[0] + (x - 960) / 57.6, self.pos[1] - (y - 540) / 57.6)
+                    self.walk_frames = 1
+                self._place()
+                return None
+        out = super().run_action(a)
+        self._place()
+        return out
+
+    frozen = None   # a save written earlier (the game autosaves rarely): read_save returns it unchanged
+
+    def read_save(self):
+        if self.frozen is not None:
+            return self.frozen
+        name, save = super().read_save()
+        save['gameState']['time']['day'] = self.save_day
+        save['currentPlayerPosition'] = {'x': self.pos[0], 'y': 0.1, 'z': self.pos[1]}
+        return name, save
+
+
 # ---- the game's rules as the fake knows them (D148/D149/D183/D185) -----------------------------------------------
 GAME = [
     {'kind': 'GardenBed', 'when': {'wilted': True}, 'bubble': {'kind': 'unplant'}, 'click_event': 'unplant',
@@ -347,6 +401,7 @@ class Base(unittest.TestCase):
               mock.patch.object(ask, 'STATE', os.path.join(self.tmp.name, 'ask-state.json')),   # never the real one
               mock.patch.object(learn, 'TRUTH', os.path.join(self.tmp.name, 'truth')),
               mock.patch.object(where, 'WALK', os.path.join(self.tmp.name, 'where-walk.json')),
+              mock.patch.object(act, 'SHOTS', self.tmp.name),   # click frames: never the real .shots/clicks
               mock.patch.object(act, 'BURST', (0.0, 0.0)), mock.patch.object(act, 'EVENT_WAIT', 0.0),
               mock.patch.object(observe, 'see', lambda kind, tried=(): []),
               mock.patch.object(observe, 'see_all', lambda: []),
@@ -2142,6 +2197,73 @@ class VisitBeds(EngineBase):
         self.assertEqual(res['vision'], 0, res)
         g.load(learn.GRAPH)
         self.assertEqual(g.state_value(nid, 'stage'), 'empty')
+
+    def geo(self, beds_, at, **kw):
+        f = self.use(GeoGame(beds_, GAME, at, inventory={'TulipSeed': 2}, **kw))
+        f.log.append(L('9:00:00 AM', 'plant_growing', 'GardenBed', at[0], at[1]))   # she stands at a bed: exact
+        return f
+
+    def test_walks_bed_to_bed_and_picks_each_ready_bed(self):
+        """A ready bed out of bubble range: one walk to the ground below it, then its bubble at its point (D188)."""
+        grow = dict(stage='growing', watered=True, wilted=False)
+        ready = dict(stage='produced', watered=True, wilted=False)
+        f = self.geo([obj('a', pos=(NX[0], NZ[0]), **grow), obj('b', pos=(NX[1], NZ[0]), **ready),
+                      obj('c', pos=(NX[3], NZ[0]), **ready)], (NX[0], NZ[0]))
+        res = engine.achieve('harvest')
+        self.assertEqual([f.objects[k]['state']['stage'] for k in 'bc'], ['growing', 'growing'], res)
+        self.assertTrue(f.walks, f.clicks)
+        self.assertLessEqual(len(f.walks), 2, f.clicks)
+        self.assertEqual(res['vision'], 0, res)
+        self.assertTrue(res['stop'].startswith('done'), res)
+
+    def test_a_walk_that_does_not_arrive_gives_the_bed_back_to_the_search(self):
+        """The bubble is not at the predicted point after the walk (she was blocked): no click on a guessed bubble."""
+        ready = dict(stage='produced', watered=True, wilted=False)
+        f = self.geo([obj('c', pos=(NX[3], NZ[0]), **ready)], (NX[0], NZ[0]))
+        f.blocked = True
+        engine.achieve('harvest', max_clicks=6)
+        self.assertEqual(f.objects['c']['state']['stage'], 'produced')
+        self.assertEqual([c for c in f.clicks if c not in f.walks], [], f.clicks)   # only walks, never a guess
+
+    def test_a_bed_last_checked_on_an_earlier_day_is_checked_again(self):
+        """Freshness (user D188): yesterday's save says not ready; a fresh-per-day goal visits it, today it is ready."""
+        grow = dict(stage='growing', watered=True, wilted=False)
+        f = self.geo([obj('a', pos=(NX[0], NZ[0]), **grow), obj('b', pos=(NX[1], NZ[0]), **grow)], (NX[0], NZ[0]),
+                     save_day=184)
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        g.save(learn.GRAPH)
+        f.frozen = f.read_save()
+        f.objects['b']['state']['stage'] = 'produced'   # it ripened overnight; the save is from yesterday
+        res = engine.achieve('harvest')
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing', res)
+
+    def test_a_save_older_than_a_cards_reading_does_not_overwrite_it(self):
+        g = OG.Graph()
+        f = self.geo([obj('b', pos=(NX[1], NZ[0]), stage='produced', watered=True, wilted=False)], (NX[0], NZ[0]))
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        nid = world.find(g, 'GardenBed', (NX[1], NZ[0]))
+        g.set_state(nid, 'ready', False, 'D185 11:20:00 AM', 'card')   # the click showed "2 days remaining"
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)    # the save is from 8:00 AM
+        self.assertIs(g.state_value(nid, 'ready'), False)
+
+    def test_status_shows_each_beds_reading_its_time_and_what_to_check(self):
+        f = self.geo([obj('b', pos=(NX[1], NZ[0]), stage='growing', watered=True, wilted=False)], (NX[0], NZ[0]),
+                     save_day=184)
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        nid = world.find(g, 'GardenBed', (NX[1], NZ[0]))
+        lines = world.status(g, 'GardenBed', today=185)
+        row = next(l for l in lines if nid in l)
+        self.assertIn('ready=False (save D184', row)
+        self.assertIn('CHECK', row)
+        g.set_state(nid, 'ready', False, 'D185 11:20:00 AM', 'card')
+        row = next(l for l in world.status(g, 'GardenBed', today=185) if nid in l)
+        self.assertIn('ready=False (card D185 11:20', row)
+        self.assertNotIn('CHECK', row)
 
 
 if __name__ == '__main__':

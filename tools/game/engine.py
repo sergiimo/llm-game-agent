@@ -79,12 +79,47 @@ def _strict(spec):
     return {k for k, v in spec.get('where', {}).items() if isinstance(v, str) and v.startswith('$') and k != 'region'}
 
 
-def _targets(g, spec, where, working, unknown=None):
+def _today():
+    t = world.when(_stamp())
+    return None if t is None else t // 86400
+
+
+def _stale_keys(g, n, rest, st, today):
+    """`fresh: day` goals (user D188): the `where` keys the object fails only by a reading from an earlier game day
+    (yesterday's save: not ready; it may have ripened overnight). {} when any failing key is from today."""
+    bad = {k: v for k, v in rest.items() if k in st and not plan.holds({k: v}, st)}
+    if not bad or today is None:
+        return {}
+    days = [world.checked_day(g, n, k) for k in bad]
+    return bad if all(d is not None and d < today for d in days) else {}
+
+
+def _stale_path(g, kind, tid, st, want, make, params):
+    """A stale object's reading from an earlier day may have changed: each row's `when` over those old keys (plus
+    the goal's `where` on them) is a plausible state now; the first one with a path to the goal. (path, state) or
+    (None, None)."""
+    today = _today()
+    old = {k for k in st if today is not None and (world.checked_day(g, tid, k) or today) < today}
+    for r in plan.rows(kind):
+        if r.get('bubble') is None:
+            continue
+        guess = dict(st, **want, **{k: v for k, v in r['when'].items()
+                                    if k in old and not (isinstance(v, str) and ('|' in v or v.startswith(('$', '!'))))})
+        p = plan.path(kind, guess, make, params)
+        if p:
+            return p, guess
+    return None, None
+
+
+def _targets(g, spec, where, working, unknown=None, stale=None):
+    """Objects the goal selects; with `fresh: day`, also those failing it only by an earlier day's reading (they go
+    into `stale`: visit and look, the click result stamps them fresh)."""
     base = {'kind': spec['kind']}
     if 'region' in where:
         base['region'] = where['region']
     rest = {k: v for k, v in where.items() if k != 'region'}
     strict = _strict(spec) & set(rest)
+    today = _today() if spec.get('fresh') == 'day' else None
     found = []
     for n in world.query(g, base):
         st = world.state_of(g, n)
@@ -94,6 +129,10 @@ def _targets(g, spec, where, working, unknown=None):
             continue
         if _passes(g, n, rest):
             found.append(n)
+        elif today is not None and _stale_keys(g, n, rest, st, today):
+            found.append(n)
+            if stale is not None:
+                stale[n] = _stale_keys(g, n, rest, st, today)
     return sorted(set(found) | {n for n in working if n in g.nodes})
 
 
@@ -454,8 +493,10 @@ def _assumed(st, where):
 
 
 def _only_maybes(g, targets, where, res):
-    """Every target left was selected only because its state is unknown, and no fitting bubble shows: done."""
-    if targets and all(_assumed(world.state_of(g, n), where) for n in targets):
+    """Every target left was selected only because its state is unknown (or from an earlier day), and no fitting
+    bubble shows: done."""
+    stale = res.get('stale') or {}
+    if targets and all(_assumed(world.state_of(g, n), where) or n in stale for n in targets):
         res['stop'] = f'done: no fitting bubble left in view ({len(targets)} with unknown state)'
         return True
     return False
@@ -613,13 +654,15 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             break
         if res['clicks'] and ask.late(res):
             break
-        unknown = set()
-        targets = [n for n in _targets(g, spec, where, working, unknown) if n not in res['skip']]
+        unknown, stale = set(), {}
+        targets = [n for n in _targets(g, spec, where, working, unknown, stale) if n not in res['skip']]
+        res['stale'] = stale
         if unknown and not any('unknown' in n_ for n_ in res['notes']):
             res['notes'].append(f'{len(unknown)} matching objects have an unknown {", ".join(sorted(_strict(spec)))} '
                                 f'(unknown crop/value: not acted on): {sorted(unknown)[:4]}')
         working = [n for n in working if not _made(g, n, make, params, world.state_of(g, n))]
-        targets = [n for n in targets if n in working or not _made(g, n, make, params, world.state_of(g, n))]
+        targets = [n for n in targets if n in working or n in stale
+                   or not _made(g, n, make, params, world.state_of(g, n))]
         if not targets:
             res['stop'] = 'done: query empty' if not res['skip'] else f'left: {len(res["skip"])} skipped ({res["notes"][-3:]})'
             break
@@ -628,6 +671,12 @@ def _loop(g, name, spec, params, save, max_clicks, res):
         st, area = world.state_of(g, tid), world.area_of(g, tid)
         assumed = _assumed(st, where)
         p = plan.path(kind, dict(st, **assumed), make, params)
+        if tid in stale:   # an earlier day's reading (user D188): visit and look, as if it were what the goal wants
+            p, _ = _stale_path(g, kind, tid, dict(st, **assumed), stale[tid], make, params)
+            if not p:
+                res['skip'].append(tid)
+                res['notes'].append(f'{tid}: stale {stale[tid]}, no row reaches {make} from it')
+                continue
         if p is None:   # no known action: explore one fitting bubble, learn the row from what the game shows
             if _explore(g, tid, kind, area, where, name, params, res, working, make) == 'stop':
                 break

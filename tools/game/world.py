@@ -134,13 +134,30 @@ def _ensure_object(g, kind, pos, scene, prefab=None, source='save'):
     return nid, new
 
 
+def _newer(g, nid, key, stamp):
+    """The node already holds `key` from a later game time than `stamp` (a card read at 11:20 vs the 8:00 save)."""
+    n = g.nodes.get(nid)
+    s = n.state.get(key) if n else None
+    old, new = (when(s.get('game_time')) if isinstance(s, dict) else None), when(stamp)
+    return old is not None and new is not None and old > new
+
+
 def _set(g, nid, state, stamp, source):
+    """State with its game time; an older reading never overwrites a newer one (user D188: the status must stay
+    fresh - a refresh from the morning save must not undo what a click showed at noon)."""
     for k, v in state.items():
         if k.startswith('Tara.'):
-            if 'Tara' in g.nodes:
+            if 'Tara' in g.nodes and not _newer(g, 'Tara', k.split('.', 1)[1], stamp):
                 g.set_state('Tara', k.split('.', 1)[1], v, stamp, source)
-        else:
+        elif not _newer(g, nid, k, stamp):
             g.set_state(nid, k, v, stamp, source)
+
+
+def checked_day(g, nid, key):
+    """The game day `key` was last set on the object, or None (no stamp)."""
+    s = g.nodes[nid].state.get(key) if nid in g.nodes else None
+    t = when(s.get('game_time')) if isinstance(s, dict) else None
+    return None if t is None else t // 86400
 
 
 # ---- areas --------------------------------------------------------------------------------------------------------
@@ -415,6 +432,31 @@ def nodes(g):
                     st[k][str(v)] += 1
         out.append({'area': a.id, 'parent': a.region, 'pos': a.extra.get('pos'), 'kinds': ks, 'state': st})
     return out
+
+
+STATUS_KEYS = ('stage', 'ready', 'crop', 'days_left', 'watered', 'wilted')
+
+
+CHANGING = ('stage', 'ready')   # readings that change from day to day (a crop's name does not)
+
+
+def status(g, kind, today=None, keys=STATUS_KEYS, changing=CHANGING):
+    """One line per object of `kind`, by area: each reading with its source and game time; CHECK = no reading that
+    changes from day to day (stage, ready) is from `today` (user D188: see which status is fresh and
+    where to look)."""
+    lines = []
+    for n in sorted((n for n in _objects(g) if n.kind == kind), key=lambda n: (str(n.region), n.extra['pos'])):
+        parts, days = [], []
+        for k in keys:
+            s = n.state.get(k)
+            if not isinstance(s, dict):
+                continue
+            parts.append(f'{k}={s.get("value")} ({s.get("source")} {s.get("game_time") or "?"})')
+            if k in changing and checked_day(g, n.id, k) is not None:
+                days.append(checked_day(g, n.id, k))
+        old = today is not None and bool(days) and max(days) < today   # nothing that changes was read today
+        lines.append(f'{n.id} [{n.region}] at {n.extra["pos"]}: ' + ', '.join(parts) + ('  CHECK' if old else ''))
+    return lines
 
 
 def catalogue(g):

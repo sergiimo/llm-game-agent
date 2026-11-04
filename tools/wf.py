@@ -1241,7 +1241,12 @@ def run_cmd(sub_, args):
 
 
 def world_cmd(args):
-    """wf world kinds | nodes: the engine's world graph (game/world.py) from the save + today's log."""
+    """wf world kinds | nodes | status <Kind>: the engine's world graph (game/world.py) from the save + today's log;
+    status = each object's readings with source and game time, CHECK = read on an earlier day."""
+    if args and args[0] == 'status' and len(args) == 2:
+        from game import world as WD
+        t = WD.when(game_stamp())
+        return print('\n'.join(WD.status(world_graph(), args[1], None if t is None else t // 86400)))
     if args and args[0] in ('kinds', 'nodes'):
         from game import world as WD
         g = world_graph()

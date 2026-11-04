@@ -1,7 +1,7 @@
 {
-  "_doc": "Goal library (spec 2026-11-03 \u00a75): kind + where (the filter of targets; $param from the call) + make (the state to reach; $same = keep the object's value) + required params (asked when missing, never defaulted). Raw goals have the same shape. light: \"day\" = the goal reads bubble kinds (unreliable at dusk/night, D185): outside daylight it stops and suggests sleeping.",
+  "_doc": "Goal library (spec 2026-11-03 \u00a75): kind + where (the filter of targets; $param from the call) + make (the state to reach; $same = keep the object's value) + required params (asked when missing, never defaulted). Raw goals have the same shape. light: \"day\" = the goal reads bubble kinds (unreliable at dusk/night, D185): outside daylight it stops and suggests sleeping. fresh: \"day\" = an object failing the filter only by a reading from an earlier game day is visited and looked at (crops ripen overnight; the click result stamps it fresh, user D188).",
   "water": {"kind": "GardenBed", "where": {"stage": "growing|producing", "watered": false, "wilted": false}, "make": {"watered": true}},
   "replant": {"kind": "GardenBed", "where": {"wilted": true}, "make": {"crop": "$same", "watered": true}, "light": "day"},
   "plant": {"kind": "GardenBed", "where": {"region": "$region", "stage": "empty"}, "make": {"stage": "growing", "crop": "$seed"}, "required": ["seed", "region"], "light": "day"},
-  "harvest": {"kind": "GardenBed", "where": {"ready": true, "crop": "!$flowers"}, "make": {"ready": false}, "skip_bubbles": {"crop": "$flowers"}, "light": "day"}
+  "harvest": {"kind": "GardenBed", "where": {"ready": true, "crop": "!$flowers"}, "make": {"ready": false}, "skip_bubbles": {"crop": "$flowers"}, "light": "day", "fresh": "day"}
 }

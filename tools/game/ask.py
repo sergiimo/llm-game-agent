@@ -148,6 +148,22 @@ def ask(kind, question, pending, res):
     raise NeedVision(f'{prompt}\n  answer: {ans}')
 
 
+RAIN = ('Raining', 'Rain', 'Storm', 'Thunder')
+
+
+def rain():
+    """Today's forecast from the game log when it is rain/storm ('Raining'), else None (user D187: avoid rain for now)."""
+    try:
+        lines = core.WF.today_log()[0]
+    except Exception:   # noqa: BLE001
+        return None
+    for line in reversed(lines):
+        m = re.search(r'Forecast is (\w+)', line)
+        if m:
+            return m.group(1) if m.group(1) in RAIN else None
+    return None
+
+
 def late(res):
     """The HUD clock: after LATE or before EARLY -> res['stop']; sets res['light'] for the soil tones."""
     h, light = O.clock()

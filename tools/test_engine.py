@@ -1774,5 +1774,34 @@ class StrictParams(EngineBase):
         self.assertTrue(any('unknown crop' in n for n in res['notes']), res)
 
 
+class NewDay(Base):
+    """D188: the save was from the rainy D187 (all watered); a new day resets watering, so every growing bed is dry."""
+
+    def test_a_new_day_after_the_save_resets_watered(self):
+        g = OG.Graph()
+        g.load(SEED)
+        save = FakeGame(NORTH, GAME).read_save()[1]   # day 185 in the save, beds watered
+        world.refresh(g, save, ['[D186 7:00:00 AM] [TRIGGER] OnDayStarted'], None)
+        self.assertEqual(world.count(g, {'kind': 'GardenBed', 'watered': False}), 12)
+        g2 = OG.Graph()
+        g2.load(SEED)
+        world.refresh(g2, save, ['[D185 9:00:00 AM] > interact me=Player'], None)   # same day: as saved
+        self.assertEqual(world.count(g2, {'kind': 'GardenBed', 'watered': False}), 0)
+
+
+class RainGate(EngineBase):
+    """User D187: avoid rain and dark for now - the chores stop on a rainy forecast before any click."""
+
+    def test_rain_stops_the_chores_before_any_click(self):
+        f = self.use(FakeGame(beds('n', NX[:2], NZ[:1], 'near', 500, 300, stage='growing', watered=False,
+                                   wilted=False), GAME))
+        f.log.append('[D185 7:00:00 AM] [TIME] Forecast is Raining today')
+        res = engine.achieve('water')
+        self.assertTrue(res['stop'].startswith('rain'), res['stop'])
+        self.assertEqual(f.clicks, [])
+        m = smoke.morning('Tulip', region='Garden')
+        self.assertTrue(m['stop'].startswith('rain'), m['stop'])
+
+
 if __name__ == '__main__':
     unittest.main()

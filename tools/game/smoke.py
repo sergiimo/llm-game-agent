@@ -284,12 +284,19 @@ def walk_to_area(goal, arrive=6.0, kind='plant', max_steps=14):
 
 # ---- the morning chores: plant the rest, refill, water (daylight only; user D186 "run all at morning") ----------
 def daylight():
-    """(ok, hour, light): bubble icons are read reliably only in daylight (D186: none found at 5:40 pm)."""
+    """(ok, hour, light): bubble icons are read reliably only in daylight (D186: none found at 5:40 pm); no chores in
+    the rain for now (user D187): light = 'rain (<forecast>)'."""
+    from . import ask
+    r = ask.rain()
+    if r:
+        return False, None, f'rain ({r} today)'
     h, light = O.clock()
     return light in ('day', None), h, light
 
 
 def dark_stop(h, light):
+    if str(light).startswith('rain'):
+        return f'{light}: no chores in the rain for now (user D187) - ask the user, try a dry day'
     return (f'dark ({light}, {h if h is None else round(h, 1)} h): bubble icons are unreliable outside daylight - '
             f'suggest sleeping (ask the user), then run in the morning')
 

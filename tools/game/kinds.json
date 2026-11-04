@@ -1,5 +1,5 @@
 {
-  "_doc": "Optional per-kind overrides (spec 2026-11-03 \u00a73). save_has: userState fields that identify the kind in the save (prefab ids are opaque); state: save field -> one-vocabulary state key ([field, 'bool' | {value: state, '*': default}]); area: name stem for an area where this kind is the main one; markers: state -> frame marker nav can walk to. A kind without an entry still works (raw fields only; named from the log). _toward: seeded screen directions between frame nodes (D185 farm frame; learned edges replace them). node: the graph node a detection/bubble of this kind means on the frame (closest node). bubbles: bubble kinds only this kind shows.",
+  "_doc": "Optional per-kind overrides (spec 2026-11-03 \u00a73). save_has: userState fields that identify the kind in the save (prefab ids are opaque); state: save field -> one-vocabulary state key ([field, 'bool' | {value: state, '*': default}]); area: name stem for an area where this kind is the main one; markers: state -> frame marker nav can walk to. A kind without an entry still works (raw fields only; named from the log). _toward: seeded screen directions between frame nodes (D185 farm frame; learned edges replace them). node: the graph node a detection/bubble of this kind means on the frame (closest node). bubbles: bubble kinds only this kind shows. daily: state a new game day resets (watering), applied when today's log is a newer day than the save.",
   "_toward": {
     "Well->BeeHive": [
       0.83,
@@ -70,7 +70,10 @@
       "unplant",
       "plant_growing",
       "pickup"
-    ]
+    ],
+    "daily": {
+      "watered": false
+    }
   },
   "BeeHive": {
     "save_has": [

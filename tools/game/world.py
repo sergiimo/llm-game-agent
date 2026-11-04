@@ -267,6 +267,7 @@ def refresh(graph, save, today_lines, save_time_=None):
         st = {k: v for k, v in o['raw'].items() if isinstance(v, (str, int, float, bool))}
         st.update(_mapped(o['kind'], o['raw']))
         _set(g, nid, st, stamp, 'save')
+    _new_day(g, stamp, today_lines)
     pp = save.get('currentPlayerPosition')
     if pp and 'Tara' in g.nodes and (abs(pp.get('x', 0)) + abs(pp.get('z', 0))) > 1e-6:
         g.nodes['Tara'].extra['pos'] = [round(pp['x'], 2), round(pp['z'], 2)]
@@ -297,6 +298,21 @@ def refresh(graph, save, today_lines, save_time_=None):
             changes.setdefault(n.region, []).append(nid)
     g.extra.pop('_unnamed', None)
     return changes
+
+
+def _new_day(g, save_stamp, lines):
+    """Today's log is a newer game day than the save: each kind's `daily` state resets (D188: the save was from the
+    rainy day before, every bed 'watered'; a new day dries them)."""
+    sd = when(save_stamp)
+    days = [int(m.group(1)) for m in (re.match(r'^\[D(\d+) ', l) for l in lines) if m]
+    if sd is None or not days or max(days) <= sd // 86400:
+        return
+    today = f'D{max(days)} 7:00:00 AM'
+    for kind, v in kinds().items():
+        if v.get('daily'):
+            for n in _objects(g):
+                if n.kind == kind:
+                    _set(g, n.id, v['daily'], today, 'day')
 
 
 def _stamp_of(line):

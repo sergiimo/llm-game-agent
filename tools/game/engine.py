@@ -412,6 +412,10 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
         A.gameplay()
         if ask.late(res):
             return res
+        r = ask.rain()
+        if r:
+            res['stop'] = f'rain ({r} today): no chores in the rain for now (user D187) - ask the user, try a dry day'
+            return res
         if spec.get('light') and res.get('light') and res['light'] != spec['light']:
             res['stop'] = (f'dark ({res["light"]}): {name} reads bubble icons, reliable only in daylight - suggest '
                            f'sleeping (ask the user), then retry in the morning')

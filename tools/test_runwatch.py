@@ -99,6 +99,11 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.levels([{'type': 'engine', 'goal': 'plant', 'done': 12, 'left': 0, 'clicks': 14,
                                        'vision': 0, 'stop': 'done: query empty'}]), [])
 
+    def test_the_watcher_flags_a_red_flag_stop(self):
+        out = self.levels([{'type': 'engine', 'goal': 'harvest', 'done': 0, 'left': 3, 'clicks': 1,
+                            'vision': 0, 'stop': 'RED FLAG: wrong event'}])
+        self.assertEqual(out[0][0], 'STOP')
+
     def test_every_click_gets_a_short_info_line(self):
         w = RW.Watch()
         (lv, msg), = w.feed(click((968, 484), what='bubble', mode='overlay', texts=['Inventory', 'Seeds'],

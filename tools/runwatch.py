@@ -127,7 +127,8 @@ class Watch:
             msg = (f"engine {r.get('goal')}: done {r.get('done')}, left {r.get('left')}, clicks {r.get('clicks')}, "
                    f"vision {r.get('vision')}, stop {r.get('stop')}")
             stop = str(r.get('stop') or '')
-            out.append(('INFO', msg) if stop.startswith('done') or not stop else ('ALERT', msg))
+            out.append(('STOP', msg) if stop.startswith('RED FLAG') else
+                       ('INFO', msg) if stop.startswith('done') or not stop else ('ALERT', msg))
         elif t == 'forage':   # the foraging strategy: one vision answer -> one result (spec §13)
             msg = (f"forage {r.get('job')} @{(r.get('pt') or ['?', '?'])[0]},{(r.get('pt') or ['?', '?'])[1]}: "
                    f"{r.get('result')} {r.get('object') or ''} (hits {r.get('hits')})")

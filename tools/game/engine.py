@@ -364,6 +364,14 @@ def _visit(g, tid, kind, res, row=None):
     return None
 
 
+def _click_bed(g, tid, pt, row, res):
+    """Single guarded object click primitive shared by visits and explicit model decisions."""
+    c = A.click(pt, 'object', here=res.get('area'), wait_event=True,
+                goal={'row': row['id'] if row else None, 'step': 0, 'target': tid})
+    res['clicks'] += 1
+    return c
+
+
 def _decision_value(raw):
     value = raw.strip()
     if not value:
@@ -441,7 +449,8 @@ def decide_q(g, spec, targets, res):
          'brief; a walk names free ground, never Tara or a bubble; settle only objects visibly shown in this frame.')
     pending = {'goal': res.get('goal'), 'params': res.get('params') or {}, 'decide': True,
                'brief_ids': ids, 'in_view': in_view, 'screens': screens,
-               'bubbles': [dict(b, pt=list(b['pt'])) for b in state['bubbles']]}
+               'bubbles': [dict(b, pt=list(b['pt'])) for b in state['bubbles']],
+               'position_source': state.get('tara', {}).get('source')}
     N.log('decide', what='question', targets=list(targets), brief_ids=ids, in_view=in_view)
     try:
         ask.ask('decide', q, pending, res, img=ask.draw_grid(brief.draw(core.WF.grab(), state)))
@@ -500,14 +509,30 @@ def finish_card(c, res):
     near = [a for a in c.before if O.d(a.pt, c.pt) <= 160]
     b = min(near, key=lambda a: O.d(a.pt, c.pt)) if near else None
     crop = (res.get('icon_of') or {}).get(tuple(b.pt)) if b else None
-    if crop is None and b is not None and res.get('skip_names'):   # the prompt is the readiness proof (live D189):
+    if res.get('explicit_click') and b is not None and O.d(b.pt, c.pt) > 30:
+        crop = None
+    elif res.get('explicit_click') and b is not None and crop is None:
+        crop = getattr(b, 'icon', None)
+    g = L.MEMORY.get('graph')
+    if crop is None and res.get('graph_crop_ok') and g is not None and res.get('tid_now') in g.nodes:
+        crop = world.state_of(g, res['tid_now']).get('crop')
+    if crop is None and b is not None and res.get('skip_names') and not res.get('explicit_click'):
         from . import icons                                        # name the crop by its icon, don't drop it
         crop = icons.name_of(b)
         if crop is not None:
             res.setdefault('icon_of', {})[tuple(b.pt)] = crop
         else:
             res['icon_unknown'] = b   # asked next (vision names the icon), never a silent close
-    if res.get('skip_names') and (crop is None or crop in res['skip_names']):
+    if crop is None and g is not None and res.get('tid_now') in g.nodes:
+        nid = res['tid_now']
+        ask.ask('name', f'Name the crop on the open Collect card clicked for {nid}. Flowers stay; do not confirm yet.',
+                {'goal': res['goal'], 'params': res.get('params', {}), 'collect_open': True,
+                 'node': nid, 'actual': nid, 'row': row['id'], 'row_spec': row}, res)
+    if crop is not None and crop in res.get('skip_names', ()):
+        if res.get('tid_now'):
+            res.setdefault('skip', []).append(res['tid_now'])
+        return False
+    if res.get('skip_names') and crop is None:
         return False
     rest = dict(row, steps=row['steps'][1:])
     out = steps.run(rest, row.get('params', {}), b)
@@ -598,6 +623,7 @@ def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
                  pos=tuple(g.nodes[tid].extra['pos']) if tid in g.nodes else None,
                  here=here if src in ('event', 'walk') else None)   # fresh only: the save's position can be an hour old
     res['row_now'], res['skip_names'] = row, set(skip)
+    res['graph_crop_ok'] = src in ('event', 'walk')
     res['on_card'] = lambda c: finish_card(c, res)
     res.pop('icon_unknown', None)
     a = _far_search(t, res, halt=halt)
@@ -733,8 +759,6 @@ def _collect_answer(g, pend, answer, params, res):
     if not crop or crop.lower() in ('none', 'unknown'):
         ask.ask('name', 'Name the crop on the open Collect card; never confirm an unknown crop.', pend, res)
     nid = pend['node']
-    if pend.get('actual'):
-        world._set(g, pend['actual'], {'crop': crop}, _stamp(), 'vision')
     N.trace(res, f'{nid}: Collect crop={crop}')
     if crop in res.get('skip_names', ()):
         A.gameplay()
@@ -790,8 +814,9 @@ def _answer_decision(g, pend, answer, params, res):
                    for b in pend.get('bubbles', ())]
         if not N.walkable(pt, visible + list(O.scan())):
             raise core.Failed(f'answer rejected: {pt} is not walkable free ground')
-    c = A.click(pt, 'object' if nid else 'point', here=res.get('area'), wait_event=True)
-    res['clicks'] += 1
+    c = _click_bed(g, nid, pt, row, res) if nid else A.click(pt, 'point', here=res.get('area'), wait_event=True)
+    if not nid:
+        res['clicks'] += 1
     N.trace(res, f'{action} {nid or pt}: {c.describe()}')
     if c.exp:
         res.setdefault('exps', []).append(c.exp)
@@ -814,31 +839,33 @@ def _answer_decision(g, pend, answer, params, res):
             ask.ask('name', f'Unexpected card {c.texts} for {nid}; expected {want}. What state does this show?',
                     {'goal': res['goal'], 'params': params,
                      'learn': {'kind': g.nodes[nid].kind, 'nid': actual, 'events': c.events}}, res)
-        # The projected point may have hit a neighbour: only the actual positioned object or a live
-        # bubble crop reading from THIS click can name the crop, never the intended object's memory alone.
-        nearby = [a for a in c.before if O.d(a.pt, c.pt) <= 30]
-        bubble = min(nearby, key=lambda a: O.d(a.pt, c.pt)) if nearby else None
-        crop = (getattr(bubble, 'icon', None) if bubble else None)
-        if crop is None and actual:
-            crop = world.state_of(g, actual).get('crop')
-        collect = want.lower() == 'collect'
-        if collect and not crop:
-            ask.ask('name', f'Name the crop on the open Collect card clicked for {nid}. Flowers stay; do not confirm yet.',
-                    {'goal': res['goal'], 'params': params, 'collect_open': True, 'node': nid,
-                     'actual': actual, 'row': row['id'], 'row_spec': row}, res)
-        if not collect or crop not in res.get('skip_names', ()):
-            if _decision_card(g, nid, row, row.get('params', params), res, crop=crop):
+        if want.lower() == 'collect':
+            res['tid_now'], res['row_now'] = nid, row
+            res['skip_names'] = _skip_names(res['spec'], params)
+            res['params'] = params
+            res['explicit_click'] = True
+            res['graph_crop_ok'] = pend.get('position_source') in ('event', 'walk') and actual in (None, nid)
+            finish_card(c, res)
+            runs = res.pop('card_runs', [])
+            if runs:
+                out = runs[0]
+                learned = _learn(g, out, row['kind'], row, res)
+                plan.count(row['id'], out['ok'])
+                if out['ok'] and learned == nid and _made(g, nid, res['spec'].get('make', {}), params, world.state_of(g, nid)):
+                    if nid not in res['done']: res['done'].append(nid)
+                    ask.progress(res['goal'])
+                elif not out['ok']:
+                    _decision_failed(g, nid, f'Collect did not finish: {c.describe()}', res)
+                A.gameplay()
+                return
+            if nid in res.get('skip', ()):
                 A.gameplay()
                 return
         else:
-            if actual == nid:
-                res['skip'].append(nid)
-                ask.progress(res['goal'])
-            else:
-                _decision_failed(g, nid, f'clicked {crop}; intended object unproven', res)
-            res['notes'].append(f'{nid}: clicked {crop} stays')
-            A.gameplay()
-            return
+            crop = world.state_of(g, actual or nid).get('crop') if actual or nid else None
+            if _decision_card(g, nid, row, row.get('params', params), res, crop=crop):
+                A.gameplay()
+                return
     elif (nid and actual == nid) or (not c.events and c.moved):
         ask.progress(res['goal'])
         A.gameplay()

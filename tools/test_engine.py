@@ -335,6 +335,13 @@ class GeoGame(FakeGame):
     def run_action(self, a):
         self._place()
         m = re.match(r'click:(-?\d+):(-?\d+)', a)
+        if m and not self.card and not self.paused and self._bed_at(int(m.group(1)), int(m.group(2))):
+            o = self._bed_at(int(m.group(1)), int(m.group(2)))
+            self.clicks.append((int(m.group(1)), int(m.group(2))))
+            self.pos = (o['pos'][0], o['pos'][1] - 1.0)
+            self.walk_frames = 1
+            self._place()
+            return self.interact(o)
         if m and not self.card and not self.paused:
             x, y = int(m.group(1)), int(m.group(2))
             hit = any(o['bubble_pt'] and abs(o['bubble_pt'][0] - x) < 30 and abs(o['bubble_pt'][1] - y) < 30
@@ -350,6 +357,14 @@ class GeoGame(FakeGame):
         out = super().run_action(a)
         self._place()
         return out
+
+    def _bed_at(self, x, y):
+        import math as _m
+        for o in self.objects.values():
+            bx, by = self._pt(o['pos'])
+            if abs(bx - x) < 40 and abs(by + 40 - y) < 40 and _m.dist(o['pos'], self.pos) > self.SHOW:
+                return o
+        return None
 
     frozen = None   # a save written earlier (the game autosaves rarely): read_save returns it unchanged
 
@@ -2200,6 +2215,55 @@ class ReadyMisread(EngineBase):
         act.click((700, 400), 'bubble')   # no WrongLanguage
 
 
+class CollectOnTheWay(EngineBase):
+    def setUp(self):
+        super().setUp()
+        for mod, name in ((icons, 'DIR'), (learn, 'TRUTH')):
+            p = mock.patch.object(mod, name, os.path.join(self.tmp.name, name.lower())); p.start(); self.addCleanup(p.stop)
+        icons.reset()
+        p = mock.patch.object(icons, 'name_of', lambda a: 'Green Bean'); p.start(); self.addCleanup(p.stop)
+
+    def game(self, b_state):
+        a = obj('a', pos=(NX[0], NZ[0]), bubble=(960, 470), stage='growing', watered=True, wilted=False)
+        b = obj('b', pos=(NX[1], NZ[0]), bubble=(1104, 540), **b_state)
+        f = self.use(FakeGame([a, b], GAME, inventory={'TulipSeed': 2}))
+        f.log.append(L('9:00:00 AM', 'plant_growing', 'GardenBed', NX[0], NZ[0]))
+        return f
+
+    def test_a_collect_on_the_way_uses_the_targets_crop_from_the_graph(self):
+        f = self.game(dict(stage='produced', watered=True, wilted=False))
+        g = OG.Graph(); g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        nid = world.find(g, 'GardenBed', f.objects['b']['pos'])
+        self.assertIsNotNone(nid)
+        g.set_state(nid, 'crop', 'Green Bean', 'D185 9:00:00 AM', 'vision')
+        engine.L.MEMORY['graph'] = g
+        before = []  # the card click has no bubble near it; graph crop is the only crop evidence
+        f.interact(f.objects['b'])
+        row = next(r for r in plan.rows() if r['id'] == 'pick')
+        res = {'row_now': dict(row, params={}), 'skip_names': {'Tulip'}, 'tid_now': nid,
+               'params': {}, 'goal': 'harvest', 'graph_crop_ok': True}
+        c = act.Click((1170, 750), 'explore', 0, before=before, mode='overlay', texts=['Collect'])
+        self.assertTrue(engine.finish_card(c, res))
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing')
+
+    def test_a_collect_on_the_way_with_no_crop_known_asks_with_the_card_open(self):
+        f = self.game(dict(stage='produced', watered=True, wilted=False))
+        g = OG.Graph(); g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        nid = world.find(g, 'GardenBed', f.objects['b']['pos'])
+        engine.L.MEMORY['graph'] = g
+        before = []
+        f.interact(f.objects['b'])
+        row = next(r for r in plan.rows() if r['id'] == 'pick')
+        res = {'row_now': dict(row, params={}), 'skip_names': {'Tulip'}, 'tid_now': nid,
+               'params': {}, 'goal': 'harvest', 'graph_crop_ok': True}
+        c = act.Click((1170, 750), 'explore', 0, before=before, mode='overlay', texts=['Collect'])
+        with self.assertRaises(ask.NeedVision):
+            engine.finish_card(c, res)
+        self.assertEqual(ask.load_state('harvest')['pending']['collect_open'], True)
+
+
 class VisitBeds(EngineBase):
     """User D188, strategy A: go bed by bed from her exact position; a bed's bubble is the one at the bed's expected
     screen point, whatever its kind or "!" reading says; the click result decides and labels the bubble's truth."""
@@ -2823,6 +2887,41 @@ class FirstHarvest(EngineBase):
         toast = screen.Screen('card', ['Where Have You Bean?', 'New quest', 'Pick some beans for Gramma'])
         self.assertTrue(screen.passive(toast))
         self.assertFalse(screen.passive(screen.Screen('card', ['Green Bean', 'Collect'])))
+
+
+class ClickTheBed(VisitBeds):
+    def far_bed(self, crop=None):
+        x, z = NX[1], NZ[0]
+        far = obj('far', pos=(x - 2.5, z - 4.5), stage='produced', watered=True, wilted=False)
+        if crop: far['state']['crop'] = crop
+        f = self.use(GeoGame([far], GAME, (x, z), inventory={'TulipSeed': 2}))
+        f.log.append(L('8:30:00 AM', 'plant_growing', 'GardenBed', x, z))
+        g = OG.Graph(); g.load(learn.GRAPH); world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        keep = world.find(g, 'GardenBed', far['pos'])
+        for n in world.query(g, {'kind': 'GardenBed'}):
+            if n != keep: g.set_state(n, 'ready', False, 'D185 8:20:00 AM', 'card')
+        if crop: g.set_state(keep, 'crop', crop, 'D185 8:20:00 AM', 'icon')
+        g.save(learn.GRAPH)
+        return f, keep
+
+    def test_an_unknown_crop_bed_keeps_collect_open_for_the_crop_answer(self):
+        f, nid = self.far_bed()
+        try: engine.achieve('harvest', max_clicks=8)
+        except ask.NeedVision: pass
+        try: engine.achieve('harvest', answer=f'click {nid}', max_clicks=8)
+        except ask.NeedVision: pass
+        self.assertTrue(ask.load_state('harvest')['pending'].get('collect_open'), f.clicks)
+        try: engine.achieve('harvest', answer='Green Bean', max_clicks=8)
+        except ask.NeedVision: pass
+        self.assertEqual(f.objects['far']['state']['stage'], 'growing', f.clicks)
+
+    def test_a_known_crop_bed_in_view_is_clicked_at_once(self):
+        f, nid = self.far_bed(crop='Green Bean')
+        try: engine.achieve('harvest', max_clicks=8)
+        except ask.NeedVision: pass
+        try: engine.achieve('harvest', answer=f'click {nid}', max_clicks=8)
+        except ask.NeedVision: pass
+        self.assertEqual(f.objects['far']['state']['stage'], 'growing', f.clicks)
 
 
 class OneByOne(VisitBeds):

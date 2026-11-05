@@ -3,7 +3,7 @@ import math
 
 from PIL import ImageDraw
 
-from . import observe, where, world
+from . import core, observe, where, world
 
 
 LIVE_SOURCES = {'card', 'bubble', 'vision', 'event'}
@@ -63,6 +63,11 @@ def build(g, kind, targets, res):
         owner = nearest[1] if nearest is not None and nearest[0] <= engine.OWN_PX else None
         bubbles.append({'pt': tuple(a.pt), 'kind': a.kind, 'icon': a.icon, 'badge': a.badge, 'owner': owner})
     heatmap = [{'kind': d.kind, 'pt': tuple(d.point)} for d in observe.see_all()]
+    try:
+        core.WF.run_log('perception', source='object_heatmap',
+                        detections=[{'kind': d['kind'], 'pt': list(d['pt'])} for d in heatmap])
+    except (AttributeError, TypeError):
+        pass
     return {
         'tara': {'pos': tara, 'source': source},
         'objects': objects,

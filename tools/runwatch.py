@@ -123,6 +123,10 @@ class Watch:
                 self.pending = line
         elif t == 'vision':
             out.append(('NOTE', f"vision {r.get('kind')}: {str(r.get('question'))[:140]}"))
+        elif t == 'perception':
+            seen = ', '.join(f"{d.get('kind')}@{(d.get('pt') or ['?', '?'])[0]},{(d.get('pt') or ['?', '?'])[1]}"
+                             for d in r.get('detections') or ()) or 'none'
+            out.append(('INFO', f"perception {r.get('source')}: {seen}"))
         elif t == 'engine':
             msg = (f"engine {r.get('goal')}: done {r.get('done')}, left {r.get('left')}, clicks {r.get('clicks')}, "
                    f"vision {r.get('vision')}, stop {r.get('stop')}")
@@ -141,7 +145,8 @@ class Watch:
         return out
 
 
-TRACED = ('decide', 'click', 'think', 'vision', 'call', 'action', 'engine', 'game', 'gap', 'learn', 'plan_step')
+TRACED = ('decide', 'click', 'think', 'vision', 'perception', 'call', 'action', 'engine', 'game', 'gap', 'learn',
+          'plan_step')
 
 
 def trace_lines(rows):
@@ -164,6 +169,8 @@ def trace_lines(rows):
             body = f"think: {r.get('text')}"
         elif t == 'vision':
             body = f"vision {r.get('kind')}: {str(r.get('question'))[:120]}"
+        elif t == 'perception':
+            body = f"perception {r.get('source')}: {len(r.get('detections') or ())} detections"
         elif t == 'call':
             body = f"call {r.get('cmd')} ({(r.get('end') or 0) - (r.get('start') or 0):.1f}s)"
         elif t == 'engine':

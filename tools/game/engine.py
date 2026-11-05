@@ -902,6 +902,10 @@ def _answer(g, name, params, answer, res):
             raise
     if pend.get('collect_open'):
         return _collect_answer(g, pend, answer, params, res)
+    if pend.get('garden_entry_only') and str(answer).strip().lower() == 'inside':
+        res['inside_region'] = (pend.get('params') or {}).get('region')
+        ask.progress(name)
+        return
     if str(answer).strip().lower() == 'none':
         settled = [n for n in pend.get('settle') or () if n in g.nodes]
         for n in settled:   # vision's "none" is the proof: the world stops listing them (user D189: never stuck)
@@ -1230,6 +1234,7 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
             return res
         pending_before = ask.load_state('garden').get('pending') or {}
         covered_before = set(pending_before.get('covered') or ()) if answer is not None else set()
+        res['inside_region'] = pending_before.get('inside_region') if answer is not None else None
         _, save = W.read_save()
         world.refresh(g, save, W.today_log()[0])
         beds = list(world.query(g, {'kind': 'GardenBed', 'region': region}))
@@ -1244,7 +1249,7 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
         A.ON_EVENT = lambda c: red_flag(c, res)
         if answer is not None:
             _answer(g, 'garden', {}, answer, res)
-            if pending_before.get('garden_entry_only'):
+            if pending_before.get('garden_entry_only') and res.get('inside_region') != region:
                 res['stop'] = 'entry step completed; re-evaluate Garden region before tending'
                 return res
             if str(res.get('stop')).startswith('done: vision sees none'):
@@ -1258,12 +1263,13 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
         from . import brief
         source, pos = brief._position(g)
         current_area = world.area_of(g, pos) if pos is not None else None
-        if current_area != region:
+        if current_area != region and res.get('inside_region') != region:
             state = brief.build(g, 'GardenBed', list(remaining), res)
             avoid = [list(o['screen']) for o in state['objects'] if o.get('screen') is not None]
             avoid += [list(b['pt']) for b in state['bubbles']]
             q = (brief.text(state) + f'\nTara is outside or not yet located in {region}. Find its visible entrance; '
-                 'give one cell of clear dirt path toward that entrance. Do not click beds, bubbles, rocks, or fence.')
+                 f'give one cell of clear dirt path toward that entrance. Do not click beds, bubbles, rocks, or fence. '
+                 f'If Tara is visibly inside {region}, answer inside.')
             ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'navigation_only': True,
                                  'garden_entry_only': True, 'avoid': avoid, 'covered': []}, res,
                     img=ask.draw_grid(brief.draw(W.grab(), state)))
@@ -1298,7 +1304,7 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     avoid += [list(b['pt']) for b in state['bubbles']]
                     ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'node': tid,
                                          'covered': sorted(set(beds) - remaining), 'navigation_only': True,
-                                         'avoid': avoid}, res,
+                                         'avoid': avoid, 'inside_region': res.get('inside_region')}, res,
                             img=ask.draw_grid(brief.draw(W.grab(), state)))
 
                 crop = getattr(a, 'icon', None) or world.state_of(g, tid).get('crop')

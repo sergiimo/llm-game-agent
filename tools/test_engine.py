@@ -1057,6 +1057,16 @@ class StreamingGarden(EngineBase):
         self.assertIn('visible entrance', str(cm.exception))
         self.assertEqual(state['pending'].get('covered'), [])
 
+    def test_model_can_confirm_garden_entry_without_manufacturing_a_position_event(self):
+        self._game(self._north())
+        with mock.patch.object(brief, '_position', return_value=('unknown', None)):
+            with self.assertRaises(NeedVision):
+                engine.tend_garden('Garden', ('water',))
+            res = engine.tend_garden('Garden', ('water',), answer='inside')
+
+        self.assertNotEqual(res['stop'], 'entry step completed; re-evaluate Garden region before tending')
+        self.assertEqual(res['inside_region'], 'Garden')
+
 
 HIVE = {'kind': 'BeeHive', 'when': {'ready': True}, 'bubble': {'kind': 'honey'}, 'event': 'beehive_collect',
         'effect': {'ready': False}}

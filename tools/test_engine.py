@@ -3109,14 +3109,16 @@ class ModelDecides(VisitBeds):
 
     def test_one_decide_per_round(self):
         f, _, _ = self.far_game()
-        for i in range(ask.MAX_ASKS):
-            with self.assertRaises(ask.NeedVision):
-                engine.achieve('harvest')
-            self.assertEqual(len(f.asks), i + 1)
-            self.assertEqual(f.clicks, [])
-        with self.assertRaises(observe.LawsStuck):
+        with self.assertRaises(ask.NeedVision):
             engine.achieve('harvest')
-        self.assertEqual(len(f.asks), ask.MAX_ASKS)
+        self.assertEqual(len(f.asks), 1)
+        with self.assertRaises(ask.NeedVision):
+            engine.achieve('harvest', answer='')
+        self.assertEqual(len(f.asks), 2)   # one repeated question after a non-progress answer
+        with self.assertRaises(observe.LawsStuck):
+            engine.achieve('harvest', answer='')
+        self.assertEqual(len(f.asks), 2)
+        self.assertEqual(f.clicks, [])
         gaps = engine.I.gaps()
         self.assertTrue(any('decide' in gap['invariant'] for gap in gaps), gaps)
 

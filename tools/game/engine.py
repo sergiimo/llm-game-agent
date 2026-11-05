@@ -419,6 +419,17 @@ def decide_q(g, spec, targets, res):
     """Ask one model question with the graph, detections and marked full-scale frame."""
     from . import brief
 
+    goal = res.get('goal')
+    question_state = ask.load_state(goal)
+    count = question_state.get('decide_asks', 0)
+    if count >= 2:   # the initial decision and at most one retry without progress
+        N._gap(res, 'decide: one retry exhausted without a click or settle')
+        ask.progress(goal)
+        raise O.LawsStuck(f'LAWS_STUCK: {goal} exhausted one decide retry without a click or settle. '
+                          'Stop and report; do not retry blindly.')
+    question_state['decide_asks'] = count + 1
+    ask.save_state(question_state)
+
     res.setdefault('spec', spec)
     res.setdefault('params', {})
     state = brief.build(g, spec['kind'], targets, res)

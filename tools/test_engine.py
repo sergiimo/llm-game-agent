@@ -11,7 +11,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, ask, badges, core, engine, icons, learn, nav, observe, plan, screen, smoke, steps, ui, where, world  # noqa: E402
+from game import act, affordances, ask, badges, brief, core, engine, icons, learn, nav, observe, plan, screen, smoke, steps, ui, where, world  # noqa: E402
 from game.ask import NeedVision  # noqa: E402
 from objects import graph as OG  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
@@ -3274,6 +3274,37 @@ class ModelDecides(VisitBeds):
         pending = ask.load_state('harvest')['pending']
         self.assertTrue(pending['decide'])
         self.assertNotEqual(pending['screens'][nid], [1170, 750])
+
+    def test_no_event_walk_invalidates_saved_object_projection_but_keeps_frame_evidence(self):
+        f, g, nid = self.far_game()
+        where.walked()
+        bubble = Affordance('water', None, (850, 420), False, 0.0)
+        detection = type('Detection', (), {'kind': 'GardenBed', 'point': (1200, 700)})()
+        with mock.patch.object(observe, 'scan', return_value=[bubble]), \
+                mock.patch.object(observe, 'see_all', return_value=[detection]):
+            state = brief.build(g, 'GardenBed', [nid], {})
+            with self.assertRaises(ask.NeedVision):
+                engine.decide_q(g, {'kind': 'GardenBed'}, [nid], {'goal': 'harvest', 'params': {}})
+        pending = ask.load_state('harvest')['pending']
+        self.assertEqual(pending['position_source'], 'unknown')
+        self.assertEqual(pending['position'], [])
+        self.assertEqual(pending['screens'][nid], None)
+        self.assertEqual(pending['in_view'], [])
+        self.assertEqual(pending['bubbles'][0]['pt'], [850, 420])
+        self.assertEqual(state['heatmap'][0]['pt'], (1200, 700))
+
+    def test_rejected_decision_answer_preserves_pending_for_a_corrected_walk(self):
+        f, nid = self.decision_game('Green Bean')
+        f.step_zone = 'far'
+        with self.assertRaisesRegex(core.Failed, 'own spot'):
+            engine.achieve('harvest', answer='walk M8', max_clicks=1)
+        pending = ask.load_state('harvest')['pending']
+        self.assertTrue(pending['decide'])
+        self.assertEqual(f.clicks, [])
+        result = engine.achieve('harvest', answer='walk K10', max_clicks=1)
+        self.assertEqual(f.clicks, [(840, 641)])
+        self.assertEqual(f.zone, 'far')
+        self.assertEqual(result['clicks'], 1)
 
     def test_click_object_collect_with_unknown_crop_asks_the_crop_with_the_card_open(self):
         for answer, expected in [('Green Bean', 'growing'), ('Tulip', 'produced')]:

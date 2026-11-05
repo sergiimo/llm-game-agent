@@ -13,6 +13,8 @@ def _position(g):
     source, pos = where.position(far_ok=False, walk_ok=True)
     if source in ('event', 'walk') and pos is not None:
         return source, tuple(pos)
+    if where.invalidated_by_unpositioned_walk():
+        return 'unknown', None
     pos = world.tara_pos(g)
     return ('save', tuple(pos)) if pos is not None else ('unknown', None)
 

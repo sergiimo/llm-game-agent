@@ -891,7 +891,15 @@ def _answer_decision(g, pend, answer, params, res):
 def _answer(g, name, params, answer, res):
     pend = ask.take_answer(name) or {'kind': 'click'}
     if pend.get('decide'):
-        return _answer_decision(g, pend, answer, params, res)
+        try:
+            return _answer_decision(g, pend, answer, params, res)
+        except core.Failed:
+            # Validation can reject an answer before input (for example, a walk onto Tara's spot). Keep the
+            # decision attached to the question so the next call can supply a corrected answer.
+            state = ask.load_state(name)
+            state['pending'] = pend
+            ask.save_state(state)
+            raise
     if pend.get('collect_open'):
         return _collect_answer(g, pend, answer, params, res)
     if str(answer).strip().lower() == 'none':

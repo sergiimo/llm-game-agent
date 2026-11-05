@@ -10,6 +10,6 @@
 
 ## Task 6 live gate
 
-Run directory: `runs/20261105-1754-model-decides-next-move-harvest/`. The plan was written and reviewed (3 steps, review OK), and Step 1 was started. The unfiltered watcher was attempted. The first live read (`./wf log`) hung. `tail -3 .shots/actions.log` showed only focus-mode entries, confirming no game input/action was logged. Process inspection found a stuck `wfc log` client and wedged daemon/server channel after exact stale-client/duplicate-server cleanup; `./wf stop` did not clear it. The live gate is blocked before observation. There is no live trace, time table, retro, or pass result.
+Run directory: `runs/20261105-1754-model-decides-next-move-harvest/`. The plan was written and reviewed (3 steps, review OK), and Step 1 was started. On resume, `./wf status`, `./wf focus-mode`, `./wf log`, and `./wf state` returned; state confirmed the game remained paused. The unfiltered watcher was attempted. `./wf save` then hung for 15 seconds; `tail -3 .shots/actions.log` showed no save or gameplay input. The exact `wfc save` client PID was terminated. The live gate remains blocked before observation, so there is no live trace, time table, retro, or pass result. The game state was rechecked as `Game Paused`.
 
 Follow-up: repair the recurring `.shots/wf.sock` / daemon request stall, then resume Step 1 with the reviewed plan and watcher. No claim is made that Task 6 passed.

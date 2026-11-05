@@ -4,7 +4,7 @@ from . import affordances, badges, core, garden, integrate, smoke, track, ui  # 
 from .ask import NeedVision  # noqa: F401
 from .core import Failed, bind  # noqa: F401
 from .engine import achieve  # noqa: F401
-from .garden import harvest_all, plant_all, replant_all, water_all  # noqa: F401
+from .garden import do as tend_garden, harvest_all, plant_all, replant_all, water_all  # noqa: F401
 from .nav import reach  # noqa: F401
 from .smoke import fill_can, morning, plant_garden  # noqa: F401
 from .ui import close, press, press_bubble, shows  # noqa: F401

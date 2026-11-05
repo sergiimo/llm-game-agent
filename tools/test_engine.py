@@ -1079,17 +1079,33 @@ class Report(EngineBase):
 class Wrappers(EngineBase):
     """Task functions are one-line goals; the CLI parses goal, params and the answer; routines count from the world."""
 
-    def test_wrappers_call_achieve(self):
+    def test_garden_wrappers_share_the_streaming_scheduler(self):
         from game import garden
         calls = []
-        with mock.patch.object(engine, 'achieve', lambda goal, answer=None, **kw: calls.append((goal, answer, kw)) or {}):
+        with mock.patch.object(engine, 'tend_garden',
+                               lambda region='Garden', chores=(), answer=None, max_clicks=40:
+                               calls.append((region, tuple(chores), answer, max_clicks)) or {}), \
+             mock.patch.object(engine, 'achieve', lambda goal, answer=None, **kw: calls.append(('achieve', goal)) or {}):
             self.use(FakeGame([], GAME))
             garden.water_all(click='Q14')
             garden.plant_all(seed='Tulip', region='GardenSouth')
             garden.harvest_all()
             garden.replant_all()
-        self.assertEqual(calls, [('water', 'Q14', {}), ('plant', None, {'seed': 'Tulip', 'region': 'GardenSouth'}),
-                                 ('harvest', None, {}), ('replant', None, {})])
+            garden.do(region='GardenSouth')
+        self.assertEqual(calls, [('Garden', ('water',), 'Q14', 40), ('achieve', 'plant'),
+                                 ('Garden', ('harvest',), None, 40), ('Garden', ('replant',), None, 40),
+                                 ('GardenSouth', ('replant', 'harvest', 'water'), None, 40)])
+
+    def test_garden_cli_defaults_to_the_main_garden(self):
+        import wf
+        calls = []
+        with mock.patch.object(wf, 'game_cmd', lambda kind, args: calls.append((kind, args)) or 0), \
+             mock.patch.object(wf, 'ensure_front'), mock.patch.object(wf, 'release_focus', return_value=False), \
+             mock.patch.object(wf, 'wait_settle'), mock.patch.object(wf, 'state', return_value={'mode': 'gameplay', 'text': []}), \
+             mock.patch.object(wf, 'print_log'):
+            wf.main(['garden'])
+            wf.main(['garden', 'region=GardenSouth', 'max_clicks=9'])
+        self.assertEqual(calls, [('garden', []), ('garden', ['region=GardenSouth', 'max_clicks=9'])])
 
     def test_cli_parses_goal_params_and_answer(self):
         self.assertEqual(engine.parse_cli(['plant', 'seed=Tulip', 'region=GardenSouth', 'answer=Q14']),

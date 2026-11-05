@@ -21,3 +21,10 @@
 - New bubble kinds on the way (`fill_can`, `water`) are learned by one deliberate Space (docs/self-improvement.md).
 - Trips are the same every day: record them as anchored edges (`./wf edge add`), replay them (`./wf edge replay`).
 - Status is exact, not remembered: always re-run `./wf routines` instead of counting by hand.
+
+# Fast garden pass
+
+Run `./wf garden` for the default Garden. It visits every graph bed, reads its live bubble, and immediately completes
+that bed's applicable work before advancing: harvest non-flowers, remove and replant wilted crops when the same seed
+is available, then water. Ready flowers and pre-existing empty beds stay untouched. Use `region=GardenSouth` for the
+south plot; unresolved beds are reported without stopping work on the others.

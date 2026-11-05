@@ -1577,6 +1577,16 @@ def game_cmd(kind, args):
             from game import engine
             goal, params, answer = engine.parse_cli(args)
             res = engine.summary(game.achieve(goal, answer=answer, **params))
+        elif kind == 'garden':
+            from game import garden
+            params = {}
+            for arg in args:
+                key, sep, value = arg.partition('=')
+                if not sep:
+                    raise game.Failed(f'garden argument must be key=value, got {arg!r}')
+                params[key] = int(value) if key == 'max_clicks' else value
+            click = params.pop('answer', params.pop('click', None))
+            res = garden.summary(garden.do(click=click, **params))
         elif kind == 'forage':
             from game import forage
             _, params, answer = engine_parse(args)
@@ -4091,6 +4101,9 @@ def main(argv=None):
     p = sub.add_parser('achieve', help='the engine (L138): wf achieve <goal|json> [k=v ...] [answer=X]; goals in '
                                        'tools/game/goals.json, e.g. wf achieve plant seed=Tulip region=GardenSouth')
     p.add_argument('args', nargs='+')
+    p = sub.add_parser('garden', help='inspect and immediately harvest, replant, and water every bed: '
+                                      'wf garden [region=Garden] [answer=...] [max_clicks=40]')
+    p.add_argument('args', nargs='*')
     p = sub.add_parser('forage', help='the foraging strategy (pure vision, never graph nodes; spec §13): wf forage '
                                       'chop|rock|pickup|forage [answer=<cell>|walk:<cell>|none] [max_clicks=N]')
     p.add_argument('args', nargs='+')
@@ -4321,7 +4334,7 @@ def _dispatch_input(a):
         img = grab()
         print(calibrate_road(img) if a.calibrate else to_road() if a.go else
               f'on road: {on_road(img):.0%} around her feet [{road_key(img)}]')
-    elif a.cmd in ('py', 'call', 'achieve', 'forage'):
+    elif a.cmd in ('py', 'call', 'achieve', 'forage', 'garden'):
         if game_cmd(a.cmd, a.args):
             sys.exit(1)
         return

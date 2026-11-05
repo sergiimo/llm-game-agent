@@ -930,6 +930,8 @@ def _answer(g, name, params, answer, res):
         if pend.get('navigation_only'):
             if c.events:
                 raise core.Failed(f'navigation click triggered interaction {c.events}; it was not navigation progress')
+            if c.moved:
+                ask.progress(name)
             A.gameplay()   # a navigation click may intersect a bed; close its card, never infer/finish a row
             return
         row = next((r for r in plan.rows() if r['id'] == pend.get('row')), None)

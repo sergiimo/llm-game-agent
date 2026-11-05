@@ -1032,6 +1032,21 @@ class StreamingGarden(EngineBase):
         with mock.patch.object(act, 'click', return_value=click), self.assertRaisesRegex(core.Failed, 'navigation click triggered'):
             engine._answer(g, 'garden', {}, 'H13', res)
 
+    def test_a_successful_navigation_click_resets_the_vision_stuck_counter(self):
+        self.use(FakeGame([], GAME))
+        g = self.graph()
+        ask.save_state({'goal': 'garden', 'asks': 4, 'history': ['old question'], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {}, 'navigation_only': True, 'avoid': []}})
+        res = nav.new_res('garden')
+        res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area='Garden',
+                   spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}})
+        click = act.Click((840, 371), 'point', 0, events=[], mode='gameplay', moved=True)
+
+        with mock.patch.object(act, 'click', return_value=click):
+            engine._answer(g, 'garden', {}, 'K6', res)
+
+        self.assertEqual(ask.load_state('garden')['asks'], 0)
+
     def test_garden_outside_region_asks_for_region_entry_before_bed_scheduling(self):
         f = self._game(self._north())
         with mock.patch.object(brief, '_position', return_value=('unknown', None)):

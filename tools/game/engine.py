@@ -698,8 +698,122 @@ def _subgoal(g, key, value, name, params, res):
     return out['ok']
 
 
+def _decision_card(g, nid, row, params, res):
+    """The first card is already open: run only the row's remaining steps, preserving their proofs."""
+    out = steps.run(dict(row, steps=row['steps'][1:]), params, None)
+    res['clicks'] += out['clicks']
+    N.trace(res, f'{nid}: {row["id"]} result ok={out["ok"]} events={out["events"]}')
+    res.setdefault('exps', []).extend(x for x in out.get('exps', ()) if x)
+    if red_flag(A.Click((0, 0), 'press', 0, events=out['events']), res):
+        raise O.LawsStuck(res['stop'])
+    learned = _learn(g, out, row['kind'], row, res)
+    plan.count(row['id'], out['ok'])
+    if out['ok']:
+        ask.progress(res['goal'])
+        if learned and _made(g, learned, res['spec'].get('make', {}), params, world.state_of(g, learned)):
+            if learned not in res['done']:
+                res['done'].append(learned)
+    return out['ok']
+
+
+def _collect_answer(g, pend, answer, params, res):
+    """Name an unknown crop while its Collect card remains open; flowers are cancelled."""
+    crop = str(answer).strip()
+    if not crop or crop.lower() in ('none', 'unknown'):
+        ask.ask('name', 'Name the crop on the open Collect card; never confirm an unknown crop.', pend, res)
+    nid = pend['node']
+    world._set(g, nid, {'crop': crop}, _stamp(), 'vision')
+    N.trace(res, f'{nid}: Collect crop={crop}')
+    if crop in res.get('skip_names', ()):
+        A.gameplay()
+        res['skip'].append(nid)
+        res['notes'].append(f'{nid}: {crop} stays')
+        ask.progress(res['goal'])
+        return
+    row = next(r for r in plan.rows(g.nodes[nid].kind) if r['id'] == pend['row'])
+    _decision_card(g, nid, plan.resolve(row, params), params, res)
+    A.gameplay()
+
+
+def _answer_decision(g, pend, answer, params, res):
+    """Execute the model's guarded decision once, with persisted view and failure evidence."""
+    N.trace(res, f'decision: {answer}')
+    if not str(answer).strip():   # Task 2's one no-progress retry, without an input action
+        return
+    decision = parse_decision(answer, pend)
+    action = decision[0]
+    if action == 'done':
+        res['stop'] = 'done: vision decision'
+        return
+    if action == 'settle':
+        for nid in decision[1]:
+            world._set(g, nid, decision[2], _stamp(), 'vision')
+        N.trace(res, f'settle {decision[1]}: {decision[2]} (vision)')
+        ask.progress(res['goal'])
+        return
+    nid = decision[1] if action == 'click' else None
+    if nid:
+        pt = (pend.get('screens') or {}).get(nid)
+        if nid not in g.nodes or pt is None or not O.on_frame(pt):
+            raise core.Failed(f'answer rejected: {nid} has no visible screen point')
+        state = ask.load_state(res['goal'])
+        failed = state.get('failed_object')
+        if failed and failed['node'] == nid and failed['state'] == world.state_of(g, nid):
+            N._gap(res, f'decide: repeated failed object click {nid}: {failed["result"]}')
+            raise O.LawsStuck(f'LAWS_STUCK: repeated failed object click {nid}; stop and report')
+    else:
+        from .affordances import Affordance
+        pt = decision[1]
+        visible = [Affordance(b.get('kind', '?'), None, tuple(b['pt']), False, 0.0)
+                   for b in pend.get('bubbles', ())]
+        if not N.walkable(pt, visible + list(O.scan())):
+            raise core.Failed(f'answer rejected: {pt} is not walkable free ground')
+    c = A.click(pt, 'object' if nid else 'point', here=res.get('area'), wait_event=True)
+    res['clicks'] += 1
+    N.trace(res, f'{action} {nid or pt}: {c.describe()}')
+    if c.exp:
+        res.setdefault('exps', []).append(c.exp)
+    if red_flag(c, res):
+        raise O.LawsStuck(res['stop'])
+    if c.at:
+        world.place(g, c.node.split('@')[0] if c.node else 'Object', c.at, c.events, stamp=_stamp())
+        res['area'] = world.area_of(g, c.at)
+    row = next((r for r in plan.rows(g.nodes[nid].kind) if r['steps']
+                and (r['steps'][0].get('expect') or {}).get('card')
+                and any(r['steps'][0]['expect']['card'].lower() in t.lower() for t in c.texts)), None) if nid else None
+    if A.on_card(c) and row:
+        crop = world.state_of(g, nid).get('crop')
+        collect = row['steps'][0]['expect']['card'].lower() == 'collect'
+        if collect and not crop:
+            ask.ask('name', f'Name the crop for {nid} on the open Collect card. Flowers stay; do not confirm yet.',
+                    {'goal': res['goal'], 'params': params, 'collect_open': True, 'node': nid, 'row': row['id']}, res)
+        if not collect or crop not in res.get('skip_names', ()):
+            if _decision_card(g, nid, plan.resolve(row, params), params, res):
+                A.gameplay()
+                return
+        else:
+            res['skip'].append(nid)
+            res['notes'].append(f'{nid}: {crop} stays')
+            ask.progress(res['goal'])
+            A.gameplay()
+            return
+    elif c.moved or c.events:
+        ask.progress(res['goal'])
+        A.gameplay()
+        return
+    if nid:
+        state = ask.load_state(res['goal'])
+        state['failed_object'] = {'node': nid, 'state': world.state_of(g, nid), 'result': c.describe()}
+        ask.save_state(state)
+    A.gameplay()
+
+
 def _answer(g, name, params, answer, res):
     pend = ask.take_answer(name) or {'kind': 'click'}
+    if pend.get('decide'):
+        return _answer_decision(g, pend, answer, params, res)
+    if pend.get('collect_open'):
+        return _collect_answer(g, pend, answer, params, res)
     if str(answer).strip().lower() == 'none':
         settled = [n for n in pend.get('settle') or () if n in g.nodes]
         for n in settled:   # vision's "none" is the proof: the world stops listing them (user D189: never stuck)
@@ -920,7 +1034,9 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
     g = _open_graph()
     try:
         O.check_language()
-        A.gameplay()
+        pending = ask.load_state(name).get('pending') or {}
+        if not (answer is not None and pending.get('collect_open')):
+            A.gameplay()
         if ask.late(res):
             return res
         r = ask.rain()
@@ -950,6 +1066,8 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
             res['notes'].append(f'map calibration unusable ({len(WH.pairs())} pairs disagree > {WH.MAX_ERR} units): '
                                 f'far navigation has only the map compass')
         if answer is not None:
+            res['red_events'] = _red_events(spec['kind'], spec.get('make', {}))
+            A.ON_EVENT = lambda c: red_flag(c, res)
             res['spec'], res['skip_names'] = spec, _skip_names(spec, params)
             _answer(g, name, params, answer, res)
         _loop(g, name, spec, params, save, max_clicks, res)

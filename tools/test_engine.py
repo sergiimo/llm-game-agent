@@ -3122,6 +3122,103 @@ class ModelDecides(VisitBeds):
         gaps = engine.I.gaps()
         self.assertTrue(any('decide' in gap['invariant'] for gap in gaps), gaps)
 
+    def decision_game(self, crop=None, zone='near'):
+        bed = obj('b', pos=(NX[1], NZ[0]), zone=zone, bubble=(1260, 670), body=(1170, 750),
+                  stage='produced', watered=True, wilted=False)
+        f = self.use(FakeGame([bed], GAME))
+        g = self.graph()
+        world.refresh(g, f.read_save()[1], [], None)
+        nid = world.find(g, 'GardenBed', bed['pos'])
+        g.nodes[nid].state.pop('crop', None)
+        if crop:
+            g.set_state(nid, 'crop', crop, f.game_stamp(), 'vision')
+        g.save(learn.GRAPH)
+        self.pending_decision([nid], [nid], {nid: [1170, 750]})
+        return f, nid
+
+    def pending_decision(self, ids, visible, screens, bubbles=()):
+        state = ask.load_state('harvest')
+        state['pending'] = dict(kind='name', goal='harvest', params={}, decide=True, brief_ids=ids,
+                                in_view=visible, screens=screens, bubbles=list(bubbles))
+        ask.save_state(state)
+
+    def test_click_object_walks_and_its_collect_is_finished_when_the_crop_is_known(self):
+        f, nid = self.decision_game('Green Bean', zone='far')
+        first = engine.achieve('harvest', answer=f'click {nid}', max_clicks=1)
+        self.assertEqual(f.zone, 'far')
+        self.assertEqual(f.clicks, [(1170, 750)])
+        self.assertEqual(first['clicks'], 1)
+        self.pending_decision([nid], [nid], {nid: [1170, 750]})
+        result = engine.achieve('harvest', answer=f'click {nid}', max_clicks=1)
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing')
+        self.assertIsNone(f.card)
+        self.assertIn(nid, result['done'])
+        self.assertTrue(any('> grab_item ' in line for line in f.log))
+        clicks = [kw for args, kw in f.runlog if args == ('click',)]
+        self.assertEqual([c['what'] for c in clicks], ['object', 'object'])
+        self.assertTrue(any('click' in line and nid in line for line in result['trace']))
+
+    def test_click_object_collect_with_unknown_crop_asks_the_crop_with_the_card_open(self):
+        for answer, expected in [('Green Bean', 'growing'), ('Tulip', 'produced')]:
+            with self.subTest(answer=answer):
+                f, nid = self.decision_game()
+                with self.assertRaises(ask.NeedVision):
+                    engine.achieve('harvest', answer=f'click {nid}', max_clicks=1)
+                self.assertIsNotNone(f.card)
+                self.assertEqual(f.texts(), ['Collect'])
+                pending = ask.load_state('harvest')['pending']
+                self.assertTrue(pending['collect_open'])
+                self.assertEqual(pending['kind'], 'name')
+                self.assertEqual(f.objects['b']['state']['stage'], 'produced')
+                result = engine.achieve('harvest', answer=answer, max_clicks=0)
+                self.assertEqual(f.objects['b']['state']['stage'], expected)
+                self.assertIsNone(f.card)
+                self.assertEqual(self.graph().state_value(nid, 'crop'), answer)
+                self.assertEqual(nid in result['done'], answer == 'Green Bean')
+                self.assertEqual(f.clicks, [(1170, 750)])
+
+    def test_walk_cell_is_checked_by_walkable(self):
+        f, nid = self.decision_game('Green Bean')
+        point = [1320, 911]   # Q14: parser allows it; a bubble makes it unsafe ground
+        self.pending_decision([nid], [nid], {nid: [1170, 750]}, [{'pt': point, 'kind': 'water'}])
+        with self.assertRaisesRegex(core.Failed, 'walkable|free ground'):
+            engine.achieve('harvest', answer='walk Q14', max_clicks=1)
+        self.assertEqual(f.clicks, [])
+        self.pending_decision([nid], [nid], {nid: [1170, 750]})
+        f.step_zone = 'elsewhere'
+        result = engine.achieve('harvest', answer='walk Q14', max_clicks=1)
+        self.assertEqual(f.clicks, [(1320, 911)])
+        self.assertEqual(f.zone, 'elsewhere')
+        self.assertEqual(result['clicks'], 1)
+
+    def test_settle_marks_only_in_view_objects_with_source_vision(self):
+        f, g, nid = self.far_game()
+        other = next(n for n in world.query(g, {'kind': 'GardenBed'}) if n != nid)
+        self.pending_decision([nid, other], [nid], {nid: [1170, 750], other: None})
+        with self.assertRaisesRegex(core.Failed, 'not shown in view'):
+            engine.achieve('harvest', answer=f'settle {nid} {other}: ready=false', max_clicks=0)
+        self.assertTrue(self.graph().state_value(nid, 'ready'))   # no partial settlement
+        self.pending_decision([nid, other], [nid], {nid: [1170, 750], other: None})
+        result = engine.achieve('harvest', answer=f'settle {nid}: ready=false', max_clicks=0)
+        g = self.graph()
+        self.assertIs(g.state_value(nid, 'ready'), False)
+        self.assertEqual(g.nodes[nid].state['ready']['source'], 'vision')
+        self.assertEqual(g.nodes[other].state['ready']['source'], 'card')
+        self.assertTrue(any('settle' in line and nid in line for line in result['trace']))
+        self.assertEqual(f.clicks, [])
+
+    def test_a_failed_object_click_is_not_repeated(self):
+        f, nid = self.decision_game('Green Bean')
+        self.pending_decision([nid], [nid], {nid: [1600, 850]})   # no object here, no movement
+        first = engine.achieve('harvest', answer=f'click {nid}', max_clicks=1)
+        self.assertEqual(f.clicks, [(1600, 850)])
+        self.assertTrue(any('unchanged' in line for line in first['trace']))
+        self.pending_decision([nid], [nid], {nid: [1600, 850]})
+        with self.assertRaisesRegex(observe.LawsStuck, 'repeat|already|failed'):
+            engine.achieve('harvest', answer=f'click {nid}', max_clicks=1)
+        self.assertEqual(f.clicks, [(1600, 850)])
+        self.assertTrue(any(nid in gap['invariant'] for gap in engine.I.gaps()))
+
     def test_settle_requires_an_object(self):
         with self.assertRaisesRegex(core.Failed, 'at least one object'):
             engine.parse_decision('settle : ready=false', {'brief_ids': [], 'in_view': []})

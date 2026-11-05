@@ -3125,8 +3125,10 @@ class ModelDecides(VisitBeds):
     def decision_game(self, crop=None, zone='near'):
         bed = obj('b', pos=(NX[1], NZ[0]), zone=zone, bubble=(1260, 670), body=(1170, 750),
                   stage='produced', watered=True, wilted=False)
+        bed['icon'] = crop
         f = self.use(FakeGame([bed], GAME))
-        g = self.graph()
+        g = OG.Graph()
+        g.load(SEED)
         world.refresh(g, f.read_save()[1], [], None)
         nid = world.find(g, 'GardenBed', bed['pos'])
         g.nodes[nid].state.pop('crop', None)
@@ -3148,7 +3150,7 @@ class ModelDecides(VisitBeds):
         self.assertEqual(f.zone, 'far')
         self.assertEqual(f.clicks, [(1170, 750)])
         self.assertEqual(first['clicks'], 1)
-        self.pending_decision([nid], [nid], {nid: [1170, 750]})
+        self.pending_decision([nid], [nid], {nid: [1260, 670]})
         result = engine.achieve('harvest', answer=f'click {nid}', max_clicks=1)
         self.assertEqual(f.objects['b']['state']['stage'], 'growing')
         self.assertIsNone(f.card)
@@ -3173,7 +3175,7 @@ class ModelDecides(VisitBeds):
                 result = engine.achieve('harvest', answer=answer, max_clicks=0)
                 self.assertEqual(f.objects['b']['state']['stage'], expected)
                 self.assertIsNone(f.card)
-                self.assertEqual(self.graph().state_value(nid, 'crop'), answer)
+                self.assertEqual(self.graph().state_value(nid, 'crop'), answer if answer == 'Green Bean' else None)
                 self.assertEqual(nid in result['done'], answer == 'Green Bean')
                 self.assertEqual(f.clicks, [(1170, 750)])
 
@@ -3218,6 +3220,93 @@ class ModelDecides(VisitBeds):
             engine.achieve('harvest', answer=f'click {nid}', max_clicks=1)
         self.assertEqual(f.clicks, [(1600, 850)])
         self.assertTrue(any(nid in gap['invariant'] for gap in engine.I.gaps()))
+
+    def wrong_decision_game(self, stage='growing', icon='Tulip'):
+        a = obj('a', pos=(NX[0], NZ[0]), zone='far', bubble=(700, 400), body=(600, 750),
+                stage='produced', watered=True, wilted=False)
+        b = obj('b', pos=(NX[2], NZ[0]), bubble=(1260, 670), body=(1170, 750),
+                stage=stage, watered=True, wilted=False)
+        b['icon'] = icon
+        f = self.use(FakeGame([a, b], GAME))
+        g = self.graph()
+        world.refresh(g, f.read_save()[1], [], None)
+        aid = world.find(g, 'GardenBed', a['pos'])
+        bid = world.find(g, 'GardenBed', b['pos'])
+        g.set_state(aid, 'crop', 'Green Bean', f.game_stamp(), 'vision')
+        g.save(learn.GRAPH)
+        self.pending_decision([aid, bid], [aid, bid], {aid: [1260, 670], bid: [1600, 750]})
+        return f, aid, bid
+
+    def test_wrong_object_event_does_not_reset_progress_or_allow_a_repeat(self):
+        f, aid, bid = self.wrong_decision_game()
+        state = ask.load_state('harvest')
+        state['decide_asks'] = 1
+        ask.save_state(state)
+        engine.achieve('harvest', answer=f'click {aid}', max_clicks=1)
+        self.assertTrue(any('plant_growing' in line for line in f.log))
+        self.assertEqual(ask.load_state('harvest').get('decide_asks'), 1)
+        self.pending_decision([aid, bid], [aid, bid], {aid: [1260, 670], bid: [1600, 750]})
+        with self.assertRaisesRegex(observe.LawsStuck, 'repeat|failed'):
+            engine.achieve('harvest', answer=f'click {aid}', max_clicks=1)
+        self.assertEqual(f.clicks, [(1260, 670)])
+        self.assertTrue(any(aid in gap['invariant'] for gap in engine.I.gaps()))
+
+    def test_collect_uses_the_clicked_live_crop_instead_of_the_intended_objects_crop(self):
+        f, aid, _ = self.wrong_decision_game(stage='produced')
+        result = engine.achieve('harvest', answer=f'click {aid}', max_clicks=1)
+        self.assertEqual(f.objects['b']['state']['stage'], 'produced')   # clicked Tulip stays
+        self.assertEqual(f.objects['a']['state']['stage'], 'produced')
+        self.assertIsNone(f.card)
+        self.assertEqual(result['done'], [])
+        self.assertEqual(self.graph().state_value(aid, 'crop'), 'Green Bean')
+
+    def test_unattributed_collect_does_not_trust_the_intended_objects_known_crop(self):
+        f, aid, _ = self.wrong_decision_game(stage='produced', icon=None)
+        with self.assertRaises(ask.NeedVision):
+            engine.achieve('harvest', answer=f'click {aid}', max_clicks=1)
+        self.assertIsNotNone(f.card)
+        self.assertEqual(f.objects['b']['state']['stage'], 'produced')
+        self.assertTrue(ask.load_state('harvest')['pending']['collect_open'])
+
+    def test_a_nearby_crop_icon_does_not_identify_an_unattributed_object_card(self):
+        f, nid = self.decision_game('Green Bean')
+        # The object body is 120px from this bubble; a neighbour's icon must not authorise Collect.
+        with self.assertRaises(ask.NeedVision):
+            engine.achieve('harvest', answer=f'click {nid}', max_clicks=1)
+        self.assertIsNotNone(f.card)
+        self.assertEqual(f.objects['b']['state']['stage'], 'produced')
+
+    def test_unexpected_card_never_runs_an_unrelated_goal_row(self):
+        for goal, actual_stage, believed_stage, params in [
+                ('plant', 'produced', 'empty', {'seed': 'Tulip', 'region': 'Garden'}),
+                ('harvest', 'empty', 'produced', {})]:
+            with self.subTest(goal=goal):
+                f, nid = self.decision_game('Green Bean')
+                f.inventory['TulipSeed'] = 2
+                f.objects['b']['state']['stage'] = actual_stage
+                g = self.graph()
+                g.set_state(nid, 'stage', believed_stage, f.game_stamp(), 'vision')
+                g.save(learn.GRAPH)
+                pending = ask.load_state('harvest')['pending']
+                pending['goal'], pending['params'] = goal, params
+                ask.save_state({'goal': goal, 'asks': 0, 'history': [], 'pending': pending})
+                try:
+                    engine.achieve(goal, answer=f'click {nid}', max_clicks=1, **params)
+                except ask.NeedVision:
+                    pass
+                self.assertEqual(f.objects['b']['state']['stage'], actual_stage)
+                self.assertEqual(f.inventory['TulipSeed'], 2)
+                self.assertFalse(any('> grab_item ' in line or 'totalPlanted' in line for line in f.log))
+
+    def test_settle_rejects_redirected_keys_before_any_state_changes(self):
+        f, nid = self.decision_game('Green Bean')
+        before = self.graph().state_value('Tara', 'can')
+        with self.assertRaisesRegex(core.Failed, 'redirect|Tara|destination'):
+            engine.achieve('harvest', answer=f'settle {nid}: ready=false, Tara.can=full', max_clicks=0)
+        g = self.graph()
+        self.assertEqual(g.state_value('Tara', 'can'), before)
+        self.assertIs(g.state_value(nid, 'ready'), True)
+        self.assertEqual(f.clicks, [])
 
     def test_settle_requires_an_object(self):
         with self.assertRaisesRegex(core.Failed, 'at least one object'):

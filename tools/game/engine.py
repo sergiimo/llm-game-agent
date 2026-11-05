@@ -698,7 +698,13 @@ def _subgoal(g, key, value, name, params, res):
     return out['ok']
 
 
-def _decision_card(g, nid, row, params, res):
+def _decision_failed(g, nid, result, res):
+    state = ask.load_state(res['goal'])
+    state['failed_object'] = {'node': nid, 'state': world.state_of(g, nid), 'result': result}
+    ask.save_state(state)
+
+
+def _decision_card(g, nid, row, params, res, crop=None):
     """The first card is already open: run only the row's remaining steps, preserving their proofs."""
     out = steps.run(dict(row, steps=row['steps'][1:]), params, None)
     res['clicks'] += out['clicks']
@@ -709,7 +715,12 @@ def _decision_card(g, nid, row, params, res):
     learned = _learn(g, out, row['kind'], row, res)
     plan.count(row['id'], out['ok'])
     if out['ok']:
-        ask.progress(res['goal'])
+        if crop and learned:
+            world._set(g, learned, {'crop': crop}, _stamp(), 'vision')
+        if learned == nid:
+            ask.progress(res['goal'])
+        else:
+            _decision_failed(g, nid, f'{row["id"]} proved {learned}, expected {nid}', res)
         if learned and _made(g, learned, res['spec'].get('make', {}), params, world.state_of(g, learned)):
             if learned not in res['done']:
                 res['done'].append(learned)
@@ -722,16 +733,20 @@ def _collect_answer(g, pend, answer, params, res):
     if not crop or crop.lower() in ('none', 'unknown'):
         ask.ask('name', 'Name the crop on the open Collect card; never confirm an unknown crop.', pend, res)
     nid = pend['node']
-    world._set(g, nid, {'crop': crop}, _stamp(), 'vision')
+    if pend.get('actual'):
+        world._set(g, pend['actual'], {'crop': crop}, _stamp(), 'vision')
     N.trace(res, f'{nid}: Collect crop={crop}')
     if crop in res.get('skip_names', ()):
         A.gameplay()
-        res['skip'].append(nid)
-        res['notes'].append(f'{nid}: {crop} stays')
-        ask.progress(res['goal'])
+        if pend.get('actual') == nid:
+            res['skip'].append(nid)
+            ask.progress(res['goal'])
+        else:
+            _decision_failed(g, nid, f'clicked {crop}; intended object unproven', res)
+        res['notes'].append(f'{nid}: clicked {crop} stays')
         return
-    row = next(r for r in plan.rows(g.nodes[nid].kind) if r['id'] == pend['row'])
-    _decision_card(g, nid, plan.resolve(row, params), params, res)
+    row = pend['row_spec']
+    _decision_card(g, nid, row, row.get('params', params), res, crop=crop)
     A.gameplay()
 
 
@@ -746,6 +761,8 @@ def _answer_decision(g, pend, answer, params, res):
         res['stop'] = 'done: vision decision'
         return
     if action == 'settle':
+        if any(k.startswith('Tara.') for k in decision[2]):
+            raise core.Failed('answer rejected: redirected Tara state is not a visible-object settlement')
         for nid in decision[1]:
             world._set(g, nid, decision[2], _stamp(), 'vision')
         N.trace(res, f'settle {decision[1]}: {decision[2]} (vision)')
@@ -756,6 +773,11 @@ def _answer_decision(g, pend, answer, params, res):
         pt = (pend.get('screens') or {}).get(nid)
         if nid not in g.nodes or pt is None or not O.on_frame(pt):
             raise core.Failed(f'answer rejected: {nid} has no visible screen point')
+        spec = res['spec']
+        before = world.state_of(g, nid)
+        path = plan.path(g.nodes[nid].kind, dict(before, **_assumed(before, _where(spec, params))),
+                         spec.get('make', {}), params)
+        row = path[0] if path else None
         state = ask.load_state(res['goal'])
         failed = state.get('failed_object')
         if failed and failed['node'] == nid and failed['state'] == world.state_of(g, nid):
@@ -775,36 +797,54 @@ def _answer_decision(g, pend, answer, params, res):
         res.setdefault('exps', []).append(c.exp)
     if red_flag(c, res):
         raise O.LawsStuck(res['stop'])
+    actual = None
     if c.at:
-        world.place(g, c.node.split('@')[0] if c.node else 'Object', c.at, c.events, stamp=_stamp())
+        actual = world.place(g, c.node.split('@')[0] if c.node else 'Object', c.at, c.events, stamp=_stamp())
         res['area'] = world.area_of(g, c.at)
-    row = next((r for r in plan.rows(g.nodes[nid].kind) if r['steps']
-                and (r['steps'][0].get('expect') or {}).get('card')
-                and any(r['steps'][0]['expect']['card'].lower() in t.lower() for t in c.texts)), None) if nid else None
-    if A.on_card(c) and row:
-        crop = world.state_of(g, nid).get('crop')
-        collect = row['steps'][0]['expect']['card'].lower() == 'collect'
+    if nid and actual and actual != nid:
+        N.trace(res, f'wrong object: expected {nid}, proved {actual}')
+        _decision_failed(g, nid, c.describe(), res)
+        res['stop'] = f'wrong object: expected {nid}, proved {actual}'
+        A.gameplay()
+        return
+    if A.on_card(c) and nid:
+        want = ((row or {}).get('steps') or [{}])[0].get('expect', {}).get('card')
+        if not want or not any(want.lower() in t.lower() for t in c.texts):
+            _decision_failed(g, nid, c.describe(), res)
+            ask.ask('name', f'Unexpected card {c.texts} for {nid}; expected {want}. What state does this show?',
+                    {'goal': res['goal'], 'params': params,
+                     'learn': {'kind': g.nodes[nid].kind, 'nid': actual, 'events': c.events}}, res)
+        # The projected point may have hit a neighbour: only the actual positioned object or a live
+        # bubble crop reading from THIS click can name the crop, never the intended object's memory alone.
+        nearby = [a for a in c.before if O.d(a.pt, c.pt) <= 30]
+        bubble = min(nearby, key=lambda a: O.d(a.pt, c.pt)) if nearby else None
+        crop = (getattr(bubble, 'icon', None) if bubble else None)
+        if crop is None and actual:
+            crop = world.state_of(g, actual).get('crop')
+        collect = want.lower() == 'collect'
         if collect and not crop:
-            ask.ask('name', f'Name the crop for {nid} on the open Collect card. Flowers stay; do not confirm yet.',
-                    {'goal': res['goal'], 'params': params, 'collect_open': True, 'node': nid, 'row': row['id']}, res)
+            ask.ask('name', f'Name the crop on the open Collect card clicked for {nid}. Flowers stay; do not confirm yet.',
+                    {'goal': res['goal'], 'params': params, 'collect_open': True, 'node': nid,
+                     'actual': actual, 'row': row['id'], 'row_spec': row}, res)
         if not collect or crop not in res.get('skip_names', ()):
-            if _decision_card(g, nid, plan.resolve(row, params), params, res):
+            if _decision_card(g, nid, row, row.get('params', params), res, crop=crop):
                 A.gameplay()
                 return
         else:
-            res['skip'].append(nid)
-            res['notes'].append(f'{nid}: {crop} stays')
-            ask.progress(res['goal'])
+            if actual == nid:
+                res['skip'].append(nid)
+                ask.progress(res['goal'])
+            else:
+                _decision_failed(g, nid, f'clicked {crop}; intended object unproven', res)
+            res['notes'].append(f'{nid}: clicked {crop} stays')
             A.gameplay()
             return
-    elif c.moved or c.events:
+    elif (nid and actual == nid) or (not c.events and c.moved):
         ask.progress(res['goal'])
         A.gameplay()
         return
     if nid:
-        state = ask.load_state(res['goal'])
-        state['failed_object'] = {'node': nid, 'state': world.state_of(g, nid), 'result': c.describe()}
-        ask.save_state(state)
+        _decision_failed(g, nid, c.describe(), res)
     A.gameplay()
 
 

@@ -31,7 +31,8 @@ def _fresh(g, nid, today):
 
 def _area_objects(g, kind, targets):
     areas = {world.area_of(g, nid) for nid in targets if nid in g.nodes} - {None}
-    ids = world.query(g, {'kind': kind})
+    kinds = (kind,) if isinstance(kind, str) else tuple(kind)
+    ids = [nid for k in kinds for nid in world.query(g, {'kind': k})]
     return [nid for nid in ids if not areas or world.area_of(g, nid) in areas]
 
 
@@ -52,7 +53,7 @@ def build(g, kind, targets, res):
             'status': status,
             'fresh': _fresh(g, nid, today),
             'crop': status.get('crop'),
-            'need': engine._passes(g, nid, where_filter),
+            'need': nid in targets if res.get('coverage_targets') else engine._passes(g, nid, where_filter),
             'screen': engine.screen_point(tara, pos) if tara is not None else None,
             'dist': round(math.dist(tara, pos), 2) if tara is not None else None,
         })

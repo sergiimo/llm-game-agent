@@ -1,2 +1,4 @@
 20261104-175640-0.png	ready	exp d551579451f0b79f (re-centred)
 20261104-175640-0.png	none	fixture D188-carrot-growing.png (re-centred)
+20261105-211316-1.png	ready	exp 33ba5c7b44a6e76e
+20261105-212011-1.png	none	exp 17cdf01810f06b80

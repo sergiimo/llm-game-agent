@@ -13,7 +13,7 @@ KINDS = {               # action -> bubble kinds (learned labels, L56) that offe
 
 
 OWNER = {'fill_can': 'Well', 'full_watering_can': 'Well', 'sleep': 'Bed',
-         'beehive_progress': 'BeeHive'}  # bubble kinds only one kind of object offers
+         'honey': 'BeeHive', 'beehive_progress': 'BeeHive'}  # bubble kinds only one kind of object offers
 
 
 @dataclass

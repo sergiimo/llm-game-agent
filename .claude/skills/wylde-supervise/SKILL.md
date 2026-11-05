@@ -121,7 +121,9 @@ Never let a child run the game blind. For every dispatch that touches the game:
 3. **Gated steps:** the child makes ONE `./wf achieve` call per dispatch and returns its summary line; you read the
    watcher lines and decide the next instruction (continue via SendMessage). A `NEED_VISION` answer comes back to you
    with the image path before it is used: check the image yourself. **Every vision click (yours too) goes through the
-   answer path** - `./wf achieve <goal> answer=<cell>`, `smoke.plant_garden(answer=<cell>)` or
+   answer path.** For garden/object coverage answer `target <cell>` only when the target and the complete walkable road
+   from Tara are visible; otherwise answer `walk <cell>` for one short visible-ground waypoint. Use
+   `./wf achieve <goal> answer='<mode> <cell>'`, `smoke.plant_garden(answer=<cell>)` or
    `./wf py "from game import smoke; smoke.vision_click('<cell>')"` - never a raw click: what the click proves becomes a
    stored look, a learned direction and a scored answer (L151).
 4. **After the run:** `.venv/bin/python tools/runwatch.py <run> --report` writes `<run>/watch.md` (a table per attempt:

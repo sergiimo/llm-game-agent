@@ -90,10 +90,12 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
    `NEED_VISION: look at <png>: <question>` (`core.ask_vision`, frame taken at the innermost failure, before menus
    close). Agents Read it before reporting a cause or deciding; code that can't tell (unknown icon, unread card, no
    proof) asks vision, it doesn't guess.
-10. **Interaction laws (user, D183; `docs/mechanics/interaction-laws.md`):** Tara is always at the frame centre (never
-   ask where she is); a click on a visible object is reliable, so vision's only start question is "click point of the first
-   node"; record every click result (log, card, bubbles, short-lived text) and update state from it; click every fitting
-   bubble until none is left, then ask again. No layouts or positions carried between steps; failure = close cards + fresh frame.
+10. **Interaction laws (user, D183/D191; `docs/mechanics/interaction-laws.md`):** Tara is always at the frame centre
+   (never ask where she is); record every click result and update state from it; click every fitting bubble until none
+   is left. A target click is preferred when the target **and its full walkable road from Tara are visible**; otherwise
+   click one short visible-ground waypoint and look again. Garden maintenance covers **every bed and hive** in the named
+   region and applies each target's state rule immediately. Vision answers `target <cell>` or `walk <cell>`; projected
+   ownership is only a hint and the game event decides which node was treated. Failure = close cards + fresh frame.
    **Chores and object goals run on the engine (L138):** `./wf achieve <goal> k=v` (`./wf world kinds` = what exists);
    **foraging (rocks, trees, drops, forage plants) is pure vision, never graph nodes (L158, spec §13):** `./wf forage
    chop|rock|pickup|forage` → one `NEED_VISION click` per target → `answer=<cell>|walk:<cell>|none`;

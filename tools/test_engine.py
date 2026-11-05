@@ -532,8 +532,8 @@ class Table(unittest.TestCase):
         self.assertEqual(plan.effects_of_event('plant', {'seed': 'Tulip'}, proof)['crop'], 'Tulip')
         self.assertEqual(plan.effects_of_event('unplant'), {})   # opens the card only: no effect
 
-    def test_no_path_is_none(self):
-        self.assertIsNone(plan.path('BeeHive', {'ready': True}, {'ready': False}, {}))
+    def test_ready_hive_has_a_seeded_collect_path(self):
+        self.assertEqual(plan.path('BeeHive', {'ready': True}, {'ready': False}, {})[0]['id'], 'hive_collect')
 
     def test_ready_rows_only_when_the_goal_asks_for_ready(self):
         st = {'stage': 'produced', 'ready': True}
@@ -900,7 +900,6 @@ class StreamingGarden(EngineBase):
     def _game(self, objects, inventory=None, game=GAME):
         f = self.use(FakeGame(objects, game, inventory=inventory or {}))
         first = next(o for o in objects if o['kind'] == 'GardenBed')
-        f.log.append(L('9:00:00 AM', 'plant_growing', 'GardenBed', *first['pos']))
         p = mock.patch.object(where, 'position', lambda far_ok=True, walk_ok=False: ('event', first['pos']))
         p.start()
         self.addCleanup(p.stop)
@@ -989,9 +988,9 @@ class StreamingGarden(EngineBase):
         self._game(garden)
         with self.assertRaises(NeedVision) as cm:
             engine.tend_garden('Garden', ('water',))
-        self.assertIn('FREE GROUND', str(cm.exception))
+        self.assertIn('target <cell>', str(cm.exception))
         self.assertIn('./wf garden region=Garden answer=', str(cm.exception))
-        self.assertIn('FREE GROUND away from bed footprints', str(cm.exception))
+        self.assertIn('walk <cell>', str(cm.exception))
 
     def test_a_preexisting_empty_bed_with_a_noisy_ready_badge_is_never_harvested_or_planted(self):
         garden = self._north()
@@ -1006,6 +1005,19 @@ class StreamingGarden(EngineBase):
         self.assertNotIn('> plant ', '\n'.join(f.log))
         self.assertNotIn('> grab_item ', '\n'.join(f.log))
         self.assertIn(world.find(self.graph(), 'GardenBed', empty['pos']), res['visited'])
+
+    def test_a_ready_nonflower_is_collected_even_when_its_bubble_kind_is_mislabeled_plant(self):
+        garden = self._north()
+        ripe = garden[0]
+        ripe['state'].update(stage='produced', crop='Green Bean')
+        ripe['icon'] = 'Green Bean'
+        f = self._game(garden)
+        f.relabel['pickup'] = 'plant'
+
+        res = engine.tend_garden('Garden', ('harvest',))
+
+        self.assertIn('> grab_item ', '\n'.join(f.log))
+        self.assertEqual(res['harvested'], 1)
 
     def test_a_navigation_answer_that_hits_an_empty_bed_closes_seeds_without_running_plant(self):
         empty = obj('e', pos=(NX[0], NZ[0]), bubble=(920, 371), stage='empty', watered=True,
@@ -1024,7 +1036,7 @@ class StreamingGarden(EngineBase):
         self.assertIsNone(f.card)
         self.assertEqual(f.objects['e']['state']['stage'], 'empty')
 
-    def test_a_navigation_answer_inside_a_projected_bed_is_rejected_before_input(self):
+    def test_a_walk_answer_inside_a_projected_bed_is_rejected_before_input(self):
         f = self.use(FakeGame([], GAME))
         g = self.graph()
         ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
@@ -1033,8 +1045,50 @@ class StreamingGarden(EngineBase):
         res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area='Garden',
                    spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}})
         with self.assertRaisesRegex(core.Failed, 'inside a garden object hitbox'):
-            engine._answer(g, 'garden', {}, 'K12', res)
+            engine._answer(g, 'garden', {}, 'walk K12', res)
         self.assertEqual(f.clicks, [])
+
+    def test_a_target_answer_finishes_a_known_nonflower_even_when_collect_ocr_is_blank(self):
+        ripe = obj('ripe', pos=(NX[0], NZ[0]), bubble=(760, 371), stage='produced', watered=True,
+                   wilted=False, crop='Green Bean')
+        ripe['icon'] = 'Green Bean'
+        f = self._game([ripe])
+        g = self.graph()
+        world.refresh(g, f.read_save()[1], [], None)
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {}, 'navigation_only': True, 'avoid': []}})
+        res = nav.new_res('garden')
+        res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area='Garden',
+                   spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}},
+                   flower_names={'Tulip'}, harvested=0, acted=[], params={}, skip=[], fails={}, btried=[])
+
+        with mock.patch.object(observe, 'texts', return_value=('overlay', [])), \
+                mock.patch.object(ui, 'shows', return_value=False), mock.patch.object(ui, 'texts', return_value=[]):
+            engine._answer(g, 'garden', {}, 'target J6 crop=Green Bean', res)
+
+        self.assertIn('> grab_item ', '\n'.join(f.log))
+        self.assertEqual(res['harvested'], 1)
+        self.assertFalse(f.card)
+
+    def test_a_target_answer_never_collects_a_named_flower(self):
+        flower = obj('flower', pos=(NX[0], NZ[0]), bubble=(760, 371), stage='produced', watered=True,
+                     wilted=False, crop='Tulip')
+        flower['icon'] = 'Tulip'
+        f = self._game([flower])
+        g = self.graph()
+        world.refresh(g, f.read_save()[1], [], None)
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {}, 'navigation_only': True, 'avoid': []}})
+        res = nav.new_res('garden')
+        res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area='Garden',
+                   spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}},
+                   flower_names={'Tulip'}, harvested=0, acted=[], params={}, skip=[], fails={}, btried=[])
+
+        engine._answer(g, 'garden', {}, 'target J6 crop=Tulip', res)
+
+        self.assertNotIn('> grab_item ', '\n'.join(f.log))
+        self.assertEqual(res['harvested'], 0)
+        self.assertEqual(f.objects['flower']['state']['stage'], 'produced')
 
     def test_a_navigation_click_that_triggers_a_bed_action_is_not_progress(self):
         f = self.use(FakeGame([], GAME))
@@ -1083,6 +1137,17 @@ class StreamingGarden(EngineBase):
         self.assertNotEqual(res['stop'], 'entry step completed; re-evaluate Garden region before tending')
         self.assertEqual(res['inside_region'], 'Garden')
 
+    def test_confirmed_region_survives_the_next_streaming_call_without_an_answer(self):
+        self._game(self._north())
+        ask.save_state({'goal': 'garden', 'asks': 0, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {'region': 'Garden'},
+            'navigation_only': True, 'inside_region': 'Garden', 'covered': [], 'streaming': True}})
+
+        with mock.patch.object(brief, '_position', return_value=('unknown', None)):
+            res = engine.tend_garden('Garden', ('water',))
+
+        self.assertEqual(res['inside_region'], 'Garden')
+
     def test_visible_unowned_water_bubble_is_acted_on_before_asking_to_navigate(self):
         garden = self._north()
         dry = garden[0]
@@ -1101,6 +1166,40 @@ class StreamingGarden(EngineBase):
 
         self.assertIn('> water ', '\n'.join(f.log))
         self.assertEqual(engine.LAST['watered'], 1)
+
+    def test_a_proven_info_bubble_counts_as_coverage_on_the_next_command(self):
+        garden = self._north()
+        inspected = garden[0]
+        f = self._game(garden)
+        f.log.append(L('9:01:00 AM', 'plant_growing', 'GardenBed', *inspected['pos']))
+
+        res = engine.tend_garden('Garden', ('water',))
+
+        nid = world.find(self.graph(), 'GardenBed', inspected['pos'])
+        self.assertIn(nid, res['visited'])
+        self.assertNotIn(inspected['bubble_pt'], f.clicks)
+
+    def test_one_garden_pass_inspects_every_hive_and_collects_ready_honey(self):
+        garden = self._north()
+        xs = (-2.3, -1.0, 0.2, 1.5, 2.7, 4.0, 5.2, 6.5)
+        hives = [obj(f'h{i}', kind='BeeHive', pos=(x, -23.5), bubble=(300 + 170 * i, 220),
+                     save={'pollen': '0'}, ready=i == 0) for i, x in enumerate(xs)]
+        hive_game = [
+            {'kind': 'BeeHive', 'when': {'ready': True}, 'bubble': {'kind': 'honey'},
+             'event': 'beehive_collect', 'effect': {'ready': False}},
+            {'kind': 'BeeHive', 'when': {'ready': False}, 'bubble': {'kind': 'beehive_progress'},
+             'event': 'beehive_progress', 'effect': {}},
+        ]
+        f = self._game(garden + hives, game=GAME + hive_game)
+
+        res = engine.tend_garden('Garden', ('replant', 'harvest', 'water'))
+
+        hive_events = [f.event_kind([line]) for line in f.log if 'target=BeeHive' in line]
+        self.assertEqual(hive_events.count('beehive_collect'), 1)
+        self.assertEqual(hive_events.count('beehive_progress'), 7)
+        self.assertEqual(len(res['hives_visited']), 8)
+        self.assertEqual(res['honey'], 1)
+        self.assertEqual(res['stop'], 'done: all garden nodes visited')
 
 
 HIVE = {'kind': 'BeeHive', 'when': {'ready': True}, 'bubble': {'kind': 'honey'}, 'event': 'beehive_collect',
@@ -1121,7 +1220,7 @@ class Learning(EngineBase):
         except ask.NeedVision:
             return dict(engine.LAST)
 
-    def test_a_new_kind_is_learned_with_at_most_one_answer_then_replayed(self):
+    def test_a_seeded_hive_kind_runs_with_at_most_one_answer_then_replays(self):
         q = {'kind': 'BeeHive', 'where': {'ready': True}, 'make': {'ready': False}}
         f = self.use(FakeGame(beds('n', NX, NZ[:1], 'near', 500, 600, stage='growing', watered=True, wilted=False)
                               + self.hives({0, 3}), GAME + [HIVE]))
@@ -1130,7 +1229,7 @@ class Learning(EngineBase):
         self.assertEqual(len(res['done']), 2, res)
         self.assertFalse(f.objects['h0']['state']['ready'] or f.objects['h3']['state']['ready'])
         row = next(r for r in plan.rows('BeeHive'))
-        self.assertEqual((row['when'], row['bubble'], row['effect']), ({'ready': True}, {'kind': 'honey', 'ready': True},
+        self.assertEqual((row['when'], row['bubble'], row['effect']), ({'ready': True}, {'kind': 'honey|beehive_progress', 'ready': True},
                                                                         {'ready': False}))
         self.assertEqual(row['steps'], [{'do': 'click_bubble', 'expect': {'events': ['beehive_collect']}}])
         self.assertGreaterEqual(row['seen'], 2)
@@ -3426,6 +3525,11 @@ class ModelDecides(VisitBeds):
         pending = ask.load_state('harvest')['pending']
         self.assertTrue(pending['decide'])
         self.assertIn(nid, pending['brief_ids'])
+        reasoning = [kw for args, kw in f.runlog if args == ('reasoning',)]
+        self.assertTrue(reasoning)
+        self.assertEqual(reasoning[-1]['decision'], 'need_model_vision')
+        self.assertTrue(reasoning[-1]['vision_requested'])
+        self.assertEqual(pending['reasoning_cycle'], reasoning[-1]['cycle'])
 
     def test_parse_decision_grammar(self):
         pending = {'brief_ids': ['bed-a', 'bed-b'], 'in_view': ['bed-a']}

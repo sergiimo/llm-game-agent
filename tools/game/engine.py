@@ -9,7 +9,7 @@ import json
 import math
 import os
 
-from . import act as A, ask, core, integrate as I, learn as L, nav as N, observe as O, plan, steps, world
+from . import act as A, ask, core, integrate as I, learn as L, nav as N, observe as O, plan, steps, ui, world
 
 GOALS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'goals.json')
 MAX_CLICKS = 40
@@ -452,6 +452,11 @@ def decide_q(g, spec, targets, res):
                'bubbles': [dict(b, pt=list(b['pt'])) for b in state['bubbles']],
                'position_source': state.get('tara', {}).get('source'),
                'position': list(state.get('tara', {}).get('pos') or ()), 'targets': list(targets)}
+    pending['reasoning_cycle'] = I.reasoning(
+        'clues', goal=res.get('goal'), targets=list(targets), objects=len(state['objects']),
+        bubbles=[{'kind': b['kind'], 'pt': list(b['pt']), 'owner': b.get('owner')} for b in state['bubbles']],
+        heatmap=[{'kind': h['kind'], 'pt': list(h['pt'])} for h in state['heatmap']],
+        position=state.get('tara'), decision='need_model_vision', vision_requested=True)
     N.log('decide', what='question', targets=list(targets), brief_ids=ids, in_view=in_view)
     try:
         ask.ask('decide', q, pending, res, img=ask.draw_grid(brief.draw(core.WF.grab(), state)))
@@ -509,7 +514,7 @@ def finish_card(c, res):
         return False
     near = [a for a in c.before if O.d(a.pt, c.pt) <= 160]
     b = min(near, key=lambda a: O.d(a.pt, c.pt)) if near else None
-    crop = (res.get('icon_of') or {}).get(tuple(b.pt)) if b else None
+    crop = res.get('target_crop') or ((res.get('icon_of') or {}).get(tuple(b.pt)) if b else None)
     if res.get('explicit_click') and b is not None and O.d(b.pt, c.pt) > 30:
         crop = None
     elif res.get('explicit_click') and b is not None and crop is None:
@@ -782,8 +787,12 @@ def _answer_decision(g, pend, answer, params, res):
         return
     decision = parse_decision(answer, pend)
     action = decision[0]
+    cycle = pend.get('reasoning_cycle') or I.reasoning('clues', goal=res.get('goal'), decision='model_answered')
+    I.reasoning('final_decision', cycle, model_answer=str(answer), action=action,
+                reason='model selected one guarded action from deterministic clues and optional frame vision')
     if action == 'done':
         res['stop'] = 'done: vision decision'
+        I.reasoning('outcome', cycle, verdict='done', outcome=res['stop'])
         return
     if action == 'settle':
         if any(k.startswith('Tara.') for k in decision[2]):
@@ -791,6 +800,7 @@ def _answer_decision(g, pend, answer, params, res):
         for nid in decision[1]:
             world._set(g, nid, decision[2], _stamp(), 'vision')
         N.trace(res, f'settle {decision[1]}: {decision[2]} (vision)')
+        I.reasoning('outcome', cycle, action='settle', targets=decision[1], verdict='applied')
         ask.progress(res['goal'])
         return
     nid = decision[1] if action == 'click' else None
@@ -831,6 +841,8 @@ def _answer_decision(g, pend, answer, params, res):
     if not nid:
         res['clicks'] += 1
     N.trace(res, f'{action} {nid or pt}: {c.describe()}')
+    I.reasoning('outcome', cycle, action=action, target=nid, point=list(pt), experience=c.exp,
+                events=c.events, moved=c.moved, verdict='observed', outcome=c.describe())
     if c.exp:
         res.setdefault('exps', []).append(c.exp)
     if red_flag(c, res):
@@ -885,6 +897,8 @@ def _answer_decision(g, pend, answer, params, res):
         return
     if nid:
         _decision_failed(g, nid, c.describe(), res)
+        I.reasoning('gap', cycle, target=nid, code_fix='candidate', invariant='model action did not prove its target',
+                    experience=c.exp)
     A.gameplay()
 
 
@@ -913,14 +927,34 @@ def _answer(g, name, params, answer, res):
         res['stop'] = 'done: vision sees none left' + (f' ({len(settled)} settled)' if settled else '')
         return
     if pend['kind'] == 'click':
+        raw_answer = str(answer).strip()
+        click_mode = 'walk'
+        target_crop = None
+        if raw_answer.lower().startswith('target '):
+            click_mode, raw_answer = 'target', raw_answer[7:].strip()
+            cell, sep, crop = raw_answer.partition(' crop=')
+            if sep:
+                raw_answer, target_crop = cell.strip(), crop.strip() or None
+        elif raw_answer.lower().startswith('walk '):
+            raw_answer = raw_answer[5:].strip()
         try:
-            pt = ask.parse_point(answer)
+            pt = ask.parse_point(raw_answer)
         except ValueError as e:
-            raise core.Failed(f'answer rejected: {e}. Answer a grid cell A1-X16, or none') from None
-        if pend.get('navigation_only') and any(O.d(pt, tuple(p)) < OWN_PX for p in pend.get('avoid') or ()):
+            raise core.Failed(f'answer rejected: {e}. Answer target <cell>, walk <cell>, or none') from None
+        if (pend.get('navigation_only') and click_mode == 'walk'
+                and any(O.d(pt, tuple(p)) < OWN_PX for p in pend.get('avoid') or ())):
             raise core.Failed(f'answer rejected: navigation point {pt} is inside a garden object hitbox')
-        c = A.click(pt, 'point', here=res.get('area'), wait_event=True)   # a hard case: its log line says what it hit
+        what = 'object' if click_mode == 'target' else 'point'
+        cycle = pend.get('reasoning_cycle') or I.reasoning(
+            'clues', goal=name, avoid=pend.get('avoid') or [], covered=pend.get('covered') or [],
+            decision='model_answered', vision_requested=True)
+        I.reasoning('final_decision', cycle, model_answer=str(answer), action=click_mode, point=list(pt),
+                    reason=('target and its full road are visible' if click_mode == 'target'
+                            else 'visible free-ground waypoint toward remaining targets'))
+        c = A.click(pt, what, here=res.get('area'), wait_event=True)   # the event says what was actually hit
         res['clicks'] += 1
+        I.reasoning('outcome', cycle, action=click_mode, point=list(pt), experience=c.exp, events=c.events,
+                    moved=c.moved, verdict='observed', outcome=c.describe())
         if pend.get('path_cell') and c.moved and not c.events and c.exp:   # she walked onto it: a Path look
             hx, hy = L.ANSWER_BOX
             I.prove(c.exp, 'proven_look', img0=c.img0, box=[max(0, pt[0] - hx), max(0, pt[1] - hy), pt[0] + hx,
@@ -932,11 +966,38 @@ def _answer(g, name, params, answer, res):
             world.place(g, c.node.split('@')[0] if c.node else 'Object', c.at, c.events, stamp=_stamp())
             res['area'] = world.area_of(g, c.at)
         if pend.get('navigation_only'):
-            if c.events:
+            collect_open = (click_mode == 'target' and name == 'garden'
+                            and ((target_crop is not None and c.mode != 'gameplay')
+                                 or any('collect' in t.lower() for t in c.texts)
+                                 or ui.shows('Collect', wait=3.0)))
+            if collect_open:
+                if not c.texts:
+                    c.texts = ui.texts()
+                if target_crop is not None and not any('collect' in t.lower() for t in c.texts):
+                    c.texts = list(c.texts) + ['Collect']   # the model named the visible ready crop; OCR may miss UI
+                row = _garden_row('pick')
+                res.update(row_now=row, target_crop=target_crop, skip_names=set(res.get('flower_names') or ()),
+                           explicit_click=True, graph_crop_ok=False, params=params)
+                if finish_card(c, res):
+                    out = res.pop('card_runs')[-1]
+                    actual = _learn(g, out, 'GardenBed', row, res)
+                    plan.count(row['id'], out['ok'])
+                    if out['ok'] and actual:
+                        res['harvested'] = res.get('harvested', 0) + 1
+                        if actual not in res.setdefault('acted', []):
+                            res['acted'].append(actual)
+                        ask.progress(name)
+                    I.reasoning('outcome', cycle, action='collect', target=actual, events=out.get('events'),
+                                experience=(out.get('exps') or [None])[-1],
+                                verdict='hit' if out['ok'] else 'miss',
+                                code_fix=None if out['ok'] else 'evaluate_gap')
+                    A.gameplay()
+                    return
+            if click_mode == 'walk' and c.events:
                 raise core.Failed(f'navigation click triggered interaction {c.events}; it was not navigation progress')
-            if c.moved:
+            if c.moved or (click_mode == 'target' and (c.events or A.on_card(c))):
                 ask.progress(name)
-            A.gameplay()   # a navigation click may intersect a bed; close its card, never infer/finish a row
+            A.gameplay()   # close any inspection card; its event already identified the actual node
             return
         row = next((r for r in plan.rows() if r['id'] == pend.get('row')), None)
         if row is None and A.on_card(c) and res.get('spec'):   # any card the goal's rows start with (live D189:
@@ -1199,7 +1260,7 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
 
 
 def _garden_row(row_id):
-    return next(r for r in plan.rows('GardenBed') if r['id'] == row_id)
+    return next(r for r in plan.rows() if r['id'] == row_id)
 
 
 def _garden_log(nid, status, actions, reason=None):
@@ -1208,6 +1269,26 @@ def _garden_log(nid, status, actions, reason=None):
         core.WF.run_log('garden_visit', node=nid, status=status, actions=list(actions), reason=reason)
     except Exception:   # noqa: BLE001
         pass
+
+
+def _garden_inspected(g, targets, lines):
+    """Garden nodes whose harmless info bubble or collection was already opened today.
+
+    `plant_growing` is the proof emitted by that inspection.  It carries the actual bed position, so it is stronger
+    than screen projection and remains usable after a save refresh or a new garden command.
+    """
+    out = set()
+    for line in lines or ():
+        event_kind = next((event for event in ('plant_growing', 'beehive_progress', 'beehive_collect')
+                           if f'> {event} ' in line), None)
+        kind = 'GardenBed' if event_kind == 'plant_growing' else 'BeeHive' if event_kind else None
+        if kind is None or f'target={kind}' not in line:
+            continue
+        at = A.position_of(line)
+        nid = world.find(g, kind, at) if at is not None else None
+        if nid in targets:
+            out.add(nid)
+    return out
 
 
 def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=None, max_clicks=MAX_CLICKS):
@@ -1234,17 +1315,26 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
             return res
         pending_before = ask.load_state('garden').get('pending') or {}
         covered_before = set(pending_before.get('covered') or ()) if answer is not None else set()
-        res['inside_region'] = pending_before.get('inside_region') if answer is not None else None
+        res['inside_region'] = pending_before.get('inside_region')
         _, save = W.read_save()
-        world.refresh(g, save, W.today_log()[0])
+        today_lines = W.today_log()[0]
+        world.refresh(g, save, today_lines)
         beds = list(world.query(g, {'kind': 'GardenBed', 'region': region}))
+        hives = list(world.query(g, {'kind': 'BeeHive', 'region': region}))
         if not beds:
             res['stop'] = f'no GardenBed nodes in {region}'
             return res
         flowers = set(_param('flowers', {}) or ())
-        remaining, replanting = set(beds) - covered_before, {}
-        res['visited'].extend(n for n in beds if n in covered_before)
+        res['flower_names'] = flowers
+        targets = set(beds + hives)
+        inspected_before = _garden_inspected(g, targets, today_lines)
+        covered = covered_before | inspected_before
+        remaining, replanting, seen_bubbles = targets - covered, {}, set()
+        res['visited'].extend(n for n in beds if n in covered)
+        res['hives_visited'] = [n for n in hives if n in covered]
+        res['honey'] = sum(1 for line in today_lines if '> beehive_collect ' in line and 'target=BeeHive' in line)
         res['spec'] = {'kind': 'GardenBed', 'where': {'region': region}, 'make': {}}
+        res['coverage_targets'] = True
         res['allowed_events'] = set().union(*[_row_events(r) for r in plan.rows()]) | NEUTRAL_EVENTS
         A.ON_EVENT = lambda c: red_flag(c, res)
         if answer is not None:
@@ -1264,14 +1354,15 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
         source, pos = brief._position(g)
         current_area = world.area_of(g, pos) if pos is not None else None
         if current_area != region and res.get('inside_region') != region:
-            state = brief.build(g, 'GardenBed', list(remaining), res)
+            state = brief.build(g, ('GardenBed', 'BeeHive'), list(remaining), res)
             avoid = [list(o['screen']) for o in state['objects'] if o.get('screen') is not None]
             avoid += [list(b['pt']) for b in state['bubbles']]
             q = (brief.text(state) + f'\nTara is outside or not yet located in {region}. Find its visible entrance; '
                  f'give one cell of clear dirt path toward that entrance. Do not click beds, bubbles, rocks, or fence. '
                  f'If Tara is visibly inside {region}, answer inside.')
             ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'navigation_only': True,
-                                 'garden_entry_only': True, 'avoid': avoid, 'covered': [], 'streaming': True}, res,
+                                 'garden_entry_only': True, 'avoid': avoid, 'covered': sorted(covered),
+                                 'streaming': True}, res,
                     img=ask.draw_grid(brief.draw(W.grab(), state)))
 
         while remaining and not res['stop']:
@@ -1282,15 +1373,20 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
             # Any owned bed bubble is directly actionable now; do not let nearest-bed ordering
             # force a navigation question while another bed already has a visible action.
             from . import brief
-            visible_state = brief.build(g, 'GardenBed', list(remaining), res)
-            visible_beds = [b for b in visible_state['bubbles'] if b.get('owner') in remaining]
+            visible_state = brief.build(g, ('GardenBed', 'BeeHive'), list(remaining), res)
+            visible_nodes = [b for b in visible_state['bubbles'] if b.get('owner') in remaining]
             visible_actions = []
             affordances = {tuple(x.pt): x for x in O.scan()}
             for bubble in visible_state['bubbles']:
                 a = affordances.get(tuple(bubble['pt']))
-                row_id = ('water' if a is not None and a.kind == 'water' and 'water' in enabled else
+                if a is None or tuple(a.pt) in seen_bubbles:
+                    continue
+                owner_kind = O.node_of_bubble(a) if a is not None else None
+                row_id = ('hive_collect' if owner_kind == 'BeeHive' and (a.ready or a.kind == 'honey') else
+                          'hive_inspect' if owner_kind == 'BeeHive' else
+                          'water' if a is not None and a.kind == 'water' and 'water' in enabled else
                           'remove_wilted' if a is not None and a.kind == 'unplant' and 'replant' in enabled else
-                          'pick' if a is not None and a.kind != 'plant' and a.ready and a.icon not in flowers
+                          'pick' if a is not None and a.ready and a.icon is not None and a.icon not in flowers
                           and 'harvest' in enabled else None)
                 if row_id:
                     visible_actions.append((a, _garden_row(row_id)))
@@ -1308,8 +1404,9 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                 if res['stop']:
                     break
                 out = steps.run(row, {}, a, {})
+                seen_bubbles.add(tuple(a.pt))
                 res['clicks'] += out['clicks']
-                tid = _learn(g, out, 'GardenBed', row, res)
+                tid = _learn(g, out, row['kind'], row, res)
                 plan.count(row['id'], out['ok'])
                 if not out['ok'] or tid not in remaining:
                     res['stop'] = (out.get('why') or f'visible {row["id"]} action did not identify a remaining bed')
@@ -1317,6 +1414,14 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                 actions = [row['id']]
                 if tid not in res['acted']:
                     res['acted'].append(tid)
+                if row['kind'] == 'BeeHive':
+                    if row['id'] == 'hive_collect':
+                        res['honey'] += 1
+                    remaining.remove(tid)
+                    res['hives_visited'].append(tid)
+                    _garden_log(tid, 'visited', [row['id']])
+                    ask.progress('garden')
+                    continue
                 if row['id'] == 'water':
                     res['watered'] += 1
                     remaining.remove(tid)
@@ -1333,8 +1438,8 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     if seed:
                         replanting[tid] = seed
                 ask.progress('garden')
-            elif visible_beds:
-                tid = visible_beds[0]['owner']
+            elif visible_nodes:
+                tid = visible_nodes[0]['owner']
                 actions = []
             else:
                 tid = min(remaining, key=lambda n: math.dist(here, tuple(g.nodes[n].extra['pos'])) if here else 0)
@@ -1343,25 +1448,51 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                 if res['clicks'] >= max_clicks:
                     res['stop'] = f'click cap {max_clicks}'
                     break
-                a = _visit(g, tid, 'GardenBed', res)
+                target_kind = g.nodes[tid].kind
+                a = _visit(g, tid, target_kind, res)
                 if a is None and tid in res['acted']:
                     # Harvest/remove animations can briefly hide the replacement bubble. The bed is already in
                     # reach and proven, so settle and inspect it again in place instead of asking the model to walk.
                     W.wait_settle()
-                    a = _visit(g, tid, 'GardenBed', res)
+                    a = _visit(g, tid, target_kind, res)
                 if a is None:
                     # Coverage cannot be inferred from appearance. Ask only for navigation; the next call consumes
                     # the cell and resumes bubble-first inspection, never settling a bed from appearance.
-                    state = brief.build(g, 'GardenBed', list(remaining), res)
-                    q = (brief.text(state) + f'\nNo bubble for {tid} is in reach. Give one grid cell of FREE GROUND '
-                         f'away from bed footprints and bubbles, toward the unvisited beds in {region}; do not click a bed or bubble.')
+                    state = brief.build(g, ('GardenBed', 'BeeHive'), list(remaining), res)
+                    q = (brief.text(state) + f'\nNo bubble for {tid} is in reach. If a garden target and its full '
+                         f'walkable road are visible, answer target <cell>; add crop=<name> for a visible ready crop '
+                         f'(flowers stay). Otherwise answer walk <cell> on visible '
+                         f'free ground toward the unvisited beds and hives in {region}. Answer none only if no route exists.')
                     avoid = [list(o['screen']) for o in state['objects'] if o.get('screen') is not None]
                     avoid += [list(b['pt']) for b in state['bubbles']]
                     ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'node': tid,
-                                         'covered': sorted(set(beds) - remaining), 'navigation_only': True,
+                                         'covered': sorted(targets - remaining), 'navigation_only': True,
                                          'avoid': avoid, 'inside_region': res.get('inside_region'),
                                          'streaming': True}, res,
                             img=ask.draw_grid(brief.draw(W.grab(), state)))
+
+                if target_kind == 'BeeHive':
+                    row = _garden_row('hive_collect' if a.ready or a.kind == 'honey' else 'hive_inspect')
+                    out = steps.run(row, {}, a, world.state_of(g, tid))
+                    seen_bubbles.add(tuple(a.pt))
+                    res['clicks'] += out['clicks']
+                    actual = _learn(g, out, 'BeeHive', row, res)
+                    plan.count(row['id'], out['ok'])
+                    if not out['ok'] or actual != tid:
+                        res['unresolved'].append(tid)
+                        remaining.remove(tid)
+                        _garden_log(tid, 'unresolved', [row['id']], out.get('why') or f'action proved {actual}')
+                        break
+                    if row['id'] == 'hive_collect':
+                        res['honey'] += 1
+                    if tid not in res['acted']:
+                        res['acted'].append(tid)
+                    res['hives_visited'].append(tid)
+                    res['visited'].append(tid)
+                    remaining.remove(tid)
+                    _garden_log(tid, 'visited', [row['id']])
+                    ask.progress('garden')
+                    break
 
                 crop = getattr(a, 'icon', None) or world.state_of(g, tid).get('crop')
                 if crop:
@@ -1451,8 +1582,10 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                 ask.progress('garden')
 
         if not res['stop']:
-            res['stop'] = ('done: all beds visited' if not res['unresolved'] else
-                           f'unresolved: {len(res["unresolved"])} of {len(beds)} beds')
+            res['stop'] = (('done: all garden nodes visited' if hives else 'done: all beds visited')
+                           if not res['unresolved'] else
+                           (f'unresolved: {len(res["unresolved"])} of {len(targets)} garden nodes' if hives else
+                            f'unresolved: {len(res["unresolved"])} of {len(beds)} beds'))
         return res
     finally:
         res['left'] = len(remaining) if 'remaining' in locals() else None

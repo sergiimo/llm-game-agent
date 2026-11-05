@@ -192,6 +192,16 @@ class Trace(unittest.TestCase):
         self.assertIn('nearest ready', lines[0])
         self.assertIn('carrot with a drop', lines[2])
 
+    def test_reasoning_cycle_is_visible_in_the_single_trace(self):
+        rows = [{'t': 1.0, 'type': 'reasoning', 'cycle': 'abc123', 'phase': 'clues',
+                 'decision': 'need_model_vision', 'vision_requested': True},
+                {'t': 2.0, 'type': 'reasoning', 'cycle': 'abc123', 'phase': 'outcome',
+                 'action': 'target', 'verdict': 'miss', 'code_fix': 'evaluate_gap'}]
+        lines = RW.trace_lines(rows)
+        self.assertIn('abc123 clues', lines[0])
+        self.assertIn('vision=True', lines[0])
+        self.assertIn('gap=evaluate_gap', lines[1])
+
 
 if __name__ == '__main__':
     unittest.main()

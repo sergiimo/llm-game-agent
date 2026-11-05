@@ -21,7 +21,7 @@ def _tend(chores, click=None, region='Garden', max_clicks=40):
 
 @action
 def do(region='Garden', click=None, max_clicks=40):
-    """Harvest, replant wilted crops, and water in one immediate per-bed pass."""
+    """Treat every bed and hive: harvest/collect, replant wilted crops, water, and inspect unchanged nodes."""
     return _tend(('replant', 'harvest', 'water'), click, region, max_clicks)
 
 
@@ -58,6 +58,7 @@ def plant_all(seed=None, region=None, click=None):
 
 
 def summary(res):
-    return (f"garden: visited {len(res['visited'])}, acted {len(res['acted'])}, flowers {len(res['flowers'])}, "
+    return (f"garden: visited {len(res['visited'])}, hives {len(res.get('hives_visited', []))}, "
+            f"honey {res.get('honey', 0)}, acted {len(res['acted'])}, flowers {len(res['flowers'])}, "
             f"unresolved {len(res['unresolved'])}, harvested {res['harvested']}, replanted {res['replanted']}, "
             f"watered {res['watered']}, clicks {res['clicks']}, vision {res['vision']}, stop: {res['stop']}")

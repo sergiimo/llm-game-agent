@@ -162,9 +162,9 @@
     "item": "$seedSeed"
    },
    "source": "seed: game D148/D185 (L137); user D186: Space confirms the card (no Select click), a second Space waters the bed just planted",
-   "seen": 3,
+   "seen": 7,
    "ok": 0,
-   "surprises": 3,
+   "surprises": 7,
    "proof": "totalPlanted"
   },
   {
@@ -198,9 +198,9 @@
     "watered": false
    },
    "source": "seed: game D150; live D188: the ready bubble is the crop icon + \"!\" (read as plant_growing +ready), not 'pickup'; user D188: the click opens a Collect prompt, Space confirms it; live D189 8:36 (the first engine pick): Space on Collect logs `> harvest target=GardenBed at (...)`, then a quest toast",
-   "seen": 3,
-   "ok": 0,
-   "surprises": 3
+   "seen": 8,
+   "ok": 1,
+   "surprises": 7
   },
   {
    "id": "info_growing",
@@ -213,6 +213,58 @@
    "source": "seed: game D183",
    "seen": 0,
    "ok": 0,
+   "surprises": 0
+  },
+  {
+   "id": "hive_collect",
+   "kind": "BeeHive",
+   "when": {
+    "ready": true
+   },
+   "bubble": {
+    "kind": "honey|beehive_progress",
+    "ready": true
+   },
+   "steps": [
+    {
+     "do": "click_bubble",
+     "expect": {
+      "events": [
+       "beehive_collect"
+      ]
+     }
+    }
+   ],
+   "effect": {
+    "ready": false
+   },
+   "source": "seed: garden coverage rule; a ready hive is collected immediately and its event identifies the actual hive",
+   "seen": 0,
+   "ok": 0,
+   "surprises": 0
+  },
+  {
+   "id": "hive_inspect",
+   "kind": "BeeHive",
+   "when": {},
+   "bubble": {
+    "kind": "beehive_progress",
+    "ready": false
+   },
+   "steps": [
+    {
+     "do": "click_bubble",
+     "expect": {
+      "events": [
+       "beehive_progress"
+      ]
+     }
+    }
+   ],
+   "effect": {},
+   "source": "seed: garden coverage rule; progress inspection is harmless and its event identifies the actual hive",
+   "seen": 1,
+   "ok": 1,
    "surprises": 0
   },
   {

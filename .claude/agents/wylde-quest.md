@@ -30,10 +30,12 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
   `harvest crops=Carrot`; `tools/game/goals.json`) or a raw query `./wf achieve '{"kind": "BeeHive", "where": {"ready":
   true}, "make": {"ready": false}}'`. `./wf world kinds` / `./wf world nodes` list the areas (e.g. `Garden`, `GardenSouth`),
   kinds, states and known actions: route the user's words ("the garden south of the house") to an area name from there.
-  The engine clicks every fitting bubble by itself and asks only when stuck:
+  `./wf garden` is one persistent coverage pass over every bed and hive in the region; it applies each live-state rule
+  immediately. The engine clicks every fitting bubble by itself and asks only when no fitting bubble is visible:
   `NEED_VISION click` → (1) `./wf pause`; (2) Read the image on the `look:` line (grid A-X × 1-16, magenta circle = Tara,
-  always the centre); (3) ONE grid cell on the target object (not a bubble), or open ground toward it; (4) `./wf resume`,
-  then the printed `answer:` line, e.g. `./wf achieve water answer=Q14` (`answer=none` = nothing left).
+  always the centre); (3) answer `target <cell>` only when the target and its full walkable road are visible, otherwise
+  `walk <cell>` for one short visible-ground waypoint; (4) `./wf resume`, then the printed `answer:` line. A target click
+  may hit the bed/hive; a walk click may not. (`answer=none` = nothing left.)
   **An achieve call can take minutes: run it with the Bash `timeout: 600000`** (D188: the default 120 s sent it to
   the background mid-call). A WORLD MAP question (the zoomed map on TOP, the game view BELOW, both full scale) = a
   compass answer (N..NW). **Trace first, then answer** (D188: three wrong answers from the straight-line bearing):

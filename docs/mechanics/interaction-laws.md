@@ -14,15 +14,21 @@ bad state carried over to the next call. These laws keep one guess per click and
 | # | Law | Facts |
 |---|---|---|
 | M1 | **Tara is always at the frame centre** | The camera follows her: she stands at **(960, 540)** in the 1920×1080 frame (`chain_step.CENTRE`), in every area, at every zoom. A screen offset from the centre is her direction and distance to the object (the zoom changes only the scale). Her position never needs to be asked or estimated. |
-| M2 | **A click on a visible object reaches it** | The game pathfinds to a clicked object (around buildings, over most low fences) and stops in front of it with its bubble showing. If it is already in reach, the click **interacts** (bed → card, well → fill). A click on open ground only walks. Exception: some fence spots fail (`Jump failed while pathfinding`, D151): click the object from Tara's side. See [basic-actions](basic-actions.md). |
+| M2 | **A click on a visible object reaches it when its road is visible** | The game pathfinds to a clicked object and stops in front of it with its bubble showing. If it is already in reach, the click **interacts** (bed → card, well → fill). The click is reliable only when the target and the whole walkable road from Tara to it are visible in the current frame; an off-screen/occluded road can make the click be ignored. Otherwise click one short visible-ground waypoint, take a fresh frame, then try the target. Exception: some fence spots fail (`Jump failed while pathfinding`, D151): use a waypoint on Tara's side. See [basic-actions](basic-actions.md). |
 | M3 | **Every action leaves feedback, some only briefly** | Four channels, from most to least lasting: (a) **game log** event lines (`> unplant`, `> unplant_impl`, `> plant`, `totalPlanted.X`, `> water`, `> out_of_water`, `> grab_item`, `> plant_growing`, `> fill_watering_can`), which stay; (b) **cards/panels** (Remove card, planting picker), which stay until closed; (c) **bubble changes** (a bubble vanishes, its icon changes, the water-drop sub-icon goes after watering, a seedling bubble appears after removing), which last until Tara moves; (d) **on-screen text** (pickup notices, short messages), which disappears after about 1–2 s ❓ (to measure). Channels (c) and (d) are lost unless frames are captured right after the click. |
 | M4 | **Bubbles show what is in reach and its state** | A bubble appears above every object in reach, several at once; clicking any bubble runs its action, highlighted or not. A crop bubble with a pale-blue **water drop** = needs water **or** wilted; a seedling bubble without a sub-icon = empty bed; **only the drop means "needs water"** (a crop icon without it — tulip, bean — is never clicked to water); the orange **"!"** sub-icon (top right, `Affordance.ready`) = its product is **ready to collect, not an order to collect** (flowers serve the bees; collect only when the task says so). Kinds, drop and ready flags: `affordances.scan()`. **Soil (user D185):** light-brown bed soil = needs water, dark brown = watered (median grey of soil pixels ≥ 88 dry, ≤ 80 wet, daylight; `affordances.soil_map` / `dry_spots`, a heat map of dry soil on the frame). |
 
 ## Rules (any task: replant, water, harvest, forage, talk)
 1. **Never locate Tara.** She is at the centre (M1). Describe everything as an offset from the centre ("the bed
    up-right of her"). Questions never ask "which bed is she at".
-2. **First node: see → map → step, then vision (user D185).** If a bubble that fits the task is visible, go to rule 4.
-   Otherwise, at most `SEEK_TURNS` (6) rounds (a bubble without the task's sub-icon is never clicked; bubble kinds are
+2. **First node: bubble → visible target → visible waypoint (user D191).** If a bubble that fits the task is visible,
+   go to rule 4. Otherwise vision chooses exactly one move from the fresh full-scale frame: `target <cell>` when the
+   target and its entire walkable road from Tara are visible, or `walk <cell>` for one short visible-ground waypoint
+   when they are not. A target cell is deliberately allowed to hit the object; a walk cell must avoid objects and
+   bubbles. The click result, not projected ownership, identifies the actual node. Garden maintenance queues every
+   GardenBed and BeeHive in the region and immediately runs the clicked target's state rule.
+   **Legacy fallback:** If vision cannot name either move, at most `SEEK_TURNS` (6) rounds may use graph/map hints
+   (a bubble without the task's sub-icon is never clicked; bubble kinds are
    learned from the bubbles the task does click, `wf.learn_bubble`): (1) **graph**: the last event's target says which node she is at
    (`target=Well` after a refill, `target=BeeHive` after a hive click) → the graph's screen direction from that node to the
    target node (`graph.toward`, edges `toward` or `TOWARD` defaults: Well → hives → beds) → a step; (1b) **water: dry soil** → walk to the nearest light-brown blob of the soil heat map (`dry_spots`; it also sees
@@ -51,13 +57,16 @@ bad state carried over to the next call. These laws keep one guess per click and
    none of these explains (no event, no card, no bubble change, no move) → ask vision on the burst frames: "what
    happened after this click?"
 4. **Bubble loop.** While a bubble that fits the task is visible: click it (nearest to the centre first), record the
-   result (rule 3), update state, repeat. No fitting bubble left → back to rule 2 for the next node.
+   result (rule 3), update the actual event-position node, and finish that node's state rule before advancing. No fitting
+   bubble left → back to rule 2. In a garden pass, non-action bed/hive bubbles are inspections and still count as
+   coverage; ready flowers stay for bees, honey is collected only when ready, and pre-existing empty beds stay empty.
 5. **Failure = reset, not diagnosis.** On anything unexpected: close cards (`ui.close()`), take a fresh frame, go back to
    rule 4 or 2. No stored layout, grid or position survives a failure.
 6. **Memory is a hint, never a gate.** The graph and the save say what to look for (save: "4 wilted"; graph: the crop
    last planted in a bed) and when to stop (save count = 0). They never decide where to click and never block a click.
-7. **Done** = beds left for the task is 0 (`wf.beds_left`: the save minus today's log, by position, L136), or vision answers `none` for the target from a fresh frame and the save
-   can't tell. Report the counts before and after.
+7. **Done** = the task's coverage queue is empty. For `./wf garden`, every bed and hive in the region needs a
+   current-pass proof (action event, inspection event/card, or explicit vision settlement). Coverage persists across
+   streaming calls. Report counts by kind plus harvested/replanted/watered/honey actions.
 
 ### Example: replant every wilted bed
 `while save says wilted > 0:` drop bubbles visible → click the nearest → the log says `unplant` (wilted: Remove →

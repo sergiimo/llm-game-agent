@@ -138,14 +138,14 @@ class Watch:
                    f"{r.get('result')} {r.get('object') or ''} (hits {r.get('hits')})")
             proven = r.get('result') in ('destroying', 'grab_item')
             out.append(('INFO', msg) if proven else ('NOTE', msg + ' - the answer did not reach a target'))
-        elif t in ('think', 'decide'):
+        elif t in ('think', 'decide', 'reasoning'):
             out.append(('INFO', trace_lines([r])[0][9:]))
         elif t in ('plan_step', 'end', 'issue'):
             out.append(('INFO', f"{t}: {json.dumps({k: v for k, v in r.items() if k not in ('t', 'type')})[:160]}"))
         return out
 
 
-TRACED = ('decide', 'click', 'think', 'vision', 'perception', 'call', 'action', 'engine', 'game', 'gap', 'learn',
+TRACED = ('decide', 'reasoning', 'click', 'think', 'vision', 'perception', 'call', 'action', 'engine', 'game', 'gap', 'learn',
           'plan_step')
 
 
@@ -161,6 +161,11 @@ def trace_lines(rows):
         if t == 'decide':
             body = (f"decide {r.get('target')} ({r.get('dist')} units): {r.get('why')}"
                     f"{' row ' + str(r.get('row')) if r.get('row') else ''}")
+        elif t == 'reasoning':
+            body = (f"reasoning {r.get('cycle')} {r.get('phase')}: "
+                    f"decision={r.get('decision') or r.get('action') or '-'} "
+                    f"vision={r.get('vision_requested', False)} verdict={r.get('verdict') or '-'} "
+                    f"gap={r.get('code_fix') or '-'}")
         elif t == 'click':
             body = (f"click {r.get('what')} @{(r.get('pt') or ['?', '?'])[0]},{(r.get('pt') or ['?', '?'])[1]}"
                     f" {r.get('gt') or ''}: events {r.get('events') or '-'}, "

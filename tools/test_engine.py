@@ -259,7 +259,7 @@ class FakeGame:
                 continue
             s = o['state']
             drop = bool(s.get('wilted')) or (s.get('watered') is False and s.get('stage') in ('growing', 'producing'))
-            ready = s['ready'] if 'ready' in s else s.get('stage') == 'produced'
+            ready = o.get('scan_ready', s['ready'] if 'ready' in s else s.get('stage') == 'produced')
             out.append(Affordance(self.relabel.get(b['bubble']['kind'], b['bubble']['kind']), None, tuple(o['bubble_pt']),
                                   False, 0.0, drop and not self.hide_drop, bool(ready) and not self.hide_ready,
                                   o.get('badge'), o.get('icon')))
@@ -979,7 +979,8 @@ class StreamingGarden(EngineBase):
     def test_a_preexisting_empty_bed_with_a_noisy_ready_badge_is_never_harvested_or_planted(self):
         garden = self._north()
         empty = garden[0]
-        empty['state'].update(stage='empty', watered=True, crop=None, ready=True)
+        empty['state'].update(stage='empty', watered=True, crop=None)
+        empty['scan_ready'] = True   # detector false positive; the underlying bed state remains valid
         empty['badge'] = 'ready'
         empty['icon'] = None
         f = self._game(garden)

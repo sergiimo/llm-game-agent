@@ -335,6 +335,13 @@ class GeoGame(FakeGame):
     def run_action(self, a):
         self._place()
         m = re.match(r'click:(-?\d+):(-?\d+)', a)
+        if m and not self.card and not self.paused and self._bed_at(int(m.group(1)), int(m.group(2))):
+            o = self._bed_at(int(m.group(1)), int(m.group(2)))
+            self.clicks.append((int(m.group(1)), int(m.group(2))))
+            self.pos = (o['pos'][0], o['pos'][1] - 1.0)   # walked up to it
+            self.walk_frames = 1
+            self._place()
+            return self.interact(o)
         if m and not self.card and not self.paused:
             x, y = int(m.group(1)), int(m.group(2))
             hit = any(o['bubble_pt'] and abs(o['bubble_pt'][0] - x) < 30 and abs(o['bubble_pt'][1] - y) < 30
@@ -350,6 +357,15 @@ class GeoGame(FakeGame):
         out = super().run_action(a)
         self._place()
         return out
+
+    def _bed_at(self, x, y):
+        """A click on an object's own screen point (its body, no bubble shown): she walks to it and works it."""
+        import math as _m
+        for o in self.objects.values():
+            bx, by = self._pt(o['pos'])
+            if abs(bx - x) < 40 and abs(by + 40 - y) < 40 and _m.dist(o['pos'], self.pos) > self.SHOW:
+                return o
+        return None
 
     frozen = None   # a save written earlier (the game autosaves rarely): read_save returns it unchanged
 
@@ -3098,6 +3114,48 @@ class UnknownBubbles(EngineBase):
                 pass
         self.assertIn(('icon', 'Green Bean'), learned)
         self.assertIn(('badge', 'ready'), learned)
+
+
+class ClickTheBed(VisitBeds):
+    """User D189: "we see the closest 2 bubbles - not what we need, we came from one bed on the left, a known one, and
+    we see a bed on the west, unknown - go there by clicking it"."""
+
+    def far_bed(self, crop=None):
+        x, z = NX[1], NZ[0]
+        far = obj('far', pos=(x - 2.5, z - 4.5), stage='produced', watered=True, wilted=False)
+        if crop:
+            far['state']['crop'] = crop
+        f = self.use(GeoGame([far], GAME, (x, z), inventory={'TulipSeed': 2}))
+        f.log.append(L('8:30:00 AM', 'plant_growing', 'GardenBed', x, z))
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        keep = world.find(g, 'GardenBed', far['pos'])
+        for n in world.query(g, {'kind': 'GardenBed'}):
+            if n != keep:
+                g.set_state(n, 'ready', False, 'D185 8:20:00 AM', 'card')
+        if crop:
+            g.set_state(keep, 'crop', crop, 'D185 8:20:00 AM', 'icon')
+        g.save(learn.GRAPH)
+        return f, keep
+
+    def test_an_unknown_crop_bed_is_walked_up_to_and_read_by_its_bubble(self):
+        """Its crop unknown (a flower stays): walk up beside it, no interaction; the bubble's icon names it."""
+        f, nid = self.far_bed()
+        try:
+            engine.achieve('harvest', max_clicks=8)
+        except ask.NeedVision:
+            pass
+        self.assertEqual(f.objects['far']['state']['stage'], 'growing', f.clicks)   # read Green Bean, picked
+        self.assertNotIn((960, 540), f.clicks)
+
+    def test_a_known_crop_bed_in_view_is_clicked_at_once(self):
+        f, nid = self.far_bed(crop='Green Bean')
+        try:
+            engine.achieve('harvest', max_clicks=8)
+        except ask.NeedVision:
+            pass
+        self.assertEqual(f.objects['far']['state']['stage'], 'growing', f.clicks)
 
 
 if __name__ == '__main__':

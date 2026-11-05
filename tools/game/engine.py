@@ -333,6 +333,29 @@ def _red_events(kind, make):
     return set().union(*[_row_events(r) for r in rows]) - allowed - NEUTRAL_EVENTS
 
 
+def _click_bed(g, tid, pt, row, res):
+    """The target bed on screen, too far for its bubble: what grows there first (vision, from the frame - when the
+    goal skips some crops and the graph doesn't know), then a click ON THE BED: she walks to it and works it; a card
+    the row starts with (Collect) is finished by the row's remaining steps. True when it clicked."""
+    crop = world.state_of(g, tid).get('crop')
+    if res.get('skip_now') and not crop:
+        return False   # unknown crop: walk up beside it (no interaction) - its bubble's icon tells; vision if not
+    if crop in (res.get('skip_now') or ()):
+        res.setdefault('seen', []).append(tid)   # a flower: it stays (user D188)
+        return True
+    c = A.click(pt, 'object', goal={'row': row['id'], 'step': 0, 'target': tid})
+    res['clicks'] += 1
+    want = (row['steps'][0].get('expect') or {}).get('card') if row['steps'] else None
+    if want and A.on_card(c) and any(want.lower() in t.lower() for t in c.texts):
+        out = steps.run(dict(row, steps=row['steps'][1:]), row.get('params', {}), None)
+        out['clicks'] += 1
+        res.setdefault('card_runs', []).append(out)
+        res['visit_ran'] = True
+    elif A.on_card(c):
+        A.gameplay()
+    return True
+
+
 def _settle_visit(tid, nid, res):
     """A click whose result proved ANOTHER bed (the evidence went to `nid`): the target's visit is off for this call
     and the attempt counts - the next round moves on instead of clicking the same bubble (live D189)."""
@@ -375,6 +398,8 @@ def _visit(g, tid, kind, res, row=None):
             return a
         if hop == HOPS or (row is not None and any(plan.fits(row)(a) for a in affs)):
             return None   # a bubble that fits the row is in view: the search takes it, no walk
+        if row is not None and O.d(pt, O.CENTRE) > N.SELF_PX and _click_bed(g, tid, pt, row, res):
+            return None   # the bed itself was clicked (user D189: "go there by clicking it"); its card is handled
         ground = (pt[0], min(O.H_ - 60, pt[1] + BELOW_PX))
         if not N.walkable(ground, affs):   # her own spot / a bubble: a click there interacts (live D189 watering)
             return None
@@ -698,6 +723,11 @@ def _answer_name(g, pend, answer, res):
     if pend.get('map_dir'):   # vision read the map's roads: walk that way (the graph learns it when it gets closer)
         N.walk_way(answer, pend, res)
         return
+    if pend.get('bed_crop'):   # vision named what grows in a bed seen too far for its bubble
+        if pend['bed_crop'] in g.nodes and str(answer).strip():
+            g.set_state(pend['bed_crop'], 'crop', str(answer).strip(), _stamp(), 'vision')
+            res['learned'].append(f'bed crop: {answer}')
+        return
     if pend.get('crop_icon'):   # vision named the bubble: its icon (wave 2) and its corner (wave 1) are stored
         from . import badges, icons
         icon, _, corner = str(answer).partition(',')
@@ -975,7 +1005,17 @@ def _loop(g, name, spec, params, save, max_clicks, res):
         if res['stop']:
             break
         skip_names = _skip_names(spec, params)
+        res['skip_now'] = _skip_names(spec, params)
         a = None if tid in res.setdefault('visit_off', set()) else _visit(g, tid, kind, res, t)
+        if res.pop('visit_ran', False):   # the bed was clicked and its card finished: take the result now
+            for out in res.pop('card_runs', []):
+                res['clicks'] += out['clicks'] - 1
+                nid = _learn(g, out, kind, t, res)
+                plan.count(t['id'], out['ok'])
+                if nid and out['ok'] and _made(g, nid, make, params, world.state_of(g, nid)) and nid not in res['done']:
+                    res['done'].append(nid)
+                    res.setdefault('tried_nodes', set()).add(nid)
+            continue
         if a is None and tid in res.get('tried_nodes', ()) and not _passes(g, tid, where):
             res.setdefault('seen', []).append(tid)   # she saw it: not ready now (a fresh reading) - the next bed
             continue
@@ -1001,6 +1041,8 @@ def _loop(g, name, spec, params, save, max_clicks, res):
             res['tid_now'] = tid   # nav walks toward THIS bed (user D189), not whichever bed the vectors see
             a = _reach(g, name, params, t, kind, area, res, _marker(spec, where), skip_names)
         runs = res.pop('card_runs', [])
+        if res.pop('visit_ran', False) and not runs:
+            runs = []
         for out in runs:   # a card the row finished during a walk: its events update the world like a step's
             res['clicks'] += out['clicks']
             nid = _learn(g, out, kind, t, res)

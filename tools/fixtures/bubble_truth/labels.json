@@ -7,6 +7,26 @@
    "drop": false,
    "crop": "Carrot",
    "proof": "click -> \"Carrot ... 2 days remaining\" (D188 8:10)"
+  },
+  {
+   "ready": true,
+   "file": "D189_83831_AM-688-688.png",
+   "proof": "pick: ['harvest']"
+  },
+  {
+   "ready": true,
+   "file": "D189_112126_AM-1248-672.png",
+   "proof": "pick: ['harvest']"
+  },
+  {
+   "ready": true,
+   "file": "D189_120414_PM-816-680.png",
+   "proof": "pick: ['harvest']"
+  },
+  {
+   "ready": true,
+   "file": "D189_23340_PM-1028-512.png",
+   "proof": "pick: ['harvest']"
   }
  ]
 }

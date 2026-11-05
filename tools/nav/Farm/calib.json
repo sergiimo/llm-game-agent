@@ -23,6 +23,6 @@
   961,
   673
  ],
- "day": "2026-10-31",
+ "day": "2026-11-04",
  "_doc": "Cache derived from tools/nav/facts.jsonl (every clean one-click checkpoint, L62): H maps normalised screen ((x-960)/500, (y-540)/500) to the world offset (dx, dz) from Tara; tara = her ground point on screen; err = median residual in world units."
 }

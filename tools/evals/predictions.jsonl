@@ -634,8 +634,6 @@
 {"t": 1793428958.652, "id": "p1793428958651-22", "outcome": true, "hit": true}
 {"t": 1793428959.886, "id": "p1793428959886-23", "component": "skills", "what": "well.fill_can", "value": "", "ctx": {"action": "well.fill_can", "args": ""}}
 {"t": 1793428959.886, "id": "p1793428959886-23", "outcome": "fill the can: at the well but no can bubble on screen (bubbles: unknown @968,508 \u2192 object unknown, unknown @1124,512 \u2192 object unknown, unknown @812,512 \u2192 object unknown)", "hit": false}
-{"t": 1793429010.678, "id": "p1793429010677-0", "component": "world_belief", "what": "position", "value": [4.0, -28.0], "ctx": {"area": "Farm", "u": 3.64, "err": 2.11}}
-{"t": 1793429010.678, "id": "p1793429010677-0", "outcome": [5.8, -29.1], "hit": false}
 {"t": 1793429101.049, "id": "p1793429101048-0", "component": "world_belief", "what": "position", "value": [3.95, -22.5], "ctx": {"area": "Farm", "u": 5.0, "err": 0.0}}
 {"t": 1793429101.049, "id": "p1793429101048-0", "outcome": [3.95, -22.5], "hit": true}
 {"t": 1793429101.24, "id": "p1793429101240-1", "component": "belief", "what": "position", "value": [-1.09, -21.065], "ctx": {"scene": "Farm", "pred": [-1.09, -21.065], "to": [3.95, -22.5]}}
@@ -650,10 +648,6 @@
 {"t": 1793429113.074, "id": "p1793429113073-5", "outcome": true, "hit": true}
 {"t": 1793429114.251, "id": "p1793429114250-6", "component": "skills", "what": "well.fill_can", "value": "", "ctx": {"action": "well.fill_can", "args": ""}}
 {"t": 1793429114.251, "id": "p1793429114250-6", "outcome": "fill the can: at the well but no can bubble on screen (bubbles: unknown @1100,508 \u2192 Well#13 Farm (0.17, -21.41), unknown @788,512 \u2192 BeeHive#4 Farm (-2.28, -23.46), unknown* @944,512 \u2192 Well#13 Farm (0.17, -21.41), unknown @212,544 \u2192 object unknown)", "hit": false}
-{"t": 1793429145.609, "id": "p1793429145609-0", "component": "world_belief", "what": "position", "value": [4.0, -28.0], "ctx": {"area": "Farm", "u": 3.64, "err": 2.11}}
-{"t": 1793429145.609, "id": "p1793429145609-0", "outcome": [5.8, -29.1], "hit": false}
-{"t": 1793429153.864, "id": "p1793429153864-0", "component": "world_belief", "what": "position", "value": [4.0, -28.0], "ctx": {"area": "Farm", "u": 3.64, "err": 2.11}}
-{"t": 1793429153.864, "id": "p1793429153864-0", "outcome": [5.8, -29.1], "hit": false}
 {"t": 1793429196.754, "id": "p1793429196754-0", "component": "world_belief", "what": "position", "value": [3.95, -22.5], "ctx": {"area": "Farm", "u": 5.0, "err": 0.0}}
 {"t": 1793429196.755, "id": "p1793429196754-0", "outcome": [3.95, -22.5], "hit": true}
 {"t": 1793429196.957, "id": "p1793429196957-1", "component": "belief", "what": "position", "value": [0.172, -21.42], "ctx": {"scene": "Farm", "pred": [0.172, -21.42], "to": [3.95, -22.5]}}
@@ -693,10 +687,6 @@
 {"t": 1793429248.178, "id": "p1793429248177-18", "outcome": [3.9539260864257812, -22.50316619873047], "hit": false}
 {"t": 1793429248.178, "id": "p1793429248177-19", "component": "ask", "what": "answer moves her", "value": "700:545", "ctx": {"answer": "700:545", "question": "GOAL: walk Tara to Well#13 Farm (-1.09, -21.05) (west (map direction)), for the task 20261031-0844-obj-walk-2 (current s"}}
 {"t": 1793429248.178, "id": "p1793429248177-19", "outcome": 0.0, "hit": false}
-{"t": 1793429973.453, "id": "p1793429973452-0", "component": "world_belief", "what": "position", "value": [4.0, -28.0], "ctx": {"area": "Farm", "u": 3.64, "err": 2.11}}
-{"t": 1793429973.453, "id": "p1793429973452-0", "outcome": [5.8, -29.1], "hit": false}
-{"t": 1793429974.428, "id": "p1793429974428-0", "component": "world_belief", "what": "position", "value": [4.0, -28.0], "ctx": {"area": "Farm", "u": 3.64, "err": 2.11}}
-{"t": 1793429974.428, "id": "p1793429974428-0", "outcome": [5.8, -29.1], "hit": false}
 {"t": 1793430016.832, "id": "p1793430016831-0", "component": "world_belief", "what": "position", "value": [3.95, -22.5], "ctx": {"area": "Farm", "u": 5.0, "err": 0.0}}
 {"t": 1793430016.832, "id": "p1793430016831-0", "outcome": [3.95, -22.5], "hit": true}
 {"t": 1793430020.31, "id": "p1793430020310-1", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [639, 630]}}
@@ -720,10 +710,6 @@
 {"t": 1793430050.972, "id": "p1793430050972-10", "outcome": [3.9539260864257812, -22.50316619873047], "hit": false}
 {"t": 1793430051.852, "id": "p1793430051852-11", "component": "skills", "what": "well.fill_can", "value": "", "ctx": {"action": "well.fill_can", "args": ""}}
 {"t": 1793430051.853, "id": "p1793430051852-11", "outcome": "goto Well#13 Farm (-1.09, -21.05): STUCK, asked for the next step:\nNEED_VISION step: GOAL: walk Tara to Well#13 Farm (-1.09, -21.05) (west (map direction)), for the task 20261031-0844-obj-walk-2 (current step: step 1: Orient at the well). She is at (4.0, -22.5) in Farm, magenta ring, feet at 960:690; code cannot make the next step ([eval p1793430050775-9] STUCK (L75): no progress over 3 moves). Drawn from what we know: yellow arrow = planned direction, yellow numbered dots = next route points (1 = next), blue = road, green dots/lines = where she has walked before (19 points), red X = walls / refused clicks (44). What is the NEXT CLICK toward the goal? Open walkable ground she can reach from where she stands, within ~400 px of her; follow roads and green where they lead toward the goal; if she is enclosed, the way out toward a road that leads there. Never fences, rails, hedges, rocks, water, a fenced plot, or a red X. Estimate game coordinates from the white tick labels (image px x 2).\n  look: /Users/serg/w/llm-game-agent/.shots/ask.jpg\n  answer: ./wf teach step X:Y   e.g. ./wf teach step 660:810", "hit": false}
-{"t": 1793430076.993, "id": "p1793430076992-0", "component": "world_belief", "what": "position", "value": [4.0, -28.0], "ctx": {"area": "Farm", "u": 3.64, "err": 2.11}}
-{"t": 1793430076.993, "id": "p1793430076992-0", "outcome": [5.8, -29.1], "hit": false}
-{"t": 1793430088.807, "id": "p1793430088807-0", "component": "world_belief", "what": "position", "value": [4.0, -28.0], "ctx": {"area": "Farm", "u": 3.64, "err": 2.11}}
-{"t": 1793430088.807, "id": "p1793430088807-0", "outcome": [5.8, -29.1], "hit": false}
 {"t": 1793430119.598, "id": "p1793430119597-0", "component": "world_belief", "what": "position", "value": [3.95, -22.5], "ctx": {"area": "Farm", "u": 5.0, "err": 1.18}}
 {"t": 1793430119.598, "id": "p1793430119597-0", "outcome": [2.78, -22.51], "hit": false}
 {"t": 1793430124.944, "id": "p1793430124943-1", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [247, 328]}}
@@ -771,8 +757,6 @@
 {"t": 1793430170.175, "id": "p1793430170174-22", "outcome": "walk Well#13 Farm (-1.09, -21.05): no progress: 2 clicks without moving at (-7.1, -10.4)\nNEED_VISION step: GOAL: walk Tara to Well#13 Farm (-1.09, -21.05) (south-east (map direction)), for the task 20261031-0844-obj-walk-2 (current step: step 1: Orient at the well). She is at (-7.1, -10.3) in Farm, magenta ring, feet at 960:690; code cannot make the next step (no progress: 2 clicks without moving at (-7.1, -10.4)). Drawn from what we know: yellow arrow = planned direction, yellow numbered dots = next route points (1 = next), blue = road, green dots/lines = where she has walked before (4 points), red X = walls / refused clicks (8). What is the NEXT CLICK toward the goal? Open walkable ground she can reach from where she stands, within ~400 px of her; follow roads and green where they lead toward the goal; if she is enclosed, the way out toward a road that leads there. Never fences, rails, hedges, rocks, water, a fenced plot, or a red X. Estimate game coordinates from the white tick labels (image px x 2).\n  look: /Users/serg/w/llm-game-agent/.shots/ask.jpg\n  answer: ./wf teach step X:Y   e.g. ./wf teach step 660:810", "hit": false}
 {"t": 1793430216.382, "id": "p1793430216382-0", "component": "world_belief", "what": "position", "value": [4.0, -28.0], "ctx": {"area": "Farm", "u": 3.64, "err": 2.11}}
 {"t": 1793430216.382, "id": "p1793430216382-0", "outcome": [5.8, -29.1], "hit": false}
-{"t": 1793433159.914, "id": "p1793433159914-0", "component": "world_belief", "what": "position", "value": [4.0, -28.0], "ctx": {"area": "Farm", "u": 3.64, "err": 2.11}}
-{"t": 1793433159.915, "id": "p1793433159914-0", "outcome": [5.8, -29.1], "hit": false}
 {"t": 1793433719.247, "id": "p1793433719247-0", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [1488, 712]}}
 {"t": 1793433719.247, "id": "p1793433719247-0", "outcome": true, "hit": true}
 {"t": 1793433736.674, "id": "p1793433736674-1", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [625, 950]}}
@@ -1035,12 +1019,6 @@
 {"t": 1793550019.709, "id": "p1793550019709-12", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [957, 662]}}
 {"t": 1793550019.71, "id": "p1793550019709-12", "outcome": false, "hit": false}
 {"t": 1793550020.063, "id": "p1793550020062-13", "component": "stuck", "what": "stuck", "value": true, "ctx": {"at": ["Farm", 7.78, -25.32]}}
-{"t": 1793550025.37, "id": "p1793550025369-14", "component": "world_belief", "what": "position", "value": [7.78, -25.32], "ctx": {"area": "Farm", "u": 3.53, "err": 3.68}}
-{"t": 1793550025.37, "id": "p1793550025369-14", "outcome": [5.41, -22.51], "hit": false}
-{"t": 1793550025.96, "id": "p1793550025959-15", "component": "belief", "what": "position", "value": [7.348, -25.145], "ctx": {"scene": "Farm", "pred": [7.348, -25.145], "to": [5.41, -22.51]}}
-{"t": 1793550025.96, "id": "p1793550025959-15", "outcome": [5.40738582611084, -22.50583267211914], "hit": false}
-{"t": 1793550044.723, "id": "p1793550044722-0", "component": "world_belief", "what": "position", "value": [5.41, -22.51], "ctx": {"area": "Farm", "u": 5.0, "err": 6.65}}
-{"t": 1793550044.723, "id": "p1793550044722-0", "outcome": [0.84, -27.34], "hit": false}
 {"t": 1793550264.929, "id": "p1793550264928-0", "component": "world_belief", "what": "position", "value": [0.84, -27.34], "ctx": {"area": "Farm", "u": 5.0, "err": 0.0}}
 {"t": 1793550264.929, "id": "p1793550264928-0", "outcome": [0.84, -27.34], "hit": true}
 {"t": 1793550274.682, "id": "p1793550274681-1", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [874, 708]}}
@@ -1089,9 +1067,413 @@
 {"t": 1793552540.507, "id": "p1793552540506-0", "outcome": [3.37, -27.09], "hit": true}
 {"t": 1793552570.597, "id": "p1793552570597-1", "component": "skills", "what": "garden.replant_visible", "value": "", "ctx": {"action": "garden.replant_visible", "args": ""}}
 {"t": 1793552570.598, "id": "p1793552570597-1", "outcome": "ok", "hit": true}
-{"t": 1793553551.974, "id": "p1793553551973-0", "component": "world_belief", "what": "position", "value": [-1.66, -27.09], "ctx": {"area": "Farm", "u": 5.0, "err": 0.0}}
-{"t": 1793553551.974, "id": "p1793553551973-0", "outcome": [-1.66, -27.09], "hit": true}
 {"t": 1793606731.283, "id": "p1793606731282-0", "component": "world_belief", "what": "position", "value": [0.84, -27.09], "ctx": {"area": "Farm", "u": 5.0, "err": 0.0}}
 {"t": 1793606731.283, "id": "p1793606731282-0", "outcome": [0.84, -27.09], "hit": true}
 {"t": 1793606892.105, "id": "p1793606892104-0", "component": "world_belief", "what": "position", "value": [0.84, -27.09], "ctx": {"area": "Farm", "u": 5.0, "err": 0.0}}
 {"t": 1793606892.105, "id": "p1793606892104-0", "outcome": [0.84, -27.09], "hit": true}
+{"t": 1793612643.015, "id": "p1793612643015-0", "component": "skills", "what": "garden.replant_all", "value": "", "ctx": {"action": "garden.replant_all", "args": ""}}
+{"t": 1793612643.015, "id": "p1793612643015-0", "outcome": "NeedVision: NEED_VISION anchor: Task: replant. Unexpected: Tara.at is unknown Run so far: done 0 [], skipped [], unknown 0.. Predicted near Tara.at=None: unknown. Tiles are labelled A, B, C, D, E, F, G, H, I. The magenta circle marks the chain's reference tile (the tile nearest this marker): `at:` names that tile (its label and rXcY). Answer with ./wf anchor \"<answer>\" in the format: group: <group>   at: <L>=r<R>c<C>   <L>=[r<R>c<C> ]<phase>[(<crop>)][ dry|watered] ...   <L>=?   (phase: empty|growing|ripe|wilted)\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, tiles labelled A, B, ...; no grid)\n  answer: ./wf anchor \"group: GardenBed@Garden   at: B=r2c1   A=r1c1 empty   B=r2c1 wilted(Green Bean)   C=r2c2 growing dry   E=?\"   (at = the tile nearest the magenta marker; E=? = cannot tell; you may name only some tiles)", "hit": false}
+{"t": 1793626591.192, "id": "p1793626591192-0", "component": "skills", "what": "garden.replant_all", "value": "", "ctx": {"action": "garden.replant_all", "args": ""}}
+{"t": 1793626591.193, "id": "p1793626591192-0", "outcome": "NeedVision: NEED_VISION anchor: Task: replant. Unexpected: Tara.at is unknown Run so far: done 0 [], skipped [], unknown 0.. Predicted near Tara.at=None: unknown. The image has a grid (columns A-X, rows 1-16). Name every visible bed by its pattern cell rXcY, the grid cell nearest the centre of that bed, and its state; `ref:` = the bed nearest the magenta marker. If NO bed is visible answer exactly `group: <group>   none`. Answer with ./wf anchor \"<answer>\" in the format: group: <group>   ref: r<R>c<C>@<cell>\nr<R>c<C>@<cell> <phase>[(<crop>)][ dry|watered]   r<R>c<C>@<cell> ?   ... (no bed visible at all: \"group: <group>   none\"; cell = grid cell A1-X16 nearest the bed centre; phase: empty|growing|ripe|wilted; ? = state unknown; e.g. \"group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?\"; name >= 2 beds in different rows and columns)\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = reference marker)\n  answer: ./wf anchor \"group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?\"   (ref = the bed nearest the marker; rXcY@cell = the bed's pattern cell @ the grid cell nearest the bed's centre; ? = state unknown; name every visible bed, at least 2 in different rows and columns)", "hit": false}
+{"t": 1793626671.871, "id": "p1793626671870-1", "component": "skills", "what": "garden.replant_all", "value": "", "ctx": {"action": "garden.replant_all", "args": ""}}
+{"t": 1793626671.872, "id": "p1793626671870-1", "outcome": "NeedVision: NEED_VISION anchor: Task: replant. Unexpected: move not proved: the click on GardenBed@Garden#r2c2 logged no interaction and the camera shifted (0, 0) px (peak 0.67), expected about (0, -169) Run so far: done 0 [], skipped [], unknown 0.. Predicted near Tara.at=GardenBed@Garden#r1c2: GardenBed@Garden#r1c2: None; GardenBed@Garden#r2c2: wilted; GardenBed@Garden#r1c1: None; GardenBed@Garden#r1c3: None. The image has a grid (columns A-X, rows 1-16). Name every visible bed by its pattern cell rXcY, the grid cell nearest the centre of that bed, and its state; `ref:` = the bed nearest the magenta marker. If NO bed is visible answer exactly `group: <group>   none`. Answer with ./wf anchor \"<answer>\" in the format: group: <group>   ref: r<R>c<C>@<cell>\nr<R>c<C>@<cell> <phase>[(<crop>)][ dry|watered]   r<R>c<C>@<cell> ?   ... (no bed visible at all: \"group: <group>   none\"; cell = grid cell A1-X16 nearest the bed centre; phase: empty|growing|ripe|wilted; ? = state unknown; e.g. \"group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?\"; name >= 2 beds in different rows and columns)\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = reference marker)\n  answer: ./wf anchor \"group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?\"   (ref = the bed nearest the marker; rXcY@cell = the bed's pattern cell @ the grid cell nearest the bed's centre; ? = state unknown; name every visible bed, at least 2 in different rows and columns)", "hit": false}
+{"t": 1793626704.362, "id": "p1793626704361-2", "component": "skills", "what": "garden.replant_all", "value": "", "ctx": {"action": "garden.replant_all", "args": ""}}
+{"t": 1793626704.362, "id": "p1793626704361-2", "outcome": "NeedVision: NEED_VISION anchor: Task: replant. Unexpected: clicking GardenBed@Garden#r2c2 logged plant_growing, replant expects ['unplant'] Run so far: done 0 [], skipped [], unknown 0.. Predicted near Tara.at=GardenBed@Garden#r1c2: GardenBed@Garden#r1c2: None; GardenBed@Garden#r2c2: wilted; GardenBed@Garden#r1c1: None; GardenBed@Garden#r1c3: None. The image has a grid (columns A-X, rows 1-16). Name every visible bed by its pattern cell rXcY, the grid cell nearest the centre of that bed, and its state; `ref:` = the bed nearest the magenta marker. If NO bed is visible answer exactly `group: <group>   none`. Answer with ./wf anchor \"<answer>\" in the format: group: <group>   ref: r<R>c<C>@<cell>\nr<R>c<C>@<cell> <phase>[(<crop>)][ dry|watered]   r<R>c<C>@<cell> ?   ... (no bed visible at all: \"group: <group>   none\"; cell = grid cell A1-X16 nearest the bed centre; phase: empty|growing|ripe|wilted; ? = state unknown; e.g. \"group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?\"; name >= 2 beds in different rows and columns)\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = reference marker)\n  answer: ./wf anchor \"group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?\"   (ref = the bed nearest the marker; rXcY@cell = the bed's pattern cell @ the grid cell nearest the bed's centre; ? = state unknown; name every visible bed, at least 2 in different rows and columns)", "hit": false}
+{"t": 1793626737.341, "id": "p1793626737340-3", "component": "skills", "what": "garden.replant_all", "value": "", "ctx": {"action": "garden.replant_all", "args": ""}}
+{"t": 1793626737.341, "id": "p1793626737340-3", "outcome": "ChainStuck: CHAIN_STUCK: replant stopped after 4 vision question(s); last: Tara.at is unknown | move not proved: the click on GardenBed@Garden#r2c2 logged no interaction and the camera shifted (0, | clicking GardenBed@Garden#r2c2 logged plant_growing, replant expects ['unplant'] | clicking GardenBed@Garden#r2c1 logged water, replant expects ['unplant']. Stop and report; do not retry blindly.", "hit": false}
+{"t": 1793632814.401, "id": "p1793632814400-0", "component": "skills", "what": "garden.replant_all", "value": "", "ctx": {"action": "garden.replant_all", "args": ""}}
+{"t": 1793632814.402, "id": "p1793632814400-0", "outcome": "NeedVision: NEED_VISION anchor: Task: replant. Unexpected: move not proved: the click on GardenBed@Garden#r2c1 logged no interaction and the camera shifted (-16, 4) px (peak 0.03), expected about (317, -169) Run so far: done 0 [], skipped [], unknown 0.. Predicted near Tara.at=GardenBed@Garden#r1c2: GardenBed@Garden#r1c2: None; GardenBed@Garden#r2c2: growing; GardenBed@Garden#r1c1: None; GardenBed@Garden#r1c3: None. The image has a grid (columns A-X, rows 1-16). Name every visible bed by its pattern cell rXcY, the grid cell nearest the centre of that bed, and its state; `ref:` = the bed nearest the magenta marker. If NO bed is visible answer exactly `group: <group>   none`. Answer with ./wf anchor \"<answer>\" in the format: group: <group>   ref: r<R>c<C>@<cell>\nr<R>c<C>@<cell> <phase>[(<crop>)][ dry|watered]   r<R>c<C>@<cell> ?   ... (no bed visible at all: \"group: <group>   none\"; cell = grid cell A1-X16 nearest the bed centre; phase: empty|growing|ripe|wilted; ? = state unknown; e.g. \"group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?\"; name >= 2 beds in different rows and columns)\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = reference marker)\n  answer: ./wf anchor \"group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?\"   (ref = the bed nearest the marker; rXcY@cell = the bed's pattern cell @ the grid cell nearest the bed's centre; ? = state unknown; name every visible bed, at least 2 in different rows and columns)", "hit": false}
+{"t": 1793632870.638, "id": "p1793632870638-1", "component": "skills", "what": "garden.replant_all", "value": "", "ctx": {"action": "garden.replant_all", "args": ""}}
+{"t": 1793632870.639, "id": "p1793632870638-1", "outcome": "NeedVision: NEED_VISION anchor: Task: replant. Unexpected: move not proved: the click on GardenBed@Garden#r2c1 logged no interaction and the camera shifted (-16, 0) px (peak 0.20), expected about (320, -203) Run so far: done 0 [], skipped [], unknown 0.. Predicted near Tara.at=GardenBed@Garden#r1c2: GardenBed@Garden#r1c2: None; GardenBed@Garden#r2c2: growing; GardenBed@Garden#r1c1: None; GardenBed@Garden#r1c3: None. The image has a grid (columns A-X, rows 1-16). Name every visible bed by its pattern cell rXcY, the grid cell nearest the centre of that bed, and its state; `ref:` = the bed nearest the magenta marker. If NO bed is visible answer exactly `group: <group>   none`. Answer with ./wf anchor \"<answer>\" in the format: group: <group>   ref: r<R>c<C>@<cell>\nr<R>c<C>@<cell> <phase>[(<crop>)][ dry|watered]   r<R>c<C>@<cell> ?   ... (no bed visible at all: \"group: <group>   none\"; cell = grid cell A1-X16 nearest the bed centre; phase: empty|growing|ripe|wilted; ? = state unknown; e.g. \"group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?\"; name >= 2 beds in different rows and columns)\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = reference marker)\n  answer: ./wf anchor \"group: GardenBed@Garden   ref: r1c2@L8   r1c1@F8 ripe   r1c2@L8 ripe   r2c1@F12 wilted(Tulip)   r2c2@L12 wilted(Tulip)   r3c1@F15 ?\"   (ref = the bed nearest the marker; rXcY@cell = the bed's pattern cell @ the grid cell nearest the bed's centre; ? = state unknown; name every visible bed, at least 2 in different rows and columns)", "hit": false}
+{"t": 1793642452.093, "id": "p1793642452092-0", "component": "skills", "what": "garden.replant_all", "value": "", "ctx": {"action": "garden.replant_all", "args": ""}}
+{"t": 1793642452.093, "id": "p1793642452092-0", "outcome": "Remove was pressed but the game logged no unplant_impl; NEED_VISION game: what is on screen after pressing Remove?\n  look: /Users/serg/w/llm-game-agent/.shots/ask.jpg (grid A-L \u00d7 1-8)\n  answer: ./wf teach game <cells>   e.g. ./wf teach game \u2026", "hit": false}
+{"t": 1793642714.557, "id": "p1793642714556-0", "component": "skills", "what": "garden.replant_all", "value": "", "ctx": {"action": "garden.replant_all", "args": ""}}
+{"t": 1793642714.557, "id": "p1793642714556-0", "outcome": "NeedVision: NEED_VISION: look at /Users/serg/w/llm-game-agent/runs/20261102-2003-laws-replant-2/ask-1.png, answer with answer(n, x, y), then call goto again", "hit": false}
+{"t": 1793690577.565, "id": "p1793690577565-0", "component": "skills", "what": "garden.water_all", "value": "", "ctx": {"action": "garden.water_all", "args": ""}}
+{"t": 1793690577.565, "id": "p1793690577565-0", "outcome": "NeedVision: NEED_VISION click: Task: water. Tara is the magenta circle (always the frame centre). No fitting bubble is on screen. Give the grid cell of a garden bed whose crop needs water (dry soil, a water-drop bubble) nearest to Tara: a cell on the bed itself (its soil/plants, not on a bubble). If no such bed is visible but the garden may be off-screen, give a cell of open ground toward the garden. If there is none left anywhere, answer none. The save says 8 left (may be stale). This call: done 0, other []. Memory: crops grown here: Green Bean; today (D184): removed 1, planted 1, can_ran_dry 1; the Garden also has: BeeHive, Well; can: empty.\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf py \"water_all(click='Q14')\"   (one grid cell on the target bed itself; or click='none' when none is left)\n  run so far: water: done 0, other 0, clicks 0, vision 1, refills 0", "hit": false}
+{"t": 1793690656.083, "id": "p1793690656082-1", "component": "skills", "what": "garden.water_all", "value": "click='P5'", "ctx": {"action": "garden.water_all", "args": "click='P5'"}}
+{"t": 1793690656.083, "id": "p1793690656082-1", "outcome": "NeedVision: NEED_VISION click: Task: water. Tara is the magenta circle (always the frame centre). No fitting bubble is on screen. Give the grid cell of a garden bed whose crop needs water (dry soil, a water-drop bubble) nearest to Tara: a cell on the bed itself (its soil/plants, not on a bubble). If no such bed is visible but the garden may be off-screen, give a cell of open ground toward the garden. If there is none left anywhere, answer none. The save says 8 left (may be stale). This call: done 0, other []. Memory: crops grown here: Green Bean; today (D184): removed 1, planted 1, can_ran_dry 1; the Garden also has: BeeHive, Well; can: empty. Your last answer led to: click point @1240,304: events none; screen gameplay; bubbles after: none; view unchanged; frames /Users/serg/w/llm-game-agent/runs/20261103-0923-laws-water-2/clicks/092415-1240-304-0.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0923-laws-water-2/clicks/092415-1240-304-1.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0923-laws-water-2/clicks/092415-1240-304-2.jpg.\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf py \"water_all(click='Q14')\"   (one grid cell on the target bed itself; or click='none' when none is left)\n  run so far: water: done 0, other 0, clicks 1, vision 1, refills 0", "hit": false}
+{"t": 1793690682.213, "id": "p1793690682213-2", "component": "skills", "what": "garden.water_all", "value": "click='Q5'", "ctx": {"action": "garden.water_all", "args": "click='Q5'"}}
+{"t": 1793690682.214, "id": "p1793690682213-2", "outcome": "NeedVision: NEED_VISION click: Task: water. Tara is the magenta circle (always the frame centre). No fitting bubble is on screen. Give the grid cell of a garden bed whose crop needs water (dry soil, a water-drop bubble) nearest to Tara: a cell on the bed itself (its soil/plants, not on a bubble). If no such bed is visible but the garden may be off-screen, give a cell of open ground toward the garden. If there is none left anywhere, answer none. The save says 8 left (may be stale). This call: done 0, other []. Memory: crops grown here: Green Bean; today (D184): removed 1, planted 1, can_ran_dry 1; the Garden also has: BeeHive, Well; can: empty. Your last answer led to: click point @1320,304: events none; screen gameplay; bubbles after: none; view unchanged; frames /Users/serg/w/llm-game-agent/runs/20261103-0923-laws-water-2/clicks/092441-1320-304-0.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0923-laws-water-2/clicks/092441-1320-304-1.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0923-laws-water-2/clicks/092441-1320-304-2.jpg.\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf py \"water_all(click='Q14')\"   (one grid cell on the target bed itself; or click='none' when none is left)\n  run so far: water: done 0, other 0, clicks 1, vision 1, refills 0", "hit": false}
+{"t": 1793691285.098, "id": "p1793691285097-0", "component": "skills", "what": "garden.water_all", "value": "", "ctx": {"action": "garden.water_all", "args": ""}}
+{"t": 1793691285.098, "id": "p1793691285097-0", "outcome": "NeedVision: NEED_VISION click: Task: water. Tara is the magenta circle (always the frame centre). No fitting bubble is on screen. Give the grid cell of a garden bed whose crop needs water (dry soil, a water-drop bubble) nearest to Tara: a cell on the bed itself (its soil/plants, not on a bubble). If no such bed is visible but the garden may be off-screen, give a cell of open ground toward the garden. If there is none left anywhere, answer none. The save says 8 left (may be stale). This call: done 0, other [\"@990,890: ['beehive_progress']\", \"@1090,890: ['beehive_progress']\", \"@990,890: ['complete']\"]. Memory: crops grown here: Green Bean; today (D185): can_ran_dry 1; the Garden also has: BeeHive, Well; can: empty. Your last answer led to: click object @990,890: events ['complete']; screen gameplay; bubbles after: fill_can* @920,412, unknown @1136,532, unknown @800,532, unknown* @968,532; view unchanged; frames /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/093444-990-890-0.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/093444-990-890-1.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/093444-990-890-2.jpg.\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf py \"water_all(click='Q14')\"   (one grid cell on the target bed itself; or click='none' when none is left)\n  run so far: water: done 0, other 5, clicks 9, vision 1, refills 1", "hit": false}
+{"t": 1793693498.594, "id": "p1793693498594-0", "component": "skills", "what": "garden.water_all", "value": "", "ctx": {"action": "garden.water_all", "args": ""}}
+{"t": 1793693498.595, "id": "p1793693498594-0", "outcome": "NeedVision: NEED_VISION click: Task: water. Tara is the magenta circle (always the frame centre). No fitting bubble is on screen. Give the grid cell of a garden bed whose crop needs water (dry soil, a water-drop bubble) nearest to Tara: a cell on the bed itself (its soil/plants, not on a bubble). If no such bed is visible but the garden may be off-screen, give a cell of open ground toward the garden. If there is none left anywhere, answer none. The save says 8 left (may be stale). This call: done 0, other [\"@776,802: ['beehive_progress']\", \"@776,802: ['beehive_progress']\", \"@776,802: ['beehive_progress']\"]. Memory: crops grown here: Green Bean; today (D185): can_ran_dry 1; the Garden also has: BeeHive, Well; can: empty. Your last answer led to: click step @776,802: events ['beehive_progress']; screen overlay (Bee Hive / Plant flowers nearby to / encourage the bees to); bubbles after: none; view unchanged; frames /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/101133-776-802-0.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/101133-776-802-1.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/101133-776-802-2.jpg.\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf py \"water_all(click='Q14')\"   (one grid cell on the target bed itself; or click='none' when none is left)\n  run so far: water: done 0, other 6, clicks 8, vision 1, refills 0", "hit": false}
+{"t": 1793697716.107, "id": "p1793697716107-0", "component": "skills", "what": "garden.water_all", "value": "", "ctx": {"action": "garden.water_all", "args": ""}}
+{"t": 1793697716.108, "id": "p1793697716107-0", "outcome": "NeedVision: NEED_VISION click: Task: water. Tara is the magenta circle (always the frame centre). No fitting bubble is on screen. Give the grid cell of a garden bed whose crop needs water (dry soil, a water-drop bubble) nearest to Tara: a cell on the bed itself (its soil/plants, not on a bubble). If no such bed is visible but the garden may be off-screen, give a cell of open ground toward the garden. If there is none left anywhere, answer none. The save says 5 left (may be stale). This call: done 0, other [\"@910,830: ['beehive_progress']\", '@740,810: overlay']. Memory: crops grown here: Green Bean; today (D185): can_ran_dry 1, watered 2, growing_seen 1; the Garden also has: BeeHive, Well; can: empty. Your last answer led to: click explore @1170,750: events none; screen gameplay; bubbles after: unplant* @764,528, beehive_progress* @1044,528, water @716,704, water* @1048,704, plant_growing @1068,728, plant_growing @736,728; view changed; frames /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/112153-1170-750-0.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/112153-1170-750-1.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/112153-1170-750-2.jpg. The algorithm (graph / see / map / explore free ground) already tried this call, in order: map @1179,307: no move; map @1273,475: no move; map @1006,223: no move; map @1111,380: walked; graph BeeHive->GardenBed@Garden @960,860: walked; explore (1, 0): @1260,540 not free ground; explore @1170,750: walked. Debug it: if a step was blocked, say by what in your report and answer a cell of FREE ground (no object, no fence) she can walk to that gets her around it or shows more nodes; if the target is visible, its cell.\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf py \"water_all(click='Q14')\"   (one grid cell on the target bed itself; or click='none' when none is left)\n  run so far: water: done 0, other 2, clicks 6, vision 1, refills 0", "hit": false}
+{"t": 1793701913.183, "id": "p1793701913182-0", "component": "skills", "what": "garden.water_all", "value": "", "ctx": {"action": "garden.water_all", "args": ""}}
+{"t": 1793701913.183, "id": "p1793701913182-0", "outcome": "NeedVision: NEED_VISION click: Task: water. Tara is the magenta circle (always the frame centre). No fitting bubble is on screen. Give the grid cell of a garden bed whose crop needs water (dry soil, a water-drop bubble) nearest to Tara: a cell on the bed itself (its soil/plants, not on a bubble). If no such bed is visible but the garden may be off-screen, give a cell of open ground toward the garden. If there is none left anywhere, answer none. The save says 5 left (may be stale). This call: done 2, other [\"@1050,890: ['beehive_progress']\"]. Memory: crops grown here: Green Bean; today (D185): can_ran_dry 2, watered 4, growing_seen 10; the Garden also has: BeeHive, Well; can: empty. Your last answer led to: click soil @865,1054: events none; screen gameplay; bubbles after: water* @744,480, plant_growing @736,612; view changed; frames /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/123149-865-1054-0.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/123149-865-1054-1.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/123149-865-1054-2.jpg. The algorithm (graph / see / map / explore free ground) already tried this call, in order: explore @960,840: blocked by GardenBed@Garden; explore (-0.7, 0.7): @750,750 not free ground; explore (-1, 0): @660,540 not free ground; explore @750,330: walked; graph BeeHive->GardenBed@Garden @960,860: blocked by GardenBed@Garden; graph BeeHive->GardenBed@Garden @776,802: blocked by GardenBed@Garden; graph BeeHive->GardenBed@Garden @1143,802: blocked by GardenBed@Garden; graph BeeHive->GardenBed@Garden @960,760: blocked by GardenBed@Garden; graph BeeHive->GardenBed@Garden @833,720: walked; dry soil @865,1054 (7 cells): walked. Debug it: if a step was blocked, say by what in your report and answer a cell of FREE ground (no object, no fence) she can walk to that gets her around it or shows more nodes; if the target is visible, its cell.\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf py \"water_all(click='Q14')\"   (one grid cell on the target bed itself; or click='none' when none is left)\n  run so far: water: done 2, other 1, clicks 25, vision 1, refills 1, surprises: [\"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\"]", "hit": false}
+{"t": 1793704522.669, "id": "p1793704522668-0", "component": "skills", "what": "garden.water_all", "value": "", "ctx": {"action": "garden.water_all", "args": ""}}
+{"t": 1793704522.669, "id": "p1793704522668-0", "outcome": "NeedVision: NEED_VISION click: Task: water. Tara is the magenta circle (always the frame centre). No fitting bubble is on screen. Give the grid cell of a garden bed that needs water (light-brown dry soil; its bubble has the pale-blue water drop) nearest to Tara: a cell on the object itself (not on a bubble). If none is visible but it may be off-screen, give a cell of free ground toward it. If there is none left anywhere, answer none. The save says 3 left (may be stale). This call: done 3, other [\"@850,710: ['plant_growing']\", \"@1140,710: ['plant_growing']\", \"@1080,710: ['plant_growing']\"]. Memory: crops grown here: Green Bean; today (D185): can_ran_dry 2, watered 7, growing_seen 18; the Garden also has: BeeHive, Well; can: empty. Your last answer led to: click object @1080,710: events ['plant_growing']; screen overlay (Green Bean / The unripe fruit of the / common bean plant. Grows); bubbles after: none; view unchanged; frames /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/131517-1080-710-0.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/131517-1080-710-1.jpg, /Users/serg/w/llm-game-agent/runs/20261103-0932-laws-water-seek/clicks/131517-1080-710-2.jpg. The search (closest node -> graph / dry soil / vectors / explore free ground or map) already tried, in order: GardenBed seen @760,810: arrived at GardenBed@Garden; GardenBed seen @440,810: walked; GardenBed seen @1250,710: arrived at GardenBed@Garden; GardenBed seen @860,710: arrived at GardenBed@Garden; GardenBed seen @1140,710: arrived at GardenBed@Garden; GardenBed seen @850,710: arrived at GardenBed@Garden; GardenBed seen @1140,710: arrived at GardenBed@Garden; GardenBed seen @1080,710: arrived at GardenBed@Garden. Debug it: if a step was blocked, say by what in your report and answer a cell of FREE ground (no object, no fence) she can walk to that gets her around it or shows more nodes; if the target is visible, its cell.\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf py \"water_all(click='Q14')\"   (one grid cell on the target bed itself; or click='none' when none is left)\n  run so far: water: done 3, other 7, clicks 11, vision 1, refills 0, surprises: [\"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\", \"bed[0] bubble: expected 'same', got 'gone'\"]", "hit": false}
+{"t": 1793705990.154, "id": "p1793705990154-0", "component": "skills", "what": "garden.water_all", "value": "", "ctx": {"action": "garden.water_all", "args": ""}}
+{"t": 1793705990.154, "id": "p1793705990154-0", "outcome": "ok", "hit": true}
+{"t": 1793732583.751, "id": "p1793732583751-0", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1090, 830], "target": "GardenSouth"}}
+{"t": 1793732583.751, "id": "p1793732583751-0", "outcome": [], "hit": false}
+{"t": 1793732584.986, "id": "p1793732584985-1", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793732584.986, "id": "p1793732584985-1", "outcome": "ok", "hit": true}
+{"t": 1793732591.653, "id": "p1793732591652-2", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1390, 830], "target": "GardenSouth"}}
+{"t": 1793732591.653, "id": "p1793732591652-2", "outcome": ["unplant @852,540", "unplant* @1100,540"], "hit": true}
+{"t": 1793732592.952, "id": "p1793732592951-3", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793732592.952, "id": "p1793732592951-3", "outcome": "ok", "hit": true}
+{"t": 1793732594.169, "id": "p1793732594169-4", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793732594.169, "id": "p1793732594169-4", "outcome": "ok", "hit": true}
+{"t": 1793732594.209, "id": "p1793732594209-5", "component": "engine", "what": "bubble", "value": {"kind": "plant"}, "ctx": {"row": "plant", "area": "GardenSouth", "light": "day"}}
+{"t": 1793732594.209, "id": "p1793732594209-5", "outcome": ["unplant*"], "hit": false}
+{"t": 1793732600.983, "id": "p1793732600983-6", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [910, 790], "target": "GardenSouth"}}
+{"t": 1793732600.983, "id": "p1793732600983-6", "outcome": [], "hit": false}
+{"t": 1793732602.306, "id": "p1793732602306-7", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793732602.306, "id": "p1793732602306-7", "outcome": "ok", "hit": true}
+{"t": 1793732603.617, "id": "p1793732603617-8", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793732603.617, "id": "p1793732603617-8", "outcome": "ok", "hit": true}
+{"t": 1793732603.659, "id": "p1793732603659-9", "component": "engine", "what": "bubble", "value": {"kind": "plant"}, "ctx": {"row": "plant", "area": "GardenSouth"}}
+{"t": 1793732603.659, "id": "p1793732603659-9", "outcome": "plant* @968,484", "hit": true}
+{"t": 1793732611.837, "id": "p1793732611836-10", "component": "skills", "what": "ui.pick_card", "value": "Tulip", "ctx": {"action": "ui.pick_card", "args": "Tulip"}}
+{"t": 1793732611.837, "id": "p1793732611836-10", "outcome": "no \"Tulip\" among 1 cards; NEED_VISION game: which card in the picker is Tulip?\n  look: /Users/serg/w/llm-game-agent/.shots/ask.jpg (grid A-L \u00d7 1-8)\n  answer: ./wf teach game <cells>   e.g. ./wf teach game \u2026", "hit": false}
+{"t": 1793732613.326, "id": "p1793732613326-11", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793732613.326, "id": "p1793732613326-11", "outcome": "ok", "hit": true}
+{"t": 1793733177.795, "id": "p1793733177794-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793733177.795, "id": "p1793733177794-0", "outcome": "ok", "hit": true}
+{"t": 1793733188.742, "id": "p1793733188741-1", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793733188.742, "id": "p1793733188741-1", "outcome": "ok", "hit": true}
+{"t": 1793733196.199, "id": "p1793733196199-2", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793733196.2, "id": "p1793733196199-2", "outcome": "ok", "hit": true}
+{"t": 1793733203.727, "id": "p1793733203726-3", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793733203.727, "id": "p1793733203726-3", "outcome": "ok", "hit": true}
+{"t": 1793733204.873, "id": "p1793733204873-4", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793733204.873, "id": "p1793733204873-4", "outcome": "ok", "hit": true}
+{"t": 1793733226.027, "id": "p1793733226026-5", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793733226.027, "id": "p1793733226026-5", "outcome": "ok", "hit": true}
+{"t": 1793733233.992, "id": "p1793733233991-6", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793733233.992, "id": "p1793733233991-6", "outcome": "ok", "hit": true}
+{"t": 1793733242.628, "id": "p1793733242627-7", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793733242.628, "id": "p1793733242627-7", "outcome": "ok", "hit": true}
+{"t": 1793734731.279, "id": "p1793734731279-0", "component": "skills", "what": "ui.pick_card", "value": "Tulip", "ctx": {"action": "ui.pick_card", "args": "Tulip"}}
+{"t": 1793734731.28, "id": "p1793734731279-0", "outcome": "ok", "hit": true}
+{"t": 1793734733.012, "id": "p1793734733012-1", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793734733.012, "id": "p1793734733012-1", "outcome": "ok", "hit": true}
+{"t": 1793734734.738, "id": "p1793734734737-2", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793734734.738, "id": "p1793734734737-2", "outcome": "ok", "hit": true}
+{"t": 1793734876.281, "id": "p1793734876281-0", "component": "skills", "what": "ui.pick_card", "value": "Tulip", "ctx": {"action": "ui.pick_card", "args": "Tulip"}}
+{"t": 1793734876.281, "id": "p1793734876281-0", "outcome": "ok", "hit": true}
+{"t": 1793734877.98, "id": "p1793734877979-1", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793734877.98, "id": "p1793734877979-1", "outcome": "ok", "hit": true}
+{"t": 1793734880.032, "id": "p1793734880031-2", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793734880.032, "id": "p1793734880031-2", "outcome": "ok", "hit": true}
+{"t": 1793734924.197, "id": "p1793734924196-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793734924.197, "id": "p1793734924196-0", "outcome": "Escape opened the pause menu (resumed): the screen (Fill watering can at th / Welf) was not a card Escape closes; NEED_VISION game: ui.close() is unsure: what is on screen, what should be clicked?\n  look: /Users/serg/w/llm-game-agent/.shots/ask.jpg (grid A-L \u00d7 1-8)\n  answer: ./wf teach game <cells>   e.g. ./wf teach game \u2026", "hit": false}
+{"t": 1793734974.128, "id": "p1793734974127-0", "component": "skills", "what": "ui.pick_card", "value": "Tulip", "ctx": {"action": "ui.pick_card", "args": "Tulip"}}
+{"t": 1793734974.128, "id": "p1793734974127-0", "outcome": "ok", "hit": true}
+{"t": 1793734975.872, "id": "p1793734975872-1", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793734975.872, "id": "p1793734975872-1", "outcome": "ok", "hit": true}
+{"t": 1793734977.931, "id": "p1793734977930-2", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793734977.931, "id": "p1793734977930-2", "outcome": "ok", "hit": true}
+{"t": 1793735043.743, "id": "p1793735043743-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793735043.743, "id": "p1793735043743-0", "outcome": "ok", "hit": true}
+{"t": 1793735087.705, "id": "p1793735087705-0", "component": "skills", "what": "ui.pick_card", "value": "Tulip", "ctx": {"action": "ui.pick_card", "args": "Tulip"}}
+{"t": 1793735087.705, "id": "p1793735087705-0", "outcome": "ok", "hit": true}
+{"t": 1793735089.4, "id": "p1793735089399-1", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793735089.4, "id": "p1793735089399-1", "outcome": "ok", "hit": true}
+{"t": 1793735094.977, "id": "p1793735094976-2", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793735094.977, "id": "p1793735094976-2", "outcome": "ok", "hit": true}
+{"t": 1793735679.47, "id": "p1793735679469-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793735679.471, "id": "p1793735679469-0", "outcome": "ok", "hit": true}
+{"t": 1793735758.567, "id": "p1793735758567-1", "component": "skills", "what": "ui.pick_card", "value": "Tulip", "ctx": {"action": "ui.pick_card", "args": "Tulip"}}
+{"t": 1793735758.568, "id": "p1793735758567-1", "outcome": "ok", "hit": true}
+{"t": 1793735762.64, "id": "p1793735762640-2", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793735762.642, "id": "p1793735762640-2", "outcome": "ok", "hit": true}
+{"t": 1793735791.643, "id": "p1793735791642-3", "component": "skills", "what": "ui.pick_card", "value": "Tulip", "ctx": {"action": "ui.pick_card", "args": "Tulip"}}
+{"t": 1793735791.643, "id": "p1793735791642-3", "outcome": "ok", "hit": true}
+{"t": 1793735795.781, "id": "p1793735795780-4", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793735795.781, "id": "p1793735795780-4", "outcome": "ok", "hit": true}
+{"t": 1793735809.881, "id": "p1793735809880-5", "component": "skills", "what": "ui.pick_card", "value": "Tulip", "ctx": {"action": "ui.pick_card", "args": "Tulip"}}
+{"t": 1793735809.881, "id": "p1793735809880-5", "outcome": "ok", "hit": true}
+{"t": 1793735813.865, "id": "p1793735813864-6", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793735813.865, "id": "p1793735813864-6", "outcome": "ok", "hit": true}
+{"t": 1793736405.662, "id": "p1793736405662-0", "component": "skills", "what": "ui.press", "value": "Yes", "ctx": {"action": "ui.press", "args": "Yes"}}
+{"t": 1793736405.663, "id": "p1793736405662-0", "outcome": "ok", "hit": true}
+{"t": 1793736509.945, "id": "p1793736509945-1", "component": "world_belief", "what": "position", "value": [2.56, -61.15], "ctx": {"area": "Farm", "u": 0.05, "err": 35.42}}
+{"t": 1793736509.946, "id": "p1793736509945-1", "outcome": [17.12, -28.86], "hit": false}
+{"t": 1793736604.702, "id": "p1793736604702-2", "component": "skills", "what": "ui.pick_card", "value": "Tulip", "ctx": {"action": "ui.pick_card", "args": "Tulip"}}
+{"t": 1793736604.702, "id": "p1793736604702-2", "outcome": "ok", "hit": true}
+{"t": 1793736607.511, "id": "p1793736607511-3", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793736607.511, "id": "p1793736607511-3", "outcome": "ok", "hit": true}
+{"t": 1793736609.221, "id": "p1793736609220-4", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793736609.221, "id": "p1793736609220-4", "outcome": "ok", "hit": true}
+{"t": 1793736645.117, "id": "p1793736645116-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793736645.117, "id": "p1793736645116-0", "outcome": "ok", "hit": true}
+{"t": 1793736647.699, "id": "p1793736647699-1", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793736647.699, "id": "p1793736647699-1", "outcome": "ok", "hit": true}
+{"t": 1793736679.839, "id": "p1793736679838-2", "component": "skills", "what": "ui.pick_card", "value": "Tulip", "ctx": {"action": "ui.pick_card", "args": "Tulip"}}
+{"t": 1793736679.839, "id": "p1793736679838-2", "outcome": "ok", "hit": true}
+{"t": 1793736682.587, "id": "p1793736682587-3", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793736682.587, "id": "p1793736682587-3", "outcome": "ok", "hit": true}
+{"t": 1793736684.29, "id": "p1793736684290-4", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793736684.29, "id": "p1793736684290-4", "outcome": "ok", "hit": true}
+{"t": 1793736693.736, "id": "p1793736693735-5", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793736693.736, "id": "p1793736693735-5", "outcome": "ok", "hit": true}
+{"t": 1793736727.821, "id": "p1793736727821-0", "component": "skills", "what": "ui.pick_card", "value": "Tulip", "ctx": {"action": "ui.pick_card", "args": "Tulip"}}
+{"t": 1793736727.821, "id": "p1793736727821-0", "outcome": "ok", "hit": true}
+{"t": 1793736730.583, "id": "p1793736730583-1", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793736730.583, "id": "p1793736730583-1", "outcome": "ok", "hit": true}
+{"t": 1793736732.279, "id": "p1793736732279-2", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793736732.28, "id": "p1793736732279-2", "outcome": "ok", "hit": true}
+{"t": 1793769019.377, "id": "p1793769019377-0", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [800, 540]}}
+{"t": 1793769019.377, "id": "p1793769019377-0", "outcome": true, "hit": true}
+{"t": 1793769169.049, "id": "p1793769169049-1", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [1036, 424]}}
+{"t": 1793769169.05, "id": "p1793769169049-1", "outcome": true, "hit": true}
+{"t": 1793769176.82, "id": "p1793769176820-2", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [581, 622]}}
+{"t": 1793769176.821, "id": "p1793769176820-2", "outcome": true, "hit": true}
+{"t": 1793769183.633, "id": "p1793769183633-3", "component": "belief", "what": "position", "value": [7.846, -25.363], "ctx": {"scene": "Farm", "pred": [7.846, -25.363], "to": [9.99, -32.82]}}
+{"t": 1793769183.633, "id": "p1793769183633-3", "outcome": [9.993729591369629, -32.818939208984375], "hit": false}
+{"t": 1793769187.516, "id": "p1793769187515-4", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [880, 561]}}
+{"t": 1793769187.516, "id": "p1793769187515-4", "outcome": true, "hit": true}
+{"t": 1793769190.192, "id": "p1793769190191-5", "component": "belief", "what": "position", "value": [9.119, -29.793], "ctx": {"scene": "Farm", "pred": [9.119, -29.793], "to": [8.44, -28.23]}}
+{"t": 1793769190.192, "id": "p1793769190191-5", "outcome": [8.436365127563477, -28.22560691833496], "hit": false}
+{"t": 1793769195.693, "id": "p1793769195693-6", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [882, 508]}}
+{"t": 1793769195.694, "id": "p1793769195693-6", "outcome": true, "hit": true}
+{"t": 1793769206.925, "id": "p1793769206924-7", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [954, 917]}}
+{"t": 1793769206.925, "id": "p1793769206924-7", "outcome": true, "hit": true}
+{"t": 1793769212.894, "id": "p1793769212893-8", "component": "belief", "what": "position", "value": [7.495, -28.376], "ctx": {"scene": "Farm", "pred": [7.495, -28.376], "to": [7.46, -23.95]}}
+{"t": 1793769212.894, "id": "p1793769212893-8", "outcome": [7.455880165100098, -23.94738006591797], "hit": false}
+{"t": 1793769215.943, "id": "p1793769215943-9", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [961, 962]}}
+{"t": 1793769215.944, "id": "p1793769215943-9", "outcome": true, "hit": true}
+{"t": 1793769219.526, "id": "p1793769219526-10", "component": "belief", "what": "position", "value": [7.457, -29.442], "ctx": {"scene": "Farm", "pred": [7.457, -29.442], "to": [7.46, -27.79]}}
+{"t": 1793769219.527, "id": "p1793769219526-10", "outcome": [7.463825225830078, -27.785369873046875], "hit": false}
+{"t": 1793769226.853, "id": "p1793769226853-11", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [240, 486]}}
+{"t": 1793769226.854, "id": "p1793769226853-11", "outcome": true, "hit": true}
+{"t": 1793769233.079, "id": "p1793769233079-12", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [942, 641]}}
+{"t": 1793769233.081, "id": "p1793769233079-12", "outcome": true, "hit": true}
+{"t": 1793769239.452, "id": "p1793769239452-13", "component": "belief", "what": "position", "value": [-1.033, -21.712], "ctx": {"scene": "Farm", "pred": [-1.033, -21.712], "to": [7.46, -27.79]}}
+{"t": 1793769239.452, "id": "p1793769239452-13", "outcome": [7.463825225830078, -27.785369873046875], "hit": false}
+{"t": 1793769242.199, "id": "p1793769242199-14", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [242, 463]}}
+{"t": 1793769242.207, "id": "p1793769242199-14", "outcome": true, "hit": true}
+{"t": 1793769248.467, "id": "p1793769248466-15", "component": "belief", "what": "position", "value": [-1.036, -21.694], "ctx": {"scene": "Farm", "pred": [-1.036, -21.694], "to": [7.46, -27.79]}}
+{"t": 1793769248.468, "id": "p1793769248466-15", "outcome": [7.463825225830078, -27.785369873046875], "hit": false}
+{"t": 1793769464.672, "id": "p1793769464672-0", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [1520, 902]}}
+{"t": 1793769464.672, "id": "p1793769464672-0", "outcome": true, "hit": true}
+{"t": 1793769467.109, "id": "p1793769467109-1", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [439, 510]}}
+{"t": 1793769467.11, "id": "p1793769467109-1", "outcome": true, "hit": true}
+{"t": 1793769471.799, "id": "p1793769471799-2", "component": "belief", "what": "position", "value": [-0.845, -22.497], "ctx": {"scene": "Farm", "pred": [-0.845, -22.497], "to": [0.41, -22.51]}}
+{"t": 1793769471.799, "id": "p1793769471799-2", "outcome": [0.4073858857154846, -22.50583267211914], "hit": false}
+{"t": 1793769474.144, "id": "p1793769474144-3", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [788, 634]}}
+{"t": 1793769474.144, "id": "p1793769474144-3", "outcome": false, "hit": false}
+{"t": 1793769475.98, "id": "p1793769475979-4", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [873, 653]}}
+{"t": 1793769475.98, "id": "p1793769475979-4", "outcome": true, "hit": true}
+{"t": 1793769477.605, "id": "p1793769477604-5", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [873, 653]}}
+{"t": 1793769477.605, "id": "p1793769477604-5", "outcome": true, "hit": true}
+{"t": 1793769482.455, "id": "p1793769482455-6", "component": "belief", "what": "position", "value": [-0.907, -21.763], "ctx": {"scene": "Farm", "pred": [-0.907, -21.763], "to": [0.41, -22.51]}}
+{"t": 1793769482.455, "id": "p1793769482455-6", "outcome": [0.4073858857154846, -22.50583267211914], "hit": false}
+{"t": 1793769483.695, "id": "p1793769483694-7", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [755, 681]}}
+{"t": 1793769483.695, "id": "p1793769483694-7", "outcome": true, "hit": true}
+{"t": 1793769484.956, "id": "p1793769484955-8", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [858, 648]}}
+{"t": 1793769484.956, "id": "p1793769484955-8", "outcome": true, "hit": true}
+{"t": 1793769486.393, "id": "p1793769486393-9", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [952, 619]}}
+{"t": 1793769486.394, "id": "p1793769486393-9", "outcome": true, "hit": true}
+{"t": 1793769488.295, "id": "p1793769488295-10", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [1083, 635]}}
+{"t": 1793769488.296, "id": "p1793769488295-10", "outcome": true, "hit": true}
+{"t": 1793769490.179, "id": "p1793769490179-11", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [1083, 736]}}
+{"t": 1793769490.179, "id": "p1793769490179-11", "outcome": true, "hit": true}
+{"t": 1793769491.663, "id": "p1793769491662-12", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [963, 720]}}
+{"t": 1793769491.663, "id": "p1793769491662-12", "outcome": true, "hit": true}
+{"t": 1793769493.704, "id": "p1793769493703-13", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [854, 704]}}
+{"t": 1793769493.704, "id": "p1793769493703-13", "outcome": true, "hit": true}
+{"t": 1793769495.342, "id": "p1793769495341-14", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [824, 654]}}
+{"t": 1793769495.342, "id": "p1793769495341-14", "outcome": true, "hit": true}
+{"t": 1793769498.974, "id": "p1793769498973-15", "component": "click", "what": "moves her", "value": true, "ctx": {"click": [1044, 652]}}
+{"t": 1793769498.974, "id": "p1793769498973-15", "outcome": true, "hit": true}
+{"t": 1793769516.769, "id": "p1793769516768-16", "component": "skills", "what": "ui.press", "value": "Not yet", "ctx": {"action": "ui.press", "args": "Not yet"}}
+{"t": 1793769516.769, "id": "p1793769516768-16", "outcome": "ok", "hit": true}
+{"t": 1793769903.023, "id": "p1793769903022-0", "component": "skills", "what": "ui.press", "value": "Yes", "ctx": {"action": "ui.press", "args": "Yes"}}
+{"t": 1793769903.023, "id": "p1793769903022-0", "outcome": "ok", "hit": true}
+{"t": 1793770368.412, "id": "p1793770368411-0", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1250, 690], "here": "House"}}
+{"t": 1793770368.412, "id": "p1793770368411-0", "outcome": {"kind": null, "moved": true, "reached": null}, "hit": true}
+{"t": 1793770376.123, "id": "p1793770376123-1", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1000, 965], "here": "House"}}
+{"t": 1793770376.123, "id": "p1793770376123-1", "outcome": {"kind": null, "moved": true, "reached": null}, "hit": true}
+{"t": 1793770411.289, "id": "p1793770411288-2", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [960, 1000], "here": "House"}}
+{"t": 1793770411.289, "id": "p1793770411288-2", "outcome": {"kind": "HouseExit", "moved": false, "reached": null}, "hit": true}
+{"t": 1793770650.497, "id": "p1793770650496-0", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [300, 640], "here": "House"}}
+{"t": 1793770650.497, "id": "p1793770650496-0", "outcome": {"kind": null, "moved": false, "reached": null}, "hit": false}
+{"t": 1793770969.377, "id": "p1793770969376-0", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [610, 650], "target": "Garden"}}
+{"t": 1793770969.377, "id": "p1793770969376-0", "outcome": ["plant_growing* +ready @1208,516", "plant_growing* +ready @964,516", "water* @716,500"], "hit": true}
+{"t": 1793770978.023, "id": "p1793770978023-1", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793770978.023, "id": "p1793770978023-1", "outcome": "ok", "hit": true}
+{"t": 1793770985.85, "id": "p1793770985850-2", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793770985.85, "id": "p1793770985850-2", "outcome": "ok", "hit": true}
+{"t": 1793770993.62, "id": "p1793770993620-3", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793770993.62, "id": "p1793770993620-3", "outcome": "ok", "hit": true}
+{"t": 1793771062.972, "id": "p1793771062972-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793771062.972, "id": "p1793771062972-0", "outcome": "ok", "hit": true}
+{"t": 1793771079.0, "id": "p1793771079000-1", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793771079.001, "id": "p1793771079000-1", "outcome": "ok", "hit": true}
+{"t": 1793771091.932, "id": "p1793771091932-2", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793771091.933, "id": "p1793771091932-2", "outcome": "ok", "hit": true}
+{"t": 1793772265.113, "id": "p1793772265112-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793772265.113, "id": "p1793772265112-0", "outcome": "ok", "hit": true}
+{"t": 1793772272.963, "id": "p1793772272962-1", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793772272.963, "id": "p1793772272962-1", "outcome": "ok", "hit": true}
+{"t": 1793772280.721, "id": "p1793772280721-2", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793772280.721, "id": "p1793772280721-2", "outcome": "ok", "hit": true}
+{"t": 1793772301.421, "id": "p1793772301421-3", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793772301.421, "id": "p1793772301421-3", "outcome": "ok", "hit": true}
+{"t": 1793772315.796, "id": "p1793772315795-4", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793772315.796, "id": "p1793772315795-4", "outcome": "ok", "hit": true}
+{"t": 1793772607.012, "id": "p1793772607011-0", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [970, 940], "target": "Garden"}}
+{"t": 1793772607.012, "id": "p1793772607011-0", "outcome": ["plant_growing* +ready @1212,524", "plant_growing* +ready @720,524", "plant_growing* @964,524"], "hit": true}
+{"t": 1793772752.74, "id": "p1793772752739-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793772752.74, "id": "p1793772752739-0", "outcome": "ok", "hit": true}
+{"t": 1793772758.946, "id": "p1793772758946-1", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793772758.946, "id": "p1793772758946-1", "outcome": "ok", "hit": true}
+{"t": 1793772766.257, "id": "p1793772766257-2", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793772766.258, "id": "p1793772766257-2", "outcome": "ok", "hit": true}
+{"t": 1793772780.64, "id": "p1793772780640-3", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1190, 860], "target": "Garden"}}
+{"t": 1793772780.64, "id": "p1793772780640-3", "outcome": ["water* @1172,580"], "hit": true}
+{"t": 1793772780.96, "id": "p1793772780960-4", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793772780.96, "id": "p1793772780960-4", "outcome": "ok", "hit": true}
+{"t": 1793787622.835, "id": "p1793787622835-0", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1370, 740], "target": "Garden"}}
+{"t": 1793787622.836, "id": "p1793787622835-0", "outcome": ["water* @1196,700"], "hit": true}
+{"t": 1793787624.779, "id": "p1793787624779-1", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793787624.78, "id": "p1793787624779-1", "outcome": "ok", "hit": true}
+{"t": 1793787703.506, "id": "p1793787703506-2", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [710, 780], "target": "Garden"}}
+{"t": 1793787703.507, "id": "p1793787703506-2", "outcome": [], "hit": false}
+{"t": 1793787742.638, "id": "p1793787742638-3", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1030, 440], "target": "Garden"}}
+{"t": 1793787742.639, "id": "p1793787742638-3", "outcome": [], "hit": false}
+{"t": 1793787754.904, "id": "p1793787754904-4", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1170, 540], "target": "Garden"}}
+{"t": 1793787754.905, "id": "p1793787754904-4", "outcome": [], "hit": false}
+{"t": 1793787769.755, "id": "p1793787769754-5", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [760, 560], "target": "Garden"}}
+{"t": 1793787769.76, "id": "p1793787769754-5", "outcome": [], "hit": false}
+{"t": 1793787787.033, "id": "p1793787787032-6", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [645, 500], "target": "Garden"}}
+{"t": 1793787787.033, "id": "p1793787787032-6", "outcome": [], "hit": false}
+{"t": 1793787798.501, "id": "p1793787798500-7", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1230, 300], "target": "Garden"}}
+{"t": 1793787798.501, "id": "p1793787798500-7", "outcome": [], "hit": false}
+{"t": 1793787802.165, "id": "p1793787802164-8", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [460, 620], "target": "Garden"}}
+{"t": 1793787802.165, "id": "p1793787802164-8", "outcome": [], "hit": false}
+{"t": 1793788266.381, "id": "p1793788266380-0", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [680, 560], "target": "Garden"}}
+{"t": 1793788266.381, "id": "p1793788266380-0", "outcome": [], "hit": false}
+{"t": 1793788278.634, "id": "p1793788278634-1", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1400, 600], "target": "Garden"}}
+{"t": 1793788278.635, "id": "p1793788278634-1", "outcome": [], "hit": false}
+{"t": 1793788291.552, "id": "p1793788291551-2", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1270, 300], "target": "Garden"}}
+{"t": 1793788291.559, "id": "p1793788291551-2", "outcome": [], "hit": false}
+{"t": 1793788303.717, "id": "p1793788303717-3", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [470, 700], "target": "Garden"}}
+{"t": 1793788303.717, "id": "p1793788303717-3", "outcome": [], "hit": false}
+{"t": 1793788315.983, "id": "p1793788315983-4", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [910, 880], "target": "Garden"}}
+{"t": 1793788315.984, "id": "p1793788315983-4", "outcome": [], "hit": false}
+{"t": 1793788330.544, "id": "p1793788330544-5", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [690, 600], "target": "Garden"}}
+{"t": 1793788330.545, "id": "p1793788330544-5", "outcome": ["pickup @1012,552"], "hit": true}
+{"t": 1793788341.783, "id": "p1793788341782-6", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1130, 520], "target": "Garden"}}
+{"t": 1793788341.783, "id": "p1793788341782-6", "outcome": ["pickup* @1004,512"], "hit": true}
+{"t": 1793788353.976, "id": "p1793788353975-7", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [970, 820], "target": "Garden"}}
+{"t": 1793788353.976, "id": "p1793788353975-7", "outcome": [], "hit": false}
+{"t": 1793788371.21, "id": "p1793788371209-8", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [730, 640], "target": "Garden"}}
+{"t": 1793788371.21, "id": "p1793788371209-8", "outcome": [], "hit": false}
+{"t": 1793788385.884, "id": "p1793788385884-9", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [730, 700], "target": "Garden"}}
+{"t": 1793788385.884, "id": "p1793788385884-9", "outcome": [], "hit": false}
+{"t": 1793788390.273, "id": "p1793788390272-10", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [970, 760], "target": "Garden"}}
+{"t": 1793788390.273, "id": "p1793788390272-10", "outcome": [], "hit": false}
+{"t": 1793788396.612, "id": "p1793788396611-11", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1290, 540], "target": "Garden"}}
+{"t": 1793788396.612, "id": "p1793788396611-11", "outcome": [], "hit": false}
+{"t": 1793790180.698, "id": "p1793790180697-0", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [980, 800], "target": "Garden", "exp": "62d87d7b8df6323b"}}
+{"t": 1793790180.698, "id": "p1793790180697-0", "outcome": [], "hit": false}
+{"t": 1793790192.934, "id": "p1793790192934-1", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1030, 780], "target": "Garden", "exp": "0e8b1ca24feacb77"}}
+{"t": 1793790192.935, "id": "p1793790192934-1", "outcome": [], "hit": false}
+{"t": 1793792581.339, "id": "p1793792581339-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793792581.348, "id": "p1793792581339-0", "outcome": "ok", "hit": true}
+{"t": 1793792653.225, "id": "p1793792653224-1", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [620, 660], "target": "Garden", "exp": "f1da85137e99f4f7"}}
+{"t": 1793792653.225, "id": "p1793792653224-1", "outcome": [], "hit": false}
+{"t": 1793792665.742, "id": "p1793792665742-2", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [810, 540], "target": "Garden", "exp": "abd9622c1dab364f"}}
+{"t": 1793792665.742, "id": "p1793792665742-2", "outcome": [], "hit": false}
+{"t": 1793800044.858, "id": "p1793800044858-0", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [770, 600], "target": "Garden", "exp": "7b4205fc47c049a5"}}
+{"t": 1793800044.858, "id": "p1793800044858-0", "outcome": [], "hit": false}
+{"t": 1793800051.233, "id": "p1793800051233-1", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [630, 700], "target": "Garden", "exp": "1fa2e4e33fa9e4c7"}}
+{"t": 1793800051.233, "id": "p1793800051233-1", "outcome": [], "hit": false}
+{"t": 1793805064.33, "id": "p1793805064330-0", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [450, 520], "target": "Garden", "exp": "da8724b0e4646fc7"}}
+{"t": 1793805064.336, "id": "p1793805064330-0", "outcome": ["water* +ready @728,684", "beehive_progress @808,464"], "hit": true}
+{"t": 1793805076.004, "id": "p1793805076003-1", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [835, 940], "target": "Garden", "exp": "24811c2bb6a6975d"}}
+{"t": 1793805076.004, "id": "p1793805076003-1", "outcome": ["plant_growing* +ready @864,532", "water* @832,680", "plant_growing* +ready @852,708"], "hit": true}
+{"t": 1793805105.014, "id": "p1793805105013-2", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793805105.014, "id": "p1793805105013-2", "outcome": "ok", "hit": true}
+{"t": 1793806090.082, "id": "p1793806090081-0", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [650, 700], "target": "Garden", "exp": "8efd8587c15fb42b"}}
+{"t": 1793806090.082, "id": "p1793806090081-0", "outcome": ["plant_growing* +ready @724,516", "plant_growing* +ready @964,516", "plant_growing* @1208,516", "water* @668,660"], "hit": true}
+{"t": 1793806105.95, "id": "p1793806105950-1", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793806105.951, "id": "p1793806105950-1", "outcome": "ok", "hit": true}
+{"t": 1793806129.489, "id": "p1793806129488-2", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793806129.489, "id": "p1793806129488-2", "outcome": "ok", "hit": true}
+{"t": 1793807108.889, "id": "p1793807108889-0", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793807108.89, "id": "p1793807108889-0", "outcome": "ok", "hit": true}
+{"t": 1793807116.06, "id": "p1793807116060-1", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793807116.061, "id": "p1793807116060-1", "outcome": "Escape opened the pause menu (resumed): the screen (Where Have You Bean? / 4 / 8 Green Bean / 4 Green Bean) was not a card Escape closes; NEED_VISION game: ui.close() is unsure: what is on screen, what should be clicked?\n  look: /Users/serg/w/llm-game-agent/.shots/ask_frame.png (full size 1920x1080)", "hit": false}
+{"t": 1793807524.05, "id": "p1793807524049-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793807524.05, "id": "p1793807524049-0", "outcome": "ok", "hit": true}
+{"t": 1793807573.654, "id": "p1793807573654-0", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1080, 776], "here": "Garden", "exp": "09afb35942326ca7"}}
+{"t": 1793807573.655, "id": "p1793807573654-0", "outcome": {"kind": null, "moved": false, "reached": null}, "hit": false}
+{"t": 1793807577.012, "id": "p1793807577011-1", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793807577.013, "id": "p1793807577011-1", "outcome": "ok", "hit": true}
+{"t": 1793807994.028, "id": "p1793807994027-0", "component": "engine", "what": "bubble", "value": {"ready": true}, "ctx": {"row": "pick", "area": "Garden", "light": null}}
+{"t": 1793807994.028, "id": "p1793807994027-0", "outcome": ["plant", "plant_growing*", "plant_growing* +ready"], "hit": false}
+{"t": 1793808042.176, "id": "p1793808042175-1", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1000, 709], "here": "Garden", "exp": "0ce73c1d39f44fc4"}}
+{"t": 1793808042.176, "id": "p1793808042175-1", "outcome": {"kind": null, "moved": false, "reached": null}, "hit": false}
+{"t": 1793808045.685, "id": "p1793808045685-2", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793808045.685, "id": "p1793808045685-2", "outcome": "ok", "hit": true}
+{"t": 1793808053.879, "id": "p1793808053879-3", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793808053.88, "id": "p1793808053879-3", "outcome": "ok", "hit": true}
+{"t": 1793808108.957, "id": "p1793808108957-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793808108.958, "id": "p1793808108957-0", "outcome": "ok", "hit": true}
+{"t": 1793808125.191, "id": "p1793808125190-1", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793808125.191, "id": "p1793808125190-1", "outcome": "ok", "hit": true}
+{"t": 1793808147.876, "id": "p1793808147875-2", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793808147.877, "id": "p1793808147875-2", "outcome": "ok", "hit": true}
+{"t": 1793808177.501, "id": "p1793808177501-3", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793808177.501, "id": "p1793808177501-3", "outcome": "ok", "hit": true}
+{"t": 1793808194.416, "id": "p1793808194416-4", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793808194.417, "id": "p1793808194416-4", "outcome": "ok", "hit": true}
+{"t": 1793808508.293, "id": "p1793808508293-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793808508.293, "id": "p1793808508293-0", "outcome": "ok", "hit": true}
+{"t": 1793808532.417, "id": "p1793808532417-1", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [310, 740], "target": "Garden", "exp": "6b69616c1274b342"}}
+{"t": 1793808532.418, "id": "p1793808532417-1", "outcome": ["plant @1120,696", "plant_growing* @1096,532", "water* +ready @816,680", "water* +ready @836,708"], "hit": true}
+{"t": 1793808547.553, "id": "p1793808547552-2", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793808547.553, "id": "p1793808547552-2", "outcome": "ok", "hit": true}
+{"t": 1793808566.054, "id": "p1793808566054-3", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793808566.055, "id": "p1793808566054-3", "outcome": "ok", "hit": true}
+{"t": 1793808588.668, "id": "p1793808588667-4", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793808588.668, "id": "p1793808588667-4", "outcome": "ok", "hit": true}
+{"t": 1793808619.04, "id": "p1793808619039-5", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793808619.041, "id": "p1793808619039-5", "outcome": "ok", "hit": true}
+{"t": 1793808635.905, "id": "p1793808635904-6", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1550, 860], "target": "Garden", "exp": "4158ae9cef779825"}}
+{"t": 1793808635.905, "id": "p1793808635904-6", "outcome": ["plant @1256,688", "plant @676,688", "plant* @964,688", "plant_growing* +ready @1212,524"], "hit": true}
+{"t": 1793810036.315, "id": "p1793810036314-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793810036.315, "id": "p1793810036314-0", "outcome": "ok", "hit": true}
+{"t": 1793811130.574, "id": "p1793811130573-0", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793811130.574, "id": "p1793811130573-0", "outcome": "ok", "hit": true}
+{"t": 1793811185.805, "id": "p1793811185804-1", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1880, 979], "here": "Garden", "exp": "b21483158e431db0"}}
+{"t": 1793811185.809, "id": "p1793811185804-1", "outcome": {"kind": null, "moved": true, "reached": null}, "hit": true}
+{"t": 1793811199.386, "id": "p1793811199386-2", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [620, 860], "target": "Garden", "exp": "6fe9ab614413bd8f"}}
+{"t": 1793811199.387, "id": "p1793811199386-2", "outcome": [], "hit": false}
+{"t": 1793811214.782, "id": "p1793811214781-3", "component": "skills", "what": "ui.press_bubble", "value": "", "ctx": {"action": "ui.press_bubble", "args": ""}}
+{"t": 1793811214.782, "id": "p1793811214781-3", "outcome": "ok", "hit": true}
+{"t": 1793811234.41, "id": "p1793811234410-4", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [870, 740], "target": "Garden", "exp": "927b87e9e3571184"}}
+{"t": 1793811234.41, "id": "p1793811234410-4", "outcome": ["plant* @1052,524", "water +drop @796,508"], "hit": true}
+{"t": 1793811246.694, "id": "p1793811246694-5", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1150, 740], "target": "Garden", "exp": "8bd044cdcd619a0f"}}
+{"t": 1793811246.695, "id": "p1793811246694-5", "outcome": ["plant* @872,532"], "hit": true}
+{"t": 1793811258.785, "id": "p1793811258784-6", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [830, 760], "target": "Garden", "exp": "ba53e6e80521b6d3"}}
+{"t": 1793811258.785, "id": "p1793811258784-6", "outcome": ["plant* @992,520"], "hit": true}
+{"t": 1793811270.685, "id": "p1793811270685-7", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1090, 740], "target": "Garden", "exp": "b3aaee2ca9beaa20"}}
+{"t": 1793811270.686, "id": "p1793811270685-7", "outcome": ["plant* @868,528"], "hit": true}
+{"t": 1793811282.901, "id": "p1793811282900-8", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [770, 760], "target": "Garden", "exp": "814723621e258712"}}
+{"t": 1793811282.901, "id": "p1793811282900-8", "outcome": ["plant* +ready @1044,520"], "hit": true}
+{"t": 1793812207.928, "id": "p1793812207928-0", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1050, 740], "target": "Garden", "exp": "8065768f14571801"}}
+{"t": 1793812207.929, "id": "p1793812207928-0", "outcome": ["plant* +ready @960,528"], "hit": true}
+{"t": 1793812217.323, "id": "p1793812217323-1", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [610, 760], "target": "Garden", "exp": "6bb91159d35af358"}}
+{"t": 1793812217.323, "id": "p1793812217323-1", "outcome": [], "hit": false}
+{"t": 1793812227.393, "id": "p1793812227392-2", "component": "nav", "what": "arrive", "value": "GardenBed", "ctx": {"pt": [1050, 740], "target": "Garden", "exp": "efda6af6c66e1b62"}}
+{"t": 1793812227.393, "id": "p1793812227392-2", "outcome": ["plant @1200,528"], "hit": true}
+{"t": 1793812258.027, "id": "p1793812258026-3", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793812258.027, "id": "p1793812258026-3", "outcome": "ok", "hit": true}
+{"t": 1793812270.074, "id": "p1793812270074-4", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1000, 506], "here": "Garden", "exp": "d1e7db61951b0b13"}}
+{"t": 1793812270.075, "id": "p1793812270074-4", "outcome": {"kind": "GardenBed", "moved": false, "reached": "Garden"}, "hit": true}
+{"t": 1793812298.495, "id": "p1793812298495-5", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793812298.496, "id": "p1793812298495-5", "outcome": "ok", "hit": true}
+{"t": 1793812321.016, "id": "p1793812321015-6", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793812321.016, "id": "p1793812321015-6", "outcome": "ok", "hit": true}
+{"t": 1793812325.393, "id": "p1793812325392-7", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793812325.393, "id": "p1793812325392-7", "outcome": "ok", "hit": true}
+{"t": 1793812329.85, "id": "p1793812329850-8", "component": "skills", "what": "ui.close", "value": "", "ctx": {"action": "ui.close", "args": ""}}
+{"t": 1793812329.851, "id": "p1793812329850-8", "outcome": "ok", "hit": true}

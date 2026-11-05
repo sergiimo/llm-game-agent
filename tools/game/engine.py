@@ -1227,8 +1227,16 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
             return res
         flowers = set(_param('flowers', {}) or ())
         remaining, replanting = set(beds), {}
+        res['spec'] = {'kind': 'GardenBed', 'where': {'region': region}, 'make': {}}
         res['allowed_events'] = set().union(*[_row_events(r) for r in plan.rows()]) | NEUTRAL_EVENTS
         A.ON_EVENT = lambda c: red_flag(c, res)
+        if answer is not None:
+            _answer(g, 'garden', {}, answer, res)
+            if str(res.get('stop')).startswith('done: vision sees none'):
+                res['unresolved'].extend(beds)
+                res['stop'] = f'unresolved: model sees no route to {len(beds)} beds'
+                return res
+            ask.progress('garden')
 
         while remaining and not res['stop']:
             if res['clicks'] >= max_clicks:
@@ -1243,12 +1251,14 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     break
                 a = _visit(g, tid, 'GardenBed', res)
                 if a is None:
-                    # Coverage cannot be inferred from appearance.  Hand the exact unresolved nodes to one guarded
-                    # model decision, rather than claiming that an unseen bed is complete.
-                    res['unresolved'].append(tid)
-                    remaining.remove(tid)
-                    _garden_log(tid, 'unresolved', actions, 'bubble not visible at graph node')
-                    break
+                    # Coverage cannot be inferred from appearance. Ask only for navigation; the next call consumes
+                    # the cell and resumes bubble-first inspection, never settling a bed from appearance.
+                    from . import brief
+                    state = brief.build(g, 'GardenBed', list(remaining), res)
+                    q = (brief.text(state) + f'\nNo bubble for {tid} is in reach. Give one grid cell of FREE GROUND '
+                         f'toward the unvisited beds in {region}; do not click a bed or bubble.')
+                    ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'node': tid}, res,
+                            img=ask.draw_grid(brief.draw(W.grab(), state)))
 
                 crop = getattr(a, 'icon', None) or world.state_of(g, tid).get('crop')
                 if crop:

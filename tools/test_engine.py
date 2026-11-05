@@ -967,6 +967,15 @@ class StreamingGarden(EngineBase):
         self.assertTrue(f.objects[dry['id']]['state']['watered'])
         self.assertEqual(res['stop'], 'unresolved: 1 of 12 beds')
 
+    def test_an_unseen_bed_asks_only_for_a_navigation_cell_with_the_garden_answer_hint(self):
+        garden = self._north()
+        garden[0]['bubble_pt'] = None
+        self._game(garden)
+        with self.assertRaises(NeedVision) as cm:
+            engine.tend_garden('Garden', ('water',))
+        self.assertIn('FREE GROUND', str(cm.exception))
+        self.assertIn('./wf garden region=Garden answer=', str(cm.exception))
+
 
 HIVE = {'kind': 'BeeHive', 'when': {'ready': True}, 'bubble': {'kind': 'honey'}, 'event': 'beehive_collect',
         'effect': {'ready': False}}

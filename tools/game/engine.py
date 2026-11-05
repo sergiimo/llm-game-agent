@@ -244,10 +244,6 @@ def screen_point(tara, obj):
     return (round(O.CENTRE[0] + (obj[0] - tara[0]) * PX_PER_UNIT), round(O.CENTRE[1] - (obj[1] - tara[1]) * PX_PER_UNIT))
 
 
-BELOW_PX = 70          # px below a bed's point: the path between rows, where she stands to work it
-HOPS = 2               # short walks per visit before the bed goes back to the search
-
-
 def world_of(tara, pt):
     """The world point under screen point `pt` (the inverse of screen_point)."""
     return (tara[0] + (pt[0] - O.CENTRE[0]) / PX_PER_UNIT, tara[1] - (pt[1] - O.CENTRE[1]) / PX_PER_UNIT)
@@ -345,46 +341,102 @@ def _settle_visit(tid, nid, res):
 
 
 def _visit(g, tid, kind, res, row=None):
-    """Strategy A (user D188): from her position (an event since the last walk, or the end of a short walk to a
-    visible point), the target's bubble is the one at its expected screen point - whatever its kind or "!" reading
-    says. Its point on screen but no bubble there -> a short walk to the ground just below it (up to HOPS), then look
-    again. The bubble, or None (no position / off-screen / not there after the walks: the search takes over)."""
+    """Use a bubble at the target's predicted point; leave every near move to the model."""
     from . import where
     if tid not in g.nodes:
         return None
-    obj = tuple(g.nodes[tid].extra['pos'])
+    src, here = where.position(far_ok=False, walk_ok=True)
+    if src not in ('event', 'walk'):
+        return None
+    pt = screen_point(here, tuple(g.nodes[tid].extra['pos']))
+    if not O.on_frame(pt):
+        return None
+    tried = list(res.get('btried') or []) + [screen_point(here, tuple(g.nodes[n].extra['pos']))
+                                           for n in res.get('tried_nodes', ()) if n in g.nodes]
     hive = {O.NODE_OF.get(k) for k in O.NODE_OF if k != kind}
-    for hop in range(HOPS + 1):
-        src, here = where.position(far_ok=False, walk_ok=True)
-        if src not in ('event', 'walk'):
-            return None
-        pt = screen_point(here, obj)
-        if not O.on_frame(pt):
-            return None
-        affs = O.scan()
-        tried = list(res.get('btried') or []) + [screen_point(here, tuple(g.nodes[n].extra['pos']))   # beds proven
-                                                 for n in res.get('tried_nodes', ()) if n in g.nodes]  # this call
-        other = _other_kinds(kind, row)
-        near = [a for a in affs if O.d(a.pt, pt) <= OWN_PX and O.node_of_bubble(a) not in hive
-                and not any(O.d(a.pt, p) < 60 for p in tried)   # a bubble already tried this call: move on
-                and a.kind not in other]                        # another row's icon (a planting icon for a pick)
-        if near:
-            a = min(near, key=lambda a: O.d(a.pt, pt))
-            if _read_bubble(g, tid, a, row, res):   # what she sees there is the bed's state now: not this row's
-                return None
+    other = _other_kinds(kind, row)
+    near = [a for a in O.scan() if O.d(a.pt, pt) <= OWN_PX and O.node_of_bubble(a) not in hive
+            and not any(O.d(a.pt, p) < 60 for p in tried) and a.kind not in other]
+    if near:
+        a = min(near, key=lambda a: O.d(a.pt, pt))
+        if not _read_bubble(g, tid, a, row, res):
             return a
-        if hop == HOPS or (row is not None and any(plan.fits(row)(a) for a in affs)):
-            return None   # a bubble that fits the row is in view: the search takes it, no walk
-        ground = (pt[0], min(O.H_ - 60, pt[1] + BELOW_PX))
-        if not N.walkable(ground, affs):   # her own spot / a bubble: a click there interacts (live D189 watering)
-            return None
-        c = A.click(ground, 'step')
-        res['clicks'] += 1
-        if c.events or A.on_card(c) or c.moved is False:   # an interaction, or she didn't move: no reckoning
-            A.gameplay()
-            return None
-        where.walked(to=world_of(here, ground))
     return None
+
+
+def _decision_value(raw):
+    value = raw.strip()
+    if not value:
+        raise core.Failed('answer rejected: settle state needs key=value')
+    try:
+        return json.loads(value.lower() if value.lower() in ('true', 'false', 'null') else value)
+    except (json.JSONDecodeError, TypeError):
+        return value.strip('"\'')
+
+
+def parse_decision(answer, pend):
+    """Parse and guard the model's one decision; parsing itself never acts."""
+    value = str(answer).strip()
+    if value.lower() == 'done':
+        return ('done',)
+    if value.lower().startswith('click '):
+        nid = value[6:].strip()
+        if nid not in pend.get('brief_ids', ()):
+            raise core.Failed(f'answer rejected: object {nid!r} is not in the brief')
+        return 'click', nid
+    if value.lower().startswith('walk '):
+        try:
+            pt = ask.parse_point(value[5:].strip())
+        except ValueError as e:
+            raise core.Failed(f'answer rejected: {e}') from None
+        if O.d(pt, O.CENTRE) < N.SELF_PX:
+            raise core.Failed(f'answer rejected: walk point {pt} is on Tara\'s own spot')
+        return 'walk', pt
+    if value.lower().startswith('settle '):
+        named, sep, raw_state = value[7:].partition(':')
+        if not sep:
+            raise core.Failed('answer rejected: settle syntax is settle <ids>: key=value')
+        ids = named.split()
+        if not ids:
+            raise core.Failed('answer rejected: settle needs at least one object id')
+        missing = [nid for nid in ids if nid not in pend.get('brief_ids', ())]
+        if missing:
+            raise core.Failed(f'answer rejected: object {missing[0]!r} is not in the brief')
+        hidden = [nid for nid in ids if nid not in pend.get('in_view', ())]
+        if hidden:
+            raise core.Failed(f'answer rejected: object {hidden[0]!r} was not shown in view')
+        state = {}
+        for item in raw_state.split(','):
+            key, eq, raw = item.strip().partition('=')
+            if not eq or not key:
+                raise core.Failed('answer rejected: settle state needs comma-separated key=value entries')
+            state[key] = _decision_value(raw)
+        return 'settle', ids, state
+    raise core.Failed(f'answer rejected: expected click, walk, settle, or done; got {answer!r}')
+
+
+def decide_q(g, spec, targets, res):
+    """Ask one model question with the graph, detections and marked full-scale frame."""
+    from . import brief
+
+    res.setdefault('spec', spec)
+    res.setdefault('params', {})
+    state = brief.build(g, spec['kind'], targets, res)
+    ids = [o['id'] for o in state['objects']]
+    in_view = [o['id'] for o in state['objects'] if o['screen'] is not None and O.on_frame(o['screen'])]
+    screens = {o['id']: list(o['screen']) if o['screen'] is not None else None for o in state['objects']}
+    q = (brief.text(state) + '\nDecide exactly one next action: click <object id>; walk <grid cell>; '
+         'settle <space-separated object ids>: key=value[, key=value]; or done. A click names an object from the '
+         'brief; a walk names free ground, never Tara or a bubble; settle only objects visibly shown in this frame.')
+    pending = {'goal': res.get('goal'), 'params': res.get('params') or {}, 'decide': True,
+               'brief_ids': ids, 'in_view': in_view, 'screens': screens,
+               'bubbles': [dict(b, pt=list(b['pt'])) for b in state['bubbles']]}
+    N.log('decide', what='question', targets=list(targets), brief_ids=ids, in_view=in_view)
+    try:
+        ask.ask('decide', q, pending, res, img=ask.draw_grid(brief.draw(core.WF.grab(), state)))
+    except O.LawsStuck:
+        N._gap(res, 'decide: vision questions without a click or settle')
+        raise
 
 
 def _evidence(g, nid, kind, row, out, res):
@@ -452,6 +504,32 @@ def finish_card(c, res):
     return bool(out['ok'])
 
 
+def _far_search(t, res, halt=None):
+    """Direct bubbles or far map travel only; a near/unknown tier returns to decide_q."""
+    for _ in range(N.WALK_MAX + 1):
+        affs = O.scan()
+        fit = [a for a in affs if t.fits(a)]
+        if fit:
+            return O.nearest(fit, O.CENTRE)
+        if halt is not None and halt(affs):
+            return None
+        here = res.get('area') or res.get('here')
+        tier = N.tier_of(t, res, here)
+        if tier != 'map-far':
+            return None
+        if N.stuck(res):
+            return None
+        c = N.map_walk(t, res, read=False)
+        N.update_tara(res, tier, here, c, t.node)
+        if c is None or res.get('stop'):
+            return None
+        if c.node:
+            res['here'], res['inside'] = c.node, N.inside(t, c.node)
+        if c.events or c.mode != 'gameplay':
+            A.gameplay()
+    return None
+
+
 def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
     """A bubble that fits the row in the target's area. Her area unknown (she walked) and look-alike objects in
     another area -> ONE question: which area is she in? (answer area=<name>)."""
@@ -511,7 +589,7 @@ def _reach(g, name, params, row, kind, area, res, marker, skip=frozenset()):
     res['row_now'], res['skip_names'] = row, set(skip)
     res['on_card'] = lambda c: finish_card(c, res)
     res.pop('icon_unknown', None)
-    a = N.search(t, res, halt=halt)
+    a = _far_search(t, res, halt=halt)
     cache = res.get('icon_cache') or {}
     last = max((k for (_, k) in cache), default=None)   # the latest look's icons
     seen = [n for (pt, k), n in cache.items() if n is not None and k == last]
@@ -766,12 +844,12 @@ def _explore(g, tid, kind, area, where, name, params, res, working, make):
         return ((where.get('ready') is not True or a.ready) and res.get('area') in (None, area)
                 and not any(O.d(a.pt, p) < 60 for p in tried))
     t = N.Target(f'{name}:explore', fits, f'a {kind} in {area}', None, kind, area, area, None)
-    a = N.search(t, res)
+    a = _far_search(t, res)
     if a is None:
         listed = [n for n in _targets(g, {'kind': kind}, where, working) if n not in res['skip']]
-        if res['stop'] or _only_maybes(g, listed, where, res):
+        if res['stop']:
             return 'stop'
-        _ask_click(name, params, f'a {kind} (no known action yet)', area, res, settle=_in_view(g, listed))
+        decide_q(g, res['spec'], listed, res)
     row = {'id': 'explore', 'kind': kind, 'when': {}, 'bubble': {}, 'effect': {},   # a hard case: wait for its line
            'steps': [{'do': 'click_bubble', 'expect': {'events': '?'}}]}         # ('?' = observe what comes)
     out = steps.run(row, {}, a)
@@ -913,6 +991,7 @@ def _log(res):
 
 def _loop(g, name, spec, params, save, max_clicks, res):
     W, kind, make = core.WF, spec['kind'], spec.get('make', {})
+    res['spec'] = spec
     res['red_events'] = _red_events(kind, make)
     A.ON_EVENT = lambda c: red_flag(c, res)   # every click's events are checked against the goal (red flags)
     where = _where(spec, params)
@@ -991,12 +1070,6 @@ def _loop(g, name, spec, params, save, max_clicks, res):
                 res['skip'].append(tid)
                 res['notes'].append(f'{tid}: {crop} stays (flower)')
                 continue
-        blind = None if a is not None or res.get('asked_start') else _blind_near(kind, t, area, res, skip_names)
-        if blind:
-            res['asked_start'] = True
-            if _bubble_miss(t, area, blind, res):   # recorded; at dusk it stops (icons unreliable)
-                break
-            _ask_start(name, params, kind, t, area, res)
         if a is None:
             res['tid_now'] = tid   # nav walks toward THIS bed (user D189), not whichever bed the vectors see
             a = _reach(g, name, params, t, kind, area, res, _marker(spec, where), skip_names)
@@ -1012,9 +1085,9 @@ def _loop(g, name, spec, params, save, max_clicks, res):
         if runs and a is None:
             continue
         if a is None:
-            if res['stop'] or _only_maybes(g, targets, where, res):
+            if res['stop']:
                 break
-            _ask_click(name, params, f'a {kind} that needs "{t["id"]}"', area, res, settle=_in_view(g, targets))
+            decide_q(g, spec, targets, res)
         out = steps.run(t, t['params'], a)
         res['clicks'] += out['clicks']
         if out['ok'] and not out['at'] and out['events']:   # the event names no position: it was the target (surprise)

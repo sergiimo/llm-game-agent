@@ -143,6 +143,8 @@ def hint(goal, params):
 def ask(kind, question, pending, res, img=None):
     """Raise NeedVision for ONE question (`click` | `button` | `name`) with the frame (or `img`: the map marked up for
     a way question); LawsStuck after MAX_ASKS."""
+    if kind == 'decide':
+        kind = 'name'   # a free-form answer with a supplied image, using the existing name path
     goal = pending.get('goal')
     st = load_state(goal)
     if st['asks'] >= MAX_ASKS:
@@ -159,6 +161,8 @@ def ask(kind, question, pending, res, img=None):
     save_state(st)
     how = {'click': 'a grid cell (e.g. Q14), or none', 'button': 'the exact on-screen text to press',
            'name': 'key=value (what changed), or the name'}[kind]
+    if pending.get('decide'):
+        how = 'click <object id> | walk <cell> | settle <ids>: key=value | done'
     ans = hint(goal, pending.get('params')) + f'<{how}>'
     q = question + (f' The search already tried, in order: {"; ".join(tr[-10:])}.' if tr else '')
     try:

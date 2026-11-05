@@ -798,11 +798,17 @@ class Loop(EngineBase):
         self.assertEqual(res['stop'], 'done: query empty')
         self.assertEqual(f.tara['can'], 'full')
 
-    def test_plant_goal_finds_the_south_garden_and_plants_12(self):
+    def test_plant_goal_asks_before_travel_then_plants_12_after_arrival(self):
         f = self.use(FakeGame(beds('n', NX, NZ, 'near', 500, 300, stage='growing', watered=True, wilted=False)
                               + beds('s', SX, SZ, 'south', 500, 300, stage='empty', watered=False, wilted=False),
                               GAME, inventory={'TulipSeed': 18}))
         f.step_zone = 'south'
+        with self.assertRaises(ask.NeedVision):
+            engine.achieve('plant', seed='Tulip', region='GardenSouth')
+        self.assertEqual(f.clicks, [])
+        self.assertTrue(ask.load_state('plant')['pending']['decide'])
+        f.zone = 'south'   # a later round after the model has reached the requested garden
+        f.emit('inspect', f.objects['s00'])
         res = engine.achieve('plant', seed='Tulip', region='GardenSouth')
         self.assertEqual(res['stop'], 'done: query empty', res)
         self.assertEqual(len(res['done']), 12)
@@ -820,9 +826,12 @@ class Loop(EngineBase):
         f.step_zone = 'south'
         with self.assertRaises(NeedVision) as cm:   # empty beds in both gardens look alike: which one is she in?
             engine.achieve('plant', seed='Tulip', region='GardenSouth')
-        self.assertIn('area=', str(cm.exception))
+        self.assertTrue(ask.load_state('plant')['pending']['decide'])
+        self.assertEqual(f.clicks, [])
         self.assertTrue(all(o['state']['stage'] == 'empty' for o in f.objects.values()))
-        res = engine.achieve('plant', seed='Tulip', region='GardenSouth', answer='area=GardenSouth')
+        f.zone = 'south'   # model navigation arrives; decision execution is covered separately
+        f.emit('inspect', f.objects['s00'])
+        res = engine.achieve('plant', seed='Tulip', region='GardenSouth')
         self.assertEqual(len(res['done']), 2, res)
         self.assertTrue(all(o['state']['stage'] == 'empty' for o in f.objects.values() if o['zone'] == 'near'))
 
@@ -1013,6 +1022,11 @@ class Nav(EngineBase):
     """Navigation through the engine (ported from test_laws Seek/Vision/Language, L130-L135)."""
     FAR = [(40.0, -60.0), (42.5, -60.0)]   # a garden far from Tara's area: the map leads there
 
+    @staticmethod
+    def far_map(node):
+        nav.LAST_MAP.update(pin=(100, 100), goal=(700, 500), img=None)
+        return (1.0, 0.0)
+
     def far(self, zone='far', body=None):
         return [obj(f'f{i}', pos=p, zone=zone, bubble=(700 + 200 * i, 300), body=body, stage='growing', watered=False,
                     wilted=False) for i, p in enumerate(self.FAR)]
@@ -1020,7 +1034,7 @@ class Nav(EngineBase):
     def test_far_garden_map_direction_steps_then_the_loop_runs(self):
         f = self.use(FakeGame(self.far(), GAME))
         f.step_zone = 'far'
-        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+        with mock.patch.object(nav, 'map_direction', self.far_map):
             res = engine.achieve('water')
         self.assertEqual((len(res['done']), f.asks), (2, []))
         self.assertEqual(f.clicks[0], (960 + nav.MAP_STEP_R, 540))   # map-led steps are long (user D188)
@@ -1028,7 +1042,7 @@ class Nav(EngineBase):
     def test_a_blocked_step_turns_a_little(self):
         f = self.use(FakeGame(self.far(), GAME))
         f.step_zone, f.step_ok = 'far', (lambda x, y: y != 540)   # straight ahead is a fence
-        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+        with mock.patch.object(nav, 'map_direction', self.far_map):
             res = engine.achieve('water')
         self.assertEqual(f.clicks[0][1], 540)
         self.assertNotEqual(f.clicks[1][1], 540)
@@ -1038,12 +1052,12 @@ class Nav(EngineBase):
         hive = obj('h', kind='BeeHive', pos=(1.5, -23.5), bubble=(800, 532), save={'pollen': '0'}, ready=True)
         f = self.use(FakeGame(self.far() + [hive], GAME + [HIVE]))
         f.step_zone = 'far'
-        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+        with mock.patch.object(nav, 'map_direction', self.far_map):
             res = engine.achieve('water')
         self.assertNotIn((800, 532), f.clicks)
         self.assertEqual(len(res['done']), 2)
 
-    def test_inside_the_area_explores_free_ground_not_the_map(self):
+    def test_inside_the_area_asks_for_a_decision_after_direct_actions(self):
         near = [obj('a', pos=(NX[0], NZ[0]), bubble=(900, 400), stage='growing', watered=False, wilted=False),
                 obj('b', pos=(NX[1], NZ[0]), zone='far', bubble=(700, 300), stage='growing', watered=False, wilted=False)]
         f = self.use(FakeGame(near, GAME))
@@ -1052,24 +1066,30 @@ class Nav(EngineBase):
         def no_map(node):
             raise AssertionError('map used inside the area')
         with mock.patch.object(nav, 'map_direction', no_map), mock.patch.object(nav, 'dry_spots', lambda tried=(): []):
-            res = engine.achieve('water')
-        self.assertEqual(len(res['done']), 2, res)
+            with self.assertRaises(ask.NeedVision):
+                engine.achieve('water')
+        self.assertTrue(f.objects['a']['state']['watered'])
+        self.assertFalse(f.objects['b']['state']['watered'])
+        self.assertTrue(ask.load_state('water')['pending']['decide'])
+        self.assertEqual(len(f.clicks), 1)
 
     def test_three_still_clicks_are_stuck_and_vision_gets_the_trace(self):
         f = self.use(FakeGame(self.far(), GAME))
-        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+        with mock.patch.object(nav, 'map_direction', self.far_map):
             with self.assertRaises(NeedVision) as cm:
                 engine.achieve('water')
         self.assertIn('STUCK', str(cm.exception))
         self.assertLessEqual(len(f.clicks), nav.STUCK_CLICKS + 1)
 
-    def test_no_bubble_asks_one_click_then_the_answer_walks_and_the_loop_runs(self):
+    def test_no_bubble_asks_one_decision_and_accepts_a_walk_cell(self):
         f = self.use(FakeGame(self.far(body=(1500, 300))[:1], GAME))
         with self.assertRaises(NeedVision) as cm:
             engine.achieve('water')
         self.assertIn('./wf achieve water answer=', str(cm.exception))
-        res = engine.achieve('water', answer='S5')   # the cell on the far bed's body: she walks there
-        self.assertEqual(len(res['done']), 1, res)
+        pending = ask.load_state('water')['pending']
+        self.assertTrue(pending['decide'])
+        self.assertEqual(engine.parse_decision('walk S5', pending), ('walk', (1480, 304)))
+        self.assertEqual(f.clicks, [])
 
     def test_none_answer_ends_the_run(self):
         f = self.use(FakeGame(self.far(), GAME))
@@ -1109,7 +1129,10 @@ class ReviewFixes(EngineBase):
         f = self.use(FakeGame(Nav.FAR and [obj(f'f{i}', pos=p, zone='far', bubble=(700 + 200 * i, 300), stage='growing',
                                                watered=False, wilted=False) for i, p in enumerate(Nav.FAR)], GAME))
         f.step_zone, f.steps_needed = 'far', 10
-        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
+        def moving_map(node):
+            nav.LAST_MAP.update(pin=(100 + 10 * f.steps_done, 100), goal=(700, 500), img=None)
+            return (1.0, 0.0)
+        with mock.patch.object(nav, 'map_direction', moving_map):
             res = engine.achieve('water')
         self.assertEqual((len(res['done']), res['vision']), (2, 0), res)
 
@@ -1201,8 +1224,10 @@ class Predictions(EngineBase):
                                    stage='empty', watered=False, wilted=False)], GAME, inventory={'TulipSeed': 2}))
         Det = __import__('collections').namedtuple('Det', 'point')
         with mock.patch.object(observe, 'see', lambda kind, tried=(): [Det((1500, 300))] if f.zone == 'near' else []):
-            res = engine.achieve('plant', seed='Tulip', region='Garden')
-        self.assertEqual(len(res['done']), 1)
+            with self.assertRaises(ask.NeedVision):
+                engine.achieve('plant', seed='Tulip', region='Garden')
+        self.assertEqual(f.clicks, [])
+        self.assertTrue(ask.load_state('plant')['pending']['decide'])
         self.assertTrue(nav._predicted_arrival(nav.Target('t', None, 'x', None, 'GardenBed', 'GardenSouth', 'GardenSouth'),
                                                act.Click((1, 1), 'object', 0, node='GardenBed@Garden')))
         hits = [r for r in self.recs() if r.get('hit') is True]
@@ -1998,15 +2023,16 @@ class HarvestPolicy(EngineBase):
         self.assertFalse(plan.holds({'crop': '!Tulip|Crocus'}, {'crop': 'Tulip'}))
         self.assertTrue(plan.holds({'crop': '!Tulip|Crocus'}, {'crop': 'Green Bean'}))
 
-    def test_every_ready_crop_but_flowers_is_picked_without_asking_which(self):
+    def test_known_direct_crop_is_picked_and_remaining_flowers_go_to_vision(self):
         f = self.use(FakeGame(self.ripe(), GAME))
         names = {(700, 400): 'Green Bean', (1100, 400): 'Tulip'}
         with mock.patch.object(icons, 'name_of', lambda a: names.get(tuple(a.pt))):
-            res = engine.achieve('harvest')
+            with self.assertRaises(ask.NeedVision):
+                engine.achieve('harvest')
         self.assertEqual(f.objects['b']['state']['stage'], 'growing')    # the beans are picked
         self.assertEqual(f.objects['t']['state']['stage'], 'produced')   # the tulip stays for the bees
-        self.assertEqual(res['vision'], 0)
-        self.assertTrue(res['stop'].startswith('done'), res['stop'])
+        self.assertTrue(ask.load_state('harvest')['pending']['decide'])
+        self.assertEqual(len(f.asks), 1)
 
     def test_an_unknown_crop_icon_is_asked_once_then_known(self):
         f = self.use(FakeGame(self.ripe()[:1], GAME))
@@ -2224,18 +2250,16 @@ class VisitBeds(EngineBase):
         f.log.append(L('9:00:00 AM', 'plant_growing', 'GardenBed', at[0], at[1]))   # she stands at a bed: exact
         return f
 
-    def test_walks_bed_to_bed_and_picks_each_ready_bed(self):
-        """A ready bed out of bubble range: one walk to the ground below it, then its bubble at its point (D188)."""
+    def test_direct_bed_is_picked_then_far_bed_asks_the_model(self):
         grow = dict(stage='growing', watered=True, wilted=False)
         ready = dict(stage='produced', watered=True, wilted=False)
         f = self.geo([obj('a', pos=(NX[0], NZ[0]), **grow), obj('b', pos=(NX[1], NZ[0]), **ready),
                       obj('c', pos=(NX[3], NZ[0]), **ready)], (NX[0], NZ[0]))
-        res = engine.achieve('harvest')
-        self.assertEqual([f.objects[k]['state']['stage'] for k in 'bc'], ['growing', 'growing'], res)
-        self.assertTrue(f.walks, f.clicks)
-        self.assertLessEqual(len(f.walks), 2, f.clicks)
-        self.assertEqual(res['vision'], 0, res)
-        self.assertTrue(res['stop'].startswith('done'), res)
+        with self.assertRaises(ask.NeedVision):
+            engine.achieve('harvest')
+        self.assertEqual([f.objects[k]['state']['stage'] for k in 'bc'], ['growing', 'produced'])
+        self.assertEqual(f.walks, [])
+        self.assertTrue(ask.load_state('harvest')['pending']['decide'])
 
     def test_a_walk_that_does_not_arrive_gives_the_bed_back_to_the_search(self):
         """The bubble is not at the predicted point after the walk (she was blocked): no click on a guessed bubble."""
@@ -2289,7 +2313,7 @@ class VisitBeds(EngineBase):
         self.assertIn('ready=False (card D185 11:20', row)
         self.assertNotIn('CHECK', row)
 
-    def test_without_an_exact_position_vision_gives_the_first_bed_and_its_collect_finishes(self):
+    def test_without_an_exact_position_the_brief_asks_for_the_first_bed(self):
         """Live D188 12:20: no event since her walk, the ready bed's bubble misread as `water`; nav wandered and the
         engine stopped 'done' with 7 ready beds left. Now: vision's start question, never a false done."""
         ready = dict(stage='produced', watered=True, wilted=False)
@@ -2298,14 +2322,10 @@ class VisitBeds(EngineBase):
         f.relabel, f.hide_ready = {'pickup': 'water'}, True   # read as `water`, no "!" (live D188 12:20)
         with self.assertRaises(ask.NeedVision) as e:
             engine.achieve('harvest')
-        self.assertIn('orange', str(e.exception))
-        # the misread goes on: after vision's answer the beds go by position (strategy A)
-        self.assertEqual(f.objects['b']['state']['stage'], 'produced')
-        bx, by = f._pt(f.objects['b']['pos'])
-        cell = f'{chr(65 + int(bx // ask.CELL_W))}{int(by // ask.CELL_H) + 1}'
-        res = engine.achieve('harvest', answer=cell)
-        self.assertEqual([f.objects[k]['state']['stage'] for k in 'bc'], ['growing', 'growing'], res)
-        self.assertTrue(res['stop'].startswith('done'), res)
+        self.assertIn('Tara save', str(e.exception))
+        self.assertEqual([f.objects[k]['state']['stage'] for k in 'bc'], ['produced', 'produced'])
+        self.assertEqual(f.clicks, [])
+        self.assertTrue(ask.load_state('harvest')['pending']['decide'])
 
     def test_a_textless_overlay_after_a_walk_is_gameplay_not_an_interaction(self):
         """Live D188: every garden click read `overlay` with no text (the HUD hides on zoom); nav logged each walk
@@ -2337,7 +2357,7 @@ class Lost(EngineBase):
         act.click((1300, 540), 'step')
         self.assertEqual(where.position(far_ok=False), (None, None))
 
-    def test_two_arrival_misses_turn_detections_off_and_the_map_leads(self):
+    def test_near_phantom_detections_cannot_start_automatic_walks(self):
         f = self.lost_game()
         maps = []
         with mock.patch.object(observe, 'see', lambda kind, tried=(): [self.Box((1300, 700), (1250, 650, 1350, 690),
@@ -2349,7 +2369,9 @@ class Lost(EngineBase):
                 pass
         seen = [c for c in f.clicks if c == nav.beside(self.Box((1300, 700), (1250, 650, 1350, 690), 'GardenBed'), [])]
         self.assertLessEqual(len(seen), nav.MISS_MAX, f.clicks)
-        self.assertTrue(maps, f.clicks)
+        self.assertEqual(maps, [])
+        self.assertEqual(f.clicks, [])
+        self.assertTrue(ask.load_state('harvest')['pending']['decide'])
 
     def test_map_steps_that_get_no_closer_on_the_map_are_lost(self):
         f = self.lost_game()
@@ -2389,13 +2411,14 @@ class Lost(EngineBase):
                 res = None
         self.assertIn('map calibration', ' '.join(engine.LAST.get('notes', [])))
 
-    def test_walks_without_progress_stop_with_one_question(self):
+    def test_near_unknown_position_asks_before_walks(self):
         f = self.lost_game()
         with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
             with self.assertRaises(ask.NeedVision) as e:
                 engine.achieve('harvest', max_clicks=40)
-        self.assertIn('LOST', str(e.exception))
-        self.assertLessEqual(len(f.clicks), nav.BLIND_MAX + 1, f.clicks)
+        self.assertTrue(ask.load_state('harvest')['pending']['decide'])
+        self.assertEqual(f.clicks, [])
+        self.assertEqual(len(f.asks), 1)
 
 
 class Landmarks(EngineBase):
@@ -2550,7 +2573,7 @@ class NavLadder(MapWay):
                 pass
         self.assertNotIn('GardenBed', calls)   # target detections are phantoms far away; Path patches guide steps
 
-    def test_near_on_the_map_the_vectors_lead(self):
+    def test_near_on_the_map_the_model_decides(self):
         f = self.lost()
         calls = []
         with mock.patch.object(observe, 'see', self.dets(calls)), \
@@ -2559,10 +2582,11 @@ class NavLadder(MapWay):
                 engine.achieve('harvest', max_clicks=3)
             except ask.NeedVision:
                 pass
-        self.assertTrue(calls)
-        self.assertEqual(f.clicks[0], nav.beside(self.Box((1300, 700), (1250, 650, 1350, 690), 'GardenBed'), []))
+        self.assertEqual(calls, [])
+        self.assertEqual(f.clicks, [])
+        self.assertTrue(ask.load_state('harvest')['pending']['decide'])
 
-    def test_close_without_a_visible_target_the_graph_direction_leads(self):
+    def test_close_without_a_visible_target_the_model_decides(self):
         f = self.lost()
         g = self.graph()
         g.add_edge('Well', 'Garden', 'toward', dir=[0.0, 1.0], source='learned')   # the target node is the area
@@ -2573,9 +2597,8 @@ class NavLadder(MapWay):
                 engine.achieve('harvest', max_clicks=2)
             except ask.NeedVision:
                 pass
-        x, y = f.clicks[0]
-        self.assertEqual(x, 960)
-        self.assertGreater(y, 540)   # south, the learned way
+        self.assertEqual(f.clicks, [])
+        self.assertTrue(ask.load_state('harvest')['pending']['decide'])
 
     def test_a_pin_that_jumps_is_rejected_with_a_question_and_a_gap(self):
         f = self.lost()
@@ -2738,18 +2761,19 @@ class CollectProof(EngineBase):
         self.addCleanup(p.stop)
         return f, names
 
-    def test_a_collect_prompt_on_a_bean_bed_is_finished(self):
+    def test_misread_bean_bed_asks_for_an_object_decision(self):
         f, _ = self.game()
         f.relabel = {'pickup': 'water'}
         f.objects['b']['state']['ready'] = False   # the bean's "!" is not read (live)
         with self.assertRaises(ask.NeedVision):    # the start question (no exact position, readings disagree)
             engine.achieve('harvest', max_clicks=12)
-        try:
-            engine.achieve('harvest', answer='P10', max_clicks=12)   # vision: the bean's bubble (1260, 670)
-        except ask.NeedVision:
-            pass
-        self.assertEqual(f.objects['b']['state']['stage'], 'growing', f.clicks)   # picked
-        self.assertEqual(f.objects['t']['state']['stage'], 'produced')            # the tulip stays for the bees
+        pending = ask.load_state('harvest')['pending']
+        self.assertTrue(pending['decide'])
+        nid = world.find(self.graph(), 'GardenBed', f.objects['b']['pos'])
+        self.assertEqual(engine.parse_decision(f'click {nid}', pending), ('click', nid))
+        self.assertEqual(f.clicks, [])
+        self.assertEqual(f.objects['b']['state']['stage'], 'produced')
+        self.assertEqual(f.objects['t']['state']['stage'], 'produced')
 
     def test_a_walk_click_that_opens_collect_on_a_bean_bed_finishes_the_pick(self):
         f, _ = self.game()
@@ -2775,14 +2799,15 @@ class CollectProof(EngineBase):
             pass
         self.assertEqual(f.objects['b']['state']['stage'], 'growing', f.clicks)
 
-    def test_skipped_flowers_do_not_hide_the_misread_beds_from_the_start_question(self):
+    def test_skipped_flowers_do_not_hide_misread_beds_from_the_decision(self):
         f, _ = self.game()
         f.relabel = {'pickup': 'water'}
         f.objects['b']['state']['ready'] = False
         f.objects['b']['body_pt'] = None   # no explore can stumble on it: the question must come
         with self.assertRaises(ask.NeedVision) as e:
             engine.achieve('harvest', max_clicks=12)
-        self.assertIn('orange', str(e.exception))
+        self.assertTrue(ask.load_state('harvest')['pending']['decide'])
+        self.assertEqual(f.clicks, [])
 
 
 class FirstHarvest(EngineBase):
@@ -2931,7 +2956,10 @@ class FarRow(VisitBeds):
                 res = engine.achieve('harvest', max_clicks=10)
             except ask.NeedVision:
                 res = engine.LAST
-        self.assertEqual(f.objects['far']['state']['stage'], 'growing', (res.get('stop'), f.clicks))   # walked, picked
+        self.assertEqual(f.objects['far']['state']['stage'], 'produced')
+        self.assertEqual(f.clicks, [])
+        self.assertTrue(ask.load_state('harvest')['pending']['decide'])
+        self.assertIn(keep, ask.load_state('harvest')['pending']['brief_ids'])
 
 
 class VisionBeforeDone(VisitBeds):
@@ -2949,7 +2977,7 @@ class VisionBeforeDone(VisitBeds):
         g.save(learn.GRAPH)
         return ids
 
-    def test_only_unknown_beds_left_asks_vision_before_done_and_none_settles_them(self):
+    def test_unknown_beds_ask_for_a_visible_settle_decision_before_done(self):
         x, z = NX[1], NZ[0]
         b = obj('b', pos=(x, z - 1.0), stage='produced', watered=True, wilted=False)
         b['no_bubble'] = True   # nothing readable shows for it (live: the tulips with no name, the far row)
@@ -2958,11 +2986,13 @@ class VisionBeforeDone(VisitBeds):
         nid, = self.quiet(f, [b['pos']])
         with self.assertRaises(ask.NeedVision) as e:
             engine.achieve('harvest', max_clicks=6)
-        self.assertIn('still lists', str(e.exception))
-        res = engine.achieve('harvest', answer='none', max_clicks=6)
-        self.assertTrue(str(res['stop']).startswith('done'), res['stop'])
-        g = self.graph()
-        self.assertEqual(g.nodes[nid].state['ready']['source'], 'vision')
+        pending = ask.load_state('harvest')['pending']
+        self.assertTrue(pending['decide'])
+        self.assertIn(nid, pending['in_view'])
+        self.assertEqual(engine.parse_decision(f'settle {nid}: ready=false', pending),
+                         ('settle', [nid], {'ready': False}))
+        self.assertTrue(self.graph().state_value(nid, 'ready'))
+        self.assertEqual(f.clicks, [])
 
 
 class TowardTheTarget(EngineBase):
@@ -3027,6 +3057,72 @@ class PauseWhileAsking(EngineBase):
         with self.assertRaises(ask.NeedVision):
             ask.ask('button', 'which?', {'goal': 'harvest'}, {})
         self.assertEqual(calls, [])
+
+
+class ModelDecides(VisitBeds):
+    """When direct interaction is absent, one marked graph/heatmap brief replaces coded near-navigation rungs."""
+
+    def far_game(self):
+        x, z = NX[1], NZ[0]
+        near = obj('near', pos=(x, z - 1.0), stage='growing', watered=True, wilted=False,
+                   badge='none', icon='Carrot')
+        far = obj('far', pos=(x, z - 4.5), stage='produced', watered=True, wilted=False)
+        f = self.geo([near, far], (x, z))
+        g = OG.Graph()
+        g.load(learn.GRAPH)
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        nid = world.find(g, 'GardenBed', far['pos'])
+        for other in world.query(g, {'kind': 'GardenBed'}):
+            if other != nid:
+                g.set_state(other, 'ready', False, 'D185 9:00:00 AM', 'card')
+        g.save(learn.GRAPH)
+        return f, g, nid
+
+    def test_no_direct_action_asks_one_decide_question_with_the_brief(self):
+        f, _, nid = self.far_game()
+        with mock.patch.object(f, 'ask_vision', wraps=f.ask_vision) as vision:
+            with self.assertRaises(ask.NeedVision) as caught:
+                engine.achieve('harvest', max_clicks=6)
+        self.assertEqual(vision.call_args.args[2].size, (1920, 1080))
+        message = str(caught.exception)
+        self.assertIn(nid, message)
+        self.assertIn("'ready': True", message)
+        self.assertEqual(len(f.asks), 1)
+        self.assertEqual(f.clicks, [])
+        pending = ask.load_state('harvest')['pending']
+        self.assertTrue(pending['decide'])
+        self.assertIn(nid, pending['brief_ids'])
+
+    def test_parse_decision_grammar(self):
+        pending = {'brief_ids': ['bed-a', 'bed-b'], 'in_view': ['bed-a']}
+        self.assertEqual(engine.parse_decision('click bed-a', pending), ('click', 'bed-a'))
+        self.assertEqual(engine.parse_decision('walk Q14', pending), ('walk', (1320, 911)))
+        self.assertEqual(engine.parse_decision('settle bed-a: ready=false, crop=Tulip', pending),
+                         ('settle', ['bed-a'], {'ready': False, 'crop': 'Tulip'}))
+        self.assertEqual(engine.parse_decision('done', pending), ('done',))
+        with self.assertRaisesRegex(core.Failed, 'not in the brief'):
+            engine.parse_decision('click missing', pending)
+        with self.assertRaisesRegex(core.Failed, 'own spot'):
+            engine.parse_decision('walk M8', pending)
+        with self.assertRaisesRegex(core.Failed, 'not shown in view'):
+            engine.parse_decision('settle bed-b: ready=false', pending)
+
+    def test_one_decide_per_round(self):
+        f, _, _ = self.far_game()
+        for i in range(ask.MAX_ASKS):
+            with self.assertRaises(ask.NeedVision):
+                engine.achieve('harvest')
+            self.assertEqual(len(f.asks), i + 1)
+            self.assertEqual(f.clicks, [])
+        with self.assertRaises(observe.LawsStuck):
+            engine.achieve('harvest')
+        self.assertEqual(len(f.asks), ask.MAX_ASKS)
+        gaps = engine.I.gaps()
+        self.assertTrue(any('decide' in gap['invariant'] for gap in gaps), gaps)
+
+    def test_settle_requires_an_object(self):
+        with self.assertRaisesRegex(core.Failed, 'at least one object'):
+            engine.parse_decision('settle : ready=false', {'brief_ids': [], 'in_view': []})
 
 
 class EventWait(EngineBase):

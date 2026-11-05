@@ -8,8 +8,10 @@
 - Focused: 67 passed (`CardFromAWalk`, `ClickTheBed`, `VisitBeds`, `ModelDecides`, `CollectOnTheWay`, `test_runwatch`).
 - Full discovery: 549 passed, 5 expected failures. Footer in `full-suite-final.log`.
 
-## Task 6 live gate
+## Task 6 live gate — failed
 
-Run directory: `runs/20261105-1754-model-decides-next-move-harvest/`. The plan was written and reviewed (3 steps, review OK), and Step 1 was started. On resume, `./wf status`, `./wf focus-mode`, `./wf log`, and `./wf state` returned; state confirmed the game remained paused. The unfiltered watcher was attempted. `./wf save` then hung for 15 seconds; `tail -3 .shots/actions.log` showed no save or gameplay input. The exact `wfc save` client PID was terminated. The live gate remains blocked before observation, so there is no live trace, time table, retro, or pass result. The game state was rechecked as `Game Paused`.
+Run directory: `runs/20261105-1754-model-decides-next-move-harvest/`. The plan was reviewed, Step 1 and Step 2 were started, and the unfiltered watcher was run. After cache initialization, status/log/save worked. The game was resumed from D189 4:20 PM. Three explicit object clicks and four decide/vision questions produced zero picks. The first selected projected point moved Tara without bed proof; the next moved her closer but yielded only `beehive_progress*`; a repeat at the same target/point logged `moved=false`, no event/card, and unrelated beehive bubbles. Per the stop rule, no further target was clicked. The game was paused, Step 2 escalated, and the run ended `failed`.
 
-Follow-up: repair the recurring `.shots/wf.sock` / daemon request stall, then resume Step 1 with the reviewed plan and watcher. No claim is made that Task 6 passed.
+Time table (attempt 4): 56 game minutes, 3 clicks, 4 vision questions, 0 picks. Watch output is in `runs/20261105-1754-model-decides-next-move-harvest/watch.md`; full trace and failure analysis are in `retro-1.md`. Retro and learning updates: `runs/20261105-1754-model-decides-next-move-harvest/retro-1.md`, `retros/stuck-ledger.md` S43, `docs/learnings.md` L178, `docs/progress.md`.
+
+Cause: projected screen coordinates were based on stale save position and remained unsuitable after Tara moved. The repeat guard did not stop an unchanged target/point click. S39/S42 protections against wrong-row bubbles held; projection refresh and no-progress refusal need a code fix and offline regression before another live attempt.

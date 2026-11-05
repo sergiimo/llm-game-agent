@@ -53,3 +53,4 @@
 | When | Trip | Stuck | Notes |
 |---|---|---|---|
 | D148 5:20–5:57 pm | RuralBeach road below the ranch → farmhouse (1 `goto`) | 0 | L72–L75 live: road → back link across the border (traced now) → Farm trail → in the House |
+| S43 | D189 4:20–5:11 PM (model-decides-next-move-harvest) | Farm garden approach | 2 object clicks moved without bed proof; repeated third click at same projected point had `moved=false`, no event/card, only beehive bubbles afterward; 0 picks | decision used saved/stale screen projection after Tara moved; unchanged-point repeat was not stopped | refresh projections from fresh event/walk position and refuse repeat same target/point after unchanged view; add test + gap | S39/S42 bubble/target attribution protections | ⚠️ wrong-row click protections held; projection/repeat guard did not |

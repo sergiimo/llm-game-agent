@@ -1032,6 +1032,16 @@ class StreamingGarden(EngineBase):
         with mock.patch.object(act, 'click', return_value=click), self.assertRaisesRegex(core.Failed, 'navigation click triggered'):
             engine._answer(g, 'garden', {}, 'H13', res)
 
+    def test_garden_outside_region_asks_for_region_entry_before_bed_scheduling(self):
+        f = self._game(self._north())
+        with mock.patch.object(brief, '_position', return_value=('unknown', None)):
+            with self.assertRaises(NeedVision) as cm:
+                engine.tend_garden('Garden', ('water',))
+        state = ask.load_state('garden')
+        self.assertTrue(state['pending'].get('garden_entry_only'))
+        self.assertIn('visible entrance', str(cm.exception))
+        self.assertEqual(state['pending'].get('covered'), [])
+
 
 HIVE = {'kind': 'BeeHive', 'when': {'ready': True}, 'bubble': {'kind': 'honey'}, 'event': 'beehive_collect',
         'effect': {'ready': False}}

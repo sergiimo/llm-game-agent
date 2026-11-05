@@ -1242,11 +1242,29 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
         A.ON_EVENT = lambda c: red_flag(c, res)
         if answer is not None:
             _answer(g, 'garden', {}, answer, res)
+            if pending_before.get('garden_entry_only'):
+                res['stop'] = 'entry step completed; re-evaluate Garden region before tending'
+                return res
             if str(res.get('stop')).startswith('done: vision sees none'):
                 res['unresolved'].extend(beds)
                 res['stop'] = f'unresolved: model sees no route to {len(beds)} beds'
                 return res
             ask.progress('garden')
+
+        # A garden pass is only valid from inside the named region. If Tara's position is unknown or
+        # resolves to another area, ask for a visible entrance waypoint before inspecting any beds.
+        from . import brief
+        source, pos = brief._position(g)
+        current_area = world.area_of(g, pos) if pos is not None else None
+        if current_area != region:
+            state = brief.build(g, 'GardenBed', list(remaining), res)
+            avoid = [list(o['screen']) for o in state['objects'] if o.get('screen') is not None]
+            avoid += [list(b['pt']) for b in state['bubbles']]
+            q = (brief.text(state) + f'\nTara is outside or not yet located in {region}. Find its visible entrance; '
+                 'give one cell of clear dirt path toward that entrance. Do not click beds, bubbles, rocks, or fence.')
+            ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'navigation_only': True,
+                                 'garden_entry_only': True, 'avoid': avoid, 'covered': []}, res,
+                    img=ask.draw_grid(brief.draw(W.grab(), state)))
 
         while remaining and not res['stop']:
             if res['clicks'] >= max_clicks:

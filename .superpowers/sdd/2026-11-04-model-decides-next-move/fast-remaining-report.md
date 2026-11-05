@@ -34,3 +34,11 @@ Cause: projected screen coordinates were based on stale save position and remain
 Run directory: `runs/20261105-1839-model-decides-next-move-harvest-final/`. Plan was reviewed; unfiltered watcher ran; Step 1 completed, Step 2 started then escalated, Step 3 started. Game started paused and was resumed for the attempt. At D189 6:50 PM the full-scale decision image showed unknown position and no object screen points. A shell-split walk answer was rejected before input; the pending decision remained available and a corrected quoted H10 answer moved Tara at 7:10 PM. The next brief still reported unknown position, confirming L179/S44's offline fix. O9 was selected from the exact full-scale frame as open path-side ground; its click returned `view unchanged; still` at 7:18 PM. The game was paused immediately; no further live input was made.
 
 Final watcher table: attempt 2, 5.72 wall minutes (6:32 total run elapsed), 1.1 minutes in calls, 2.85 minutes thinking, longest think 34.1s, 8 game minutes, 2 clicks (1 walk, 1 still), 3 vision questions, 0 picks; no red flags, own-spot or wrong-row clicks. Gate failed because one decide answer did not move. Step 2 was escalated, run ended failed. Retro: `runs/20261105-1839-model-decides-next-move-harvest-final/retro-1.md`. Learning L180 records the unresolved no-move ground click. This does not meet the stuck ledger's three-move threshold. The game remains paused. The final live gate did not pass; no more live retries were made.
+
+## Commit history for the remaining flow
+
+- `c808e16` — Tasks 4–5, Collect-on-way and explicit bed-click flow.
+- `2cde8b4` — documented the first failed live gate and stale-projection follow-up.
+- `47faa4e` — guard pending clicks when a known current position differs from the persisted decision position.
+- `21accb2` — invalidate object projections after no-event movement and preserve pending decisions after rejected answers; focused 70 and full 552 tests passed.
+- `5a62fad` — recorded the final supervised live gate failure and paused state.

@@ -990,6 +990,23 @@ class StreamingGarden(EngineBase):
         self.assertNotIn('> grab_item ', '\n'.join(f.log))
         self.assertIn(world.find(self.graph(), 'GardenBed', empty['pos']), res['visited'])
 
+    def test_a_navigation_answer_that_hits_an_empty_bed_closes_seeds_without_running_plant(self):
+        empty = obj('e', pos=(NX[0], NZ[0]), bubble=(920, 371), stage='empty', watered=True,
+                    wilted=False, crop=None)
+        f = self.use(FakeGame([empty], GAME, inventory={'CarrotSeed': 7}))
+        g = self.graph()
+        world.refresh(g, f.read_save()[1], [], None)
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {'region': 'Garden'}, 'navigation_only': True}})
+        res = nav.new_res('garden')
+        res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area='Garden',
+                   spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}})
+        with mock.patch.object(steps, 'run', wraps=steps.run) as run:
+            engine._answer(g, 'garden', {}, 'L6', res)
+        self.assertFalse(run.called)
+        self.assertIsNone(f.card)
+        self.assertEqual(f.objects['e']['state']['stage'], 'empty')
+
 
 HIVE = {'kind': 'BeeHive', 'when': {'ready': True}, 'bubble': {'kind': 'honey'}, 'event': 'beehive_collect',
         'effect': {'ready': False}}

@@ -925,6 +925,9 @@ def _answer(g, name, params, answer, res):
         if c.at:
             world.place(g, c.node.split('@')[0] if c.node else 'Object', c.at, c.events, stamp=_stamp())
             res['area'] = world.area_of(g, c.at)
+        if pend.get('navigation_only'):
+            A.gameplay()   # a navigation click may intersect a bed; close its card, never infer/finish a row
+            return
         row = next((r for r in plan.rows() if r['id'] == pend.get('row')), None)
         if row is None and A.on_card(c) and res.get('spec'):   # any card the goal's rows start with (live D189:
             kind = res['spec'].get('kind')                    # a generic answer click opened Collect - closed)
@@ -1261,7 +1264,7 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     q = (brief.text(state) + f'\nNo bubble for {tid} is in reach. Give one grid cell of FREE GROUND '
                          f'toward the unvisited beds in {region}; do not click a bed or bubble.')
                     ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'node': tid,
-                                         'covered': sorted(set(beds) - remaining)}, res,
+                                         'covered': sorted(set(beds) - remaining), 'navigation_only': True}, res,
                             img=ask.draw_grid(brief.draw(W.grab(), state)))
 
                 crop = getattr(a, 'icon', None) or world.state_of(g, tid).get('crop')

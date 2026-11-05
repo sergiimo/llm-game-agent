@@ -1219,6 +1219,8 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
         A.gameplay()
         if ask.late(res):
             return res
+        pending_before = ask.load_state('garden').get('pending') or {}
+        covered_before = set(pending_before.get('covered') or ()) if answer is not None else set()
         _, save = W.read_save()
         world.refresh(g, save, W.today_log()[0])
         beds = list(world.query(g, {'kind': 'GardenBed', 'region': region}))
@@ -1226,7 +1228,8 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
             res['stop'] = f'no GardenBed nodes in {region}'
             return res
         flowers = set(_param('flowers', {}) or ())
-        remaining, replanting = set(beds), {}
+        remaining, replanting = set(beds) - covered_before, {}
+        res['visited'].extend(n for n in beds if n in covered_before)
         res['spec'] = {'kind': 'GardenBed', 'where': {'region': region}, 'make': {}}
         res['allowed_events'] = set().union(*[_row_events(r) for r in plan.rows()]) | NEUTRAL_EVENTS
         A.ON_EVENT = lambda c: red_flag(c, res)
@@ -1257,7 +1260,8 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     state = brief.build(g, 'GardenBed', list(remaining), res)
                     q = (brief.text(state) + f'\nNo bubble for {tid} is in reach. Give one grid cell of FREE GROUND '
                          f'toward the unvisited beds in {region}; do not click a bed or bubble.')
-                    ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'node': tid}, res,
+                    ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'node': tid,
+                                         'covered': sorted(set(beds) - remaining)}, res,
                             img=ask.draw_grid(brief.draw(W.grab(), state)))
 
                 crop = getattr(a, 'icon', None) or world.state_of(g, tid).get('crop')
@@ -1265,7 +1269,22 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     g.set_state(tid, 'crop', crop, _stamp(), 'bubble')
                 state = world.state_of(g, tid)
                 row = row_params = None
-                if a.ready:
+                if a.kind == 'plant':
+                    if tid not in replanting:
+                        remaining.remove(tid)
+                        res['visited'].append(tid)
+                        _garden_log(tid, 'visited', actions, 'pre-existing empty bed')
+                        break
+                    seed = replanting[tid]
+                    item = seed + 'Seed'
+                    inventory = world.inventory(save, W.today_log()[0])
+                    if inventory.get(item, 0) < 1:
+                        res['unresolved'].append(tid)
+                        remaining.remove(tid)
+                        _garden_log(tid, 'unresolved', actions, f'missing {item}')
+                        break
+                    row, row_params = _garden_row('plant'), {'seed': seed}
+                elif a.ready:
                     if crop in flowers:
                         res['flowers'].append(tid)
                         remaining.remove(tid)
@@ -1279,16 +1298,6 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                         row = _garden_row('remove_wilted')
                     elif 'water' in enabled and state.get('wilted') is not True:
                         row = _garden_row('water')
-                elif a.kind == 'plant' and tid in replanting and 'replant' in enabled:
-                    seed = replanting[tid]
-                    item = seed + 'Seed'
-                    inventory = world.inventory(save, W.today_log()[0])
-                    if inventory.get(item, 0) < 1:
-                        res['unresolved'].append(tid)
-                        remaining.remove(tid)
-                        _garden_log(tid, 'unresolved', actions, f'missing {item}')
-                        break
-                    row, row_params = _garden_row('plant'), {'seed': seed}
 
                 if row is None:
                     remaining.remove(tid)

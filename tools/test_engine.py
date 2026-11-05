@@ -976,6 +976,19 @@ class StreamingGarden(EngineBase):
         self.assertIn('FREE GROUND', str(cm.exception))
         self.assertIn('./wf garden region=Garden answer=', str(cm.exception))
 
+    def test_a_preexisting_empty_bed_with_a_noisy_ready_badge_is_never_harvested_or_planted(self):
+        garden = self._north()
+        empty = garden[0]
+        empty['state'].update(stage='empty', watered=True, crop=None, ready=True)
+        empty['badge'] = 'ready'
+        empty['icon'] = None
+        f = self._game(garden)
+        res = engine.tend_garden('Garden', ('replant', 'harvest', 'water'))
+        self.assertEqual(f.objects[empty['id']]['state']['stage'], 'empty')
+        self.assertNotIn('> plant ', '\n'.join(f.log))
+        self.assertNotIn('> grab_item ', '\n'.join(f.log))
+        self.assertIn(world.find(self.graph(), 'GardenBed', empty['pos']), res['visited'])
+
 
 HIVE = {'kind': 'BeeHive', 'when': {'ready': True}, 'bubble': {'kind': 'honey'}, 'event': 'beehive_collect',
         'effect': {'ready': False}}

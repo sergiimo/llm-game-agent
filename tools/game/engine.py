@@ -928,6 +928,8 @@ def _answer(g, name, params, answer, res):
             world.place(g, c.node.split('@')[0] if c.node else 'Object', c.at, c.events, stamp=_stamp())
             res['area'] = world.area_of(g, c.at)
         if pend.get('navigation_only'):
+            if c.events:
+                raise core.Failed(f'navigation click triggered interaction {c.events}; it was not navigation progress')
             A.gameplay()   # a navigation click may intersect a bed; close its card, never infer/finish a row
             return
         row = next((r for r in plan.rows() if r['id'] == pend.get('row')), None)
@@ -1251,7 +1253,15 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                 res['stop'] = f'click cap {max_clicks}'
                 break
             here = world.tara_pos(g)
-            tid = min(remaining, key=lambda n: math.dist(here, tuple(g.nodes[n].extra['pos'])) if here else 0)
+            # Any owned bed bubble is directly actionable now; do not let nearest-bed ordering
+            # force a navigation question while another bed already has a visible action.
+            from . import brief
+            visible_state = brief.build(g, 'GardenBed', list(remaining), res)
+            visible_beds = [b for b in visible_state['bubbles'] if b.get('owner') in remaining]
+            if visible_beds:
+                tid = visible_beds[0]['owner']
+            else:
+                tid = min(remaining, key=lambda n: math.dist(here, tuple(g.nodes[n].extra['pos'])) if here else 0)
             actions = []
             while tid in remaining and not res['stop']:
                 if res['clicks'] >= max_clicks:
@@ -1261,10 +1271,9 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                 if a is None:
                     # Coverage cannot be inferred from appearance. Ask only for navigation; the next call consumes
                     # the cell and resumes bubble-first inspection, never settling a bed from appearance.
-                    from . import brief
                     state = brief.build(g, 'GardenBed', list(remaining), res)
                     q = (brief.text(state) + f'\nNo bubble for {tid} is in reach. Give one grid cell of FREE GROUND '
-                         f'toward the unvisited beds in {region}; do not click a bed or bubble.')
+                         f'away from bed footprints and bubbles, toward the unvisited beds in {region}; do not click a bed or bubble.')
                     avoid = [list(o['screen']) for o in state['objects'] if o.get('screen') is not None]
                     avoid += [list(b['pt']) for b in state['bubbles']]
                     ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'node': tid,

@@ -975,6 +975,7 @@ class StreamingGarden(EngineBase):
             engine.tend_garden('Garden', ('water',))
         self.assertIn('FREE GROUND', str(cm.exception))
         self.assertIn('./wf garden region=Garden answer=', str(cm.exception))
+        self.assertIn('FREE GROUND away from bed footprints', str(cm.exception))
 
     def test_a_preexisting_empty_bed_with_a_noisy_ready_badge_is_never_harvested_or_planted(self):
         garden = self._north()
@@ -1018,6 +1019,18 @@ class StreamingGarden(EngineBase):
         with self.assertRaisesRegex(core.Failed, 'inside a garden object hitbox'):
             engine._answer(g, 'garden', {}, 'K12', res)
         self.assertEqual(f.clicks, [])
+
+    def test_a_navigation_click_that_triggers_a_bed_action_is_not_progress(self):
+        f = self.use(FakeGame([], GAME))
+        g = self.graph()
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {}, 'navigation_only': True, 'avoid': []}})
+        res = nav.new_res('garden')
+        res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area='Garden',
+                   spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}})
+        click = act.Click((600, 844), 'point', 0, events=['plant'], mode='gameplay')
+        with mock.patch.object(act, 'click', return_value=click), self.assertRaisesRegex(core.Failed, 'navigation click triggered'):
+            engine._answer(g, 'garden', {}, 'H13', res)
 
 
 HIVE = {'kind': 'BeeHive', 'when': {'ready': True}, 'bubble': {'kind': 'honey'}, 'event': 'beehive_collect',

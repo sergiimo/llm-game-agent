@@ -1185,6 +1185,167 @@ def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
         _log(res)
 
 
+def _garden_row(row_id):
+    return next(r for r in plan.rows('GardenBed') if r['id'] == row_id)
+
+
+def _garden_log(nid, status, actions, reason=None):
+    """One compact coverage record per bed, separate from the transition experiences."""
+    try:
+        core.WF.run_log('garden_visit', node=nid, status=status, actions=list(actions), reason=reason)
+    except Exception:   # noqa: BLE001
+        pass
+
+
+def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=None, max_clicks=MAX_CLICKS):
+    """Inspect and immediately tend each garden bed before advancing to the next one.
+
+    The graph is only the coverage list.  A live bubble chooses the action; cards and events prove its result.
+    Pre-existing empty beds are left alone.  A bed made empty by removing a wilted crop is replanted with that
+    crop when its seed exists, then watered before the traversal advances.
+    """
+    enabled = set(chores or ())
+    unknown = enabled - {'replant', 'harvest', 'water'}
+    if unknown:
+        raise core.Failed(f'unknown garden chores: {", ".join(sorted(unknown))}')
+    W = core.WF
+    res = N.new_res('garden')
+    res.update(goal='garden', region=region, chores=sorted(enabled), visited=[], acted=[], flowers=[], unresolved=[],
+               harvested=0, watered=0, replanted=0, clicks=0, vision=0, subgoals=0, learned=[], surprises=[],
+               notes=[], area=None, skip=[], fails={}, btried=[], params={})
+    g = _open_graph()
+    try:
+        O.check_language()
+        A.gameplay()
+        if ask.late(res):
+            return res
+        _, save = W.read_save()
+        world.refresh(g, save, W.today_log()[0])
+        beds = list(world.query(g, {'kind': 'GardenBed', 'region': region}))
+        if not beds:
+            res['stop'] = f'no GardenBed nodes in {region}'
+            return res
+        flowers = set(_param('flowers', {}) or ())
+        remaining, replanting = set(beds), {}
+        res['allowed_events'] = set().union(*[_row_events(r) for r in plan.rows()]) | NEUTRAL_EVENTS
+        A.ON_EVENT = lambda c: red_flag(c, res)
+
+        while remaining and not res['stop']:
+            if res['clicks'] >= max_clicks:
+                res['stop'] = f'click cap {max_clicks}'
+                break
+            here = world.tara_pos(g)
+            tid = min(remaining, key=lambda n: math.dist(here, tuple(g.nodes[n].extra['pos'])) if here else 0)
+            actions = []
+            while tid in remaining and not res['stop']:
+                if res['clicks'] >= max_clicks:
+                    res['stop'] = f'click cap {max_clicks}'
+                    break
+                a = _visit(g, tid, 'GardenBed', res)
+                if a is None:
+                    # Coverage cannot be inferred from appearance.  Hand the exact unresolved nodes to one guarded
+                    # model decision, rather than claiming that an unseen bed is complete.
+                    res['unresolved'].append(tid)
+                    remaining.remove(tid)
+                    _garden_log(tid, 'unresolved', actions, 'bubble not visible at graph node')
+                    break
+
+                crop = getattr(a, 'icon', None) or world.state_of(g, tid).get('crop')
+                if crop:
+                    g.set_state(tid, 'crop', crop, _stamp(), 'bubble')
+                state = world.state_of(g, tid)
+                row = row_params = None
+                if a.ready:
+                    if crop in flowers:
+                        res['flowers'].append(tid)
+                        remaining.remove(tid)
+                        res['visited'].append(tid)
+                        _garden_log(tid, 'flower', actions, crop)
+                        break
+                    if 'harvest' in enabled:
+                        row = _garden_row('pick')
+                elif a.drop:
+                    if 'replant' in enabled and (a.kind == 'unplant' or state.get('wilted') is True):
+                        row = _garden_row('remove_wilted')
+                    elif 'water' in enabled and state.get('wilted') is not True:
+                        row = _garden_row('water')
+                elif a.kind == 'plant' and tid in replanting and 'replant' in enabled:
+                    seed = replanting[tid]
+                    item = seed + 'Seed'
+                    inventory = world.inventory(save, W.today_log()[0])
+                    if inventory.get(item, 0) < 1:
+                        res['unresolved'].append(tid)
+                        remaining.remove(tid)
+                        _garden_log(tid, 'unresolved', actions, f'missing {item}')
+                        break
+                    row, row_params = _garden_row('plant'), {'seed': seed}
+
+                if row is None:
+                    remaining.remove(tid)
+                    res['visited'].append(tid)
+                    _garden_log(tid, 'visited', actions)
+                    break
+
+                need = row.get('needs') or {}
+                for key, value in need.items():
+                    if key.startswith('Tara.') and g.state_value('Tara', key.split('.', 1)[1]) not in (None, value):
+                        if not _subgoal(g, key, value, 'garden', {}, res):
+                            res['unresolved'].append(tid)
+                            remaining.remove(tid)
+                            _garden_log(tid, 'unresolved', actions, f'sub-goal {key}={value} failed')
+                            break
+                if tid not in remaining:
+                    break
+                out = steps.run(row, row_params or {}, a, state)
+                res['clicks'] += out['clicks']
+                nid = _learn(g, out, 'GardenBed', row, res)
+                plan.count(row['id'], out['ok'])
+                if not out['ok']:
+                    res['unresolved'].append(tid)
+                    remaining.remove(tid)
+                    _garden_log(tid, 'unresolved', actions, out.get('why') or str(out.get('surprises')))
+                    A.gameplay()
+                    break
+                actual = nid or tid
+                if actual != tid:
+                    res['unresolved'].append(tid)
+                    remaining.remove(tid)
+                    _garden_log(tid, 'unresolved', actions, f'action proved {actual}')
+                    break
+                actions.append(row['id'])
+                if tid not in res['acted']:
+                    res['acted'].append(tid)
+                if row['id'] == 'pick':
+                    res['harvested'] += 1
+                elif row['id'] == 'water':
+                    res['watered'] += 1
+                elif row['id'] == 'remove_wilted':
+                    seed = out.get('stored', {}).get('crop') or crop
+                    if seed:
+                        replanting[tid] = seed
+                elif row['id'] == 'plant':
+                    res['replanted'] += 1
+                    # Plant's final Space may water immediately; count the proven event and otherwise rescan.
+                    if any(e in ('water', 'hazel_waterplant') for e in out.get('events', ())):
+                        res['watered'] += 1
+                ask.progress('garden')
+
+        if not res['stop']:
+            res['stop'] = ('done: all beds visited' if not res['unresolved'] else
+                           f'unresolved: {len(res["unresolved"])} of {len(beds)} beds')
+        return res
+    finally:
+        res['left'] = len(remaining) if 'remaining' in locals() else None
+        try:
+            g.save(L.graph_path())
+        except OSError:
+            pass
+        L.MEMORY['graph'] = None
+        A.ON_EVENT = None
+        LAST.clear()
+        LAST.update(res)
+
+
 def summary(res):
     """One line for the agent: done/left, clicks, vision, sub-goals, learned rows, surprises, stop."""
     return (f"{res['goal']}: done {len(res['done'])}, left {res.get('left')}, clicks {res['clicks']}, "

@@ -894,6 +894,80 @@ class Loop(EngineBase):
         self.assertEqual(len(res['done']), 2)
 
 
+class StreamingGarden(EngineBase):
+    """A garden pass finishes one bed before inspecting the next."""
+
+    def _game(self, objects, inventory=None):
+        f = self.use(FakeGame(objects, GAME, inventory=inventory or {}))
+        first = next(o for o in objects if o['kind'] == 'GardenBed')
+        f.log.append(L('9:00:00 AM', 'plant_growing', 'GardenBed', *first['pos']))
+        p = mock.patch.object(where, 'position', lambda far_ok=True, walk_ok=False: ('event', first['pos']))
+        p.start()
+        self.addCleanup(p.stop)
+        return f
+
+    def _north(self):
+        out = beds('n', NX, NZ, 'near', 500, 300, stage='growing', watered=True, wilted=False,
+                   crop='Green Bean')
+        for o in out:
+            o['bubble_pt'] = engine.screen_point((NX[0], NZ[0]), o['pos'])
+            o['icon'] = 'Green Bean'
+        return out
+
+    def test_harvested_bed_is_watered_before_the_next_bed_is_acted_on(self):
+        garden = self._north()
+        ripe = garden[0]
+        ripe['state'].update(stage='produced', crop='Green Bean')
+        ripe['icon'] = 'Green Bean'
+        dry = garden[1]
+        dry['state'].update(watered=False, crop='Carrot')
+        dry['icon'] = 'Carrot'
+        f = self._game(garden)
+
+        res = engine.tend_garden('Garden', ('harvest', 'water'))
+
+        events = [f.event_kind([line]) for line in f.log if '> ' in line]
+        self.assertEqual(events[-3:], ['grab_item', 'water', 'water'])
+        self.assertEqual(res['visited'][:2], [world.find(self.graph(), 'GardenBed', ripe['pos']),
+                                              world.find(self.graph(), 'GardenBed', dry['pos'])])
+        events = [f.event_kind([line]) for line in f.log if '> ' in line]
+        self.assertLess(events.index('grab_item'), events.index('water'))
+        self.assertEqual((res['harvested'], res['watered'], res['stop']), (1, 2, 'done: all beds visited'))
+
+    def test_ready_flowers_stay_and_beds_outside_the_region_are_untouched(self):
+        garden = self._north()
+        flower = garden[0]
+        flower['state'].update(stage='produced', crop='Tulip')
+        flower['icon'] = 'Tulip'
+        south = obj('south', pos=(SX[0], SZ[0]), zone='south', bubble=(620, 650), stage='growing',
+                    watered=False, wilted=False, crop='Carrot')
+        south['icon'] = 'Carrot'
+        f = self._game(garden + [south])
+
+        res = engine.tend_garden('Garden', ('harvest', 'water'))
+
+        self.assertEqual(res['flowers'], [world.find(self.graph(), 'GardenBed', flower['pos'])])
+        self.assertEqual(f.objects[flower['id']]['state']['stage'], 'produced')
+        self.assertFalse(f.objects['south']['state']['watered'])
+        self.assertNotIn(world.find(self.graph(), 'GardenBed', south['pos']), res['visited'])
+
+    def test_missing_replant_seed_marks_only_that_bed_unresolved(self):
+        garden = self._north()
+        wilted = garden[0]
+        wilted['state'].update(watered=False, wilted=True, crop='Carrot')
+        wilted['icon'] = 'Carrot'
+        dry = garden[1]
+        dry['state'].update(watered=False, crop='Green Bean')
+        dry['icon'] = 'Green Bean'
+        f = self._game(garden, inventory={})
+
+        res = engine.tend_garden('Garden', ('replant', 'water'))
+
+        self.assertIn(world.find(self.graph(), 'GardenBed', wilted['pos']), res['unresolved'])
+        self.assertTrue(f.objects[dry['id']]['state']['watered'])
+        self.assertEqual(res['stop'], 'unresolved: 1 of 12 beds')
+
+
 HIVE = {'kind': 'BeeHive', 'when': {'ready': True}, 'bubble': {'kind': 'honey'}, 'event': 'beehive_collect',
         'effect': {'ready': False}}
 

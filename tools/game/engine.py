@@ -1271,7 +1271,7 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                  f'give one cell of clear dirt path toward that entrance. Do not click beds, bubbles, rocks, or fence. '
                  f'If Tara is visibly inside {region}, answer inside.')
             ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'navigation_only': True,
-                                 'garden_entry_only': True, 'avoid': avoid, 'covered': []}, res,
+                                 'garden_entry_only': True, 'avoid': avoid, 'covered': [], 'streaming': True}, res,
                     img=ask.draw_grid(brief.draw(W.grab(), state)))
 
         while remaining and not res['stop']:
@@ -1304,7 +1304,8 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     avoid += [list(b['pt']) for b in state['bubbles']]
                     ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'node': tid,
                                          'covered': sorted(set(beds) - remaining), 'navigation_only': True,
-                                         'avoid': avoid, 'inside_region': res.get('inside_region')}, res,
+                                         'avoid': avoid, 'inside_region': res.get('inside_region'),
+                                         'streaming': True}, res,
                             img=ask.draw_grid(brief.draw(W.grab(), state)))
 
                 crop = getattr(a, 'icon', None) or world.state_of(g, tid).get('crop')

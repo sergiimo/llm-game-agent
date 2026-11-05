@@ -3347,6 +3347,16 @@ class PauseWhileAsking(EngineBase):
             ask.ask('button', 'which?', {'goal': 'harvest'}, {})
         self.assertEqual(calls, [])
 
+    def test_a_streaming_question_keeps_the_game_running(self):
+        f = self.use(FakeGame([], GAME))
+        calls = []
+        f.set_paused = lambda want: calls.append(want) or 'paused'
+
+        with self.assertRaises(ask.NeedVision):
+            ask.ask('click', 'where next?', {'goal': 'garden', 'streaming': True}, {})
+
+        self.assertEqual(calls, [])
+
 
 class ModelDecides(VisitBeds):
     """When direct interaction is absent, one marked graph/heatmap brief replaces coded near-navigation rungs."""

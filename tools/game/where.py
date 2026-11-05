@@ -130,6 +130,14 @@ def position(far_ok=True, walk_ok=False):
     return ('map', w) if w is not None else (None, None)
 
 
+def invalidated_by_unpositioned_walk():
+    """True after a walk with no known endpoint and no later positioned event.
+
+    The saved position is stale after movement; without a walk endpoint, object projections must stay unknown.
+    """
+    return _walk_mark() is not None and _WALK.get('to') is None and _event_pos() is None
+
+
 def calibrate_here():
     """A fresh event position + the map pin now = one more pair. True when added."""
     p = _event_pos()

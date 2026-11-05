@@ -92,12 +92,25 @@ class Rules(unittest.TestCase):
                            {'type': 'vision', 'what': 'ask', 'kind': 'click', 'question': 'Goal plant: no bubble'}])
         self.assertEqual([lv for lv, _ in out], ['NOTE', 'NOTE'])
 
+    def test_perception_is_reported_separately_from_model_vision(self):
+        w = RW.Watch()
+        row = {'type': 'perception', 'source': 'object_heatmap',
+               'detections': [{'kind': 'GardenBed', 'pt': [400, 300]}]}
+        self.assertEqual(w.feed(row), [('INFO', 'perception object_heatmap: GardenBed@400,300')])
+        self.assertIn('perception object_heatmap', RW.trace_lines([dict(row, t=1.0)])[0])
+        self.assertEqual(RW.times([dict(row, t=1.0)])[0]['vision'], 0)
+
     def test_an_engine_stop_that_is_not_done_is_an_alert(self):
         out = self.levels([{'type': 'engine', 'goal': 'plant', 'done': 0, 'left': 11, 'clicks': 4, 'vision': 0,
                             'stop': 'missing TulipSeed'}])
         self.assertEqual(out[0][0], 'ALERT')
         self.assertEqual(self.levels([{'type': 'engine', 'goal': 'plant', 'done': 12, 'left': 0, 'clicks': 14,
                                        'vision': 0, 'stop': 'done: query empty'}]), [])
+
+    def test_the_watcher_flags_a_red_flag_stop(self):
+        out = self.levels([{'type': 'engine', 'goal': 'harvest', 'done': 0, 'left': 3, 'clicks': 1,
+                            'vision': 0, 'stop': 'RED FLAG: wrong event'}])
+        self.assertEqual(out[0][0], 'STOP')
 
     def test_every_click_gets_a_short_info_line(self):
         w = RW.Watch()
@@ -178,6 +191,16 @@ class Trace(unittest.TestCase):
         self.assertIn('out_of_water', lines[1])
         self.assertIn('nearest ready', lines[0])
         self.assertIn('carrot with a drop', lines[2])
+
+    def test_reasoning_cycle_is_visible_in_the_single_trace(self):
+        rows = [{'t': 1.0, 'type': 'reasoning', 'cycle': 'abc123', 'phase': 'clues',
+                 'decision': 'need_model_vision', 'vision_requested': True},
+                {'t': 2.0, 'type': 'reasoning', 'cycle': 'abc123', 'phase': 'outcome',
+                 'action': 'target', 'verdict': 'miss', 'code_fix': 'evaluate_gap'}]
+        lines = RW.trace_lines(rows)
+        self.assertIn('abc123 clues', lines[0])
+        self.assertIn('vision=True', lines[0])
+        self.assertIn('gap=evaluate_gap', lines[1])
 
 
 if __name__ == '__main__':

@@ -8,7 +8,7 @@
 |---|---|---|---|---|---|
 | R1 | **Water the garden** (12 beds, 4×3 grid left of the farmhouse) | every day; **skip if** today's log says `Forecast is Rain/Storm` (rain waters everything). Wilted beds first | `./wf py "water_all()"`: the chain waters every growing, unwatered bed tile by tile (no positions), and refills at the well only after `out_of_water`. Rusty can: **5 beds per fill** (D156 live) | `./wf routines` R1 = DONE (`> water me=Player target=GardenBed` lines today ≥ beds not ripe) | ~7 ⚡ and ~10 game min per pour |
 | R2 | **Harvest ripe crops** | when the save shows `plantState ##produced` in a bed | `go:` onto the ripe bed → bag bubble → `act:pickup` (harvest = pickup ❓ verify) | R2 = DONE | free |
-| R3 | Bee hives (8) | ❓ (log shows pollen levels per hive overnight) | ❓ | ❓ | ❓ |
+| R3 | Bee hives (8) | daily garden pass; collect only ready honey, otherwise inspect current progress | included in `./wf garden`; visit each hive once by bubble/target proof | all 8 hives have current-pass coverage; ready honey collected | free |
 
 ## Rules
 - **Morning order:** routines (R1 wilted beds first) → quests.
@@ -21,3 +21,14 @@
 - New bubble kinds on the way (`fill_can`, `water`) are learned by one deliberate Space (docs/self-improvement.md).
 - Trips are the same every day: record them as anchored edges (`./wf edge add`), replay them (`./wf edge replay`).
 - Status is exact, not remembered: always re-run `./wf routines` instead of counting by hand.
+
+# Fast garden pass
+
+Run `./wf garden` for the default Garden. It keeps one persistent coverage queue containing every graph bed and hive in
+the region. For each visible target it immediately completes the applicable rule: harvest non-flowers, remove and
+replant wilted crops when the same seed is available, then water; collect ready honey; inspect non-ready hives. Ready
+flowers and pre-existing empty beds stay untouched.
+
+With no fitting bubble, answer `target <cell>` only when the target and the full road from Tara are visible; otherwise
+use `walk <cell>` for one short visible-ground waypoint. The event position, never projected ownership, decides which
+target received coverage. Use `region=GardenSouth` for the south plot.

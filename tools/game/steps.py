@@ -37,10 +37,17 @@ def run(row, params, bubble, node_state=None):
     'failed_step', 'missing', 'stored'}."""
     from .plan import resolve
     r = resolve(row, params or {})
+    cycle = I.reasoning('clues', goal=r['kind'], row=r['id'], state=node_state or {},
+                        bubble={'kind': getattr(bubble, 'kind', None), 'pt': getattr(bubble, 'pt', None),
+                                'drop': bool(getattr(bubble, 'drop', False)),
+                                'ready': bool(getattr(bubble, 'ready', False))},
+                        decision='ready_to_act', vision_requested=False)
     out = {'ok': True, 'events': [], 'lines': [], 'at': None, 'kind': None, 'surprises': [], 'clicks': 0,
            'failed_step': None, 'missing': None, 'stored': {}, 'row': r['id'], 'after': [], 'exps': [],
            'frame': {'drop': bool(getattr(bubble, 'drop', False)), 'ready': bool(getattr(bubble, 'ready', False))}}
     for i, s in enumerate(r['steps']):
+        I.reasoning('final_decision', cycle, action=s['do'], argument=s.get('arg'), step=i,
+                    reason=f"transition {r['id']} fits the observed bubble and state")
         mark = core.WF.log_mark()
         lines, events, c = [], [], None
         goal = {'row': r['id'], 'step': i, 'params': params or {}}
@@ -90,7 +97,11 @@ def run(row, params, bubble, node_state=None):
         if bad:
             out['surprises'] += [(i, f, w, g) for f, w, g in bad]
             out.update(ok=False, failed_step=i, screen=_card())   # the card still open: what vision is asked about
+            I.reasoning('outcome', cycle, action=s['do'], step=i, experience=out['exps'][-1] if out['exps'] else None,
+                        events=events, verdict='miss', code_fix='evaluate_gap', discrepancy=bad)
             break
+        I.reasoning('outcome', cycle, action=s['do'], step=i, experience=out['exps'][-1] if out['exps'] else None,
+                    events=events, verdict='hit' if s.get('expect') else 'observed')
     for line in out['lines']:
         p = A.position_of(line)
         if p:

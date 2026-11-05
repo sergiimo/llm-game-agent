@@ -18,6 +18,7 @@ import re
 import subprocess
 import time
 import types
+import uuid
 
 from . import act as A, core, experience as X, observe as O
 
@@ -26,6 +27,21 @@ GAP_REPEAT = 2         # the same unresolved check failing this many times = a g
 CARD_WAIT = 3.0        # s an expected card gets to show after the action (live D189: Collect came late)
 _APPLIED = {}          # journal dir -> set of applied update keys (cache of applied.txt)
 _RESOLVED = set()      # experience ids a later rule explained (an info card, another row's card): never a gap
+
+
+def reasoning(phase, cycle=None, **fields):
+    """Record one explicit decision-loop phase in the task's single run log.
+
+    This is concise, structured rationale rather than hidden model scratch work.  A shared cycle id lets retros join
+    deterministic clues, an optional vision request, the final action, its experience, and a possible code gap.
+    """
+    cycle = cycle or uuid.uuid4().hex[:12]
+    try:
+        core.WF.run_log('reasoning', cycle=cycle, phase=phase,
+                        **{k: v for k, v in fields.items() if v is not None})
+    except Exception:   # noqa: BLE001 (tracing never breaks play)
+        pass
+    return cycle
 
 
 # ---- storage --------------------------------------------------------------------------------------------------------

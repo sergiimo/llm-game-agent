@@ -135,6 +135,8 @@ def hint(goal, params):
     ps = ' '.join(f'{k}={v}' for k, v in (params or {}).items())
     if isinstance(goal, str) and goal.startswith('forage:'):   # the foraging strategy (game/forage.py)
         return f'./wf forage {goal.split(":", 1)[1]}{" " + ps if ps else ""} answer='
+    if goal == 'garden':
+        return f'./wf garden{" " + ps if ps else ""} answer='
 
     g = goal if isinstance(goal, str) and re.fullmatch(r'\w+', goal) else f"'{json.dumps(goal)}'"
     return f'./wf achieve {g}{" " + ps if ps else ""} answer='
@@ -143,6 +145,8 @@ def hint(goal, params):
 def ask(kind, question, pending, res, img=None):
     """Raise NeedVision for ONE question (`click` | `button` | `name`) with the frame (or `img`: the map marked up for
     a way question); LawsStuck after MAX_ASKS."""
+    if kind == 'decide':
+        kind = 'name'   # a free-form answer with a supplied image, using the existing name path
     goal = pending.get('goal')
     st = load_state(goal)
     if st['asks'] >= MAX_ASKS:
@@ -159,6 +163,8 @@ def ask(kind, question, pending, res, img=None):
     save_state(st)
     how = {'click': 'a grid cell (e.g. Q14), or none', 'button': 'the exact on-screen text to press',
            'name': 'key=value (what changed), or the name'}[kind]
+    if pending.get('decide'):
+        how = 'click <object id> | walk <cell> | settle <ids>: key=value | done'
     ans = hint(goal, pending.get('params')) + f'<{how}>'
     q = question + (f' The search already tried, in order: {"; ".join(tr[-10:])}.' if tr else '')
     try:
@@ -167,7 +173,8 @@ def ask(kind, question, pending, res, img=None):
     except Exception:   # noqa: BLE001
         prompt = f'NEED_VISION {kind}: {q} (no frame saved: ./wf look)'
     res['vision'] = res.get('vision', 0) + 1
-    _freeze()
+    if not pending.get('streaming'):
+        _freeze()
     raise NeedVision(f'{prompt}\n  answer: {ans}')
 
 

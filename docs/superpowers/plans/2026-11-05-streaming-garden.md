@@ -41,13 +41,13 @@ unresolved. Existing garden wrappers and a new `./wf garden` command share the s
 - Produces: `tend_garden(region, chores, answer=None, max_clicks=...) -> dict` with `visited`, `acted`, `flowers`,
   `unresolved`, chore counts, clicks, vision, and stop.
 
-- [ ] **Step 1: Write failing tests** for immediate per-bed action ordering, flower skipping, region isolation, and
+- [x] **Step 1: Write failing tests** for immediate per-bed action ordering, flower skipping, region isolation, and
   unresolved coverage on missing seed/no progress. Assert real FakeGame click/event order and final bed state.
-- [ ] **Step 2: Run the focused tests and verify RED** because `tend_garden` does not exist.
-- [ ] **Step 3: Implement the minimal streaming scheduler**, reusing current bubble ownership, row execution, refill,
+- [x] **Step 2: Run the focused tests and verify RED** because `tend_garden` does not exist.
+- [x] **Step 3: Implement the minimal streaming scheduler**, reusing current bubble ownership, row execution, refill,
   evidence learning, and navigation guards. Log one `garden_visit` row per completed or unresolved bed.
-- [ ] **Step 4: Run focused engine tests and verify GREEN.**
-- [ ] **Step 5: Commit** with message `engine: tend garden beds in one streaming pass`.
+- [x] **Step 4: Run focused engine tests and verify GREEN.**
+- [x] **Step 5: Commit** with message `engine: tend garden beds in one streaming pass`.
 
 ### Task 2: Public garden command and default task routing
 
@@ -64,12 +64,12 @@ unresolved. Existing garden wrappers and a new `./wf garden` command share the s
 - Produces: `garden.do(region='Garden', answer=None, max_clicks=...)`; CLI `./wf garden`; existing `water_all`,
   `harvest_all`, and `replant_all` route through the scheduler with their respective chore enabled.
 
-- [ ] **Step 1: Write failing wrapper/CLI tests** proving `garden.do` enables `replant,harvest,water` in that order,
+- [x] **Step 1: Write failing wrapper/CLI tests** proving `garden.do` enables `replant,harvest,water` in that order,
   single-task wrappers use the same scheduler, and CLI defaults to `Garden`.
-- [ ] **Step 2: Run focused tests and verify RED.**
-- [ ] **Step 3: Implement wrappers, CLI dispatch, concise output, and routine documentation.**
-- [ ] **Step 4: Run focused tests, then the complete `tools/test_*.py` suite.**
-- [ ] **Step 5: Commit** with message `garden: add one-command streaming maintenance`.
+- [x] **Step 2: Run focused tests and verify RED.**
+- [x] **Step 3: Implement wrappers, CLI dispatch, concise output, and routine documentation.**
+- [x] **Step 4: Run focused tests, then the complete `tools/test_*.py` suite.**
+- [x] **Step 5: Commit** with message `garden: add one-command streaming maintenance`.
 
 ### Task 3: Separate perception logging from model vision
 
@@ -83,9 +83,9 @@ unresolved. Existing garden wrappers and a new `./wf garden` command share the s
 - Consumes: the detector/heatmap portion of a decision brief.
 - Produces: a `perception` run event summarizing detected kinds/points; existing `vision` events remain model questions.
 
-- [ ] **Step 1: Write failing tests** proving heatmap detection logs `perception`, while a model question logs `vision`,
+- [x] **Step 1: Write failing tests** proving heatmap detection logs `perception`, while a model question logs `vision`,
   and the watcher renders distinct labels.
-- [ ] **Step 2: Run focused tests and verify RED.**
-- [ ] **Step 3: Add the logging boundary without duplicating images or model calls.**
-- [ ] **Step 4: Run focused and complete suites.**
-- [ ] **Step 5: Commit** with message `logging: distinguish perception from model vision`.
+- [x] **Step 2: Run focused tests and verify RED.**
+- [x] **Step 3: Add the logging boundary without duplicating images or model calls.**
+- [x] **Step 4: Run focused and complete suites.**
+- [x] **Step 5: Commit** with message `logging: distinguish perception from model vision`.

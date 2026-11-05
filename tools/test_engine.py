@@ -897,8 +897,8 @@ class Loop(EngineBase):
 class StreamingGarden(EngineBase):
     """A garden pass finishes one bed before inspecting the next."""
 
-    def _game(self, objects, inventory=None):
-        f = self.use(FakeGame(objects, GAME, inventory=inventory or {}))
+    def _game(self, objects, inventory=None, game=GAME):
+        f = self.use(FakeGame(objects, game, inventory=inventory or {}))
         first = next(o for o in objects if o['kind'] == 'GardenBed')
         f.log.append(L('9:00:00 AM', 'plant_growing', 'GardenBed', *first['pos']))
         p = mock.patch.object(where, 'position', lambda far_ok=True, walk_ok=False: ('event', first['pos']))
@@ -933,6 +933,22 @@ class StreamingGarden(EngineBase):
         events = [f.event_kind([line]) for line in f.log if '> ' in line]
         self.assertLess(events.index('grab_item'), events.index('water'))
         self.assertEqual((res['harvested'], res['watered'], res['stop']), (1, 2, 'done: all beds visited'))
+
+    def test_harvested_crop_is_replanted_and_watered_in_place_before_advancing(self):
+        garden = self._north()
+        ripe = garden[0]
+        ripe['state'].update(stage='produced', crop='Carrot')
+        ripe['icon'] = 'Carrot'
+        game = json.loads(json.dumps(GAME))
+        next(r for r in game if r.get('event') == 'grab_item')['effect'] = {
+            'stage': 'empty', 'crop': None, 'watered': False}
+        f = self._game(garden, inventory={'CarrotSeed': 3}, game=game)
+
+        res = engine.tend_garden('Garden', ('harvest', 'replant', 'water'))
+
+        events = [f.event_kind([line]) for line in f.log if '> ' in line]
+        self.assertEqual(events[-3:], ['grab_item', 'plant', 'water'])
+        self.assertEqual((res['harvested'], res['replanted']), (1, 1))
 
     def test_ready_flowers_stay_and_beds_outside_the_region_are_untouched(self):
         garden = self._north()
@@ -1066,6 +1082,25 @@ class StreamingGarden(EngineBase):
 
         self.assertNotEqual(res['stop'], 'entry step completed; re-evaluate Garden region before tending')
         self.assertEqual(res['inside_region'], 'Garden')
+
+    def test_visible_unowned_water_bubble_is_acted_on_before_asking_to_navigate(self):
+        garden = self._north()
+        dry = garden[0]
+        dry['state'].update(watered=False, crop='Carrot')
+        dry['kind_override'] = 'water'
+        dry['drop'] = True
+        f = self._game(garden)
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {'region': 'Garden'},
+            'navigation_only': True, 'garden_entry_only': True, 'covered': [], 'streaming': True}})
+
+        with mock.patch.object(where, 'position', return_value=('unknown', None)), \
+                mock.patch.object(brief, '_position', return_value=('unknown', None)):
+            with self.assertRaises(NeedVision):
+                engine.tend_garden('Garden', ('water',), answer='inside')
+
+        self.assertIn('> water ', '\n'.join(f.log))
+        self.assertEqual(engine.LAST['watered'], 1)
 
 
 HIVE = {'kind': 'BeeHive', 'when': {'ready': True}, 'bubble': {'kind': 'honey'}, 'event': 'beehive_collect',

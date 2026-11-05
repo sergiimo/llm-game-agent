@@ -1284,16 +1284,71 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
             from . import brief
             visible_state = brief.build(g, 'GardenBed', list(remaining), res)
             visible_beds = [b for b in visible_state['bubbles'] if b.get('owner') in remaining]
-            if visible_beds:
+            visible_actions = []
+            affordances = {tuple(x.pt): x for x in O.scan()}
+            for bubble in visible_state['bubbles']:
+                a = affordances.get(tuple(bubble['pt']))
+                row_id = ('water' if a is not None and a.kind == 'water' and 'water' in enabled else
+                          'remove_wilted' if a is not None and a.kind == 'unplant' and 'replant' in enabled else
+                          'pick' if a is not None and a.kind != 'plant' and a.ready and a.icon not in flowers
+                          and 'harvest' in enabled else None)
+                if row_id:
+                    visible_actions.append((a, _garden_row(row_id)))
+
+            # A visible action is stronger evidence than a stale/missing Tara coordinate. Act first; its log event
+            # carries the bed's world position, which identifies the node without a navigation detour.
+            if visible_actions:
+                a, row = visible_actions[0]
+                need = row.get('needs') or {}
+                for key, value in need.items():
+                    if key.startswith('Tara.') and g.state_value('Tara', key.split('.', 1)[1]) not in (None, value):
+                        if not _subgoal(g, key, value, 'garden', {}, res):
+                            res['stop'] = f'unresolved: sub-goal {key}={value} failed for visible {row["id"]} bubble'
+                            break
+                if res['stop']:
+                    break
+                out = steps.run(row, {}, a, {})
+                res['clicks'] += out['clicks']
+                tid = _learn(g, out, 'GardenBed', row, res)
+                plan.count(row['id'], out['ok'])
+                if not out['ok'] or tid not in remaining:
+                    res['stop'] = (out.get('why') or f'visible {row["id"]} action did not identify a remaining bed')
+                    break
+                actions = [row['id']]
+                if tid not in res['acted']:
+                    res['acted'].append(tid)
+                if row['id'] == 'water':
+                    res['watered'] += 1
+                    remaining.remove(tid)
+                    res['visited'].append(tid)
+                    _garden_log(tid, 'visited', actions)
+                    ask.progress('garden')
+                    continue
+                if row['id'] == 'pick':
+                    res['harvested'] += 1
+                    if 'replant' in enabled and getattr(a, 'icon', None):
+                        replanting[tid] = a.icon
+                elif row['id'] == 'remove_wilted':
+                    seed = out.get('stored', {}).get('crop') or getattr(a, 'icon', None)
+                    if seed:
+                        replanting[tid] = seed
+                ask.progress('garden')
+            elif visible_beds:
                 tid = visible_beds[0]['owner']
+                actions = []
             else:
                 tid = min(remaining, key=lambda n: math.dist(here, tuple(g.nodes[n].extra['pos'])) if here else 0)
-            actions = []
+                actions = []
             while tid in remaining and not res['stop']:
                 if res['clicks'] >= max_clicks:
                     res['stop'] = f'click cap {max_clicks}'
                     break
                 a = _visit(g, tid, 'GardenBed', res)
+                if a is None and tid in res['acted']:
+                    # Harvest/remove animations can briefly hide the replacement bubble. The bed is already in
+                    # reach and proven, so settle and inspect it again in place instead of asking the model to walk.
+                    W.wait_settle()
+                    a = _visit(g, tid, 'GardenBed', res)
                 if a is None:
                     # Coverage cannot be inferred from appearance. Ask only for navigation; the next call consumes
                     # the cell and resumes bubble-first inspection, never settling a bed from appearance.
@@ -1380,6 +1435,8 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     res['acted'].append(tid)
                 if row['id'] == 'pick':
                     res['harvested'] += 1
+                    if 'replant' in enabled and crop:
+                        replanting[tid] = crop
                 elif row['id'] == 'water':
                     res['watered'] += 1
                 elif row['id'] == 'remove_wilted':

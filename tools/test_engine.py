@@ -3259,6 +3259,22 @@ class ModelDecides(VisitBeds):
         self.assertEqual([c['what'] for c in clicks], ['object', 'object'])
         self.assertTrue(any('click' in line and nid in line for line in result['trace']))
 
+    def test_a_stale_decision_position_reasks_before_clicking(self):
+        f, nid = self.decision_game('Green Bean')
+        state = ask.load_state('harvest')
+        state['pending']['position_source'] = 'save'
+        state['pending']['position'] = [NX[1], NZ[0]]
+        state['pending']['targets'] = [nid]
+        ask.save_state(state)
+        moved = (NX[1] + 2.0, NZ[0] + 1.0)
+        with mock.patch.object(where, 'position', return_value=('event', moved)):
+            with self.assertRaises(ask.NeedVision):
+                engine.achieve('harvest', answer=f'click {nid}', max_clicks=1)
+        self.assertEqual(f.clicks, [])
+        pending = ask.load_state('harvest')['pending']
+        self.assertTrue(pending['decide'])
+        self.assertNotEqual(pending['screens'][nid], [1170, 750])
+
     def test_click_object_collect_with_unknown_crop_asks_the_crop_with_the_card_open(self):
         for answer, expected in [('Green Bean', 'growing'), ('Tulip', 'produced')]:
             with self.subTest(answer=answer):

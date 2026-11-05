@@ -450,7 +450,8 @@ def decide_q(g, spec, targets, res):
     pending = {'goal': res.get('goal'), 'params': res.get('params') or {}, 'decide': True,
                'brief_ids': ids, 'in_view': in_view, 'screens': screens,
                'bubbles': [dict(b, pt=list(b['pt'])) for b in state['bubbles']],
-               'position_source': state.get('tara', {}).get('source')}
+               'position_source': state.get('tara', {}).get('source'),
+               'position': list(state.get('tara', {}).get('pos') or ()), 'targets': list(targets)}
     N.log('decide', what='question', targets=list(targets), brief_ids=ids, in_view=in_view)
     try:
         ask.ask('decide', q, pending, res, img=ask.draw_grid(brief.draw(core.WF.grab(), state)))
@@ -794,6 +795,18 @@ def _answer_decision(g, pend, answer, params, res):
         return
     nid = decision[1] if action == 'click' else None
     if nid:
+        if pend.get('position'):
+            from . import brief
+            current_source, current_pos = brief._position(g)
+            old_pos = tuple(pend['position'])
+            stale = (current_pos is None or current_source != pend.get('position_source') and
+                     current_source not in ('event', 'walk') or
+                     math.dist(old_pos, tuple(current_pos)) > 0.5)
+            if stale:
+                N.trace(res, f'decision point stale: {pend.get("position_source")} {old_pos} -> '
+                             f'{current_source} {current_pos}; re-asking before click')
+                targets = [n for n in pend.get('targets', ()) if n in g.nodes]
+                return decide_q(g, res['spec'], targets, res)
         pt = (pend.get('screens') or {}).get(nid)
         if nid not in g.nodes or pt is None or not O.on_frame(pt):
             raise core.Failed(f'answer rejected: {nid} has no visible screen point')

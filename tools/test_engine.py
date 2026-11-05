@@ -1007,6 +1007,18 @@ class StreamingGarden(EngineBase):
         self.assertIsNone(f.card)
         self.assertEqual(f.objects['e']['state']['stage'], 'empty')
 
+    def test_a_navigation_answer_inside_a_projected_bed_is_rejected_before_input(self):
+        f = self.use(FakeGame([], GAME))
+        g = self.graph()
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {}, 'navigation_only': True, 'avoid': [[840, 776]]}})
+        res = nav.new_res('garden')
+        res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area='Garden',
+                   spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}})
+        with self.assertRaisesRegex(core.Failed, 'inside a garden object hitbox'):
+            engine._answer(g, 'garden', {}, 'K12', res)
+        self.assertEqual(f.clicks, [])
+
 
 HIVE = {'kind': 'BeeHive', 'when': {'ready': True}, 'bubble': {'kind': 'honey'}, 'event': 'beehive_collect',
         'effect': {'ready': False}}

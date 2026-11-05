@@ -913,6 +913,8 @@ def _answer(g, name, params, answer, res):
             pt = ask.parse_point(answer)
         except ValueError as e:
             raise core.Failed(f'answer rejected: {e}. Answer a grid cell A1-X16, or none') from None
+        if pend.get('navigation_only') and any(O.d(pt, tuple(p)) < OWN_PX for p in pend.get('avoid') or ()):
+            raise core.Failed(f'answer rejected: navigation point {pt} is inside a garden object hitbox')
         c = A.click(pt, 'point', here=res.get('area'), wait_event=True)   # a hard case: its log line says what it hit
         res['clicks'] += 1
         if pend.get('path_cell') and c.moved and not c.events and c.exp:   # she walked onto it: a Path look
@@ -1263,8 +1265,11 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     state = brief.build(g, 'GardenBed', list(remaining), res)
                     q = (brief.text(state) + f'\nNo bubble for {tid} is in reach. Give one grid cell of FREE GROUND '
                          f'toward the unvisited beds in {region}; do not click a bed or bubble.')
+                    avoid = [list(o['screen']) for o in state['objects'] if o.get('screen') is not None]
+                    avoid += [list(b['pt']) for b in state['bubbles']]
                     ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'node': tid,
-                                         'covered': sorted(set(beds) - remaining), 'navigation_only': True}, res,
+                                         'covered': sorted(set(beds) - remaining), 'navigation_only': True,
+                                         'avoid': avoid}, res,
                             img=ask.draw_grid(brief.draw(W.grab(), state)))
 
                 crop = getattr(a, 'icon', None) or world.state_of(g, tid).get('crop')

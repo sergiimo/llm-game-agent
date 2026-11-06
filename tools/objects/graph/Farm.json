@@ -390,7 +390,7 @@
     -26.97
    ],
    "near": "GardenBed@Garden",
-   "t": 1793962352.8,
+   "t": 1793963003.3,
    "pin": [
     742,
     505
@@ -4275,9 +4275,11 @@
    "a": "Tara",
    "b": "Bed",
    "rel": "distance",
-   "tier": "unknown",
-   "t": 1793962352.8,
-   "source": "graph"
+   "tier": "map-far",
+   "t": 1793963003.3,
+   "source": "map",
+   "map_px": 84.9,
+   "route_px": 98.3
   }
  ]
 }

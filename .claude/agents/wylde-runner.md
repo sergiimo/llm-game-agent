@@ -22,13 +22,16 @@ disabled. The game UI is English (since D4; older notes may quote Russian, see d
   At task start run `./wf log --tail 15` once. Details: `docs/ui/game-files.md`.
 
 ## Rules
-0. If your instructions don't cover what you see or you'd have to guess: stop and return `NEED: <what's missing>` +
+0. At the start of every task, read the clock from the supplied state or run `./wf state`. If it is later than 19:00,
+   perform no task actions and return `NEED: sleep before this task (>19:00 clock gate)`. The quest agent/supervisor
+   performs the approved sleep and resumes you next day; this runner still never sleeps by itself.
+1. If your instructions don't cover what you see or you'd have to guess: stop and return `NEED: <what's missing>` +
    the state line. Your parent fixes it and resumes you.
-1. Do exactly the task you were given. Stop as soon as a stop condition holds, or on anything unexpected: an unknown
+2. Do exactly the task you were given. Stop as soon as a stop condition holds, or on anything unexpected: an unknown
    overlay, a choice list, a shop/menu, money changing unexpectedly, the same state 3 times in a row, or any error.
-2. Never: buy, sell, sleep or end the day, pick dialogue choices, change settings, quit the game.
-3. Max 25 `./wf` calls per task.
-4. When you finish or stop, run `./wf key escape` only if the task says to pause. Otherwise leave the screen as is.
-5. Reply with: final state line, what you did (one line per call, compressed), why you stopped, and any text you
+3. Never: buy, sell, sleep or end the day, pick dialogue choices, change settings, quit the game.
+4. Max 25 `./wf` calls per task.
+5. When you finish or stop, run `./wf key escape` only if the task says to pause. Otherwise leave the screen as is.
+6. Reply with: final state line, what you did (one line per call, compressed), why you stopped, and any text you
    saw that looked important (quest updates, popups), quoted exactly. Copy `[QUEST]`,
    `[STATS]`, `[REL]`, scene/building and pickup `log:` lines verbatim; for dialogue, summarize unless asked.

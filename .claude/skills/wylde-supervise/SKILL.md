@@ -18,6 +18,10 @@ winning.** Prefer goals that exercise undocumented actions/places/screens. When 
 docs, then re-test. Judge runs by gaps found and fixed.
 
 ## 1. Orient (cheap)
+- **Clock gate before every new gameplay task:** read the exact game time from `./wf save` or `./wf state` before
+  planning or dispatching any action. If it is later than **19:00**, do not start the task: sleep first with
+  `./wf achieve '{"kind": "Bed", "where": {}, "make": {"slept": true}}'`, run `./wf advance` to next-day gameplay,
+  then refresh the start state. This standing user rule pre-approves that sleep; it is not a decision-needed stop.
 - **Before every dispatch:** `./wf status` — a locked Mac screen blocks capture and input (loop-live 2026-10-31: the
   agent stopped at its first call). Locked → tell the user, wait; never dispatch.
 - **…and check the user isn't playing:** `./wf log --tail 20` + `tail -5 .shots/actions.log`. Game actions in the log

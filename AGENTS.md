@@ -61,6 +61,8 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
    **Before any off-game work (coding, docs, long thinking) `./wf pause`** and `./wf resume` after: 1 real minute ≈ 100
    game minutes, so 10 minutes of coding = a passed-out night (L63). **After 23:00 game time: no optional work**
    (exploring, `wf improve`); finish the step and ask about bed (`improve` stops by itself).
+   **Before every new gameplay task, check the exact game clock. If it is later than 19:00, sleep and advance to the
+   next day before starting the task** (user standing rule, 2026-11-06; this sleep is pre-approved).
 1. **One call per step:** `./wf do <actions> [--look]` acts, waits for the screen to settle and prints a one-line state.
    Observe with the game files first: `./wf log` (live events: quests, dialogue, scenes, pickups; input commands
    print new lines as `log: …`) and `./wf save` (exact money/time/quests/inventory as of the last autosave), see

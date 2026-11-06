@@ -46,6 +46,10 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
 - **Sleep (only when the CONSTRAINTS approve it):** `./wf achieve '{"kind": "Bed", "where": {}, "make": {"slept":
   true}}'` from anywhere: it walks her home and runs the `sleep` row (zzz bubble -> Yes); then `./wf advance`
   through the morning cutscene (docs/actions.md A11).
+- **Standing clock gate (user, 2026-11-06):** at the start of every new gameplay task, read the exact clock from the
+  supplied fresh preflight or `./wf save`/`./wf state`. If it is later than **19:00**, sleep with the command above and
+  advance to next-day gameplay before starting step 1. This sleep is pre-approved and overrides the older
+  “CONSTRAINTS must approve sleep” rule only for this >19:00 task-start gate. Refresh state after advancing.
 - **Every answer is traced (user D189: "tracing should be absolute, including agent reasoning"):** before each
   `answer=` call run `./wf run think "<what the image shows - where Tara is, which bubbles, why this answer>"`
   (one line, its own Bash call). The run report puts it next to the clicks and events it caused.

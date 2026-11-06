@@ -49,6 +49,10 @@ waypoint (`{"kind":"waypoint","cell":"F7","walkable":true}`). Never infer actual
    unless raining. A plant plus drop icon needs interaction evidence to distinguish dry from wilted.
 5. **The model handles surprises.** Read the preserved frame before diagnosing uncertain evidence. Choose a world,
    appearance, transition, gap, unresolved or stop correction (`integrate.correct`); code never patches itself.
+   If the model chose the wrong primitive (for example a world bubble while Collect is already open), choose
+   `correct` with `{"kind":"revise_decision","data":{"reason":"<mistaken choice>"}}`. This records the decision
+   revision and clears the surprise without learning, a gap, an input or a task/transaction reset. The next normal
+   turn may explicitly press `Collect` with observed `crop` metadata, preserving that same interaction.
    Preserve the active crop/card/transaction while fixing the smallest issue. Do not close a useful card or start
    the whole task again as generic recovery.
 6. **Check interrupts each turn.** Rain/darkness or a new task after 19:00 calls for sleep/resume; the standing task

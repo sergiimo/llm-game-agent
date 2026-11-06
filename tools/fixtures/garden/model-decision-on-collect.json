@@ -1,0 +1,260 @@
+{
+  "source_run": "20261106-2027-model-owned-south-garden",
+  "source_turn": 8,
+  "source_experience": "75f4d0fad86a4779",
+  "task": {
+    "active": {
+      "actual_node": null,
+      "completed_actions": [],
+      "crop": null,
+      "evidence_ids": [
+        "f0907fec1ca8b26a",
+        "2cd2c3309400298a",
+        "8022eaa157a09da8",
+        "ea25a8bb61631eb5",
+        "75f4d0fad86a4779"
+      ],
+      "pending_intent": null,
+      "phase": "collect",
+      "provisional": {
+        "cell": "J11",
+        "facts": {},
+        "frame": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-3a674f27e6804bd388495dd1cb6a8e1b.jpg",
+        "point": [
+          760,
+          709
+        ],
+        "projected_node": null,
+        "target_selected": true
+      },
+      "transaction_id": "ec38380aa35a4b97b5875b801d3aa766:1"
+    },
+    "covered": [],
+    "global_interrupt": null,
+    "goal": "garden",
+    "last_experience": {
+      "action": {
+        "arg": null,
+        "context": [
+          [
+            "turn_id",
+            7
+          ],
+          [
+            "primitive",
+            "bubble"
+          ]
+        ],
+        "kind": "click",
+        "pt": [
+          1029,
+          451
+        ],
+        "what": "bubble"
+      },
+      "artifacts": {
+        "frames": [],
+        "img0": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-239041414174482dbce58391c373c3a7.jpg",
+        "log_mark": 729904,
+        "run_dir": null,
+        "t": 1793990357.268688,
+        "turn_id": 7
+      },
+      "before": {
+        "affordances": [],
+        "screen": "card",
+        "state": [
+          [
+            "game_time",
+            "D209 3:51:05 PM"
+          ],
+          [
+            "kind",
+            "card"
+          ],
+          [
+            "texts",
+            [
+              "Collect"
+            ]
+          ]
+        ]
+      },
+      "discrepancy": {
+        "expected": "safe input",
+        "field": "guard",
+        "got": "world input blocked by card",
+        "representable": true
+      },
+      "evidence": {
+        "after": [],
+        "at": null,
+        "burst_texts": [],
+        "events": [],
+        "lines": [],
+        "mode": "card",
+        "moved": null,
+        "node": null,
+        "texts": [
+          "Collect"
+        ]
+      },
+      "goal": {
+        "name": null,
+        "params": [],
+        "row": null,
+        "step": null,
+        "target": null
+      },
+      "id": "75f4d0fad86a4779",
+      "prediction": {
+        "arrive": null,
+        "card": null,
+        "delta": [],
+        "events": [],
+        "log": null,
+        "moved": null
+      },
+      "verdict": {
+        "checks": [
+          {
+            "expected": "safe input",
+            "field": "guard",
+            "got": "world input blocked by card",
+            "ok": false
+          }
+        ],
+        "value": "unsafe"
+      }
+    },
+    "last_surprise": {
+      "actual": {
+        "after": [],
+        "at": null,
+        "burst_texts": [],
+        "events": [],
+        "lines": [],
+        "mode": "card",
+        "moved": null,
+        "node": null,
+        "texts": [
+          "Collect"
+        ]
+      },
+      "artifacts": {
+        "frames": [],
+        "img0": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-239041414174482dbce58391c373c3a7.jpg",
+        "log_mark": 729904,
+        "run_dir": null,
+        "t": 1793990357.268688,
+        "turn_id": 7
+      },
+      "before": {
+        "affordances": [],
+        "screen": "card",
+        "state": [
+          [
+            "game_time",
+            "D209 3:51:05 PM"
+          ],
+          [
+            "kind",
+            "card"
+          ],
+          [
+            "texts",
+            [
+              "Collect"
+            ]
+          ]
+        ]
+      },
+      "expected": {
+        "arrive": null,
+        "card": null,
+        "delta": [],
+        "events": [],
+        "log": null,
+        "moved": null
+      },
+      "experience_id": "75f4d0fad86a4779",
+      "intended": {
+        "arg": null,
+        "context": [
+          [
+            "turn_id",
+            7
+          ],
+          [
+            "primitive",
+            "bubble"
+          ]
+        ],
+        "kind": "click",
+        "pt": [
+          1029,
+          451
+        ],
+        "what": "bubble"
+      },
+      "reason": "mismatch"
+    },
+    "params": {
+      "_garden_reduced": "ea25a8bb61631eb5",
+      "_started_late": false,
+      "chores": [
+        "plant",
+        "replant",
+        "harvest",
+        "water"
+      ],
+      "crops": "Tulip",
+      "flowers": [
+        "Anemone Flower",
+        "Crocus",
+        "Marigold",
+        "Moly Flower",
+        "Primrose",
+        "Snowdrop",
+        "Sunflower",
+        "Tiger Lily",
+        "Tulip",
+        "Turtlehead Flower"
+      ],
+      "region": "GardenSouth",
+      "seed": null
+    },
+    "pending_intent": null,
+    "revision": 15,
+    "status": "active",
+    "targets": [
+      "GardenBed#10.1,-59.4",
+      "GardenBed#10.1,-63.1",
+      "GardenBed#10.1,-66.9",
+      "GardenBed#13.9,-59.4",
+      "GardenBed#13.9,-63.1",
+      "GardenBed#13.9,-66.9",
+      "GardenBed#2.6,-59.4",
+      "GardenBed#2.6,-63.1",
+      "GardenBed#2.6,-66.9",
+      "GardenBed#6.4,-59.4",
+      "GardenBed#6.4,-63.1",
+      "GardenBed#6.4,-66.9"
+    ],
+    "task_id": "ec38380aa35a4b97b5875b801d3aa766",
+    "turn_seq": 8,
+    "unresolved": []
+  },
+  "observation": {
+    "screen": {
+      "kind": "card",
+      "texts": [
+        "Collect"
+      ]
+    },
+    "frame_path": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-6c07e872072b41a7adf2eae2a86afe84.jpg",
+    "visible_affordances": [],
+    "graph_clues": [],
+    "interrupts": []
+  }
+}

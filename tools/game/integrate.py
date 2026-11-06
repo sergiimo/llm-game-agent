@@ -496,7 +496,9 @@ def apply(e, correction=None, img0=None):
 
 def correct(e, kind, data):
     """Model-selected correction on the same immutable experience. Runtime mutates data only, never source."""
-    if kind in ('unresolved', 'stop'):
+    # The model may revise its own choice without attributing a fault to game facts or learned data.
+    # TurnLoop records this correction and clears the surprise; no replay/learning or retry input occurs here.
+    if kind in ('unresolved', 'stop', 'revise_decision'):
         return {'applied': 0, 'status': kind}
     if kind == 'world':
         if not isinstance(data.get('state'), dict) or not data.get('node'):

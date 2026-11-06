@@ -4,14 +4,64 @@ import os
 import tempfile
 import unittest
 from unittest import mock
+from types import SimpleNamespace
 
-from game import engine, experience as X, integrate, learn, primitives
+from game import core, engine, experience as X, integrate, learn, primitives
 from game.task_state import TaskStore, TaskState, Interaction
 from objects.graph import Graph, Node
 from game.turn import Decision, DecisionRejected
 
 
 class GardenTurns(unittest.TestCase):
+    def test_captured_operator_mistake_can_revise_decision_and_collect_without_reset_or_learning(self):
+        fixture = os.path.join(os.path.dirname(__file__), 'fixtures', 'garden', 'model-decision-on-collect.json')
+        with open(fixture) as f:
+            captured = json.load(f)
+        # Captured blocked state is real; the later harvest is writer-shaped future actuator evidence.
+        store, port, call = self.session([event('harvest', 'A')])
+        def call(**kw):
+            return engine.garden_turn(region='GardenSouth', store=TaskStore(store.path), adapter=port, **kw)
+        store.save(TaskState.from_dict(captured['task']))
+        port.snapshot = captured['observation']
+        task_before = store.load().to_dict()
+        c = call()
+        self.assertEqual(c.surprise.experience_id, '75f4d0fad86a4779')
+        self.assertEqual(set(c.allowed_decisions), {'look', 'correct', 'stop'})
+        graph_before = {n.id: dict(n.state) for n in learn.MEMORY['graph'].nodes.values()}
+        try:
+            c = call(turn_id=c.turn_id, decision=Decision('correct', correction={
+                'kind': 'revise_decision', 'data': {'reason': 'named Collect control is already open'}},
+                rationale='operator_selected_wrong_primitive', evidence_refs=('75f4d0fad86a4779',)))
+        except ValueError as error:
+            self.fail(f'model decision revision must be supported: {error}')
+        saved = TaskStore(store.path).load()  # reopen durable state, not the in-memory decision result
+        self.assertEqual(saved.task_id, task_before['task_id'])
+        self.assertEqual(saved.to_dict()['active'], task_before['active'])
+        self.assertEqual(saved.covered, task_before['covered'])
+        self.assertEqual(saved.unresolved, task_before['unresolved'])
+        self.assertIsNone(saved.last_surprise)
+        self.assertEqual(port.inputs, [])
+        self.assertEqual(integrate.journal(), [])
+        self.assertFalse(os.path.exists(os.path.join(os.path.dirname(store.path), 'gaps')))
+        self.assertEqual({n.id: dict(n.state) for n in learn.MEMORY['graph'].nodes.values()}, graph_before)
+        with open(os.path.join(os.path.dirname(store.path), 'log.jsonl')) as f:
+            correction = next(json.loads(line) for line in f if json.loads(line).get('phase') == 'correction')
+        self.assertEqual(correction['kind'], 'revise_decision')
+        self.assertEqual(correction['experience'], '75f4d0fad86a4779')
+        self.assertEqual(correction['result']['applied'], 0)
+        self.assertIn('act', c.allowed_decisions)
+        # Exercise the real named-card prepare/guard with model crop metadata; only physical lookup is substituted.
+        port.prepare = primitives.GameAdapter().prepare
+        with mock.patch.object(core, 'WF', SimpleNamespace(find_text=lambda *a, **kw: [{'cx': 1029, 'cy': 451}])):
+            c = call(turn_id=c.turn_id, decision=Decision('act', action={
+                'kind': 'press', 'label': 'Collect', 'crop': 'Tulip', 'expects': {'events': ['harvest']}}))
+        self.assertEqual(len(port.inputs), 1)
+        self.assertEqual(port.inputs[0]['command'], 'click:1029:451')
+        self.assertEqual(c.transaction['transaction_id'], task_before['active']['transaction_id'])
+        self.assertEqual(c.transaction['crop'], 'Tulip')
+        self.assertEqual(c.transaction['phase'], 'plant')
+        self.assertIsNone(c.surprise)
+
     def test_captured_resume_does_not_create_or_mutate_a_garden_transaction(self):
         fixture = os.path.join(os.path.dirname(__file__), 'fixtures', 'garden', 'resume-game.json')
         with open(fixture) as f:

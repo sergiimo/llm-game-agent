@@ -72,6 +72,13 @@ class TaskState:
     def to_dict(self):
         return thaw(self)
 
+    def finish_if_accounted(self):
+        """Complete accounting, not successful work: blocked targets remain explicitly unresolved."""
+        blocked = {row['node'] for row in self.unresolved
+                   if isinstance(row, dict) and row.get('node') and row.get('reason')}
+        if self.active is None and set(self.targets) <= set(self.covered) | blocked:
+            self.status = 'complete'
+
     @classmethod
     def from_dict(cls, data):
         data = dict(data)

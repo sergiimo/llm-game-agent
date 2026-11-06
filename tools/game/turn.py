@@ -205,6 +205,15 @@ class TurnLoop:
                 correction = thaw(decision.correction or {})
                 kind, data = correction.get('kind'), correction.get('data', {})
                 e = X.Experience.from_dict(task.last_experience)
+                if kind == 'blocked_target':
+                    active = task.active
+                    reason = data.get('reason')
+                    if (not active or not active.actual_node or active.actual_node not in task.targets or
+                            data.get('node') != active.actual_node or not isinstance(reason, str) or not reason.strip()):
+                        raise DecisionRejected('blocked_target needs the active event-owned target and a nonempty reason')
+                    data = {'node': active.actual_node, 'phase': active.phase, 'crop': active.crop,
+                            'transaction_id': active.transaction_id, 'reason': reason.strip(),
+                            'experience': e.id, 'evidence_refs': list(decision.evidence_refs) or [e.id, c.frame_path]}
                 result = I.correct(e, kind, data)
                 self._log(task, turn_id, 'correction', experience=e.id, kind=kind, data=data, result=result)
                 if result.get('errors'):
@@ -212,6 +221,10 @@ class TurnLoop:
                 if kind == 'unresolved':
                     task.unresolved.append({'experience': e.id, **data})
                     task.status = 'unresolved'
+                if kind == 'blocked_target':
+                    task.unresolved.append(data)
+                    task.active = None
+                    task.finish_if_accounted()
                 if kind == 'stop':
                     task.status = 'stopped'
                 task.last_surprise = None

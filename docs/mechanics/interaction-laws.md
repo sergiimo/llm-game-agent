@@ -53,15 +53,23 @@ waypoint (`{"kind":"waypoint","cell":"F7","walkable":true}`). Never infer actual
    `correct` with `{"kind":"revise_decision","data":{"reason":"<mistaken choice>"}}`. This records the decision
    revision and clears the surprise without learning, a gap, an input or a task/transaction reset. The next normal
    turn may explicitly press `Collect` with observed `crop` metadata, preserving that same interaction.
+   If this actual target cannot be finished (for example its Seeds picker is empty and purchases are not authorized),
+   choose `correct` with `{"kind":"blocked_target","data":{"node":"<actual_node>","reason":"<constraint>"}}`
+   and evidence references. It records that event-owned node, interrupted phase, crop, transaction and evidence in
+   `unresolved`, releases only this interaction and leaves remaining work active. It teaches no data and performs
+   no input. The model may then accept a separate close-card recommendation before selecting the next target.
    Preserve the active crop/card/transaction while fixing the smallest issue. Do not close a useful card or start
    the whole task again as generic recovery.
 6. **Check interrupts each turn.** Rain/darkness or a new task after 19:00 calls for sleep/resume; the standing task
    start sleep gate is pre-approved. After 23:00 stop optional work. Empty can calls for refill then this transaction.
    Dialogue, pause, cutscene, map and unknown menus block world input. Pause before coding or long off-game work;
    front focus mode means the clock runs between calls. Do not change user settings.
-7. **Coverage proves completion.** Every bed/hive in the named region must be in `coverage.covered`, backed by the
-   actual event-owned interaction. A final zero-input verification turn marks coverage. `task.status=complete`
-   plus no missing/unresolved targets closes the task; a constrained/unresolved result needs supervisor review.
+7. **Account for every target.** Each bed/hive must be in `coverage.covered` with actual event-owned proof, or have
+   an explicit per-target `unresolved` entry with event-owned identity, interrupted phase, reason and evidence.
+   A final zero-input verification turn marks successful coverage. `task.status=complete` means accounting is
+   finished: the watcher reports `COMPLETE` only with no unresolved targets, otherwise `CONSTRAINED` for supervisor
+   review. A blocked replant is never counted as planted, watered or covered; the whole task stays active while
+   other targets remain unaccounted for.
 
 ## One timeline and hot learning
 

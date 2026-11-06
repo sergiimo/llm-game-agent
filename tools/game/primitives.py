@@ -75,7 +75,7 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
         prepared, refusal = dict(action), str(ex)
     administrative = (action.get('kind') == 'press' and str(action.get('label', '')).casefold() == 'resume game' or
                       (before.get('screen') or {}).get('kind') not in ('gameplay', 'card', 'picker') or
-                      task.active is None and action.get('kind') in ('wait', 'read'))
+                      task.active is None and action.get('kind') in ('wait', 'read', 'close'))
     if not administrative and task.active is None:
         task.active = Interaction(f'{task.task_id}:{turn_id}', provisional={
             'frame': before.get('frame_path'), 'point': action.get('point'), 'cell': action.get('cell'),

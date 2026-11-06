@@ -273,7 +273,7 @@ def garden_table(rows):
             visits.update({u['node']: {'reason': u.get('reason')} for u in unresolved
                            if isinstance(u, dict) and u.get('node')})
             latest[row['region']] = dict(coverage, unresolved=nodes,
-                stop='done:' if row.get('task_status') == 'complete' else
+                stop=('unresolved:' if nodes else 'done:') if row.get('task_status') == 'complete' else
                      'unresolved:' if row.get('task_status') == 'unresolved' else '')
         elif row.get('type') == 'garden_summary' and row.get('region'):
             latest[row['region']] = row

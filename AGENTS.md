@@ -97,7 +97,8 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
    Each continuation performs at most one input. Keep the active transaction/crop/phase through surprises and fixes;
    only positioned events bind an actual node. Every decision carries a concise rationale category/evidence refs
    in the single run `log.jsonl`; `experiences.jsonl` is machine replay only. Learned actions/graph/observations/images
-   are hot data, not restart triggers. Every bed and hive needs covered identity proof before completion. General
+   are hot data, not restart triggers. Every bed/hive needs covered identity proof or an explicit event-owned
+   blocked-target entry (phase/reason/evidence); constrained completion needs supervisor review. General
    maintenance plants empty beds and waters after planting unless rain; narrow harvest/water jobs leave empties.
    Read the interaction-laws command contract before garden play; it supersedes old scheduler/streaming instructions.
 11. **Other interaction laws (user, D183/D191):** Tara is always at the frame centre

@@ -65,6 +65,8 @@ def recommend(task, obs):
         return rec(reason=f'resolve {mode} before garden input')
     active = task.get('active')
     if not active:
+        if mode in ('card', 'picker'):
+            return rec({'kind': 'close'}, 'close the finished or blocked target card before selecting another target')
         return rec(reason='model selects a visible uncovered target with its full road, or a short walkable waypoint')
     facts = active.get('provisional', {}).get('facts', {})
     crop = active.get('crop')
@@ -196,5 +198,4 @@ def reduce(task, experience):
         if a.actual_node in task.targets and a.actual_node not in task.covered:
             task.covered.append(a.actual_node)
         task.active = None
-        if set(task.targets) <= set(task.covered):
-            task.status = 'complete'
+        task.finish_if_accounted()

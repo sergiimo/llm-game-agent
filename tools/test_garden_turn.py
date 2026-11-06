@@ -13,6 +13,106 @@ from game.turn import Decision, DecisionRejected
 
 
 class GardenTurns(unittest.TestCase):
+    def test_captured_seed_shortage_blocks_only_actual_target_and_continues_after_restart(self):
+        fixture = os.path.join(os.path.dirname(__file__), 'fixtures', 'garden', 'empty-seeds-blocked-target.json')
+        with open(fixture) as f:
+            captured = json.load(f)
+        next_record = event('water')
+        next_record['evidence']['lines'] = ['[D209 5:00:00 PM] > water me=Player target=GardenBed(Clone) at (6.39, 0.10, -66.86)']
+        store, port, _ = self.session([event(), next_record])
+        store.save(TaskState.from_dict(captured['task']))
+        graph = learn.MEMORY['graph']
+        graph.nodes.clear()
+        for nid in captured['task']['targets']:
+            graph.nodes[nid] = Node(nid, 'member', 'GardenBed', region='GardenSouth',
+                                   pos=[float(v) for v in nid.split('#')[1].split(',')], scene='Farm')
+        def call(**kw):
+            return engine.garden_turn(region='GardenSouth', store=TaskStore(store.path), adapter=port, **kw)
+        port.snapshot = captured['observation']
+        c = call()
+        before = store.load().to_dict()
+        try:
+            c = call(turn_id=c.turn_id, decision=Decision('correct', correction={
+                'kind': 'blocked_target', 'data': {'node': 'GardenBed#2.6,-66.9',
+                                                  'reason': 'Seeds picker is empty; buying is not authorized'}},
+                rationale='resource_constraint', evidence_refs=('650e42170a9375b7', c.frame_path)))
+        except ValueError as error:
+            self.fail(f'per-target blocked resolution must be supported: {error}')
+        saved = TaskStore(store.path).load()
+        self.assertEqual(saved.task_id, before['task_id'])
+        self.assertEqual(saved.status, 'active')
+        self.assertIsNone(saved.active)
+        self.assertEqual(saved.covered, before['covered'])
+        blocked, = saved.unresolved
+        self.assertEqual((blocked['node'], blocked['phase'], blocked['crop']),
+                         ('GardenBed#2.6,-66.9', 'plant', 'Tulip'))
+        self.assertEqual(blocked['transaction_id'], before['active']['transaction_id'])
+        self.assertIn(captured['observation']['frame_path'], blocked['evidence_refs'])
+        self.assertEqual(blocked['experience'], '650e42170a9375b7')
+        self.assertEqual(port.inputs, [])
+        self.assertEqual(integrate.journal(), [])
+        self.assertFalse(any(n.state for n in graph.nodes.values()), 'absence must not teach planted/watered facts')
+        restarted = call()
+        self.assertEqual(restarted.turn_id, c.turn_id)
+        self.assertEqual(c.recommendation.action['kind'], 'close')
+        c = call(turn_id=c.turn_id, decision=Decision('accept'))  # explicit close, no phantom interaction
+        self.assertIsNone(c.transaction)
+        c = call(turn_id=c.turn_id, decision=Decision('act', action=target()))
+        self.assertEqual(c.transaction['actual_node'], 'GardenBed#6.4,-66.9')
+        self.assertNotEqual(c.transaction['transaction_id'], before['active']['transaction_id'])
+        self.assertEqual(store.load().unresolved, [blocked])
+
+    def test_covered_or_blocked_targets_finish_accounting_as_constrained(self):
+        import runwatch
+        store, port, call = self.session([event('harvest', 'A', ['Inventory', 'Seeds']), event(), event('water', 'B')])
+        c = call()
+        c = call(turn_id=c.turn_id, decision=Decision('act', action=target('Tulip')))
+        try:
+            c = call(turn_id=c.turn_id, decision=Decision('correct', correction={
+                'kind': 'blocked_target', 'data': {'node': 'A', 'reason': 'no authorized seed available'}}))
+        except ValueError as error:
+            self.fail(f'per-target blocked resolution must be supported: {error}')
+        self.assertEqual(c.task['status'], 'active')
+        c = call(turn_id=c.turn_id, decision=Decision('accept'))  # close empty picker
+        c = call(turn_id=c.turn_id, decision=Decision('act', action=target()))
+        c = call(turn_id=c.turn_id, decision=Decision('accept'))  # verify B
+        self.assertEqual(c.task['status'], 'complete')
+        self.assertEqual(list(c.coverage['covered']), ['B'])
+        self.assertEqual(c.coverage['unresolved'][0]['node'], 'A')
+        with open(os.path.join(os.path.dirname(store.path), 'log.jsonl')) as f:
+            report = runwatch.garden_table([json.loads(line) for line in f])
+        self.assertIn('| Garden | 2 | 1 | 1 | - | A: no authorized seed available | CONSTRAINED |', report)
+
+    def test_blocked_target_requires_event_owned_identity_and_nonempty_reason(self):
+        for positioned, data in [(False, {'node': 'A', 'reason': 'no seeds'}),
+                                 (True, {'node': 'B', 'reason': 'no seeds'}),
+                                 (True, {'node': 'A', 'reason': ''})]:
+            with self.subTest(positioned=positioned, data=data):
+                store, port, call = self.session([event('harvest' if positioned else None, 'A', ['Inventory', 'Seeds'])])
+                c = call()
+                c = call(turn_id=c.turn_id, decision=Decision('act', action={**target(), 'projected_node': 'A'}))
+                before = store.load().to_dict()['active']
+                with self.assertRaises(DecisionRejected):
+                    call(turn_id=c.turn_id, decision=Decision('correct', correction={'kind': 'blocked_target', 'data': data}))
+                self.assertEqual(store.load().to_dict()['active'], before)
+                self.assertEqual(store.load().unresolved, [])
+
+    def test_last_blocked_target_finishes_accounting_without_covering_or_planting_it(self):
+        store, port, call = self.session([event('harvest', 'A', ['Inventory', 'Seeds'])])
+        task = store.load()
+        task.targets = ['A']
+        store.save(task)
+        c = call()
+        c = call(turn_id=c.turn_id, decision=Decision('act', action=target('Tulip')))
+        c = call(turn_id=c.turn_id, decision=Decision('correct', correction={
+            'kind': 'blocked_target', 'data': {'node': 'A', 'reason': 'no authorized seeds'}}))
+        self.assertEqual(c.task['status'], 'complete')
+        self.assertEqual(list(c.coverage['covered']), [])
+        self.assertEqual(c.coverage['unresolved'][0]['phase'], 'plant')
+        self.assertIsNone(c.transaction)
+        self.assertEqual(len(port.inputs), 1, 'only the prior harvest action issued input')
+        self.assertNotEqual(learn.MEMORY['graph'].state_value('A', 'watered'), True)
+
     def test_captured_operator_mistake_can_revise_decision_and_collect_without_reset_or_learning(self):
         fixture = os.path.join(os.path.dirname(__file__), 'fixtures', 'garden', 'model-decision-on-collect.json')
         with open(fixture) as f:

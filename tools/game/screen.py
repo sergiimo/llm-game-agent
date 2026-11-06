@@ -8,6 +8,7 @@ Rules:
   else that stays = terminal (LawsStuck), never clicked through;
 - Escape only on a known card or picker, once, and checked; the pause menu is never escaped into.
 A textless overlay is gameplay unless the map pin proves the full map is open (the HUD also hides on beds, L144)."""
+import re
 from dataclasses import dataclass, field
 
 from . import core
@@ -15,13 +16,15 @@ from .observe import LawsStuck, paused
 
 PICKER = ('inventory',)
 BUTTONS = ('select', 'remove', 'cancel', 'confirm', 'buy', 'sell', 'collect', 'yes', 'no', 'ok')
+# Numeric object-progress/detail markers; descriptions alone also occur in transient hints.
+DETAIL = re.compile(r'\b\d+ days? remaining\b|\bmakes\s+\d+\b', re.I)
 HINT_WAIT = 4.0   # s a short hint gets to fade (the watering-can hint lasts longer than one settle, D186)
 
 
 def passive(s):
-    """A card without a button (a hint, a crop info flash, a quest toast): Escape doesn't close it (it opened the pause
-    menu, D186 and D189 "Where Have You Bean?"), it fades by itself, and a world click is safe under it (S13)."""
-    return s.kind == 'card' and not any(t.strip().lower() in BUTTONS for t in s.texts)
+    """Buttonless hints/toasts may fade without Escape; object progress details must be checked and closed."""
+    return (s.kind == 'card' and not any(t.strip().lower() in BUTTONS for t in s.texts)
+            and not any(DETAIL.search(t) for t in s.texts))
 
 
 def _wait_hint(s):
@@ -91,6 +94,12 @@ def close():
         return read()
     if s.kind not in ('card', 'picker'):
         return s
+    if s.kind == 'card' and any(DETAIL.search(t) for t in s.texts):
+        # Burst crop info can fade too. Only Escape a detail card still present after settling.
+        _settle()
+        s = read()
+        if s.kind not in ('card', 'picker'):
+            return s
     if passive(s):   # a hint ("Fill watering can at the / Well", D186): wait, never Escape
         _settle()
         return _wait_hint(read())

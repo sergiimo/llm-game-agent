@@ -1089,6 +1089,46 @@ class StreamingGarden(EngineBase):
         pending = ask.load_state('garden')['pending']
         self.assertIn([1032, 540], pending['seen_bubbles'])
 
+    def test_covered_progress_card_is_closed_before_next_navigation_frame_and_checkpoint(self):
+        from PIL import Image
+        covered = obj('covered', pos=(NX[0], NZ[0]), bubble=(1032, 540), stage='growing',
+                      watered=True, wilted=False, crop='Carrot')
+        hidden = obj('hidden', pos=(NX[1], NZ[0]), bubble=None, stage='produced',
+                     watered=False, wilted=False, crop='Carrot')
+        game = json.loads(json.dumps(GAME))
+        info = next(r for r in game if r.get('event') == 'plant_growing')
+        info.update(click_event='plant_growing', event=None,
+                    card=[{'texts': ['Carrot', '3 days remaining', 'Makes 4'], 'next': 'space'}])
+        f = self._game([covered, hidden], game=game)
+        world_frame = Image.new('RGB', (1920, 1080), 'green')
+        card_frame = Image.new('RGB', (1920, 1080), 'red')
+        f.grab = lambda: card_frame if f.card else world_frame
+        checkpoints, frames = [], []
+        save_state, vision = ask.save_state, f.ask_vision
+
+        def save(checkpoint):
+            if (checkpoint.get('pending') or {}).get('kind') == 'click':
+                checkpoints.append(f.card is not None)
+            return save_state(checkpoint)
+
+        def see(kind, question, img, **ctx):
+            frames.append(img.getpixel((101, 101)))
+            return vision(kind, question, img, **ctx)
+
+        with mock.patch.object(ask, 'save_state', side_effect=save), \
+                mock.patch.object(f, 'ask_vision', side_effect=see), \
+                mock.patch.object(screen, 'HINT_WAIT', 0.0):
+            with self.assertRaises(NeedVision):
+                engine.tend_garden('Garden', ('harvest',))
+
+        self.assertEqual(sum('> plant_growing ' in line for line in f.log), 1)
+        self.assertEqual(checkpoints, [False])
+        self.assertEqual(frames, [(0, 128, 0)])
+        self.assertIsNone(f.card)
+        pending = ask.load_state('garden')['pending']
+        self.assertTrue(pending['navigation_only'])
+        self.assertIn([1032, 540], pending['seen_bubbles'])
+
     def test_garden_stops_before_navigation_outside_daylight_with_exact_sleep_handoff(self):
         f = self._game(self._north())
         f.light = 'dusk'
@@ -2417,6 +2457,38 @@ class Screen(Base):
         self.assertEqual(R('overlay', ['Tulip Bulbs', 'Plant these tulip bulbs in a', 'Select']), 'card')
         self.assertEqual(R('overlay', ['Settings', 'Music Volume']), 'menu')
         self.assertEqual(R('dialogue', ['Hello']), 'dialogue')
+
+    def test_persistent_progress_details_are_closed_before_world_is_allowed(self):
+        for texts in (['Carrot', 'A crisp orange vegetable', '3 days remaining', 'Makes 4'],
+                      ['Pumpkin', '1 day remaining'], ['Honey', 'Makes 1']):
+            with self.subTest(texts=texts):
+                info = {'kind': 'GardenBed', 'card': [{'texts': texts, 'next': 'space'}]}
+                f = self.use(FakeGame([obj('a')], [info]))
+                f.interact(f.objects['a'])
+                with mock.patch.object(screen, 'HINT_WAIT', 0.0):
+                    result = screen.require_world()
+                self.assertEqual(result.kind, 'gameplay')
+                self.assertIsNone(f.card)
+                self.assertFalse(f.paused)
+
+    def test_a_progress_detail_that_fades_during_settle_is_never_escaped(self):
+        f = self.use(FakeGame([], GAME))
+        f.blank_overlay, f.overlay_texts = True, ['Carrot', '1 day remaining', 'Makes 4']
+        f.wait_settle = lambda: setattr(f, 'blank_overlay', False)
+        commands = []
+        run = f.run_action
+        f.run_action = lambda command: (commands.append(command), run(command))[1]
+        self.assertEqual(screen.require_world().kind, 'gameplay')
+        self.assertEqual(commands, [])
+
+    def test_progress_detail_escape_opening_pause_is_resumed_and_blocks_world_click(self):
+        f = self.use(FakeGame([], GAME))
+        f.blank_overlay, f.overlay_texts = True, ['Carrot', '3 days remaining', 'Makes 4']
+        with mock.patch.object(screen, 'HINT_WAIT', 0.0):
+            with self.assertRaisesRegex(core.Failed, 'Escape opened the pause menu'):
+                act.click((1200, 800), 'explore')
+        self.assertFalse(f.paused)
+        self.assertEqual(f.clicks, [])
 
     def test_world_clicks_only_in_gameplay(self):
         f = self.use(FakeGame([obj('a', stage='empty')], GAME, inventory={'TulipSeed': 2}))

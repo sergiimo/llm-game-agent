@@ -204,6 +204,9 @@ class FakeGame:
         return {'mode': 'gameplay' if not ts else 'overlay', 'text': [f'{i}) {t}' for i, t in enumerate(ts)]}
 
     def run_action(self, a):
+        if a == 'text:Resume Game':
+            self.paused = False
+            return None
         if a == 'resume':
             self.paused = False
             return None
@@ -1821,8 +1824,12 @@ class PauseMenu(Base):
     def test_close_on_the_pause_menu_resumes_instead_of_escape(self):
         f = self.use(FakeGame([], GAME))
         f.paused = True
+        actions = []
+        run = f.run_action
+        f.run_action = lambda a: (actions.append(a), run(a))[1]
         self.close.__wrapped__()
         self.assertFalse(f.paused)
+        self.assertEqual(actions[0], 'text:Resume Game')
 
     def test_a_textless_overlay_gets_no_escape(self):
         f = self.use(FakeGame([], GAME))

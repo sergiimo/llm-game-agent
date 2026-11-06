@@ -80,8 +80,14 @@ def close():
     the pause menu is undone and reported). Returns the screen after; raises core.Failed when Escape misbehaved."""
     s = read()
     if s.kind == 'pause':
-        core.WF.run_action('resume')
+        # Escape is nominally a pause toggle, but live cutscene/pause overlays
+        # can ignore it while still accepting their explicit button.  Clicking
+        # the named control also cannot accidentally open the pause menu.
+        msg = core.WF.run_action('text:Resume Game')
         _settle()
+        if msg or read().kind == 'pause':   # locale/OCR fallback: idempotent daemon resume
+            core.WF.run_action('resume')
+            _settle()
         return read()
     if s.kind not in ('card', 'picker'):
         return s

@@ -3518,7 +3518,14 @@ def set_paused(want):
         s = state()
         if is_paused(s) == want:
             return f'{"paused" if want else "running"}: {brief(s)}'
-        key('escape')
+        if not want and is_paused(s):
+            hits = find_text('Resume Game', exact=True) or find_text('Resume Game')
+            if hits:
+                click(hits[0]['cx'], hits[0]['cy'])
+            else:
+                key('escape')
+        else:
+            key('escape')
         time.sleep(0.7)
     return f'could not {"pause" if want else "resume"}: {brief(state())}'
 

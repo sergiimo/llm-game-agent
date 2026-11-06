@@ -998,6 +998,14 @@ class StreamingGarden(EngineBase):
         self.assertIn('distance=inside|near|far', str(cm.exception))
         self.assertIn('answer=walk:<cell>', str(cm.exception))
 
+    def test_garden_stops_before_navigation_outside_daylight_with_exact_sleep_handoff(self):
+        f = self._game(self._north())
+        f.light = 'dusk'
+        res = engine.tend_garden('Garden')
+        self.assertEqual(res['stop'], 'SLEEP_REQUIRED: dark (dusk); run ./wf sleep, advance to gameplay, then retry garden')
+        self.assertEqual(f.clicks, [])
+        self.assertEqual(f.asks, [])
+
     def test_a_preexisting_empty_bed_with_a_noisy_ready_badge_is_never_harvested_or_planted(self):
         garden = self._north()
         empty = garden[0]

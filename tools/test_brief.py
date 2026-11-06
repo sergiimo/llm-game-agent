@@ -91,6 +91,21 @@ class StateBrief(unittest.TestCase):
         self.assertEqual(out['tara']['relative']['compass'], 'NW')
         self.assertIn('relative=NW of Garden distance=near', brief.text(out))
 
+    def test_entry_brief_leads_with_visible_cluster_geometry(self):
+        detections = [
+            Detection('GardenBed', (0, 0, 1, 1), 8.0, None, (260, 620), 0.8),
+            Detection('GardenBed', (0, 0, 1, 1), 8.0, None, (380, 560), 0.8),
+            Detection('BeeHive', (0, 0, 1, 1), 8.0, None, (320, 440), 0.8),
+            Detection('Window', (0, 0, 1, 1), 8.0, None, (1200, 300), 0.8),
+        ]
+        out = self.make(detections=detections)
+        text = brief.entry_text(out, 'Garden')
+        self.assertTrue(text.startswith('ENTRY Garden:'), text)
+        self.assertIn('visible target cluster is W of Tara', text)
+        self.assertIn('Tara is approximately E of Garden', text)
+        self.assertIn('GardenBed@260,620', text)
+        self.assertNotIn("status={'ready'", text)   # verbose object state does not bury navigation clues
+
 
 if __name__ == '__main__':
     unittest.main()

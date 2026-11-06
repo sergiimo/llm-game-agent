@@ -1,5 +1,6 @@
 """A full-frame state brief for the model's one near-navigation decision."""
 import math
+import statistics
 
 from PIL import ImageDraw
 
@@ -99,6 +100,44 @@ def text(state):
         lines.append(f"heatmap {h['kind']} pt={h['pt']}")
     for r in state['recent']:
         lines.append(f"recent {r}")
+    return '\n'.join(lines)
+
+
+ENTRY_KINDS = {'GardenBed', 'BeeHive', 'Well'}
+
+
+def entry_text(state, region):
+    """Compact, geometry-first brief for reaching a region.
+
+    When Tara's world position is unknown every graph object's projected
+    ``screen`` point is also unknown. Dumping all object states then buries the
+    only useful evidence for a small model: this frame's appearance detections.
+    """
+    from objects import graph as OG
+    hits = [h for h in state.get('heatmap', ()) if h.get('kind') in ENTRY_KINDS]
+    counts = {}
+    for h in hits:
+        counts[h['kind']] = counts.get(h['kind'], 0) + 1
+    lines = [f'ENTRY {region}: {len(state.get("objects", ()))} graph targets; '
+             + ', '.join(f'{k}={v}' for k, v in sorted(counts.items())) + ' visible detections.']
+    if hits:
+        cx = statistics.median(h['pt'][0] for h in hits)
+        cy = statistics.median(h['pt'][1] for h in hits)
+        toward = OG.compass((cx - observe.CENTRE[0], cy - observe.CENTRE[1]))
+        relative = OG.compass((observe.CENTRE[0] - cx, observe.CENTRE[1] - cy))
+        lines.append(f'NON-MODEL GEOMETRY: visible target cluster is {toward} of Tara '
+                     f'(median {round(cx)},{round(cy)}); therefore Tara is approximately {relative} of {region}.')
+        shown = hits[:16]
+        lines.append('VISIBLE TARGETS: ' + ', '.join(f'{h["kind"]}@{h["pt"][0]},{h["pt"][1]}' for h in shown)
+                     + (f' (+{len(hits) - len(shown)} more)' if len(hits) > len(shown) else ''))
+    else:
+        lines.append('NON-MODEL GEOMETRY: no target appearance is reliable in this frame; use scene landmarks.')
+    old = state.get('tara', {}).get('relative')
+    if old:
+        lines.append(f'STORED PRIOR (may be stale after every walk): Tara {old["compass"]} of {old["b"]}, '
+                     f'distance={old["distance"]}. Re-evaluate it from this frame; never repeat it blindly.')
+    lines.append('Choose one visible, unobstructed ground waypoint toward the target cluster. '
+                 'If already among its beds/hives, answer inside. Report relative from this frame.')
     return '\n'.join(lines)
 
 

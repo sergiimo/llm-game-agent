@@ -1352,6 +1352,17 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
     try:
         O.check_language()
         A.gameplay()
+        rain = ask.rain()
+        hour, light = O.clock()
+        res.update(hour=hour, light=light)
+        if rain:
+            res['stop'] = (f'SLEEP_REQUIRED: rain ({rain}); run ./wf sleep, advance to gameplay, '
+                           'then retry garden')
+            return res
+        if light not in (None, 'day'):
+            res['stop'] = (f'SLEEP_REQUIRED: dark ({light}); run ./wf sleep, advance to gameplay, '
+                           'then retry garden')
+            return res
         if ask.late(res):
             return res
         pending_before = ask.load_state('garden').get('pending') or {}
@@ -1398,7 +1409,7 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
             state = brief.build(g, ('GardenBed', 'BeeHive'), list(remaining), res)
             avoid = [list(o['screen']) for o in state['objects'] if o.get('screen') is not None]
             avoid += [list(b['pt']) for b in state['bubbles']]
-            q = (brief.text(state) + f'\nTara is outside or not yet located in {region}. Find its visible entrance; '
+            q = (brief.entry_text(state, region) + f'\nTara is outside or not yet located in {region}. Find its visible entrance; '
                  f'give one cell of clear dirt path toward that entrance. Do not click beds, bubbles, rocks, or fence. '
                  f'Also report Tara relative to {region} using relative=N|NE|E|SE|S|SW|W|NW and '
                  f'distance=inside|near|far. If Tara is visibly inside {region}, answer '

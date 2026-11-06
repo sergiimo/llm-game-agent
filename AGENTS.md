@@ -92,12 +92,20 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
    `NEED_VISION: look at <png>: <question>` (`core.ask_vision`, frame taken at the innermost failure, before menus
    close). Agents Read it before reporting a cause or deciding; code that can't tell (unknown icon, unread card, no
    proof) asks vision, it doesn't guess.
-10. **Interaction laws (user, D183/D191; `docs/mechanics/interaction-laws.md`):** Tara is always at the frame centre
+10. **Model-owned garden turns (`docs/mechanics/interaction-laws.md`):** bare `./wf garden region=…` observes and
+   prints `NEXT`; the gameplay model chooses every continuation with `turn_id=N answer=accept|<Decision JSON>`.
+   Each continuation performs at most one input. Keep the active transaction/crop/phase through surprises and fixes;
+   only positioned events bind an actual node. Every decision carries a concise rationale category/evidence refs
+   in the single run `log.jsonl`; `experiences.jsonl` is machine replay only. Learned actions/graph/observations/images
+   are hot data, not restart triggers. Every bed and hive needs covered identity proof before completion. General
+   maintenance plants empty beds and waters after planting unless rain; narrow harvest/water jobs leave empties.
+   Read the interaction-laws command contract before garden play; it supersedes old scheduler/streaming instructions.
+11. **Other interaction laws (user, D183/D191):** Tara is always at the frame centre
    (never ask where she is); record every click result and update state from it; click every fitting bubble until none
    is left. A target click is preferred when the target **and its full walkable road from Tara are visible**; otherwise
-   click one short visible-ground waypoint and look again. Garden maintenance covers **every bed and hive** in the named
-   region and applies each target's state rule immediately. Vision answers `target <cell>` or `walk <cell>`; projected
-   ownership is only a hint and the game event decides which node was treated. Failure = close cards + fresh frame.
+   click one short visible-ground waypoint and look again. Vision answers `target <cell>` or `walk <cell>`; projected
+   ownership is only a hint and the game event decides which node was treated. Garden surprises use rule 10's durable
+   correction path; other legacy goals may request close cards + fresh frame.
    **Chores and object goals run on the engine (L138):** `./wf achieve <goal> k=v` (`./wf world kinds` = what exists);
    **foraging (rocks, trees, drops, forage plants) is pure vision, never graph nodes (L158, spec §13):** `./wf forage
    chop|rock|pickup|forage` → one `NEED_VISION click` per target → `answer=<cell>|walk:<cell>|none`;

@@ -26,6 +26,7 @@
 ## Session log
 | Date (real) | In-game | What happened | Details |
 |---|---|---|---|
+| 2026-11-06 | Offline; no game inputs | Model-owned loop runtime preparation: learning data no longer triggers daemon restart; image caches refresh on disk changes; turn decisions/outcomes/corrections and coverage are visible in the single run timeline/watcher. Full live south-garden gate and final review remain pending; the existing game/save state above was not re-read or changed. | `docs/mechanics/interaction-laws.md`; `retros/2026-11-06-model-owned-loop-offline.md`; `tools/test_runtime_data.py`, `test_turn.py`, `test_garden_turn.py`, `test_runwatch.py` |
 | 2026-10-26 | Mon d1 | Walked town → farm; planted + watered potato; got mushroom & mayor quests; day ran out during tool work (pass-out) | quests: to-grammas-house-i-go, from-bud-to-spud; learnings L27 |
 | 2026-10-26 | Tue d2 | User dismissed pass-out; found the game pauses when unfocused → background-by-default | learnings L28 |
 | 2026-10-26 | Tue d2 12:20→15:40 | Goal "water day 2" done by wylde-quest (Sonnet). It did the steps itself (runner unused); ~24 ./wf calls | quest from-bud-to-spud; learnings L29–L31, P7 |

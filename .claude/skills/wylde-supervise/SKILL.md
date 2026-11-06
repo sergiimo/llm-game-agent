@@ -104,6 +104,14 @@ its `run end`: wait for its task notification (retro 2026-10-28: my Escapes foug
 `docs/actions.md`, mark that step ❓ in the brief instead of guessing (retro 2026-10-28: "!" topic vs Build button).
 
 ## 3c. Watch every live run (user D186: "the supervisor was meant to control the execution and see a detailed log")
+For garden tasks, first load `docs/mechanics/interaction-laws.md`. Dispatch a `gpt-6-luna` low gameplay model with
+that file, the reviewed run plan, clock/authorization/budget and durable task path. It owns one decision per turn;
+this supersedes the older engine-owned garden and `achieve` gating below. Watch the single `log.jsonl`: `type=turn`
+joins clues, recommendation, model decision, optional vision, intent, experience, integration and corrections by
+turn ID. Do not duplicate structured Decision rationales in another reasoning log. On surprise: stop/pause safely,
+preserve experience/frame, update the real replay, make the smallest fix, run only the focused regression, then
+resume the same durable transaction. Learned data must not restart the daemon. Run the broad gate once at final SHA.
+
 Never let a child run the game blind. For every dispatch that touches the game:
 1. **Start the watcher before the child:** Monitor tool on `.venv/bin/python tools/runwatch.py --follow` (the open run).
    **Keep every line, not only alerts** (user D189: "tracing should be absolute"): the click lines with their game

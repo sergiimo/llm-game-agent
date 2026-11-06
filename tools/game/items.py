@@ -13,6 +13,7 @@ DUP = 0.15          # closer than this to a stored icon = a near duplicate, not 
 CAP = 20            # icons per item
 HALF = (50, 55, 50, 45)   # crop around a card's icon centre: left, up, right, down (px, 1920x1080 frame)
 _REFS = None        # [(name, file, vector)]
+_REVISION = None
 
 
 def _key(name):
@@ -20,10 +21,13 @@ def _key(name):
 
 
 def refs():
-    global _REFS
-    if _REFS is None:
+    from .data import image_revision
+    global _REFS, _REVISION
+    revision = image_revision(ITEM_DIR)
+    if _REFS is None or _REVISION != revision:
         from PIL import Image
         _REFS = []
+        _REVISION = revision
         for name in sorted(os.listdir(ITEM_DIR)) if os.path.isdir(ITEM_DIR) else []:
             d = os.path.join(ITEM_DIR, name)
             for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
@@ -56,18 +60,22 @@ def match(icon):
 
 def learn(icon, title):
     """Store an icon under its detail card's title (skips near duplicates; CAP per item). Returns True if stored."""
+    from .data import image_revision
+    global _REVISION
     name = _key(title)
     if not name:
         return False
     fp = core.WF._featureprint(icon)
-    mine = [v for n, _, v in refs() if n == name]
+    cached = refs()
+    mine = [v for n, _, v in cached if n == name]
     if len(mine) >= CAP or any(_dist(fp, v) < DUP for v in mine):
         return False
     d = os.path.join(ITEM_DIR, name)
     os.makedirs(d, exist_ok=True)
     f = f'{time.strftime("%Y%m%d-%H%M%S")}-{len(mine)}.png'
     icon.save(os.path.join(d, f))
-    refs().append((name, f, fp))
+    cached.append((name, f, fp))
+    _REVISION = image_revision(ITEM_DIR)  # own write is already cached; external changes still reload
     try:
         core.WF.run_log('learn', what='item_icon', name=name)
     except Exception:  # noqa: BLE001

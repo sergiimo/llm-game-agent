@@ -101,6 +101,10 @@ class Turns(unittest.TestCase):
             rows = [json.loads(l) for l in f]
         phases = {r['phase'] for r in rows if r['turn_id'] == c.turn_id}
         self.assertTrue({'clues', 'recommendation', 'decision', 'intent', 'outcome', 'integration'} <= phases)
+        self.assertTrue(all(r.get('type') == 'turn' for r in rows))
+        checkpoint = next(r for r in rows if r['phase'] == 'clues' and r['turn_id'] == next_context.turn_id)
+        self.assertEqual(checkpoint['coverage'], {'targets': [], 'covered': [], 'unresolved': []})
+        self.assertEqual(checkpoint['task_status'], 'active')
         self.assertIsNone(self.store.load().active.pending_intent)
 
     def test_restart_reconciles_pending_input_without_repeating_it(self):

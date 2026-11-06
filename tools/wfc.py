@@ -55,10 +55,11 @@ def log_end(start, argv):
             shots = os.path.dirname(SOCK)
             with open(os.path.join(shots, 'actions_done.log'), 'a') as f:
                 f.write(f'{start:.2f}\t{end:.2f}\n')
-            run = open(os.path.join(shots, 'run.current')).read().strip()
+            with open(os.path.join(shots, 'run.current')) as pointer:
+                run = pointer.read().strip()
             if run:
                 with open(run, 'a') as f:
-                    f.write(json.dumps({'t': start, 'type': 'call', 'start': start, 'end': round(end, 2),
+                    f.write(json.dumps({'t': end, 'type': 'call', 'start': start, 'end': round(end, 2),
                                         'cmd': ' '.join(argv)}) + '\n')
         except OSError:
             pass
@@ -87,15 +88,20 @@ def chain_refusal(argv, parent):
     return None
 
 
-CODE = [os.path.join(ROOT, 'tools', 'wf.py'), os.path.join(ROOT, 'tools', 'game'), os.path.join(ROOT, 'tools', 'objects')]
+CODE = [os.path.join(ROOT, 'tools')]
+# These change executable vocabulary/configuration loaded at import time. Learning journals, actions.json,
+# graph JSON and image/vector stores are read hot and must never erase the daemon's process context.
+CONFIG = {'goals.json', 'kinds.json', 'forage.json'}
 
 
 def code_mtimes():
     out = []
     for p in CODE:
         if os.path.isdir(p):
-            out += [os.path.getmtime(os.path.join(p, f)) for f in os.listdir(p) if f.endswith(('.py', '.json'))
-                    and not f.startswith('observed')]
+            for directory, subdirs, files in os.walk(p):
+                subdirs[:] = [d for d in subdirs if d != '__pycache__']
+                out += [os.path.getmtime(os.path.join(directory, f)) for f in files
+                        if f.endswith('.py') or (os.path.basename(directory) == 'game' and f in CONFIG)]
         elif os.path.exists(p):
             out.append(os.path.getmtime(p))
     return out

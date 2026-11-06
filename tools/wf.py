@@ -753,6 +753,7 @@ def _walk_checked(direction, seconds):
 BUBBLE_DIR = os.path.join(ROOT, 'tools', 'bubbles')
 BUBBLE_MAX_DIST = 0.6   # feature-print distance above this = unknown icon
 _BUBBLE_REFS = None
+_BUBBLE_REVISION = None
 
 
 def _featureprint(img):
@@ -772,10 +773,13 @@ def _featureprint(img):
 
 
 def _bubble_refs():
-    global _BUBBLE_REFS
-    if _BUBBLE_REFS is None:
+    from game.data import image_revision
+    global _BUBBLE_REFS, _BUBBLE_REVISION
+    revision = image_revision(BUBBLE_DIR)
+    if _BUBBLE_REFS is None or _BUBBLE_REVISION != revision:
         from PIL import Image
         _BUBBLE_REFS = []
+        _BUBBLE_REVISION = revision
         for kind in sorted(os.listdir(BUBBLE_DIR)) if os.path.isdir(BUBBLE_DIR) else []:
             d = os.path.join(BUBBLE_DIR, kind)
             for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:

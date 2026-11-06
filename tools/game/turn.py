@@ -101,7 +101,7 @@ class TurnLoop:
     def _log(self, task, turn_id, phase, **data):
         path = os.path.join(os.path.dirname(self.store.path), 'log.jsonl')
         with open(path, 'a') as f:
-            f.write(json.dumps({'t': time.time(), 'event': 'turn', 'task_id': task.task_id,
+            f.write(json.dumps({'t': time.time(), 'type': 'turn', 'task_id': task.task_id,
                                 'turn_id': turn_id, 'phase': phase, **thaw(data)}) + '\n')
             f.flush()
 
@@ -127,7 +127,8 @@ class TurnLoop:
         self.store.save(task)
         self._log(task, c.turn_id, 'clues', screen=c.screen, frame_path=c.frame_path,
                   visible_affordances=c.visible_affordances, graph_clues=c.graph_clues,
-                  coverage=c.coverage, transaction=c.transaction, interrupts=c.interrupts)
+                  coverage=c.coverage, transaction=c.transaction, interrupts=c.interrupts,
+                  region=task.params.get('region'), task_status=task.status, surprise=c.surprise)
         self._log(task, c.turn_id, 'recommendation', recommendation=rec)
         return c
 

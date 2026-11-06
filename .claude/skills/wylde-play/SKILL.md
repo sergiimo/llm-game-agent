@@ -6,7 +6,14 @@ description: Play Wylde Flowers on this Mac through ./wf — the observe→decid
 # Playing Wylde Flowers
 
 Session start: read `AGENTS.md`, `docs/INDEX.md`, `docs/progress.md`. Then load progressively, only what the step
-needs (index → one file; `head -8` gives the summary). The game UI is **Russian**; see `docs/ui/glossary.md`.
+needs (index → one file; `head -8` gives the summary). The game UI is **English**; see `docs/ui/glossary.md`.
+
+For garden work, load `docs/mechanics/interaction-laws.md` and use its **model-owned turn contract**. Bare
+`./wf garden region=…` observes; the gameplay model chooses every exact `turn_id=N` continuation. Accept an obvious
+recommendation or choose one primitive with Decision JSON and concise rationale/evidence refs. Read its outcome
+before choosing again. Preserve the active crop/phase/actual event-owned node through pauses and corrections.
+The canonical timeline is the run's `log.jsonl`; `experiences.jsonl` is machine replay. This contract supersedes
+older batching, engine-owned bubble loops, and automatic card-reset instructions for garden tasks.
 
 ## 0. Preflight
 ```
@@ -15,9 +22,8 @@ needs (index → one file; `head -8` gives the summary). The game UI is **Russia
 If permissions are false, stop and ask the user to enable Warp in Screen Recording and Accessibility.
 
 ## 1. Loop: observe → decide → act → verify
-**Golden rules:** **one `./wf do` call per step** (batch several actions in one `do` when you're confident: each
-call pays a ~3–4 s focus switch) · the game stays **in the background** between calls, paused with time frozen.
-`./wf` focuses it only while acting (L28).
+**Golden rules:** one game command per tool call. Garden commands execute at most one selected input. Focus mode
+is **front**: the clock runs between calls. Pause before off-game work; never assume time is frozen.
 
 **Observe (cheapest first)**
 - **Game files (exact, no screenshot; `docs/ui/game-files.md`):** `./wf log` = new event-log lines (quest
@@ -27,7 +33,7 @@ call pays a ~3–4 s focus switch) · the game stays **in the background** betwe
 - `./wf state` → one line `mode | clock | money | bubble@x,y | text`. Modes: `gameplay` (HUD visible),
   `dialogue` (subtitle "Name: …"), `popup` (quest card with Confirm), `cutscene` (letterbox), `overlay`
   (journal/map/menu/shop/inventory). `--json` for full detail.
-- Need to see the scene (positions, icon bubbles, obstacles)? `./wf look` (960×540 JPEG) or
+- Need to see the scene (positions, icon bubbles, obstacles)? `./wf look` (full-scale 1920×1080 JPEG) or
   `./wf look --crop X Y W H --scale 1` to zoom. Image→game coords: `game = offset + img / scale`.
 - Full-res `./wf shot` only for fine detail.
 
@@ -59,7 +65,8 @@ call pays a ~3–4 s focus switch) · the game stays **in the background** betwe
 ## 2. Guardrails
 - No blind loops: every scripted loop must check state and stop on anything unexpected.
 - Ask the user before: changing settings/language, selling rare items, big purchases, sleeping/ending the day
-  (unless told to play autonomously), romance or other irreversible story choices.
+  (unless already authorized), romance or other irreversible story choices. At a new task's start check the exact
+  clock: later than 19:00 means approved sleep and next-day advance before task input.
 - Focus mode is the user's choice (`./wf focus-mode`). **front** (current): the game stays focused and game time runs
   between calls, so batch actions, keep thinking short, and watch the clock. **background**: time is frozen between calls.
 

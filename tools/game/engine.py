@@ -1701,13 +1701,45 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     g.set_state(tid, 'crop', crop, _stamp(), 'bubble')
                 state = world.state_of(g, tid)
                 row = row_params = None
-                if a.kind == 'plant_growing' and not a.ready and not a.drop:
+                plant_row = _garden_row('plant')
+                can_plant = plan.holds(plant_row['when'], state)
+                inspection = None
+                if a.kind == 'plant' and not can_plant and not a.ready and not a.drop:
+                    # Observe once before choosing a state-changing transition. Harvest can leave a stale
+                    # growing reading for a single-harvest crop; only the actual Seeds card proves it empty.
+                    info = _garden_row('info_growing')
+                    inspection = steps.run(dict(info, steps=[{'do': 'click_bubble',
+                                                              'expect': {'events': '?'}}]), {}, a, state)
+                    if 'plant_growing' not in inspection['events'] and ui.shows('Seeds'):
+                        actual = _learn(g, inspection, 'GardenBed', info, res) or tid
+                        res['clicks'] += inspection['clicks']
+                        if actual not in remaining:
+                            res['stop'] = core.ask_vision(f'Seeds picker proved covered garden node {actual}; '
+                                                        'identify the intended unvisited bed.')
+                            A.gameplay()
+                            break
+                        tid = actual
+                        g.set_state(tid, 'stage', 'empty', _stamp(), 'card')
+                        state = world.state_of(g, tid)
+                        can_plant = plan.holds(plant_row['when'], state)
+                        plant_row = dict(plant_row, steps=plant_row['steps'][1:])
+                        inspection = None
+                    elif 'plant_growing' not in inspection['events']:
+                        inspection.update(ok=False, why=core.ask_vision(
+                            f'Garden bubble labelled plant contradicted {state}; inspection proved '
+                            f'{inspection["events"]}, without a Seeds picker. Identify the actual interaction.'))
+                if not a.ready and not a.drop and (a.kind == 'plant_growing'
+                                                  or (a.kind == 'plant' and not can_plant)):
+                    # Crop and empty-bed icons can share a nearest-reference label. Never run the seed-picker
+                    # transition against contradictory state; a harmless inspection lets the event prove the bed
+                    # and correct the appearance label through the normal learning boundary.
                     row = _garden_row('info_growing')
-                elif a.kind == 'plant':
+                elif a.kind == 'plant' and can_plant:
                     if 'plant' not in enabled and tid not in replanting:
                         remaining.remove(tid)
                         res['visited'].append(tid)
                         _garden_log(tid, 'visited', actions, 'pre-existing empty bed')
+                        A.gameplay()
                         break
                     inventory = world.inventory(save, W.today_log()[0])
                     preferred = replanting.get(tid) or state.get('crop')
@@ -1719,8 +1751,9 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                         remaining.remove(tid)
                         detail = f'missing {preferred}Seed' if preferred else 'missing any crop seed'
                         _garden_log(tid, 'unresolved', actions, detail)
+                        A.gameplay()
                         break
-                    row, row_params = _garden_row('plant'), {'seed': seed}
+                    row, row_params = plant_row, {'seed': seed}
                 elif a.ready:
                     if crop in flowers and crop not in authorized:
                         res['flowers'].append(tid)
@@ -1752,7 +1785,7 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                             break
                 if tid not in remaining:
                     break
-                out = steps.run(row, row_params or {}, a, state)
+                out = inspection if inspection is not None else steps.run(row, row_params or {}, a, state)
                 res['clicks'] += out['clicks']
                 nid = _learn(g, out, 'GardenBed', row, res)
                 plan.count(row['id'], out['ok'])

@@ -1097,6 +1097,36 @@ class StreamingGarden(EngineBase):
         self.assertEqual(f.clicks, [])
         self.assertEqual(f.asks, [])
 
+    def test_a_plant_label_on_a_growing_bed_is_inspected_and_learned_without_planting(self):
+        garden = self._north()
+        empty = garden[-1]
+        empty['state'].update(stage='empty', watered=False, crop=None)
+        empty['icon'] = None
+        f = self._game(garden, inventory={'CarrotSeed': 1})
+        f.relabel['plant_growing'] = 'plant'
+
+        with mock.patch.object(steps, 'run', wraps=steps.run) as run:
+            res = engine.tend_garden('Garden', ('plant', 'water'))
+
+        self.assertEqual(res['unresolved'], [])
+        self.assertEqual(res['stop'], 'done: all beds visited')
+        self.assertEqual(len(res['visited']), 12)
+        self.assertEqual(res['replanted'], 1)
+        self.assertEqual(sum('totalPlanted.CarrotSeed' in line for line in f.log), 1)
+        # The newly planted/watered bed is also inspected before coverage completes.
+        self.assertEqual(sum('> plant_growing ' in line for line in f.log), 12)
+        self.assertIn(('plant_growing', 'plant'), f.learned)
+        for call in run.call_args_list:
+            row, _, _, state = call.args
+            if row['id'] == 'plant':
+                self.assertEqual(state['stage'], 'empty')
+        for bed in garden[:-1]:
+            nid = world.find(self.graph(), 'GardenBed', bed['pos'])
+            self.assertIn(nid, res['visited'])
+            self.assertEqual(world.state_of(self.graph(), nid)['stage'], 'growing')
+            self.assertEqual(world.state_of(self.graph(), nid)['crop'], 'Green Bean')
+        self.assertTrue(f.objects[empty['id']]['state']['watered'])
+
     def test_a_preexisting_empty_bed_is_planted_with_an_available_seed_and_watered(self):
         garden = self._north()
         empty = garden[0]

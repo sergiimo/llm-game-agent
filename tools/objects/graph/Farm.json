@@ -390,10 +390,10 @@
     -26.0
    ],
    "near": "GardenBed@Garden",
-   "t": 1793954877.3,
+   "t": 1793957421.6,
    "pin": [
-    798,
-    502
+    742,
+    505
    ]
   },
   {
@@ -2951,16 +2951,6 @@
    "rel": "offers"
   },
   {
-   "a": "Tara",
-   "b": "Bed",
-   "rel": "distance",
-   "tier": "near",
-   "t": 1793954877.3,
-   "source": "map",
-   "map_px": 14.4,
-   "route_px": 15.3
-  },
-  {
    "a": "GardenBed#-1.7,-25.3",
    "b": "BeeHive#0.2,-23.5",
    "rel": "next_to",
@@ -4248,6 +4238,16 @@
    "distance": "near",
    "game_time": "D205 6:09:21 PM",
    "source": "vision"
+  },
+  {
+   "a": "Tara",
+   "b": "Bed",
+   "rel": "distance",
+   "tier": "map-far",
+   "t": 1793957421.6,
+   "source": "map",
+   "map_px": 66.1,
+   "route_px": 70.0
   }
  ]
 }

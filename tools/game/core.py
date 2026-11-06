@@ -25,9 +25,15 @@ def ask_vision(question):
     menus) as the shared vision ask (`wf.ask_vision`: gridded frame + run-log `vision` event)."""
     VISION_ASKS.append(question)
     try:
-        return WF.ask_vision('game', question, WF.grab())
+        prompt = WF.ask_vision('game', question, WF.grab())
     except Exception:  # noqa: BLE001 (fakes have no frame)
         return f'NEED_VISION game: {question} (no frame saved: ./wf look)'
+    try:
+        from . import ask
+        ask._freeze()
+    except Exception:
+        pass  # A pause failure must not discard the captured evidence or its question.
+    return prompt
 
 
 def bind(wf):

@@ -3626,6 +3626,15 @@ class PauseWhileAsking(EngineBase):
 
         self.assertEqual(calls, [True])
 
+    def test_a_core_failure_vision_question_also_freezes_game_time(self):
+        f = self.use(FakeGame([], GAME))
+        calls = []
+        f.set_paused = lambda want: calls.append(want) or 'paused'
+
+        self.assertIn('NEED_VISION', core.ask_vision('what blocked this action?'))
+
+        self.assertEqual(calls, [True])
+
 
 class ModelDecides(VisitBeds):
     """When direct interaction is absent, one marked graph/heatmap brief replaces coded near-navigation rungs."""

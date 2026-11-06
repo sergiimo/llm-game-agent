@@ -177,8 +177,7 @@ def ask(kind, question, pending, res, img=None):
     except Exception:   # noqa: BLE001
         prompt = f'NEED_VISION {kind}: {q} (no frame saved: ./wf look)'
     res['vision'] = res.get('vision', 0) + 1
-    if not pending.get('streaming'):
-        _freeze()
+    _freeze()
     raise NeedVision(f'{prompt}\n  answer: {ans}')
 
 

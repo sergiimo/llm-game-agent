@@ -3616,7 +3616,7 @@ class PauseWhileAsking(EngineBase):
             ask.ask('button', 'which?', {'goal': 'harvest'}, {})
         self.assertEqual(calls, [])
 
-    def test_a_streaming_question_keeps_the_game_running(self):
+    def test_a_streaming_question_also_freezes_game_time(self):
         f = self.use(FakeGame([], GAME))
         calls = []
         f.set_paused = lambda want: calls.append(want) or 'paused'
@@ -3624,7 +3624,7 @@ class PauseWhileAsking(EngineBase):
         with self.assertRaises(ask.NeedVision):
             ask.ask('click', 'where next?', {'goal': 'garden', 'streaming': True}, {})
 
-        self.assertEqual(calls, [])
+        self.assertEqual(calls, [True])
 
 
 class ModelDecides(VisitBeds):

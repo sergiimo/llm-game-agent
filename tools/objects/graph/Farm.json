@@ -2961,15 +2961,6 @@
    "route_px": 15.3
   },
   {
-   "a": "Tara",
-   "b": "Garden",
-   "rel": "relative_to",
-   "compass": "N",
-   "distance": "near",
-   "game_time": "D205 5:02:26 PM",
-   "source": "vision"
-  },
-  {
    "a": "GardenBed#-1.7,-25.3",
    "b": "BeeHive#0.2,-23.5",
    "rel": "next_to",
@@ -4248,6 +4239,15 @@
     -0.7071067811865475
    ],
    "source": "cluster"
+  },
+  {
+   "a": "Tara",
+   "b": "Garden",
+   "rel": "relative_to",
+   "compass": "NW",
+   "distance": "near",
+   "game_time": "D205 6:09:21 PM",
+   "source": "vision"
   }
  ]
 }

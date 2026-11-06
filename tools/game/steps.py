@@ -99,6 +99,11 @@ def run(row, params, bubble, node_state=None):
             out.update(ok=False, failed_step=i, screen=_card())   # the card still open: what vision is asked about
             I.reasoning('outcome', cycle, action=s['do'], step=i, experience=out['exps'][-1] if out['exps'] else None,
                         events=events, verdict='miss', code_fix='evaluate_gap', discrepancy=bad)
+            out['why'] = core.ask_vision(
+                f'Unexpected result for {r["kind"]} transition {r["id"]}, step {i} ({s["do"]}). '
+                f'Expected vs actual: {bad}. Screen text: {out["screen"] or "none"}. '
+                'Identify what is on screen, what the interaction actually did, and whether to update '
+                'the visual label, transition code, or report an unresolved game-logic issue.')
             break
         I.reasoning('outcome', cycle, action=s['do'], step=i, experience=out['exps'][-1] if out['exps'] else None,
                     events=events, verdict='hit' if s.get('expect') else 'observed')

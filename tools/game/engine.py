@@ -1337,11 +1337,11 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
     """Inspect and immediately tend each garden bed before advancing to the next one.
 
     The graph is only the coverage list.  A live bubble chooses the action; cards and events prove its result.
-    Pre-existing empty beds are left alone.  A bed made empty by removing a wilted crop is replanted with that
-    crop when its seed exists, then watered before the traversal advances.
+    Empty beds are planted with an available seed.  A bed made empty by removing a wilted crop prefers that crop,
+    then falls back to any available seed; every planted bed is watered before the traversal advances.
     """
     enabled = set(chores or ())
-    unknown = enabled - {'replant', 'harvest', 'water'}
+    unknown = enabled - {'plant', 'replant', 'harvest', 'water'}
     if unknown:
         raise core.Failed(f'unknown garden chores: {", ".join(sorted(unknown))}')
     W = core.WF
@@ -1439,12 +1439,17 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
             visible_actions = []
             affordances = {tuple(x.pt): x for x in O.scan()}
             for bubble in visible_state['bubbles']:
+                # Projection may nominate an unvisited candidate, but it must never revive an already covered node.
+                if bubble.get('owner') is not None and bubble['owner'] not in remaining:
+                    continue
                 a = affordances.get(tuple(bubble['pt']))
                 if a is None or tuple(a.pt) in seen_bubbles:
                     continue
                 owner_kind = O.node_of_bubble(a) if a is not None else None
                 row_id = ('hive_collect' if owner_kind == 'BeeHive' and (a.ready or a.kind == 'honey') else
                           'hive_inspect' if owner_kind == 'BeeHive' else
+                          'info_growing' if a is not None and a.kind == 'plant_growing'
+                          and not a.ready and not a.drop else
                           'water' if a is not None and a.kind == 'water' and 'water' in enabled else
                           'remove_wilted' if a is not None and a.kind == 'unplant' and 'replant' in enabled else
                           'pick' if a is not None and a.ready and a.icon is not None and a.icon not in flowers
@@ -1485,6 +1490,12 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     continue
                 if row['id'] == 'water':
                     res['watered'] += 1
+                    remaining.remove(tid)
+                    res['visited'].append(tid)
+                    _garden_log(tid, 'visited', actions)
+                    ask.progress('garden')
+                    continue
+                if row['id'] == 'info_growing':
                     remaining.remove(tid)
                     res['visited'].append(tid)
                     _garden_log(tid, 'visited', actions)
@@ -1564,19 +1575,24 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     g.set_state(tid, 'crop', crop, _stamp(), 'bubble')
                 state = world.state_of(g, tid)
                 row = row_params = None
-                if a.kind == 'plant':
-                    if tid not in replanting:
+                if a.kind == 'plant_growing' and not a.ready and not a.drop:
+                    row = _garden_row('info_growing')
+                elif a.kind == 'plant':
+                    if 'plant' not in enabled and tid not in replanting:
                         remaining.remove(tid)
                         res['visited'].append(tid)
                         _garden_log(tid, 'visited', actions, 'pre-existing empty bed')
                         break
-                    seed = replanting[tid]
-                    item = seed + 'Seed'
                     inventory = world.inventory(save, W.today_log()[0])
-                    if inventory.get(item, 0) < 1:
+                    preferred = replanting.get(tid) or state.get('crop')
+                    available = sorted(name[:-4] for name, count in inventory.items()
+                                       if name.endswith('Seed') and count > 0)
+                    seed = preferred if preferred in available else (available[0] if available else None)
+                    if seed is None:
                         res['unresolved'].append(tid)
                         remaining.remove(tid)
-                        _garden_log(tid, 'unresolved', actions, f'missing {item}')
+                        detail = f'missing {preferred}Seed' if preferred else 'missing any crop seed'
+                        _garden_log(tid, 'unresolved', actions, detail)
                         break
                     row, row_params = _garden_row('plant'), {'seed': seed}
                 elif a.ready:
@@ -1622,10 +1638,20 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     break
                 actual = nid or tid
                 if actual != tid:
-                    res['unresolved'].append(tid)
-                    remaining.remove(tid)
-                    _garden_log(tid, 'unresolved', actions, f'action proved {actual}')
-                    break
+                    nominated = tid
+                    if actual not in remaining or g.nodes.get(actual) is None or g.nodes[actual].kind != target_kind:
+                        res['stop'] = core.ask_vision(
+                            f'Garden interaction near projected {nominated} proved {actual}, which is not an '
+                            f'unvisited {target_kind}. Decide whether the graph, transition, or visual label is wrong.')
+                        break
+                    # Screen projection nominated a candidate only. The event's world coordinates own the result.
+                    tid = actual
+                    state = world.state_of(g, tid)
+                    crop = out.get('stored', {}).get('crop') or getattr(a, 'icon', None) or state.get('crop')
+                    try:
+                        W.run_log('garden_identity', nominated=nominated, actual=actual, source='event_position')
+                    except (AttributeError, TypeError):
+                        pass
                 actions.append(row['id'])
                 if tid not in res['acted']:
                     res['acted'].append(tid)
@@ -1635,6 +1661,17 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                         replanting[tid] = crop
                 elif row['id'] == 'water':
                     res['watered'] += 1
+                    remaining.remove(tid)
+                    res['visited'].append(tid)
+                    _garden_log(tid, 'visited', actions)
+                    ask.progress('garden')
+                    break
+                elif row['id'] == 'info_growing':
+                    remaining.remove(tid)
+                    res['visited'].append(tid)
+                    _garden_log(tid, 'visited', actions)
+                    ask.progress('garden')
+                    break
                 elif row['id'] == 'remove_wilted':
                     seed = out.get('stored', {}).get('crop') or crop
                     if seed:

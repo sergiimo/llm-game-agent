@@ -23,13 +23,17 @@ VISION_ASKS = []   # questions asked of vision (tests read it)
 def ask_vision(question):
     """Uncertainty → model vision, always (user, D183): the frame at the innermost failure (before callers close
     menus) as the shared vision ask (`wf.ask_vision`: gridded frame + run-log `vision` event)."""
+    from . import ask
+    ask.clear_pending()
+    question = ('DIAGNOSTIC ONLY — do not issue a gameplay or navigation answer. Inspect this captured frame, then '
+                'choose exactly one: update a visual label/embedding; update transition code; or report an '
+                f'unresolved game-logic issue to the human. {question}')
     VISION_ASKS.append(question)
     try:
         prompt = WF.ask_vision('game', question, WF.grab())
     except Exception:  # noqa: BLE001 (fakes have no frame)
         return f'NEED_VISION game: {question} (no frame saved: ./wf look)'
     try:
-        from . import ask
         ask._freeze()
     except Exception:
         pass  # A pause failure must not discard the captured evidence or its question.

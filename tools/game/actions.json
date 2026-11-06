@@ -29,9 +29,9 @@
     "Tara.can": "full"
    },
    "source": "seed: game D149 (L123)",
-   "seen": 0,
+   "seen": 1,
    "ok": 0,
-   "surprises": 0
+   "surprises": 1
   },
   {
    "id": "out_of_water",
@@ -116,13 +116,14 @@
     "crop": null
    },
    "source": "seed: game D183/D184 (L123, L126)",
-   "seen": 0,
-   "ok": 0,
-   "surprises": 0
+   "seen": 4,
+   "ok": 2,
+   "surprises": 2
   },
   {
    "id": "plant",
    "kind": "GardenBed",
+   "event": "plant",
    "when": {
     "stage": "empty"
    },
@@ -143,9 +144,6 @@
     {
      "do": "press_space",
      "expect": {
-      "events": [
-       "plant"
-      ],
       "log": "totalPlanted"
      }
     },
@@ -161,10 +159,10 @@
    "needs": {
     "item": "$seedSeed"
    },
-   "source": "seed: game D148/D185 (L137); user D186: Space confirms the card (no Select click), a second Space waters the bed just planted",
-   "seen": 7,
+   "source": "seed: game D148/D185 (L137); user D186: opening the picker logs plant, Space confirms via totalPlanted (and may log complete), a second Space waters the bed just planted",
+   "seen": 9,
    "ok": 0,
-   "surprises": 7,
+   "surprises": 9,
    "proof": "totalPlanted"
   },
   {
@@ -206,11 +204,23 @@
    "id": "info_growing",
    "kind": "GardenBed",
    "when": {},
-   "bubble": null,
+   "bubble": {
+    "kind": "plant_growing",
+    "ready": false
+   },
    "event": "plant_growing",
-   "steps": [],
+   "steps": [
+    {
+     "do": "click_bubble",
+     "expect": {
+      "events": [
+       "plant_growing"
+      ]
+     }
+    }
+   ],
    "effect": {},
-   "source": "seed: game D183",
+   "source": "seed: game D183; garden coverage: harmless inspection event identifies the exact bed coordinates",
    "seen": 0,
    "ok": 0,
    "surprises": 0

@@ -11,7 +11,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import act, affordances, ask, badges, brief, core, engine, icons, learn, nav, observe, plan, screen, smoke, steps, ui, where, world  # noqa: E402
+from game import act, affordances, ask, badges, brief, core, engine, garden as garden_actions, icons, learn, nav, observe, plan, screen, smoke, steps, ui, where, world  # noqa: E402
 from game.ask import NeedVision  # noqa: E402
 from objects import graph as OG  # noqa: E402
 from game.affordances import Affordance  # noqa: E402
@@ -680,6 +680,17 @@ class Steps(Base):
         self.assertEqual((out['at'], out['kind']), ((2.64, -59.36), 'GardenBed'))
         self.assertEqual(f.objects['a']['state']['crop'], 'Tulip')
 
+    def test_plant_confirmation_accepts_complete_after_the_opening_click_logged_plant(self):
+        planting = dict(GAME[1], click_event='plant', event='complete')
+        f = self.use(FakeGame([obj('a', stage='empty')], [planting] + GAME[2:],
+                              inventory={'TulipSeed': 3}))
+
+        out = steps.run(self.row('plant', seed='Tulip'), {'seed': 'Tulip'}, f.scan()[0])
+
+        self.assertTrue(out['ok'], out)
+        self.assertIn('totalPlanted.TulipSeed', '\n'.join(out['lines']))
+        self.assertEqual(f.objects['a']['state']['crop'], 'Tulip')
+
     def test_read_card_stores_the_crop(self):
         f = self.use(FakeGame([obj('a', stage='growing', wilted=True, crop='Tulip')], GAME))
         out = steps.run(self.row('remove_wilted'), {}, f.scan()[0])
@@ -691,9 +702,15 @@ class Steps(Base):
         f = self.use(FakeGame([obj('a', stage='empty')], GAME, inventory={'TulipSeed': 3}))
         r = self.row('plant', seed='Tulip')
         r['steps'][0]['expect'] = {'card': 'Fishing'}
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [],
+                        'pending': {'kind': 'click', 'goal': 'garden'}})
         out = steps.run(r, {'seed': 'Tulip'}, f.scan()[0])
         self.assertFalse(out['ok'])
         self.assertEqual(out['failed_step'], 0)
+        self.assertIn('NEED_VISION game:', out.get('why', ''))
+        self.assertIn('DIAGNOSTIC ONLY', out['why'])
+        self.assertEqual(len(f.asks), 1)
+        self.assertNotIn('pending', ask.load_state('garden'))
         self.assertIsNone(f.card)
         self.assertEqual(out['surprises'][0][:3], (0, 'card', 'Fishing'))
 
@@ -939,7 +956,7 @@ class StreamingGarden(EngineBase):
         res = engine.tend_garden('Garden', ('harvest', 'water'))
 
         events = [f.event_kind([line]) for line in f.log if '> ' in line]
-        self.assertEqual(events[-3:], ['grab_item', 'water', 'water'])
+        self.assertEqual([e for e in events if e in ('grab_item', 'water')], ['grab_item', 'water', 'water'])
         self.assertEqual(res['visited'][:2], [world.find(self.graph(), 'GardenBed', ripe['pos']),
                                               world.find(self.graph(), 'GardenBed', dry['pos'])])
         events = [f.event_kind([line]) for line in f.log if '> ' in line]
@@ -959,7 +976,8 @@ class StreamingGarden(EngineBase):
         res = engine.tend_garden('Garden', ('harvest', 'replant', 'water'))
 
         events = [f.event_kind([line]) for line in f.log if '> ' in line]
-        self.assertEqual(events[-3:], ['grab_item', 'plant', 'water'])
+        self.assertEqual([e for e in events if e in ('grab_item', 'plant', 'water')],
+                         ['grab_item', 'plant', 'water'])
         self.assertEqual((res['harvested'], res['replanted']), (1, 1))
 
     def test_ready_flowers_stay_and_beds_outside_the_region_are_untouched(self):
@@ -1016,17 +1034,18 @@ class StreamingGarden(EngineBase):
         self.assertEqual(f.clicks, [])
         self.assertEqual(f.asks, [])
 
-    def test_a_preexisting_empty_bed_with_a_noisy_ready_badge_is_never_harvested_or_planted(self):
+    def test_a_preexisting_empty_bed_is_planted_with_an_available_seed_and_watered(self):
         garden = self._north()
         empty = garden[0]
-        empty['state'].update(stage='empty', watered=True, crop=None)
-        empty['scan_ready'] = True   # detector false positive; the underlying bed state remains valid
-        empty['badge'] = 'ready'
+        empty['state'].update(stage='empty', watered=False, crop=None)
         empty['icon'] = None
-        f = self._game(garden)
-        res = engine.tend_garden('Garden', ('replant', 'harvest', 'water'))
-        self.assertEqual(f.objects[empty['id']]['state']['stage'], 'empty')
-        self.assertNotIn('> plant ', '\n'.join(f.log))
+        f = self._game(garden, inventory={'CarrotSeed': 1})
+
+        res = garden_actions.do()
+
+        self.assertEqual(f.objects[empty['id']]['state'], {
+            'stage': 'growing', 'watered': True, 'wilted': False, 'crop': 'Carrot'})
+        self.assertIn('totalPlanted.CarrotSeed', '\n'.join(f.log))
         self.assertNotIn('> grab_item ', '\n'.join(f.log))
         self.assertIn(world.find(self.graph(), 'GardenBed', empty['pos']), res['visited'])
 
@@ -1242,11 +1261,31 @@ class StreamingGarden(EngineBase):
 
         with mock.patch.object(where, 'position', return_value=('unknown', None)), \
                 mock.patch.object(brief, '_position', return_value=('unknown', None)):
-            with self.assertRaises(NeedVision):
-                engine.tend_garden('Garden', ('water',), answer='inside')
+            res = engine.tend_garden('Garden', ('water',), answer='inside')
 
         self.assertIn('> water ', '\n'.join(f.log))
-        self.assertEqual(engine.LAST['watered'], 1)
+        self.assertEqual((res['watered'], len(res['visited'])), (1, 12))
+
+    def test_event_coordinates_override_the_projected_bed_owner(self):
+        garden = self._north()
+        projected, actual = garden[:2]
+        projected['state'].update(watered=False, crop='Carrot')
+        actual['state'].update(watered=False, crop='Carrot')
+        actual['bubble_pt'] = projected['bubble_pt']
+        projected['bubble_pt'] = None
+        f = self._game(garden)
+        f.relabel['water'] = 'plant_growing'  # bypass the global visible-action path and exercise projected visiting
+        for inspected in garden[2:]:
+            f.log.append(L('9:01:00 AM', 'plant_growing', 'GardenBed', *inspected['pos']))
+
+        res = engine.tend_garden('Garden', ('water',))
+
+        projected_id = world.find(self.graph(), 'GardenBed', projected['pos'])
+        actual_id = world.find(self.graph(), 'GardenBed', actual['pos'])
+        self.assertTrue(f.objects[actual['id']]['state']['watered'], (res, f.log, [str(a) for a in f.scan()]))
+        self.assertIn(actual_id, res['visited'], res)
+        self.assertNotIn(projected_id, res['unresolved'])
+        self.assertNotIn(projected_id, res['visited'])
 
     def test_a_proven_info_bubble_counts_as_coverage_on_the_next_command(self):
         garden = self._north()
@@ -1409,7 +1448,7 @@ class Wrappers(EngineBase):
             garden.do(region='GardenSouth')
         self.assertEqual(calls, [('Garden', ('water',), 'Q14', 40), ('achieve', 'plant'),
                                  ('Garden', ('harvest',), None, 40), ('Garden', ('replant',), None, 40),
-                                 ('GardenSouth', ('replant', 'harvest', 'water'), None, 40)])
+                                 ('GardenSouth', ('plant', 'replant', 'harvest', 'water'), None, 40)])
 
     def test_garden_cli_defaults_to_the_main_garden(self):
         import wf
@@ -1784,7 +1823,8 @@ class PlantProof(EngineBase):
         res = engine.achieve('plant', seed='Tulip', region='Garden', answer='Plant')
         self.assertEqual((len(res['done']), res['vision']), (2, 0), res)
         row = next(r for r in plan.rows() if r['id'] == 'plant')
-        self.assertEqual(row['steps'][2], {'do': 'press', 'arg': 'Plant', 'expect': {'events': ['plant'], 'log': 'totalPlanted'}})
+        self.assertEqual(row['steps'][2], {'do': 'press', 'arg': 'Plant',
+                                           'expect': {'log': 'totalPlanted'}})
 
     def test_pick_card_reads_the_card_modal_text_not_the_fixed_title_band(self):
         """User D186: the picked card opened a modal with "Select"; the fixed title band read another text, so the right

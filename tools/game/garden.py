@@ -21,8 +21,8 @@ def _tend(chores, click=None, region='Garden', max_clicks=40):
 
 @action
 def do(region='Garden', click=None, max_clicks=40):
-    """Treat every bed and hive: harvest/collect, replant wilted crops, water, and inspect unchanged nodes."""
-    return _tend(('replant', 'harvest', 'water'), click, region, max_clicks)
+    """Treat every bed and hive: harvest/collect, plant empty beds, replant wilted crops, and water."""
+    return _tend(('plant', 'replant', 'harvest', 'water'), click, region, max_clicks)
 
 
 @action

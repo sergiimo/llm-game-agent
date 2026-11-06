@@ -122,6 +122,13 @@ def progress(goal):
     save_state({'goal': goal, 'asks': 0, 'history': []})
 
 
+def clear_pending():
+    """A diagnostic surprise supersedes resumable action questions; discard every stale pending answer."""
+    for goal, state in _all().items():
+        if state.pop('pending', None) is not None:
+            save_state(dict(state, goal=goal))
+
+
 def take_answer(goal):
     """The pending question of `goal` (once): the record the answer belongs to, or None."""
     st = load_state(goal)

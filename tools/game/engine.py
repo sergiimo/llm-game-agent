@@ -994,7 +994,11 @@ def _answer(g, name, params, answer, res):
                                 code_fix=None if out['ok'] else 'evaluate_gap')
                     A.gameplay()
                     return
-            if click_mode == 'walk' and c.events:
+            # `complete` is emitted when a doorway/scene transition finishes;
+            # that is navigation progress even when the frame-diff heuristic
+            # cannot call it movement. Object-action events are still a miss.
+            interaction_events = [e for e in c.events if e != 'complete']
+            if click_mode == 'walk' and interaction_events:
                 raise core.Failed(f'navigation click triggered interaction {c.events}; it was not navigation progress')
             if c.moved or (click_mode == 'target' and (c.events or A.on_card(c))):
                 ask.progress(name)

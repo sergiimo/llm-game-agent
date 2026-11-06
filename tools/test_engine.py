@@ -1108,6 +1108,23 @@ class StreamingGarden(EngineBase):
         with mock.patch.object(act, 'click', return_value=click), self.assertRaisesRegex(core.Failed, 'navigation click triggered'):
             engine._answer(g, 'garden', {}, 'H13', res)
 
+    def test_a_navigation_click_may_complete_a_scene_transition(self):
+        self.use(FakeGame([], GAME))
+        g = self.graph()
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {'region': 'Garden'},
+            'navigation_only': True, 'garden_entry_only': True, 'avoid': []}})
+        res = nav.new_res('garden')
+        res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area=None,
+                   spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}})
+        click = act.Click((1000, 979), 'point', 0, events=['complete'], mode='overlay', moved=False)
+
+        with mock.patch.object(act, 'click', return_value=click):
+            engine._answer(g, 'garden', {}, 'M15 relative=NW distance=near', res)
+
+        self.assertEqual(res['clicks'], 1)
+        self.assertEqual(OG.relative_to(g, 'Tara', 'Garden')['compass'], 'NW')
+
     def test_a_successful_navigation_click_resets_the_vision_stuck_counter(self):
         self.use(FakeGame([], GAME))
         g = self.graph()

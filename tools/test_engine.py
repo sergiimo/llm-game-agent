@@ -1395,6 +1395,42 @@ class Wrappers(EngineBase):
         with self.assertRaisesRegex(ValueError, 'both relative and distance'):
             wf.garden_cli_args(['answer=walk:F7', 'relative=NW'])
 
+    def test_sleep_cli_is_a_first_class_resumable_task(self):
+        import wf
+        calls = []
+        with mock.patch('game.sleep.do', lambda answer=None: calls.append(answer) or {
+                'done': True, 'clicks': 1, 'vision': 0, 'stop': 'done: slept'}), \
+             mock.patch.object(wf, 'ensure_front'), mock.patch.object(wf, 'release_focus', return_value=False), \
+             mock.patch.object(wf, 'wait_settle'), \
+             mock.patch.object(wf, 'state', return_value={'mode': 'gameplay', 'text': []}), \
+             mock.patch.object(wf, 'print_log'):
+            wf.main(['sleep'])
+            wf.main(['sleep', 'answer=walk:F7'])
+        self.assertEqual(calls, [None, 'walk:F7'])
+
+    def test_sleep_task_uses_bed_navigation_and_requires_transition_proof(self):
+        from game import sleep as sleep_task
+        self.use(FakeGame([], GAME))
+        bubble = Affordance('sleep', None, (900, 400), False, 0.0)
+        calls = []
+        with mock.patch.object(nav, 'reach', lambda fits, **kw: calls.append(kw) or bubble), \
+             mock.patch.object(steps, 'run', return_value={
+                 'ok': True, 'events': ['sleep_transition'], 'clicks': 1}):
+            res = sleep_task.do()
+        self.assertTrue(res['done'])
+        self.assertEqual((calls[0]['kind'], calls[0]['node'], calls[0]['region']), ('Bed', 'Bed', 'House'))
+
+        with mock.patch.object(nav, 'reach', return_value=bubble), \
+             mock.patch.object(steps, 'run', return_value={'ok': True, 'events': [], 'clicks': 1}), \
+             mock.patch.object(core, 'ask_vision', return_value='NEED_VISION game: inspect'):
+            with self.assertRaisesRegex(core.Failed, 'sleep_transition not observed'):
+                sleep_task.do()
+
+    def test_sleep_task_accepts_shell_safe_vision_waypoints(self):
+        from game import sleep as sleep_task
+        self.assertEqual(sleep_task._cell('walk:F7'), ask.parse_point('F7'))
+        self.assertEqual(sleep_task._cell('target:J6'), ask.parse_point('J6'))
+
     def test_cli_parses_goal_params_and_answer(self):
         self.assertEqual(engine.parse_cli(['plant', 'seed=Tulip', 'region=GardenSouth', 'answer=Q14']),
                          ('plant', {'seed': 'Tulip', 'region': 'GardenSouth'}, 'Q14'))

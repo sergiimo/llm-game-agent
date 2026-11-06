@@ -43,6 +43,11 @@ call pays a ~3–4 s focus switch) · the game stays **in the background** betwe
   `key:space` (Space = **interact**/confirm), `text:<label>`, `click:x:y`, `wait:<s>`, `still`. It prints the settled
   state, and the look path with `--look`.
 - Interaction pattern: `./wf do go:<object x>:<y>` → see `bubble@x,y` → `./wf do key:space`.
+- **Leaving the farmhouse cutaway:** the lower-centre edge that looks porch-like is a **solid railing**, so clicks on
+  it are ignored. The interior exit is the **open gap in the far-right/southeast wall** (no rail across it). Click
+  clear floor through that gap onto the porch, take a fresh full-scale frame, click the visible porch stairs, then
+  move past the porch until the house interior disappears. Only then navigate toward the Garden. This is a
+  three-frame sequence; never replace it with repeated clicks on the central railing.
 - Dialogue/cutscene/quest popups: `./wf advance`. It presses Space only in dialogue/popup/cutscene and stops on
   anything else.
 - Mechanical text-only loops (long dialogue, routes, repeated interactions): delegate to the **wylde-runner** agent

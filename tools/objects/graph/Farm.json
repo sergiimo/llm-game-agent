@@ -386,11 +386,15 @@
    "kind": "Tara",
    "region": "Farm",
    "pos": [
-    17.61,
-    -26.21
+    10.8,
+    -24.08
    ],
-   "near": null,
-   "t": 1793952746.0
+   "near": "GardenBed@Garden",
+   "t": 1793954877.3,
+   "pin": [
+    798,
+    502
+   ]
   },
   {
    "id": "Mine",
@@ -419,80 +423,80 @@
    "region": "Garden",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
      "value": "2",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##growing",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "true",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "growing",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -515,80 +519,80 @@
    "region": "Garden",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
      "value": "8:00:00 PM",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "empty",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
@@ -617,80 +621,80 @@
    "region": "Garden",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "2",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##growing",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "3",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "growing",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
@@ -716,80 +720,80 @@
    "region": "GardenSouth",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "4",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -809,80 +813,80 @@
    "region": "Garden",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "2",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##growing",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "3",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "growing",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
@@ -919,80 +923,80 @@
    "region": "GardenSouth",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "4",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -1013,7 +1017,7 @@
    "state": {
     "pollen": {
      "value": "12",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -1033,80 +1037,80 @@
    "region": "GardenSouth",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "4",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -1127,7 +1131,7 @@
    "state": {
     "pollen": {
      "value": "12",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -1147,80 +1151,80 @@
    "region": "GardenSouth",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "4",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -1240,80 +1244,80 @@
    "region": "Garden",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
@@ -1339,80 +1343,80 @@
    "region": "GardenSouth",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "4",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -1432,80 +1436,80 @@
    "region": "GardenSouth",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "4",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -1526,7 +1530,7 @@
    "state": {
     "pollen": {
      "value": "12",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -1546,80 +1550,80 @@
    "region": "Garden",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "18",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
@@ -1646,7 +1650,7 @@
    "state": {
     "pollen": {
      "value": "12",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -1670,7 +1674,7 @@
    "state": {
     "pollen": {
      "value": "12",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -1690,80 +1694,80 @@
    "region": "Garden",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
@@ -1793,80 +1797,80 @@
    "region": "GardenSouth",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "4",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -1886,80 +1890,80 @@
    "region": "Garden",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "15",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -1980,7 +1984,7 @@
    "state": {
     "pollen": {
      "value": "12",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -2001,7 +2005,7 @@
    "state": {
     "pollen": {
      "value": "12",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -2021,80 +2025,80 @@
    "region": "GardenSouth",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "4",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -2114,80 +2118,80 @@
    "region": "GardenSouth",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "4",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -2207,80 +2211,80 @@
    "region": "GardenSouth",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "5",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -2300,80 +2304,80 @@
    "region": "Garden",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "6",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -2393,80 +2397,80 @@
    "region": "GardenSouth",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "5",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -2486,80 +2490,80 @@
    "region": "Garden",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "5",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -2579,80 +2583,80 @@
    "region": "GardenSouth",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "4",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -2673,7 +2677,7 @@
    "state": {
     "pollen": {
      "value": "12",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -2693,80 +2697,80 @@
    "region": "Garden",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "2",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##growing",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "growing",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -2786,80 +2790,80 @@
    "region": "Garden",
    "state": {
     "isWatered": {
-     "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "value": "true",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastDayRefreshed": {
-     "value": "203",
-     "game_time": "D203 2:10:00 PM",
+     "value": "205",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "bonusProducePerHarvest": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysNotWatered": {
-     "value": "1",
-     "game_time": "D203 2:10:00 PM",
+     "value": "3",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "harvestCount": {
      "value": "0",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "plantState": {
      "value": "##produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "isWilted": {
      "value": "false",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "daysInState": {
      "value": "5",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "lastTimeRefreshed": {
-     "value": "2:00:00 AM",
-     "game_time": "D203 2:10:00 PM",
+     "value": "12:00:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "stage": {
      "value": "produced",
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "watered": {
-     "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "value": true,
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "wilted": {
      "value": false,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     },
     "ready": {
      "value": true,
-     "game_time": "D203 2:10:00 PM",
+     "game_time": "D205 7:00:00 AM",
      "source": "save",
      "conf": 1.0
     }
@@ -2950,17 +2954,19 @@
    "a": "Tara",
    "b": "Bed",
    "rel": "distance",
-   "tier": "unknown",
-   "t": 1793952746.0,
-   "source": "graph"
+   "tier": "near",
+   "t": 1793954877.3,
+   "source": "map",
+   "map_px": 14.4,
+   "route_px": 15.3
   },
   {
    "a": "Tara",
    "b": "Garden",
    "rel": "relative_to",
-   "compass": "NW",
+   "compass": "NE",
    "distance": "near",
-   "game_time": "D203 5:25:03 PM",
+   "game_time": "D205 7:00:30 AM",
    "source": "vision"
   },
   {

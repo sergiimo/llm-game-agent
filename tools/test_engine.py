@@ -1609,6 +1609,52 @@ class StreamingGarden(EngineBase):
         self.assertEqual(f.inventory['CarrotSeed'], 1)
         self.assertFalse(any('totalPlanted' in line for line in f.log))
 
+    def test_a_covered_duplicate_at_the_click_cap_is_checkpointed_before_a_bare_retry(self):
+        for label in ('plant', 'plant_growing'):
+            with self.subTest(label=label):
+                garden = self._north()
+                projected, actual = garden[:2]
+                projected['state'].update(stage='empty', watered=False, crop=None)
+                projected['icon'] = None
+                point = projected['bubble_pt']
+                actual['bubble_pt'] = point
+                projected['bubble_pt'] = None
+                f = self._game(garden, inventory={'CarrotSeed': 1})
+                f.relabel['plant_growing'] = label
+                for inspected in garden[1:]:
+                    f.log.append(L('9:01:00 AM', 'plant_growing', 'GardenBed', *inspected['pos']))
+                params = {'region': 'Garden', 'crops': 'Tulip'}
+                ask.save_state({'goal': 'garden', 'asks': 0, 'history': [], 'pending': {
+                    'goal': 'garden', 'params': params, 'streaming': True,
+                    'inside_region': 'Garden', 'covered': [], 'seen_bubbles': []}})
+
+                res = engine.tend_garden('Garden', ('plant', 'water'), crops='Tulip', max_clicks=1)
+
+                self.assertEqual(res['stop'], 'click cap 1')
+                self.assertEqual(res['clicks'], 1)
+                projected_id = world.find(self.graph(), 'GardenBed', projected['pos'])
+                pending = ask.load_state('garden')['pending']
+                self.assertTrue(pending['streaming'])
+                self.assertEqual(pending['params'], params)
+                self.assertEqual(pending['inside_region'], 'Garden')
+                self.assertIn(list(point), pending['seen_bubbles'])
+                self.assertEqual(len(pending['covered']), 11)
+                self.assertNotIn(projected_id, pending['covered'])
+                self.assertEqual(res['unresolved'], [])
+                self.assertIsNone(f.card)
+                clicks = list(f.clicks)
+
+                with self.assertRaises(NeedVision):
+                    engine.tend_garden('Garden', ('plant', 'water'), crops='Tulip', max_clicks=1)
+
+                self.assertEqual(f.clicks, clicks)
+                self.assertEqual(engine.LAST['clicks'], 0)
+                self.assertEqual(engine.LAST['unresolved'], [])
+                pending = ask.load_state('garden')['pending']
+                self.assertEqual(pending['params'], params)
+                self.assertIn(list(point), pending['seen_bubbles'])
+                self.assertNotIn(projected_id, pending['covered'])
+
     def test_invalid_event_identity_keeps_the_diagnostic_boundary(self):
         for invalid in ('missing', 'wrong_kind', 'outside_task'):
             with self.subTest(identity=invalid):

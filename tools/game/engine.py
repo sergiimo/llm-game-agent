@@ -1464,6 +1464,14 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
             if point not in res['btried']:
                 res['btried'].append(point)
             res['notes'].append(f'skipped covered bubble {bubble.pt}: event proved {actual}')
+            # Save progress before the cap can stop us; no question kind until navigation is actually asked.
+            checkpoint = ask.load_state('garden')
+            checkpoint['pending'] = {
+                'goal': 'garden', 'params': task_params, 'streaming': True,
+                'navigation_only': True, 'inside_region': res.get('inside_region'),
+                'covered': sorted(targets - remaining),
+                'seen_bubbles': [list(p) for p in sorted(seen_bubbles)]}
+            ask.save_state(checkpoint)
             A.gameplay()  # close the harmless card before observing another target
             return True
 

@@ -8,7 +8,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import core, experience as X, integrate as I, learn, primitives, steps, task_state as S, turn
+from game import badges, core, experience as X, icons, integrate as I, learn, primitives, steps, task_state as S, turn
 from objects.graph import Graph, Node
 
 
@@ -243,13 +243,135 @@ class Turns(unittest.TestCase):
     def test_current_event_evidence_cannot_be_overwritten_by_model_world_correction(self):
         graph = Graph()
         graph.nodes['bed'] = Node('bed', 'member', 'GardenBed', pos=[1., 2.], scene='Farm')
-        graph.set_state('bed', 'watered', True, 'D1 9:00:00 AM', 'event')
-        e = primitives.experience(S.Intent(1, {'kind': 'wait'}, 0, 1.), self.port.snapshot, {}, X.Evidence())
-        with mock.patch.dict(learn.MEMORY, graph=graph):
+        # The current event itself is authoritative even before its graph update has run.
+        graph.set_state('bed', 'watered', True, 'D1 9:00:00 AM', 'save')
+        e = primitives.experience(S.Intent(1, {'kind': 'wait'}, 0, 1.), self.port.snapshot, {},
+                                 X.Evidence(lines=('[D2 9:00:00 AM] > water me=Player target=GardenBed '
+                                                   'at (1.0, 0.0, 2.0)',), events=('water',), at=(1., 2.)))
+        with mock.patch.dict(learn.MEMORY, graph=graph), \
+                mock.patch.object(learn, 'GRAPH', os.path.join(self.tmp.name, 'graph.json')):
             result = I.correct(e, 'world', {'node': 'bed', 'state': {'watered': False}})
         self.assertEqual(result['applied'], 0)
         self.assertEqual(graph.state_value('bed', 'watered'), True)
         self.assertTrue(result['errors'])
+
+    def test_new_observation_can_correct_historical_event(self):
+        graph = Graph()
+        graph.nodes['bed'] = Node('bed', 'member', 'GardenBed', pos=[1., 2.], scene='Farm')
+        graph.set_state('bed', 'watered', True, 'D1 9:00:00 AM', 'event')
+        before = dict(self.port.snapshot, game_time='D2 9:00:00 AM')
+        e = primitives.experience(S.Intent(1, {'kind': 'wait'}, 0, 1.), before, {},
+                                 X.Evidence(mode='card', texts=('Tulip', 'Needs water')))
+        with mock.patch.dict(learn.MEMORY, graph=graph), \
+                mock.patch.object(learn, 'GRAPH', os.path.join(self.tmp.name, 'graph.json')):
+            result = I.correct(e, 'world', {'node': 'bed', 'state': {'watered': False}})
+        self.assertEqual(result['applied'], 1)
+        self.assertEqual(graph.state_value('bed', 'watered'), False)
+        self.assertEqual(graph.nodes['bed'].state['watered']['game_time'], 'D2 9:00:00 AM')
+        self.assertEqual(graph.nodes['bed'].state['watered']['source'], 'vision')
+
+    def test_recommendation_provenance_survives_primitive_capture_and_transition_log(self):
+        row = {'id': 'water', 'kind': 'GardenBed', 'effect': {},
+               'steps': [{'do': 'press', 'arg': 'Collect', 'expect': {'card': 'Seeds'}}]}
+        self.loop.policy = lambda task, obs: steps.recommend(row, {}, 0)
+        path = os.path.join(self.tmp.name, 'observed.jsonl')
+        with mock.patch.object(steps, 'OBSERVED', path):
+            c = self.loop.decide(self.loop.context().turn_id, turn.Decision('accept'))
+        self.assertEqual(c.last_outcome['goal']['row'], 'water')
+        self.assertEqual(c.last_outcome['goal']['step'], 0)
+        with open(path) as f:
+            record = json.loads(f.readline())
+        self.assertEqual((record['row'], record['step']), ('water', 0))
+
+    def test_production_resume_reaches_daemon_with_one_physical_input(self):
+        import wf
+        inputs = []
+        paused = [True]
+        def state(*args, **kwargs):
+            return ({'mode': 'overlay', 'text': ['0) Game Paused', '1) Resume Game']}
+                    if paused[0] else {'mode': 'gameplay', 'text': []})
+        def click(x, y):
+            inputs.append((x, y))
+            paused[0] = False
+        # Keep the real run_action/run_action_inner dispatch and pause guard. Only physical I/O and its
+        # screen/log bookkeeping are stubbed; using the adapter's old click:x:y fails this boundary.
+        with mock.patch.object(core, 'WF', wf), \
+                mock.patch.object(wf, 'state', state), \
+                mock.patch.object(wf, 'find_text', return_value=[{'cx': 960, 'cy': 700}]), \
+                mock.patch.object(wf, 'click', click), \
+                mock.patch.object(wf, 'key', side_effect=AssertionError('unexpected extra key')), \
+                mock.patch.object(wf, 'log_mark', return_value=0), \
+                mock.patch.object(wf, 'seg_estimate', return_value=None), \
+                mock.patch.object(wf, 'scene_change', return_value=True), \
+                mock.patch.object(wf.time, 'sleep'):
+            adapter = primitives.GameAdapter()
+            action = adapter.prepare({'kind': 'press', 'label': 'Resume Game'},
+                                     {'screen': {'kind': 'pause', 'texts': ['Resume Game']}})
+            adapter.perform(action)
+        self.assertEqual(inputs, [(960, 700)])
+        self.assertFalse(paused[0])
+
+    def test_production_bubble_turn_integrates_cards_badges_and_bubble_labels(self):
+        import wf
+        from PIL import Image
+        class Raw:
+            event_kind = staticmethod(wf.event_kind)
+            learn_bubble = staticmethod(wf.learn_bubble)
+            bubble_crop = staticmethod(wf.bubble_crop)
+            def __init__(self, directory):
+                self.directory, self.lines, self.inputs = directory, [], []
+                self.image = Image.new('RGB', (1920, 1080), (90, 140, 60))
+            def grab(self):
+                return self.image
+            def run_dir(self):
+                return self.directory
+            def game_stamp(self):
+                return 'D2 9:00:00 AM'
+            def log_mark(self):
+                return len(self.lines)
+            def log_since(self, mark):
+                return '\n'.join(self.lines[mark:])
+            def _unhash(self, value):
+                return value
+            def state(self):
+                return ({'mode': 'overlay', 'text': ['0) Tulip', '1) 3 days remaining']}
+                        if self.lines else {'mode': 'gameplay', 'text': []})
+            def find_bubbles(self, image):
+                return [] if self.lines else [(1100, 600)]
+            def bubble_kind(self, image, point):
+                return 'unknown', 0.
+            def bubble_highlighted(self, image, point):
+                return True
+            def run_action(self, command):
+                self.inputs.append(command)
+                self.lines.append('[D2 9:00:00 AM] > inspect me=Player target=GardenBed at (1.0, 0.0, 2.0)')
+            def wait_settle(self):
+                pass
+            def run_log(self, *args, **kwargs):
+                pass
+        graph = Graph()
+        graph.nodes['bed'] = Node('bed', 'member', 'GardenBed', pos=[1., 2.], scene='Farm')
+        raw = Raw(self.tmp.name)
+        self.loop = turn.TurnLoop(self.store, primitives.GameAdapter(), lambda task, obs: turn.Recommendation(
+            {'kind': 'bubble', 'point': [1100, 600], 'visible_road': True}, 1., ('inspect visible bubble',),
+            {'card': 'days remaining'}))
+        bubble_dir = os.path.join(self.tmp.name, 'bubbles')
+        badge_dir = os.path.join(self.tmp.name, 'badges')
+        with mock.patch.object(core, 'WF', raw), mock.patch.dict(learn.MEMORY, graph=graph), \
+                mock.patch.object(learn, 'GRAPH', os.path.join(self.tmp.name, 'graph.json')), \
+                mock.patch.object(wf, 'BUBBLE_DIR', bubble_dir), mock.patch.object(wf, '_BUBBLE_REFS', None), \
+                mock.patch.object(wf, 'LEARNED_LOG', os.path.join(self.tmp.name, 'learned.log')), \
+                mock.patch.object(wf, '_featureprint', side_effect=lambda im: __import__('numpy').ones(8)), \
+                mock.patch.object(badges, 'DIR', badge_dir), mock.patch.object(icons, 'DIR', os.path.join(self.tmp.name, 'icons')):
+            c = self.loop.decide(self.loop.context().turn_id, turn.Decision('accept'))
+            self.assertEqual(graph.state_value('bed', 'crop'), 'Tulip')
+            restored = Graph()
+            restored.load(learn.GRAPH)
+            self.assertEqual(restored.state_value('bed', 'crop'), 'Tulip')
+        self.assertEqual(raw.inputs, ['click:1100:600'])
+        self.assertIsNone(c.surprise)
+        self.assertTrue(os.listdir(os.path.join(bubble_dir, 'inspect')))
+        self.assertTrue(os.listdir(os.path.join(badge_dir, 'none')))
 
 
 if __name__ == '__main__':

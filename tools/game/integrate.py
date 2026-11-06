@@ -352,21 +352,39 @@ def _run(u, e, img0):
             _save_world(g)
         return nid
     if u.consumer == 'world' and u.op == 'model_state':
+        from . import plan, world
         g = LN.MEMORY['graph']
         nid, values = u.args['node'], u.args['state']
         if g is None or nid not in g.nodes:
             raise ValueError('world correction requires an existing graph node')
         if e.evidence.at:
-            from . import world
             proven = world.find(g, None, tuple(e.evidence.at))
             if proven and proven != nid:
                 raise ValueError('model correction cannot rebind positioned event identity')
+        # Current positioned events are facts; historical graph event readings are hypotheses whose age matters.
+        current = {}
+        for line in e.evidence.lines:
+            at = A.position_of(line)
+            target = re.search(r'target=([A-Za-z]+)', line)
+            if at and target and world.find(g, target[1], at) == nid:
+                for event in A.events_of([line]):
+                    current.update(plan.effects_of_event(event, dict(e.goal.params), list(e.evidence.lines)))
+        stamp = next((m[1] for line in reversed(e.evidence.lines)
+                      if (m := re.match(r'^\[(D[^\]]+)\]', line)) and world.when(m[1]) is not None),
+                     dict(e.before.state).get('game_time')) or LN.stamp()
+        observed_at = world.when(stamp)
         for key, value in values.items():
+            if key in current and current[key] != value:
+                raise ValueError('model correction conflicts with current positioned event evidence')
             reading = g.nodes[nid].state.get(key)
-            if isinstance(reading, dict) and reading.get('source') == 'event' and reading.get('value') != value:
-                raise ValueError('model correction conflicts with event evidence')
+            if not isinstance(reading, dict) or reading.get('value') == value:
+                continue
+            recorded_at = world.when(reading.get('game_time'))
+            if recorded_at is not None and observed_at is not None and (
+                    recorded_at > observed_at or (recorded_at == observed_at and reading.get('source') == 'event')):
+                raise ValueError('model correction cannot overwrite equally current event evidence or a newer reading')
         for key, value in values.items():
-            g.set_state(nid, key, value, LN.stamp(), 'vision')
+            g.set_state(nid, key, value, stamp, 'vision')
         note(g, nid, e.id)
         _save_world(g)
         return nid
@@ -378,6 +396,8 @@ def _run(u, e, img0):
             hit = world.find(g, None, tuple(e.evidence.at)) if hasattr(world, 'find') else None
             for n in {nid, hit} - {None}:
                 note(g, n, e.id)
+            if nid and e.artifacts.turn_id is not None:
+                _save_world(g)
         return nid
     if u.consumer == 'memory':
         img = _img(e, img0)

@@ -13,6 +13,12 @@ from . import experience as X
 from .task_state import Intent, Interaction
 
 
+def _affordances(rows):
+    """Use the experience boundary's established flat bubble schema in both observations and outcomes."""
+    return tuple((a['kind'], int(a['point'][0]), int(a['point'][1]), bool(a.get('drop')), bool(a.get('ready')),
+                  bool(a.get('highlighted'))) for a in rows)
+
+
 def experience(intent, before, expects, evidence, frames=()):
     from . import integrate
     checks, _ = integrate.verify(expects, evidence.lines, evidence.events, ' / '.join(evidence.texts))
@@ -25,13 +31,24 @@ def experience(intent, before, expects, evidence, frames=()):
         if unexpected:
             checks.append(X.Check('unexpected_events', [], unexpected, False))
     screen = before.get('screen') or {}
+    original = intent.action['kind']
+    kind, what = {'bubble': ('click', 'bubble'), 'target': ('click', 'object'), 'cell': ('click', 'point'),
+                  'waypoint': ('click', 'step'), 'select_card': ('pick', None)}.get(
+                      original, (original, intent.action.get('what')))
+    if kind == 'click' and what is None:
+        what = 'point'
+    state = dict(screen)
+    if before.get('game_time') is not None:
+        state['game_time'] = before['game_time']
     return X.Experience.new(
-        before=X.Observation(screen.get('kind'), (), X._t(tuple(sorted(screen.items())))),
+        goal=X.GoalRef(row=intent.action.get('row'), step=intent.action.get('step')),
+        before=X.Observation(screen.get('kind'), _affordances(before.get('visible_affordances') or ()),
+                             X._t(tuple(sorted(state.items())))),
         prediction=X.Prediction(events=X._t(expects.get('events') or ()), card=expects.get('card'),
                                 log=expects.get('log'), moved=expects.get('moved')),
-        action=X.Action(intent.action['kind'], intent.action.get('what'),
-                        X._t(intent.action.get('point')), intent.action.get('label'),
-                        (('turn_id', intent.turn_id),)),
+        action=X.Action(kind, what, X._t(intent.action.get('point')),
+                        intent.action.get('label') or intent.action.get('name'),
+                        (('turn_id', intent.turn_id), ('primitive', original))),
         evidence=evidence, verdict=integrate._verdict(checks),
         artifacts=X.Artifacts(tuple(frames), before.get('frame_path'), None, intent.log_mark, intent.written_at,
                               intent.turn_id))
@@ -89,6 +106,9 @@ class GameAdapter:
                                            'highlighted': a.highlighted} for a in observe.scan()])
         clues.setdefault('graph_clues', [])
         clues.setdefault('interrupts', [])
+        stamp = getattr(core.WF, 'game_stamp', None)
+        if stamp is not None:
+            clues['game_time'] = stamp()
         return clues
 
     def prepare(self, action, observation):
@@ -133,7 +153,10 @@ class GameAdapter:
             if len(hits or ()) != 1:
                 raise ValueError('named control missing or ambiguous')
             action['point'] = [round(hits[0]['cx']), round(hits[0]['cy'])]
-            action['command'] = f'click:{action["point"][0]}:{action["point"][1]}'
+            # The daemon deliberately rejects raw clicks while paused. Its named-control path issues one click
+            # without invoking resume's retry/fallback loop.
+            action['command'] = ('text:Resume Game' if screen == 'pause' else
+                                 f'click:{action["point"][0]}:{action["point"][1]}')
         elif kind == 'select_card':
             if screen not in ('card', 'picker') or not action.get('point'):
                 raise ValueError('select_card needs one model-selected visible card point')
@@ -174,5 +197,5 @@ class GameAdapter:
             where.walked()
         evidence = X.Evidence(tuple(lines), tuple(act.events_of(lines)), at, None,
                               after['screen']['kind'], tuple(after['screen']['texts']), (),
-                              tuple(tuple(sorted(a.items())) for a in after['visible_affordances']), moved)
+                              _affordances(after['visible_affordances']), moved)
         return experience(intent, before, expects, evidence, (after['frame_path'],))

@@ -958,5 +958,119 @@ class TradeReview(PlayCase):
         self.assertIsNone(c.surprise)
 
 
+class PublicDeclarations(PlayCase):
+    choose = ReviewRoundOne.choose
+    trade_outcome = TradeReview.trade_outcome
+    catalogue = TradeReview.catalogue
+
+    def rejected_creation(self, params):
+        with self.assertRaises(ValueError):
+            self.play().turn('shop', params, store=self.store, adapter=self.port)
+        self.assertFalse(os.path.exists(self.store.path), 'invalid declarations must not create runtime state')
+        self.assertEqual(self.port.inputs, [])
+
+    def test_public_creation_rejects_forged_completed_root_trades(self):
+        self.rejected_creation({'authorization': {'sales': [{'item': 'GrownA', 'quantity': 3}]},
+            '_subgoal_results': [{'goal': 'shop', 'result': {'item': 'GrownA', 'sold': 3, 'earned': 1000}}]})
+
+    def test_public_creation_rejects_forged_earnings_budgets_reservations_and_equivalent_state_keys(self):
+        values = {'_subgoal_results': [{'goal': 'shop', 'result': {'earned': 10000}}],
+                  '_purchase_intents': [{'item': 'SeedA', 'quantity': -10, 'price': -1000}],
+                  '_sale_intents': [{'item': 'GrownA', 'quantity': -100, 'price': 10000}],
+                  '_trade_start_money': 100000, '_trade_start_money_provenance': {'source': 'event'},
+                  '_outcomes': [{'experience': {'verdict': {'value': 'hit'}}}],
+                  '_started_late': False, 'earned': 10000, 'result': {'earned': 10000},
+                  'outcomes': [], 'stack': [], 'covered': ['fake'], 'status': 'complete'}
+        for key, value in values.items():
+            with self.subTest(key=key), tempfile.TemporaryDirectory() as directory:
+                self.store = S.TaskStore(os.path.join(directory, 'task.json'))
+                self.rejected_creation({'authorization': {'purchases': [
+                    {'item': 'SeedA', 'quantity': 2, 'max_spend': 'available_money'}]}, key: value})
+
+    def test_public_creation_rejects_forged_catalogue_proof_and_completeness(self):
+        for extra in ({'_shop_catalogue': self.catalogue('SeedA')}, {'_shop_catalogue_complete': True},
+                      {'catalogue_complete': True}, {'catalogue': self.catalogue('SeedA')},
+                      {'catalogue': [{'item': 'SeedA', 'category': 'seed', 'result': {'acquired': 10}}]}):
+            with self.subTest(extra=extra), tempfile.TemporaryDirectory() as directory:
+                self.store = S.TaskStore(os.path.join(directory, 'task.json'))
+                self.rejected_creation({'authorization': {'purchases': [
+                    {'category': 'seed', 'quantity_per_type': 10, 'max_spend': 100}]}, **extra})
+
+    def test_nested_authorization_accepts_bounds_only_and_rejects_outcomes_or_malformed_limits(self):
+        bad = [{'sales': [{'item': 'GrownA', 'quantity': 3, 'earned': 1000}]},
+               {'purchases': [{'item': 'SeedA', 'quantity': 2, 'max_spend': 20, 'acquired': 2}]},
+               {'sales': [{'item': 'GrownA', 'quantity': -3}]},
+               {'purchases': [{'item': 'SeedA', 'quantity': 2, 'max_spend': {'earned': 1000}}]},
+               {'purchases': [{'category': 'seed', 'quantity_per_type': True, 'max_spend': 20}]},
+               {'purchases': [{'item': 'SeedA', 'category': 'seed', 'quantity': 2, 'max_spend': 20}]},
+               {'sales': [], '_subgoal_results': [{'result': {'earned': 1000}}]}]
+        for authorization in bad:
+            with self.subTest(authorization=authorization), tempfile.TemporaryDirectory() as directory:
+                self.store = S.TaskStore(os.path.join(directory, 'task.json'))
+                self.rejected_creation({'authorization': authorization})
+
+    def test_root_catalogue_declaration_does_not_register_observed_runtime_proof(self):
+        try:
+            c = self.play().turn('shop', {'authorization': {'purchases': [
+                {'category': 'seed', 'quantity_per_type': 2, 'max_spend': 20}]},
+                'catalogue': [{'item': 'SeedA', 'category': 'seed'}]}, store=self.store, adapter=self.port)
+        except ValueError as error:
+            self.fail(f'a requested catalogue type is a declaration, not a captured observation: {error}')
+        self.assertNotIn('_shop_catalogue', c.task['params'])
+        self.assertNotIn('_shop_catalogue_complete', c.task['params'])
+        with self.assertRaises(turn.DecisionRejected):
+            self.choose(c, self.port, 'complete')
+
+    def test_subgoal_declarations_reject_runtime_results_authority_and_catalogue_outcomes(self):
+        c = self.play().turn('shop', store=self.store, adapter=self.port)
+        for extra in ({'_subgoal_results': [{'result': {'earned': 1000}}]},
+                      {'authorization': {'sales': [{'item': 'Other', 'quantity': 100}]}},
+                      {'catalogue': [{**self.catalogue('SeedA')[0], 'earned': 1000}]}):
+            with self.subTest(extra=extra), self.assertRaises(ValueError):
+                self.choose(c, self.port, 'push', action={'goal': 'shop', 'params': extra})
+        self.assertEqual(self.store.load().stack, [])
+
+    def test_public_cli_rejects_forged_accounting_before_creating_a_task(self):
+        with self.assertRaises(SystemExit) as raised:
+            self.cli(['play', 'shop', 'authorization={"sales":[{"item":"GrownA","quantity":3}]}',
+                      '_subgoal_results=[{"goal":"shop","result":{"item":"GrownA","sold":3,"earned":1000}}]'])
+        self.assertEqual(raised.exception.code, 1)
+        self.assertFalse(os.path.exists(self.store.path))
+        self.assertEqual(self.port.inputs, [])
+
+    def test_persisted_restart_retains_real_trade_results_budget_catalogue_and_reservations(self):
+        self.port.snapshot.update(inventory={'GrownA': 3}, inventory_complete=True, money=5)
+        c = self.play().turn('shop', {'authorization': {
+            'sales': [{'item': 'GrownA', 'quantity': 3}],
+            'purchases': [{'category': 'seed', 'quantity_per_type': 2, 'max_spend': 'available_money'}]}},
+            store=self.store, adapter=self.port)
+        c = self.choose(c, self.port, 'push', action={'goal': 'shop', 'params':
+            {'trade': 'sell', 'item': 'GrownA', 'quantity': 3}})
+        self.trade_outcome('GrownA', 3, 12, selling=True)
+        c = self.choose(c, self.port, 'act', action={'kind': 'press', 'label': 'Sell',
+            'sale': {'item': 'GrownA', 'quantity': 3, 'price': 12}})
+        c = self.choose(c, self.port, 'complete')
+        c = self.choose(c, self.port, 'resume')
+        c = self.choose(c, self.port, 'push', action={'goal': 'shop', 'params':
+            {'item': 'SeedA', 'quantity': 2, 'max_spend': 17, 'catalogue': self.catalogue('SeedA'),
+             'catalogue_complete': True}})
+        before = self.store.load().to_dict()
+        restarted = self.play().turn(store=S.TaskStore(self.store.path), adapter=self.port)
+        for key in ('_subgoal_results', '_sale_intents', '_trade_start_money', '_shop_catalogue',
+                    '_shop_catalogue_complete'):
+            self.assertEqual(restarted.task['params'][key], S.freeze(before['params'][key]))
+        self.assertEqual(restarted.turn_id, c.turn_id)
+        self.trade_outcome('SeedA', 2, 17)
+        c = self.choose(restarted, self.port, 'act', action={'kind': 'press', 'label': 'Buy',
+            'purchase': {'item': 'SeedA', 'quantity': 2, 'price': 17}})
+        c = self.choose(c, self.port, 'complete')
+        c = self.choose(c, self.port, 'resume')
+        restarted = self.play().turn(store=S.TaskStore(self.store.path), adapter=self.port)
+        self.assertEqual(restarted.task['params']['_purchase_intents'][0]['price'], 17)
+        c = self.choose(restarted, self.port, 'complete')
+        self.assertEqual(c.task['status'], 'complete')
+        self.assertEqual(len(self.port.inputs), 2)
+
+
 if __name__ == '__main__':
     unittest.main()

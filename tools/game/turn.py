@@ -269,10 +269,15 @@ class TurnLoop:
     def _subgoal(self, task, decision):
         """Explicit durable model operations; verification folds captured evidence and performs no input."""
         from .play import register_catalogue, verify_completion
+        from .params import validate
         if decision.kind == 'push':
             data = thaw(decision.action or {})
-            if not data.get('goal') or not isinstance(data.get('params', {}), dict):
-                raise DecisionRejected('push needs goal and params')
+            if set(data) - {'goal', 'params'} or not data.get('goal') or not isinstance(data.get('params', {}), dict):
+                raise DecisionRejected('push needs only goal and declared params')
+            try:
+                data['params'] = validate(data.get('params', {}), data['goal'], phase='subgoal')
+            except ValueError as error:
+                raise DecisionRejected(str(error)) from None
             if data['goal'] == 'shop':
                 frames = {task.current_turn.get('frame_path')}
                 if task.last_experience:

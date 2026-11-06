@@ -310,8 +310,8 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
     The original garden-task.json is adopted in place. No migration writes an ignored run merely to observe it.
     """
     from . import ask, core, garden_policy, learn
-    goal, params = _normalize(goal, params)
-    turn_id = params.pop('turn_id', None)
+    from .params import validate
+
     if store is None:
         directory = core.WF.run_dir()
         if not directory:
@@ -319,6 +319,9 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
         old = os.path.join(directory, 'garden-task.json')
         store = TaskStore(old if os.path.exists(old) else os.path.join(directory, 'task.json'))
     existing = store.load() if os.path.exists(store.path) else None
+    schema_goal = goal if goal is not None else domain(existing.to_dict())['goal'] if existing else None
+    goal, params = _normalize(goal, validate(params, schema_goal))
+    turn_id = params.pop('turn_id', None)
     if existing:
         current = domain(existing.to_dict())
         if goal is not None and goal != existing.goal and goal != current['goal']:
@@ -345,8 +348,7 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
         graph = learn.MEMORY.get('graph')
         targets = garden_policy.coverage(graph, params['region']) if graph and goal == 'garden' else []
         task = TaskState(uuid.uuid4().hex, goal, params=params, targets=targets)
-        register_catalogue(task, params, {obs.get('frame_path')})
-        store.create(task)
+        store.create(task)  # root catalogue rows are declarations; only versioned decisions register proof
     loop = TurnLoop(store, adapter, recommend, reducer=reduce, guard=guard)
     if answer is None:
         return loop.context()

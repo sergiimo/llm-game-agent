@@ -707,3 +707,4 @@
 {"t": 1793954836.4, "day": 203, "hour": 14.17, "season": "Spring", "weather": "w0-event", "scene": "Farm/House", "from": null, "to": [17.606, -26.211], "pred": null, "clicks": [], "goal": "Farm/Bed", "edge": null, "result": "scene", "dirty": true}
 {"t": 1793955869.9, "day": 205, "hour": 14.67, "season": "Spring", "weather": "w2", "scene": "Farm", "from": null, "to": [22.07, -26.0], "pred": null, "clicks": [], "goal": "House:out", "edge": null, "result": "scene", "dirty": true}
 {"t": 1793957296.8, "day": 205, "hour": 14.67, "season": "Spring", "weather": "w2", "scene": "Farm/House", "from": null, "to": [22.07, -26.0], "pred": null, "clicks": [], "goal": "Farm/Bed", "edge": null, "result": "scene", "dirty": true}
+{"t": 1793957776.4, "day": 207, "hour": 9.83, "season": "Spring", "weather": "w2", "scene": "Farm", "from": null, "to": [17.585, -28.688], "pred": null, "clicks": [], "goal": "House:out", "edge": null, "result": "scene", "dirty": true}

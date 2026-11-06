@@ -1168,6 +1168,8 @@ class StreamingGarden(EngineBase):
         state = ask.load_state('garden')
         self.assertTrue(state['pending'].get('garden_entry_only'))
         self.assertIn('visible entrance', str(cm.exception))
+        self.assertIn('prefer target <cell>', str(cm.exception))
+        self.assertNotIn('Do not click beds', str(cm.exception))
         self.assertIn('answer=walk:<cell>', str(cm.exception))
         self.assertEqual(state['pending'].get('covered'), [])
 

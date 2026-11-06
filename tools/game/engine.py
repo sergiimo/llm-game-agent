@@ -1410,12 +1410,16 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
             state = brief.build(g, ('GardenBed', 'BeeHive'), list(remaining), res)
             avoid = [list(o['screen']) for o in state['objects'] if o.get('screen') is not None]
             avoid += [list(b['pt']) for b in state['bubbles']]
-            q = (brief.entry_text(state, region) + f'\nTara is outside or not yet located in {region}. Find its visible entrance; '
-                 f'give one cell of clear dirt path toward that entrance. Do not click beds, bubbles, rocks, or fence. '
+            q = (brief.entry_text(state, region) + f'\nTara is outside or not yet located in {region}. Find its visible entrance. '
+                 f'When a real bed or hive and its full walkable road from Tara are visible, prefer target <cell> on '
+                 f'that object so game pathfinding takes the whole road. Otherwise give one short cell of clear dirt '
+                 f'path toward the entrance; do not click bubbles, rocks, or fence. Treat detector points only as clues: '
+                 f'visually reject them when the frame does not actually show beds or hives. '
                  f'Also report Tara relative to {region} using relative=N|NE|E|SE|S|SW|W|NW and '
                  f'distance=inside|near|far. If Tara is visibly inside {region}, answer '
                  f'inside relative=<compass> distance=inside; otherwise answer '
-                 f'walk <cell> relative=<compass> distance=<near|far>. Shell-safe call: '
+                 f'target <cell> or walk <cell> relative=<compass> distance=<near|far>. Shell-safe calls: '
+                 f'./wf garden region={region} answer=target:<cell> relative=<compass> distance=<near|far> or '
                  f'./wf garden region={region} answer=walk:<cell> relative=<compass> distance=<near|far>.')
             ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'navigation_only': True,
                                  'garden_entry_only': True, 'avoid': avoid, 'covered': sorted(covered),

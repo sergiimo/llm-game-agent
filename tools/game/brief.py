@@ -43,6 +43,11 @@ def build(g, kind, targets, res):
     source, tara = _position(g)
     spec, params = res.get('spec') or {}, res.get('params') or {}
     where_filter = engine._where(spec, params)
+    region = where_filter.get('region')
+    if region is None and targets:
+        region = world.area_of(g, targets[0])
+    from objects import graph as OG
+    relative = OG.relative_to(g, 'Tara', region) if region else None
     today = engine._today()
     objects = []
     for nid in _area_objects(g, kind, targets):
@@ -70,7 +75,7 @@ def build(g, kind, targets, res):
     except (AttributeError, TypeError):
         pass
     return {
-        'tara': {'pos': tara, 'source': source},
+        'tara': {'pos': tara, 'source': source, 'relative': relative},
         'objects': objects,
         'bubbles': bubbles,
         'heatmap': heatmap,
@@ -81,7 +86,10 @@ def build(g, kind, targets, res):
 def text(state):
     """Plain-text companion to the marked frame: one explicit line per object and bubble."""
     tara = state['tara']
-    lines = [f"Tara {tara['source']} pos={tara['pos']}"]
+    rel = tara.get('relative')
+    relative = (f" relative={rel['compass']} of {rel['b']} distance={rel['distance']}"
+                if rel else '')
+    lines = [f"Tara {tara['source']} pos={tara['pos']}{relative}"]
     for o in state['objects']:
         lines.append(f"object {o['id']} status={o['status']} fresh={o['fresh']} crop={o['crop']} "
                      f"need={o['need']} screen={o['screen']} dist={o['dist']}")

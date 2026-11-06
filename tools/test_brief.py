@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from game import brief, core, engine
 from game.affordances import Affordance
 from objects.detect import Detection
-from objects.graph import Graph, Node
+from objects.graph import Graph, Node, observe_relative
 
 
 class StateBrief(unittest.TestCase):
@@ -84,6 +84,12 @@ class StateBrief(unittest.TestCase):
     def test_position_source_is_shown(self):
         self.assertIn(self.make()['tara']['source'], {'event', 'walk', 'save', 'unknown'})
         self.assertIn('Tara event', brief.text(self.make()))
+
+    def test_relative_vision_localization_is_in_the_next_brief(self):
+        observe_relative(self.g, 'Tara', 'Garden', 'NW', 'near', 'D202 12:34:56 PM')
+        out = self.make()
+        self.assertEqual(out['tara']['relative']['compass'], 'NW')
+        self.assertIn('relative=NW of Garden distance=near', brief.text(out))
 
 
 if __name__ == '__main__':

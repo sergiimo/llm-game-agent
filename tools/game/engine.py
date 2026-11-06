@@ -916,6 +916,7 @@ def _answer(g, name, params, answer, res):
             raise
     if pend.get('collect_open'):
         return _collect_answer(g, pend, answer, params, res)
+    answer = _record_relative_answer(g, pend, answer, res)
     if pend.get('garden_entry_only') and str(answer).strip().lower() == 'inside':
         res['inside_region'] = (pend.get('params') or {}).get('region')
         ask.progress(name)
@@ -1037,6 +1038,42 @@ def _answer(g, name, params, answer, res):
         res['learned'].append(f'{pend.get("row")}[{pend.get("step")}] press {answer}')
     else:
         _answer_name(g, pend, answer, res)
+
+
+_RELATIVE_ALIASES = {
+    'NORTH': 'N', 'NORTHEAST': 'NE', 'NORTH-EAST': 'NE', 'EAST': 'E',
+    'SOUTHEAST': 'SE', 'SOUTH-EAST': 'SE', 'SOUTH': 'S',
+    'SOUTHWEST': 'SW', 'SOUTH-WEST': 'SW', 'WEST': 'W',
+    'NORTHWEST': 'NW', 'NORTH-WEST': 'NW',
+}
+
+
+def _record_relative_answer(g, pend, answer, res):
+    """Strip and persist optional model localization metadata before the answer causes input."""
+    from objects import graph as OG
+    words, clean, meta = str(answer).strip().split(), [], {}
+    for word in words:
+        key, sep, value = word.partition('=')
+        if sep and key.lower() in ('relative', 'distance'):
+            meta[key.lower()] = value
+        else:
+            clean.append(word)
+    if not meta:
+        return answer
+    if set(meta) != {'relative', 'distance'}:
+        raise core.Failed('answer rejected: localization requires both relative=<compass> and distance=<inside|near|far>')
+    region = (pend.get('params') or {}).get('region')
+    if not region:
+        raise core.Failed('answer rejected: relative localization has no target region')
+    point = _RELATIVE_ALIASES.get(meta['relative'].strip().upper(), meta['relative'].strip().upper())
+    try:
+        edge = OG.observe_relative(g, 'Tara', region, point, meta['distance'], _stamp())
+    except ValueError as e:
+        raise core.Failed(f'answer rejected: {e}') from None
+    res['relative_location'] = {k: edge[k] for k in ('b', 'compass', 'distance', 'game_time', 'source')}
+    I.reasoning('model_vision', goal=pend.get('goal'), question='relative_localization', region=region,
+                relative=edge['compass'], distance=edge['distance'], source=edge['source'], model_answer=str(answer))
+    return ' '.join(clean)
 
 
 def button_step(answer, old):
@@ -1359,7 +1396,10 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
             avoid += [list(b['pt']) for b in state['bubbles']]
             q = (brief.text(state) + f'\nTara is outside or not yet located in {region}. Find its visible entrance; '
                  f'give one cell of clear dirt path toward that entrance. Do not click beds, bubbles, rocks, or fence. '
-                 f'If Tara is visibly inside {region}, answer inside.')
+                 f'Also report Tara relative to {region} using relative=N|NE|E|SE|S|SW|W|NW and '
+                 f'distance=inside|near|far. If Tara is visibly inside {region}, answer '
+                 f'inside relative=<compass> distance=inside; otherwise answer '
+                 f'walk <cell> relative=<compass> distance=<near|far>.')
             ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'navigation_only': True,
                                  'garden_entry_only': True, 'avoid': avoid, 'covered': sorted(covered),
                                  'streaming': True}, res,
@@ -1462,7 +1502,9 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     q = (brief.text(state) + f'\nNo bubble for {tid} is in reach. If a garden target and its full '
                          f'walkable road are visible, answer target <cell>; add crop=<name> for a visible ready crop '
                          f'(flowers stay). Otherwise answer walk <cell> on visible '
-                         f'free ground toward the unvisited beds and hives in {region}. Answer none only if no route exists.')
+                         f'free ground toward the unvisited beds and hives in {region}. In either answer also report '
+                         f'Tara relative to {region} with relative=N|NE|E|SE|S|SW|W|NW and '
+                         f'distance=inside|near|far. Answer none only if no route exists.')
                     avoid = [list(o['screen']) for o in state['objects'] if o.get('screen') is not None]
                     avoid += [list(b['pt']) for b in state['bubbles']]
                     ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'node': tid,

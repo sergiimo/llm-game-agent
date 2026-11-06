@@ -136,6 +136,7 @@ TOWARD = _seed_toward()
 
 COMPASS = {'N': (0.0, -1.0), 'NE': (0.707, -0.707), 'E': (1.0, 0.0), 'SE': (0.707, 0.707), 'S': (0.0, 1.0),
            'SW': (-0.707, 0.707), 'W': (-1.0, 0.0), 'NW': (-0.707, -0.707)}   # screen = map: north is up
+RELATIVE_DISTANCES = {'inside', 'near', 'far'}
 
 
 def set_edge(graph, a, b, rel, **attrs):
@@ -155,6 +156,27 @@ def compass_dir(c):
     return COMPASS.get(str(c).strip().upper())
 
 
+def relative_to(graph, a, b):
+    """The latest qualitative position of `a` relative to `b`, or None."""
+    return next((e for e in reversed(graph.edges(a, 'relative_to')) if e['b'] == b), None)
+
+
+def observe_relative(graph, a, b, point, distance, game_time, source='vision'):
+    """Persist a qualitative localization without inventing world coordinates.
+
+    `point` is where a lies relative to b (for example Tara NW of Garden), not the direction to walk.
+    """
+    point = str(point).strip().upper()
+    distance = str(distance).strip().lower()
+    if point not in COMPASS:
+        raise ValueError(f'unknown compass point {point!r}')
+    if distance not in RELATIVE_DISTANCES:
+        raise ValueError(f'unknown relative distance {distance!r}')
+    set_edge(graph, a, b, 'relative_to', compass=point, distance=distance,
+             game_time=game_time, source=source)
+    return relative_to(graph, a, b)
+
+
 def toward(graph, a, b):
     """Screen direction from node `a` to node `b`: a `toward` edge in the graph, else the TOWARD default, else from
     their world positions (`pos` of the nodes or their regions, e.g. one garden to another, L137); None if unknown."""
@@ -163,6 +185,10 @@ def toward(graph, a, b):
             return tuple(e['dir'])
         if e['b'] == b and compass_dir(e.get('compass')):   # a way known only by its compass point
             return compass_dir(e['compass'])
+    rel = relative_to(graph, a, b) if graph is not None else None
+    if rel and compass_dir(rel.get('compass')):
+        dx, dy = compass_dir(rel['compass'])
+        return -dx, -dy   # `relative_to` says where a is; `toward` says how a reaches b
     if (a, b) in TOWARD:
         return TOWARD[(a, b)]
     pa, pb = pos_of(graph, a), pos_of(graph, b)

@@ -125,6 +125,30 @@ class Compass(unittest.TestCase):
         self.assertAlmostEqual(d[0], -0.707, 2)
         self.assertAlmostEqual(d[1], 0.707, 2)
 
+    def test_a_relative_vision_observation_persists_and_points_back_to_the_region(self):
+        from objects import graph as OG
+        g = OG.Graph()
+        OG.observe_relative(g, 'Tara', 'Garden', 'NW', 'near', 'D202 12:34:56 PM')
+        e = OG.relative_to(g, 'Tara', 'Garden')
+        self.assertEqual((e['compass'], e['distance'], e['source'], e['game_time']),
+                         ('NW', 'near', 'vision', 'D202 12:34:56 PM'))
+        dx, dy = OG.toward(g, 'Tara', 'Garden')
+        self.assertGreater(dx, 0.7)
+        self.assertGreater(dy, 0.7)
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'relative.json')
+            g.save(p)
+            h = OG.Graph()
+            h.load(p)
+        self.assertEqual(OG.relative_to(h, 'Tara', 'Garden')['distance'], 'near')
+
+    def test_relative_vision_observation_rejects_unknown_values(self):
+        from objects import graph as OG
+        with self.assertRaisesRegex(ValueError, 'compass'):
+            OG.observe_relative(OG.Graph(), 'Tara', 'Garden', 'left-ish', 'near', 'D202')
+        with self.assertRaisesRegex(ValueError, 'distance'):
+            OG.observe_relative(OG.Graph(), 'Tara', 'Garden', 'NW', '17m', 'D202')
+
 
 if __name__ == '__main__':
     unittest.main()

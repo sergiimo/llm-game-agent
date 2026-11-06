@@ -991,6 +991,8 @@ class StreamingGarden(EngineBase):
         self.assertIn('target <cell>', str(cm.exception))
         self.assertIn('./wf garden region=Garden answer=', str(cm.exception))
         self.assertIn('walk <cell>', str(cm.exception))
+        self.assertIn('relative=N|NE|E|SE|S|SW|W|NW', str(cm.exception))
+        self.assertIn('distance=inside|near|far', str(cm.exception))
 
     def test_a_preexisting_empty_bed_with_a_noisy_ready_badge_is_never_harvested_or_planted(self):
         garden = self._north()
@@ -1136,6 +1138,41 @@ class StreamingGarden(EngineBase):
 
         self.assertNotEqual(res['stop'], 'entry step completed; re-evaluate Garden region before tending')
         self.assertEqual(res['inside_region'], 'Garden')
+
+    def test_model_entry_confirmation_persists_relative_localization(self):
+        self._game(self._north())
+        reasons = []
+        with mock.patch.object(brief, '_position', return_value=('unknown', None)), \
+                mock.patch.object(engine.I, 'reasoning', side_effect=lambda phase, cycle=None, **kw:
+                                  reasons.append((phase, kw)) or 'cycle'):
+            with self.assertRaises(NeedVision):
+                engine.tend_garden('Garden', ('water',))
+            res = engine.tend_garden('Garden', ('water',),
+                                     answer='inside relative=NW distance=inside')
+
+        self.assertEqual(res['inside_region'], 'Garden')
+        g = self.graph()
+        edge = OG.relative_to(g, 'Tara', 'Garden')
+        self.assertEqual((edge['compass'], edge['distance'], edge['source']), ('NW', 'inside', 'vision'))
+        self.assertTrue(any(phase == 'model_vision' and data.get('relative') == 'NW'
+                            for phase, data in reasons), reasons)
+
+    def test_garden_entry_waypoint_persists_relative_localization_before_clicking(self):
+        self._game(self._north())
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {'region': 'Garden'},
+            'navigation_only': True, 'garden_entry_only': True, 'avoid': [], 'covered': [], 'streaming': True}})
+        res = nav.new_res('garden')
+        res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area=None,
+                   spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}})
+        click = act.Click((840, 371), 'point', 0, events=[], mode='gameplay', moved=True)
+        g = self.graph()
+
+        with mock.patch.object(act, 'click', return_value=click):
+            engine._answer(g, 'garden', {}, 'walk K6 relative=NW distance=near', res)
+
+        edge = OG.relative_to(g, 'Tara', 'Garden')
+        self.assertEqual((edge['compass'], edge['distance']), ('NW', 'near'))
 
     def test_confirmed_region_survives_the_next_streaming_call_without_an_answer(self):
         self._game(self._north())

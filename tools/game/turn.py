@@ -91,11 +91,12 @@ class TurnLoop:
     The task file lives in the active run directory; its sibling log.jsonl is the turn timeline.
     A persisted context is returned unchanged until consumed, so accept always refers to exact saved data.
     """
-    def __init__(self, store, adapter=None, policy=None, reducer=None):
+    def __init__(self, store, adapter=None, policy=None, reducer=None, guard=None):
         from .primitives import GameAdapter
         self.store, self.adapter = store, adapter or GameAdapter()
         self.policy = policy or (lambda task, obs: Recommendation())
         self.reducer = reducer  # evidence-only domain state update; never input or target selection
+        self.guard = guard  # optional pure transaction invariant, checked before any primitive input
 
     def _log(self, task, turn_id, phase, **data):
         path = os.path.join(os.path.dirname(self.store.path), 'log.jsonl')
@@ -113,6 +114,8 @@ class TurnLoop:
         rec = self.policy(freeze(task.to_dict()), freeze(observation))
         surprise = Surprise(**task.last_surprise) if task.last_surprise else None
         allowed = ('look', 'correct', 'stop') if surprise else ('accept', 'act', 'look', 'stop')
+        if not surprise and task.last_experience:
+            allowed += ('correct',)  # explicit model resolution also covers ambiguous, non-mismatching outcomes
         if task.status != 'active':
             allowed = ('look', 'stop')
         c = TurnContext(task.turn_seq, task.to_dict() | {'current_turn': None}, thaw(task.active),
@@ -141,10 +144,16 @@ class TurnLoop:
         result = I.apply(e)
         self._log(task, intent.turn_id, 'integration', experience=e.id, result=result)
         # A projection/name alone cannot own an interaction. Only a positioned event can bind it.
+        identity_conflict = None
         if e.evidence.at and e.evidence.events:
             actual = I.event_node(e) or result.get('event_state') or result.get('card_state') or e.evidence.node
             if actual:
-                task.active.actual_node = actual
+                previous = task.active.actual_node
+                if previous and previous != actual:
+                    identity_conflict = {'previous': previous, 'observed': actual, 'experience': e.id}
+                    task.active.provisional['identity_conflict'] = identity_conflict
+                else:
+                    task.active.actual_node = actual
         if e.id not in task.active.evidence_ids:
             task.active.evidence_ids.append(e.id)
         if e.verdict.value == 'hit' and e.id not in task.active.completed_actions:
@@ -152,8 +161,9 @@ class TurnLoop:
         task.last_experience = e.to_dict()
         if self.reducer:
             self.reducer(task, e)
-        if recovered or e.verdict.value in ('miss', 'unsafe') or result.get('errors'):
-            task.last_surprise = Surprise.of(e, 'pending_intent_reconciled' if recovered else
+        if identity_conflict or recovered or e.verdict.value in ('miss', 'unsafe') or result.get('errors'):
+            task.last_surprise = Surprise.of(e, 'conflicting_positioned_identity' if identity_conflict else
+                                             'pending_intent_reconciled' if recovered else
                                              'integration_error' if result.get('errors') else 'mismatch').to_dict()
         if task.active:
             task.active.pending_intent = None
@@ -207,7 +217,7 @@ class TurnLoop:
                     raise DecisionRejected('no action recommended or supplied')
                 expected = thaw(c.recommendation.expects or {}) if decision.kind == 'accept' else action.pop('expects', {})
                 primitives.execute(self.store, task, turn_id, action, expected, self.adapter,
-                                   lambda phase, **kw: self._log(task, turn_id, phase, **kw))
+                                   lambda phase, **kw: self._log(task, turn_id, phase, **kw), guard=self.guard)
                 self._finish(task)
                 return self._context(task)
             task.current_turn = None

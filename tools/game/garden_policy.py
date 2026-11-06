@@ -33,6 +33,22 @@ def interrupt(task, obs):
     return None
 
 
+def guard(task, action):
+    """New target selection requires resolution of the existing transaction, even on model overrides."""
+    active = task.get('active')
+    if not active:
+        return None
+    selected = (active.get('actual_node') or active.get('provisional', {}).get('target_selected') or
+                active.get('phase') != 'approach')
+    kind = action.get('kind')
+    if selected and kind in ('target', 'cell'):
+        return 'resolve the current transaction before selecting a new target'
+    if (active.get('phase') == 'verify' and active.get('provisional', {}).get('facts', {}).get('verified') and
+            kind in ('target', 'cell', 'bubble', 'space', 'waypoint', 'click')):
+        return 'verify the current transaction before another world interaction'
+    return None
+
+
 def recommend(task, obs):
     """Recommend one primitive for the model's current transaction; never select a new target."""
     def rec(action=None, reason='', expects=None):
@@ -62,11 +78,11 @@ def recommend(task, obs):
             return rec({'kind': 'press', 'label': 'Collect'}, 'ready card permits collecting this crop',
                        {'events': ['harvest|grab_item|beehive_collect']})
         return rec({'kind': 'close'}, 'preserve flowers or identify the crop before collecting')
-    if 'wilted' in low and 'replant' in chores:
+    if ('wilted' in low or active.get('phase') == 'remove') and 'replant' in chores:
         if any(t.lower() == 'remove' for t in texts):
             return rec({'kind': 'press', 'label': 'Remove'}, 'remove wilted crop', {'events': ['unplant_impl']})
         return rec(reason='wilted card: model selects the visible removal control')
-    if mode == 'picker' or 'seeds' in low:
+    if mode == 'picker' or 'seeds' in low or active.get('phase') == 'plant' and facts.get('seed_selected'):
         if not ('plant' in chores or 'replant' in chores and facts.get('emptied')):
             return rec({'kind': 'close'}, 'pre-existing empty bed excluded by this narrow task')
         selected = facts.get('seed_selected')
@@ -118,18 +134,24 @@ def reduce(task, experience):
         return
     task.params['_garden_reduced'] = experience.id
     a = task.active
+    conflict = a.provisional.get('identity_conflict')
+    if conflict:
+        a.provisional['facts'] = {}
+        a.phase = 'inspect'
+        task.unresolved.append({'reason': 'conflicting positioned identity', **conflict})
+        task.status = 'unresolved'
+        return
     facts = a.provisional.setdefault('facts', {})
     if a.phase == 'approach' and experience.action.kind in ('click', 'space'):
         a.phase = 'inspect'
     ev, text = set(experience.evidence.events), ' / '.join(experience.evidence.texts)
-    if not a.crop:
-        crops = names(task.params.get('crops'))
-        a.crop = task.params.get('seed') or (crops[0] if len(crops) == 1 else None)
     if experience.action.pt and not a.provisional.get('point'):
         a.provisional['point'] = list(experience.action.pt)
     # Crop names from actual cards beat a requested crop; Collect-only cards do not name a crop.
     if 'days remaining' in text.lower() or 'wilted' in text.lower():
         a.crop = experience.evidence.texts[0]
+    if 'wilted' in text.lower() or 'unplant' in ev:
+        a.phase = 'remove'
     if 'Collect' in text:
         a.phase = 'collect'
     elif 'Seeds' in text:

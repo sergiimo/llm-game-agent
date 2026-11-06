@@ -81,7 +81,7 @@ def turn(region=None, chores=('plant', 'replant', 'harvest', 'water'), answer=No
                   '_started_late': obs.get('hour') is not None and obs['hour'] > 19}
         store.create(TaskState(uuid.uuid4().hex, 'garden', params=params,
                                targets=policy.coverage(graph, region) if graph else []))
-    loop = TurnLoop(store, adapter, policy.recommend, reducer=policy.reduce)
+    loop = TurnLoop(store, adapter, policy.recommend, reducer=policy.reduce, guard=policy.guard)
     if decision is None and answer is not None:
         decision = ask.garden_decision(answer)
     if decision is None:

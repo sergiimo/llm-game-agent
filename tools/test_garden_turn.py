@@ -12,6 +12,133 @@ from game.turn import Decision, DecisionRejected
 
 
 class GardenTurns(unittest.TestCase):
+    def session(self, records, **params):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        graph = Graph()
+        for node, pos in [('A', [1., 1.]), ('B', [2., 2.])]:
+            graph.nodes[node] = Node(node, 'member', 'GardenBed', region='Garden', pos=pos, scene='Farm')
+        store = TaskStore(os.path.join(directory.name, 'task.json'))
+        store.create(TaskState('g', 'garden', targets=['A', 'B'], params={
+            'region': 'Garden', 'chores': ['plant', 'harvest', 'replant', 'water'], 'flowers': ['Tulip'], **params}))
+        for patch in (mock.patch.dict(learn.MEMORY, graph=graph),
+                      mock.patch.object(learn, 'GRAPH', os.path.join(directory.name, 'graph.json')),
+                      mock.patch.object(integrate, 'JOURNAL_DIR', directory.name)):
+            patch.start()
+            self.addCleanup(patch.stop)
+        port = ReplayPort(records)
+        def call(**kw):
+            return engine.garden_turn(store=TaskStore(store.path), adapter=port, **kw)
+        return store, port, call
+
+    def test_new_target_is_refused_until_current_transaction_is_verified(self):
+        for kind in ('target', 'cell', 'bubble', 'space'):
+            with self.subTest(kind=kind):
+                store, port, call = self.session([event('water', 'A'), event('plant', 'B', ['Inventory', 'Seeds'])])
+                c = call()
+                c = call(turn_id=c.turn_id, decision=Decision('act', action=target('Carrot')))
+                self.assertEqual(c.transaction['actual_node'], 'A')
+                c = call(turn_id=c.turn_id, decision=Decision('act', action={
+                    **target('Tulip'), 'kind': kind, 'point': [1100, 540]}))
+                self.assertEqual(len(port.inputs), 1, 'new target must be refused before any physical input')
+                self.assertEqual(c.transaction['actual_node'], 'A')
+                self.assertEqual(c.transaction['crop'], 'Carrot')
+                self.assertEqual(list(c.coverage['covered']), [])
+                self.assertIsNotNone(c.surprise)
+
+    def test_verified_transaction_can_finish_before_model_selects_another_target(self):
+        store, port, call = self.session([event('water', 'A'), event('plant', 'B', ['Inventory', 'Seeds'])])
+        c = call()
+        c = call(turn_id=c.turn_id, decision=Decision('act', action=target('Carrot')))
+        c = call(turn_id=c.turn_id, decision=Decision('accept'))
+        self.assertEqual(list(c.coverage['covered']), ['A'])
+        c = call(turn_id=c.turn_id, decision=Decision('act', action={**target(), 'point': [1100, 540]}))
+        self.assertEqual(c.transaction['actual_node'], 'B')
+        self.assertEqual(list(c.coverage['covered']), ['A'])
+        self.assertFalse(c.transaction['provisional']['facts'].get('verified'))
+
+    def test_conflicting_positioned_event_quarantines_transaction_without_transferring_facts(self):
+        store, port, call = self.session([event('harvest', 'A'), event('plant', 'B', ['Inventory', 'Seeds'])])
+        c = call()
+        c = call(turn_id=c.turn_id, decision=Decision('act', action=target('Carrot')))
+        self.assertTrue(c.transaction['provisional']['facts']['emptied'])
+        c = call(turn_id=c.turn_id, decision=Decision('act', action={'kind': 'bubble', 'point': [850, 540],
+                                                                   'visible_road': True}))
+        self.assertEqual(c.transaction['actual_node'], 'A', 'a second event is a conflict, not a rebind')
+        self.assertEqual(c.task['status'], 'unresolved')
+        self.assertEqual(dict(c.transaction['provisional']['facts']), {})
+        self.assertEqual(list(c.coverage['covered']), [])
+        self.assertEqual(c.surprise.reason, 'conflicting_positioned_identity')
+        with self.assertRaises(DecisionRejected):
+            call(turn_id=c.turn_id, decision=Decision('act', action={'kind': 'read'}))
+
+    def test_requested_crop_never_classifies_an_unidentified_collect_card(self):
+        for request in ({'crops': 'Carrot'}, {'seed': 'Carrot'}, {'crops': 'Tulip'}):
+            with self.subTest(request=request):
+                store, port, call = self.session([event(texts=['Collect'])], **request)
+                c = call()
+                c = call(turn_id=c.turn_id, decision=Decision('act', action=target()))
+                self.assertIsNone(c.transaction['crop'])
+                self.assertEqual(c.recommendation.action['kind'], 'close')
+                self.assertEqual(list(c.coverage['covered']), [])
+
+    def test_preexisting_empty_bed_plants_any_available_seed_and_waters_before_coverage(self):
+        records = [event('plant', 'A', ['Inventory', 'Seeds', 'Carrot Seeds']),
+                   event(texts=['Carrot Seeds', 'Select']), event(lines=['[STATS] totalPlanted.CarrotSeed = 1'],
+                       after=[['water', 850, 540, True, False, True]]), event('water', 'A')]
+        store, port, call = self.session(records)
+        c = call()
+        c = call(turn_id=c.turn_id, decision=Decision('act', action=target()))
+        self.assertEqual(c.recommendation.action['label'], 'Carrot Seeds')
+        c = call(turn_id=c.turn_id, decision=Decision('accept'))
+        self.assertEqual(c.recommendation.action['label'], 'Select')
+        c = call(turn_id=c.turn_id, decision=Decision('accept'))
+        self.assertEqual(c.transaction['phase'], 'water')
+        self.assertEqual(list(c.coverage['covered']), [])
+        c = call(turn_id=c.turn_id, decision=Decision('accept'))
+        c = call(turn_id=c.turn_id, decision=Decision('accept'))
+        self.assertEqual(list(c.coverage['covered']), ['A'])
+        self.assertEqual(len(port.inputs), 4)
+
+    def test_missing_requested_seed_requires_explicit_unresolved_resolution_without_fallback(self):
+        store, port, call = self.session([event('plant', 'A', ['Inventory', 'Seeds', 'Carrot Seeds'])], seed='Tulip')
+        c = call()
+        c = call(turn_id=c.turn_id, decision=Decision('act', action=target()))
+        self.assertIsNone(c.recommendation.action)
+        self.assertIn('Tulip', c.recommendation.reasons[0])
+        self.assertIn('correct', c.allowed_decisions, 'model must be able to resolve a missing-seed ambiguity')
+        c = call(turn_id=c.turn_id, decision=Decision('correct', correction={
+            'kind': 'unresolved', 'data': {'reason': 'missing Tulip seed', 'node': 'A'}}))
+        self.assertEqual(c.task['status'], 'unresolved')
+        self.assertEqual(list(c.coverage['covered']), [])
+        self.assertEqual(c.coverage['unresolved'][0]['reason'], 'missing Tulip seed')
+        self.assertEqual(len(port.inputs), 1)
+
+    def test_available_bulb_seed_detail_card_recommends_confirmation_instead_of_close(self):
+        store, port, call = self.session([event('plant', 'A', ['Inventory', 'Seeds', 'Tulip Bulbs']),
+                                          event(texts=['Tulip Bulbs', 'Select'])])
+        c = call()
+        c = call(turn_id=c.turn_id, decision=Decision('act', action=target()))
+        self.assertEqual(c.recommendation.action['label'], 'Tulip Bulbs')
+        c = call(turn_id=c.turn_id, decision=Decision('accept'))
+        self.assertEqual(c.recommendation.action.get('label'), 'Select')
+        self.assertEqual(c.transaction['phase'], 'plant')
+
+    def test_wilted_card_persists_remove_phase_and_crop_across_restart(self):
+        store, port, call = self.session([event('unplant', 'A', ['Carrot', 'This plant has wilted.', 'Remove']),
+                                          event('unplant_impl', 'A')])
+        c = call()
+        c = call(turn_id=c.turn_id, decision=Decision('act', action=target()))
+        self.assertEqual(c.transaction['phase'], 'remove')
+        restarted = call()
+        self.assertEqual(restarted.transaction['phase'], 'remove')
+        self.assertEqual(restarted.transaction['crop'], 'Carrot')
+        self.assertEqual(restarted.recommendation.action['label'], 'Remove')
+        c = call(turn_id=c.turn_id, decision=Decision('accept'))
+        self.assertEqual(c.transaction['phase'], 'plant')
+        self.assertEqual(c.transaction['crop'], 'Carrot')
+        self.assertEqual(list(c.coverage['covered']), [])
+
     def test_model_cell_intent_retains_resolved_point_without_inventing_node_identity(self):
         with tempfile.TemporaryDirectory() as directory:
             store = TaskStore(os.path.join(directory, 'task.json'))
@@ -164,6 +291,18 @@ class GardenTurns(unittest.TestCase):
                     log = [json.loads(l) for l in f]
                 self.assertEqual(len([r for r in log if r['phase'] == 'intent']), 7)
                 self.assertEqual(graph.state_value('actual', 'watered'), True)
+
+
+def target(crop=None):
+    return {'kind': 'target', 'point': [850, 540], 'visible_road': True, **({'crop': crop} if crop else {})}
+
+
+def event(kind=None, node='A', texts=(), lines=(), after=()):
+    """Writer-shaped raw boundary evidence, with positions using the real game-log spelling."""
+    position = '1.0, 0.1, 1.0' if node == 'A' else '2.0, 0.1, 2.0'
+    log = [f'[D208 9:00:00 AM] > {kind} me=Player target=GardenBed(Clone) at ({position})'] if kind else []
+    return X.Experience.new(action=X.Action('click'), evidence=X.Evidence(
+        lines=tuple(log + list(lines)), events=(kind,) if kind else (), texts=tuple(texts), after=tuple(after))).to_dict()
 
 
 class ReplayPort:

@@ -10,7 +10,7 @@ import uuid
 from dataclasses import replace
 
 from . import experience as X
-from .task_state import Intent, Interaction
+from .task_state import Intent, Interaction, freeze
 
 
 def _affordances(rows):
@@ -54,20 +54,29 @@ def experience(intent, before, expects, evidence, frames=()):
                               intent.turn_id))
 
 
-def execute(store, task, turn_id, action, expects, adapter, log):
+def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     """Leave a durable pending intent if input/capture crashes. Never retry an uncertain input."""
     before = adapter.observe()
     refusal = None
     try:
+        if guard:
+            refusal = guard(freeze(task.to_dict()), freeze(action))
+            if refusal:
+                raise ValueError(refusal)
         prepared = adapter.prepare(dict(action), before)
     except ValueError as ex:
         prepared, refusal = dict(action), str(ex)
     if task.active is None:
         task.active = Interaction(f'{task.task_id}:{turn_id}', provisional={
             'frame': before.get('frame_path'), 'point': action.get('point'), 'cell': action.get('cell'),
-            'projected_node': action.get('projected_node')}, crop=action.get('crop'))
-    if action.get('crop'):
+            'projected_node': action.get('projected_node')}, crop=action.get('crop') if not refusal else None)
+    if not refusal and action.get('crop'):
         task.active.crop = action['crop']  # explicit model classification; never object identity
+    if not refusal and action.get('kind') in ('target', 'cell', 'bubble'):
+        if not task.active.provisional.get('target_selected'):
+            task.active.provisional.update(frame=before.get('frame_path'), point=prepared.get('point'),
+                                           cell=prepared.get('cell'))
+        task.active.provisional['target_selected'] = True
     if task.active.pending_intent is not None:
         raise ValueError('pending intent must be reconciled before input')
     intent = Intent(turn_id, prepared, adapter.mark(), time.time(), before, expects)

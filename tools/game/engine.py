@@ -288,7 +288,8 @@ def _read_bubble(g, tid, a, row, res):
     return False
 
 
-NEUTRAL_EVENTS = {'complete', 'plant', 'plant_growing'}   # an action ended; a panel opened; a crop's info card
+NAVIGATION_EVENTS = {'complete', 'trigger_startday_events'}  # doorway/day-start ambience, not an object action
+NEUTRAL_EVENTS = NAVIGATION_EVENTS | {'plant', 'plant_growing'}  # panel opened; a crop's info card
 
 
 def red_flag(c, res):
@@ -997,7 +998,7 @@ def _answer(g, name, params, answer, res):
             # `complete` is emitted when a doorway/scene transition finishes;
             # that is navigation progress even when the frame-diff heuristic
             # cannot call it movement. Object-action events are still a miss.
-            interaction_events = [e for e in c.events if e != 'complete']
+            interaction_events = [e for e in c.events if e not in NAVIGATION_EVENTS]
             if click_mode == 'walk' and interaction_events:
                 raise core.Failed(f'navigation click triggered interaction {c.events}; it was not navigation progress')
             if c.moved or (click_mode == 'target' and (c.events or A.on_card(c))):

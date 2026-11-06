@@ -1125,12 +1125,14 @@ class StreamingGarden(EngineBase):
         res = nav.new_res('garden')
         res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area=None,
                    spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}})
-        click = act.Click((1000, 979), 'point', 0, events=['complete'], mode='overlay', moved=False)
+        click = act.Click((1000, 979), 'point', 0,
+                          events=['trigger_startday_events', 'complete'], mode='overlay', moved=True)
 
         with mock.patch.object(act, 'click', return_value=click):
             engine._answer(g, 'garden', {}, 'M15 relative=NW distance=near', res)
 
         self.assertEqual(res['clicks'], 1)
+        self.assertIsNone(res.get('stop'))
         self.assertEqual(OG.relative_to(g, 'Tara', 'Garden')['compass'], 'NW')
 
     def test_a_successful_navigation_click_resets_the_vision_stuck_counter(self):

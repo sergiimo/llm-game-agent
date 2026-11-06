@@ -1704,13 +1704,15 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                 plant_row = _garden_row('plant')
                 can_plant = plan.holds(plant_row['when'], state)
                 inspection = None
-                if a.kind == 'plant' and not can_plant and not a.ready and not a.drop:
-                    # Observe once before choosing a state-changing transition. Harvest can leave a stale
-                    # growing reading for a single-harvest crop; only the actual Seeds card proves it empty.
+                if a.kind == 'plant' and not a.ready and not a.drop:
+                    # Observe before choosing a state-changing transition: projection can nominate an empty
+                    # bed while this bubble belongs to a growing neighbour. Only Seeds proves it empty.
                     info = _garden_row('info_growing')
                     inspection = steps.run(dict(info, steps=[{'do': 'click_bubble',
                                                               'expect': {'events': '?'}}]), {}, a, state)
-                    if 'plant_growing' not in inspection['events'] and ui.shows('Seeds'):
+                    if 'plant_growing' in inspection['events']:
+                        can_plant = False   # the outcome outranks even an empty nominated state
+                    elif ui.shows('Seeds'):
                         actual = _learn(g, inspection, 'GardenBed', info, res) or tid
                         res['clicks'] += inspection['clicks']
                         if actual not in remaining:
@@ -1724,9 +1726,9 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                         can_plant = plan.holds(plant_row['when'], state)
                         plant_row = dict(plant_row, steps=plant_row['steps'][1:])
                         inspection = None
-                    elif 'plant_growing' not in inspection['events']:
+                    else:
                         inspection.update(ok=False, why=core.ask_vision(
-                            f'Garden bubble labelled plant contradicted {state}; inspection proved '
+                            f'Garden bubble labelled plant with nominated state {state}; inspection proved '
                             f'{inspection["events"]}, without a Seeds picker. Identify the actual interaction.'))
                 if not a.ready and not a.drop and (a.kind == 'plant_growing'
                                                   or (a.kind == 'plant' and not can_plant)):
@@ -1827,6 +1829,9 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     break
                 elif row['id'] == 'info_growing':
                     remaining.remove(tid)
+                    seen_bubbles.add(tuple(a.pt))
+                    if tuple(a.pt) not in res['btried']:
+                        res['btried'].append(tuple(a.pt))
                     res['visited'].append(tid)
                     _garden_log(tid, 'visited', actions)
                     ask.progress('garden')

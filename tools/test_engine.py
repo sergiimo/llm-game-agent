@@ -1531,6 +1531,42 @@ class StreamingGarden(EngineBase):
         self.assertNotIn(projected_id, res['unresolved'])
         self.assertNotIn(projected_id, res['visited'])
 
+    def test_an_empty_projection_whose_click_proves_growing_keeps_the_actual_bed_covered(self):
+        garden = self._north()
+        projected, actual = garden[:2]
+        projected['state'].update(stage='empty', watered=False, crop=None)
+        projected['icon'] = None
+        actual['bubble_pt'] = projected['bubble_pt']
+        projected['bubble_pt'] = None
+        f = self._game(garden, inventory={'CarrotSeed': 1})
+        f.relabel['plant_growing'] = 'plant'
+        for inspected in garden[2:]:
+            f.log.append(L('9:01:00 AM', 'plant_growing', 'GardenBed', *inspected['pos']))
+
+        with self.assertRaises(NeedVision):
+            engine.tend_garden('Garden', ('plant', 'water'))
+        res = engine.LAST
+        projected_id = world.find(self.graph(), 'GardenBed', projected['pos'])
+        actual_id = world.find(self.graph(), 'GardenBed', actual['pos'])
+        self.assertIn(actual_id, res['visited'])
+        self.assertNotIn(projected_id, res['unresolved'])
+        self.assertNotIn(projected_id, res['visited'])
+        self.assertIsNone(f.picked)
+        self.assertEqual(f.inventory['CarrotSeed'], 1)
+        self.assertFalse(any('totalPlanted' in line for line in f.log))
+        pending = ask.load_state('garden')['pending']
+        self.assertTrue(pending['streaming'])
+        self.assertEqual(pending['params'], {'region': 'Garden'})
+        self.assertIn(actual_id, pending['covered'])
+        self.assertNotIn(projected_id, pending['covered'])
+        clicks = list(f.clicks)
+        with self.assertRaises(NeedVision):
+            engine.tend_garden('Garden', ('plant', 'water'))
+        self.assertEqual(f.clicks, clicks)
+        self.assertIn(actual_id, engine.LAST['visited'])
+        self.assertEqual(engine.LAST['unresolved'], [])
+        self.assertIn(actual_id, ask.load_state('garden')['pending']['covered'])
+
     def test_a_proven_info_bubble_counts_as_coverage_on_the_next_command(self):
         garden = self._north()
         inspected = garden[0]

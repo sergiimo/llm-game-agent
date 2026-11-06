@@ -1,0 +1,96 @@
+{
+  "source_run": "20261106-2027-model-owned-south-garden",
+  "source_task": "ec38380aa35a4b97b5875b801d3aa766",
+  "initial_frame": "clicks/turn-0c3727d462d644ac94258ca954fe4d62.jpg",
+  "record": {
+    "id": "f0907fec1ca8b26a",
+    "goal": {
+      "name": null,
+      "params": [],
+      "target": null,
+      "row": null,
+      "step": null
+    },
+    "before": {
+      "screen": "pause",
+      "affordances": [],
+      "state": [
+        [
+          "game_time",
+          "D209 3:08:00 PM"
+        ],
+        [
+          "kind",
+          "pause"
+        ],
+        [
+          "texts",
+          [
+            "Game Paused",
+            "Game progress is saved automatically while",
+            "you play.",
+            "Resume Game",
+            "Settings",
+            "Return to Menu",
+            "Exit Game"
+          ]
+        ]
+      ]
+    },
+    "prediction": {
+      "events": [],
+      "card": null,
+      "log": null,
+      "moved": null,
+      "arrive": null,
+      "delta": []
+    },
+    "action": {
+      "kind": "press",
+      "what": null,
+      "pt": [
+        960,
+        460
+      ],
+      "arg": "Resume Game",
+      "context": [
+        [
+          "turn_id",
+          1
+        ],
+        [
+          "primitive",
+          "press"
+        ]
+      ]
+    },
+    "evidence": {
+      "lines": [
+        "2026-11-06 20:28:57.020 Wylde Flowers[68346:3441547] [GameCenter] ConfigureAccessPoint visible=0 focus=0"
+      ],
+      "events": [],
+      "at": null,
+      "node": null,
+      "mode": "gameplay",
+      "texts": [],
+      "burst_texts": [],
+      "after": [],
+      "moved": true
+    },
+    "verdict": {
+      "value": "unknown",
+      "checks": []
+    },
+    "discrepancy": null,
+    "artifacts": {
+      "frames": [
+        "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-bbf7e773f57a43ec9022c78a1367e994.jpg"
+      ],
+      "img0": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-b1974c00667341508d516b3e0e7ae763.jpg",
+      "run_dir": null,
+      "log_mark": 722907,
+      "t": 1793989735.839668,
+      "turn_id": 1
+    }
+  }
+}

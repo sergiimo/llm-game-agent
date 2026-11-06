@@ -67,6 +67,7 @@ class TaskState:
     global_interrupt: object = None
     turn_seq: int = 0
     current_turn: dict = None
+    pending_intent: Intent = None  # administrative input, independent of an object interaction
 
     def to_dict(self):
         return thaw(self)
@@ -74,6 +75,8 @@ class TaskState:
     @classmethod
     def from_dict(cls, data):
         data = dict(data)
+        if data.get('pending_intent'):
+            data['pending_intent'] = Intent(**data['pending_intent'])
         if data.get('active'):
             active = dict(data['active'])
             if active.get('pending_intent'):

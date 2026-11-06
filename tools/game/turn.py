@@ -134,7 +134,8 @@ class TurnLoop:
 
     def _finish(self, task, recovered=False):
         """Complete or reconcile a write-ahead intent; never invoke perform here."""
-        intent = task.active.pending_intent
+        administrative = task.pending_intent is not None
+        intent = task.pending_intent if administrative else task.active.pending_intent
         if intent.experience:
             e = X.Experience.from_dict(intent.experience)
         else:
@@ -146,7 +147,7 @@ class TurnLoop:
         self._log(task, intent.turn_id, 'integration', experience=e.id, result=result)
         # A projection/name alone cannot own an interaction. Only a positioned event can bind it.
         identity_conflict = None
-        if e.evidence.at and e.evidence.events:
+        if not administrative and e.evidence.at and e.evidence.events:
             actual = I.event_node(e) or result.get('event_state') or result.get('card_state') or e.evidence.node
             if actual:
                 previous = task.active.actual_node
@@ -155,18 +156,20 @@ class TurnLoop:
                     task.active.provisional['identity_conflict'] = identity_conflict
                 else:
                     task.active.actual_node = actual
-        if e.id not in task.active.evidence_ids:
+        if not administrative and e.id not in task.active.evidence_ids:
             task.active.evidence_ids.append(e.id)
-        if e.verdict.value == 'hit' and e.id not in task.active.completed_actions:
+        if not administrative and e.verdict.value == 'hit' and e.id not in task.active.completed_actions:
             task.active.completed_actions.append(e.id)
         task.last_experience = e.to_dict()
-        if self.reducer:
+        if self.reducer and not administrative:
             self.reducer(task, e)
         if identity_conflict or recovered or e.verdict.value in ('miss', 'unsafe') or result.get('errors'):
             task.last_surprise = Surprise.of(e, 'conflicting_positioned_identity' if identity_conflict else
                                              'pending_intent_reconciled' if recovered else
                                              'integration_error' if result.get('errors') else 'mismatch').to_dict()
-        if task.active:
+        if administrative:
+            task.pending_intent = None
+        elif task.active:
             task.active.pending_intent = None
         task.current_turn = None
         task.revision += 1
@@ -175,7 +178,7 @@ class TurnLoop:
     def context(self):
         with self.store.locked():
             task = self.store.load()
-            if task.active and task.active.pending_intent:
+            if task.pending_intent or task.active and task.active.pending_intent:
                 self._finish(task, recovered=True)
             return self._context(task)
 
@@ -183,7 +186,7 @@ class TurnLoop:
         from . import primitives
         with self.store.locked():
             task = self.store.load()
-            if task.active and task.active.pending_intent:
+            if task.pending_intent or task.active and task.active.pending_intent:
                 self._finish(task, recovered=True)
                 self._context(task)
                 raise StaleTurn('pending input reconciled; read the new context')

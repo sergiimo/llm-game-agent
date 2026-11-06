@@ -26,6 +26,10 @@ that image. `correct` applies the model's smallest correction; `stop` ends safel
 Decision JSON for concise rationale categories and evidence references; no separate `run think` row is needed for
 the same decision. Shell-safe alternatives include `answer=walk:F7`, `answer=target:K8`, `answer=press:Collect`.
 
+Administrative controls (for example Resume Game) keep a task-level pending intent, separate from the bed/hive
+transaction. They do not create or mutate the active garden interaction. Resume succeeds when evidence returns
+to gameplay; it needs no world event. Interrupted menu input reconciles from its recorded intent without repetition.
+
 The model selects the next target only when the active transaction has completed. A target click needs the target
 and its full walkable road visible from Tara at the frame centre. Otherwise choose one short visible-ground
 waypoint (`{"kind":"waypoint","cell":"F7","walkable":true}`). Never infer actual node ownership from projection.

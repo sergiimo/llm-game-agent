@@ -6,12 +6,89 @@ import unittest
 from unittest import mock
 
 from game import engine, experience as X, integrate, learn, primitives
-from game.task_state import TaskStore, TaskState
+from game.task_state import TaskStore, TaskState, Interaction
 from objects.graph import Graph, Node
 from game.turn import Decision, DecisionRejected
 
 
 class GardenTurns(unittest.TestCase):
+    def test_captured_resume_does_not_create_or_mutate_a_garden_transaction(self):
+        fixture = os.path.join(os.path.dirname(__file__), 'fixtures', 'garden', 'resume-game.json')
+        with open(fixture) as f:
+            captured = json.load(f)['record']
+        for existing in (False, True):
+            with self.subTest(existing_transaction=existing):
+                store, port, call = self.session([captured])
+                if existing:
+                    task = store.load()
+                    task.active = Interaction('bed-transaction', phase='water', actual_node='A', crop='Tulip',
+                                              provisional={'target_selected': True, 'facts': {'planted': True}},
+                                              evidence_ids=['plant-proof'], completed_actions=['plant-proof'])
+                    store.save(task)
+                before = store.load().to_dict()['active']
+                port.snapshot.update(screen={'kind': 'pause', 'texts': dict(captured['before']['state'])['texts']},
+                                     frame_path=captured['artifacts']['img0'])
+                c = call()
+                self.assertEqual(c.recommendation.action['label'], 'Resume Game')
+                c = call(turn_id=c.turn_id, decision=Decision('accept'))
+                self.assertEqual(store.load().to_dict()['active'], before)
+                self.assertEqual(len(port.inputs), 1)
+                self.assertEqual(len(integrate.journal()), 1)
+                self.assertIsNone(c.surprise)
+                self.assertEqual(c.last_outcome['verdict']['value'], 'hit')
+                self.assertEqual(list(c.coverage['covered']), [])
+                self.assertIsNone(store.load().pending_intent)
+                if not existing:
+                    self.assertIsNone(c.transaction)
+                    self.assertIn('model selects a visible uncovered target', c.recommendation.reasons[0])
+
+    def test_menu_input_reconciles_after_restart_without_repeating_or_creating_target(self):
+        fixture = os.path.join(os.path.dirname(__file__), 'fixtures', 'garden', 'resume-game.json')
+        with open(fixture) as f:
+            captured = json.load(f)['record']
+        store, port, call = self.session([captured])
+        port.snapshot['screen'] = {'kind': 'pause', 'texts': dict(captured['before']['state'])['texts']}
+        c = call()
+        original = port.perform
+        def interrupted(action):
+            # Durable write-ahead state exists before the actuator, including no object transaction.
+            persisted = TaskStore(store.path).load()
+            self.assertIsNone(persisted.active)
+            self.assertEqual(persisted.pending_intent.action['label'], 'Resume Game')
+            original(action)
+            raise RuntimeError('connection lost after input')
+        port.perform = interrupted
+        with self.assertRaisesRegex(RuntimeError, 'connection lost'):
+            call(turn_id=c.turn_id, decision=Decision('accept'))
+        c = call()  # loads persisted task and reconciles without another perform
+        self.assertEqual(len(port.inputs), 1)
+        self.assertIsNone(c.transaction)
+        self.assertIsNone(store.load().pending_intent)
+        self.assertEqual(c.surprise.reason, 'pending_intent_reconciled')
+        self.assertEqual(len(integrate.journal()), 1)
+
+    def test_resume_requires_gameplay_evidence_without_requiring_world_event(self):
+        from game.task_state import Intent
+        before = {'screen': {'kind': 'pause', 'texts': ['Game Paused', 'Resume Game']}}
+        intent = Intent(1, {'kind': 'press', 'label': 'Resume Game'}, 722907, 1793989735.839668)
+        for mode, verdict in [('gameplay', 'hit'), ('pause', 'miss')]:
+            with self.subTest(mode=mode):
+                e = primitives.experience(intent, before, {'mode': 'gameplay'}, X.Evidence(mode=mode))
+                self.assertEqual(e.verdict.value, verdict)
+                self.assertEqual(e.verdict.checks[0].field, 'mode')
+
+    def test_obsolete_resume_control_refuses_without_creating_target(self):
+        store, port, call = self.session([])
+        port.snapshot['screen'] = {'kind': 'pause', 'texts': ['Game Paused', 'Resume Game']}
+        c = call()
+        port.snapshot['screen'] = {'kind': 'gameplay', 'texts': []}
+        adapter = primitives.GameAdapter()
+        port.prepare = adapter.prepare
+        c = call(turn_id=c.turn_id, decision=Decision('accept'))
+        self.assertEqual(len(port.inputs), 0)
+        self.assertIsNone(c.transaction)
+        self.assertEqual(c.last_outcome['verdict']['value'], 'unsafe')
+
     def session(self, records, **params):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)

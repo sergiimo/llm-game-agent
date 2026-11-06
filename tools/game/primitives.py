@@ -24,6 +24,8 @@ def experience(intent, before, expects, evidence, frames=()):
     checks, _ = integrate.verify(expects, evidence.lines, evidence.events, ' / '.join(evidence.texts))
     if expects.get('moved') is not None:
         checks.append(X.Check('moved', expects['moved'], evidence.moved, evidence.moved == expects['moved']))
+    if expects.get('mode') is not None:
+        checks.append(X.Check('mode', expects['mode'], evidence.mode, evidence.mode == expects['mode']))
     if expects.get('events') and expects['events'] != '?':
         allowed = {ev for alt in expects['events'] for ev in alt.split('|')}
         allowed.update(expects.get('allowed_events') or ())
@@ -71,21 +73,25 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
         prepared = adapter.prepare(dict(action), before)
     except ValueError as ex:
         prepared, refusal = dict(action), str(ex)
-    if task.active is None:
+    administrative = (action.get('kind') == 'press' and str(action.get('label', '')).casefold() == 'resume game' or
+                      (before.get('screen') or {}).get('kind') not in ('gameplay', 'card', 'picker') or
+                      task.active is None and action.get('kind') in ('wait', 'read'))
+    if not administrative and task.active is None:
         task.active = Interaction(f'{task.task_id}:{turn_id}', provisional={
             'frame': before.get('frame_path'), 'point': action.get('point'), 'cell': action.get('cell'),
             'projected_node': action.get('projected_node')}, crop=action.get('crop') if not refusal else None)
-    if not refusal and action.get('crop'):
+    if not administrative and not refusal and action.get('crop'):
         task.active.crop = action['crop']  # explicit model classification; never object identity
-    if not refusal and action.get('kind') in ('target', 'cell', 'bubble', 'space'):
+    if not administrative and not refusal and action.get('kind') in ('target', 'cell', 'bubble', 'space'):
         if not task.active.provisional.get('target_selected'):
             task.active.provisional.update(frame=before.get('frame_path'), point=prepared.get('point'),
                                            cell=prepared.get('cell'))
         task.active.provisional['target_selected'] = True
-    if task.active.pending_intent is not None:
+    owner = task if administrative else task.active
+    if task.pending_intent is not None or task.active and task.active.pending_intent is not None:
         raise ValueError('pending intent must be reconciled before input')
     intent = Intent(turn_id, prepared, adapter.mark(), time.time(), before, expects)
-    task.active.pending_intent = intent
+    owner.pending_intent = intent
     store.save(task)
     log('intent', intent=intent)
     if refusal:

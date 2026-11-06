@@ -60,7 +60,7 @@ def recommend(task, obs):
     screen = obs.get('screen') or {}
     mode, texts = screen.get('kind'), screen.get('texts') or ()
     if mode == 'pause':
-        return rec({'kind': 'press', 'label': 'Resume Game'}, 'resolve pause explicitly')
+        return rec({'kind': 'press', 'label': 'Resume Game'}, 'resolve pause explicitly', {'mode': 'gameplay'})
     if mode not in ('gameplay', 'card', 'picker'):
         return rec(reason=f'resolve {mode} before garden input')
     active = task.get('active')

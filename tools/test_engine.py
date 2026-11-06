@@ -756,6 +756,16 @@ class Ask(Base):
         with self.assertRaises(NeedVision):
             ask.ask('click', 'where?', self.pending(), {'goal': 'plant', 'vision': 0})
 
+    def test_duplicate_streaming_observation_keeps_pending_and_budget(self):
+        pending = dict(self.pending(), goal='garden', params={'region': 'Garden'}, streaming=True)
+        with self.assertRaises(NeedVision):
+            ask.ask('click', 'first frame', pending, {'goal': 'garden', 'vision': 0})
+        with self.assertRaises(NeedVision):
+            ask.ask('click', 'refreshed same frame', pending, {'goal': 'garden', 'vision': 0})
+        state = ask.load_state('garden')
+        self.assertEqual(state['asks'], 1)
+        self.assertEqual(state['pending']['params'], {'region': 'Garden'})
+
     def test_laws_still_uses_the_moved_helpers(self):
         from game import laws
         self.assertIs(laws.parse_point, ask.parse_point)

@@ -149,23 +149,27 @@ def ask(kind, question, pending, res, img=None):
         kind = 'name'   # a free-form answer with a supplied image, using the existing name path
     goal = pending.get('goal')
     st = load_state(goal)
-    if st['asks'] >= MAX_ASKS:
+    old = st.get('pending') or {}
+    repeat = bool(pending.get('streaming') and old.get('streaming') and old.get('kind') == kind
+                  and old.get('goal') == goal and old.get('params') == pending.get('params'))
+    if not repeat and st['asks'] >= MAX_ASKS:
         hist = ' | '.join(st['history'][-3:])
         progress(goal)
         raise LawsStuck(f'LAWS_STUCK: {goal} asked vision {MAX_ASKS} times without progress; last: {hist}. '
                         'Stop and report; do not retry blindly.')
     A.gameplay() if kind == 'click' else None
     tr = res.get('trace', [])
-    st['asks'] += 1
-    st['history'] = (st['history'] + [question[:160]])[-6:]
+    if not repeat:
+        st['asks'] += 1
+        st['history'] = (st['history'] + [question[:160]])[-6:]
     st['trace'] = tr[-8:]
-    st['pending'] = dict(pending, kind=kind)
+    st['pending'] = old if repeat else dict(pending, kind=kind)
     save_state(st)
     how = {'click': 'a grid cell (e.g. Q14), or none', 'button': 'the exact on-screen text to press',
            'name': 'key=value (what changed), or the name'}[kind]
     if pending.get('decide'):
         how = 'click <object id> | walk <cell> | settle <ids>: key=value | done'
-    ans = hint(goal, pending.get('params')) + f'<{how}>'
+    ans = hint(goal, st['pending'].get('params')) + f'<{how}>'
     q = question + (f' The search already tried, in order: {"; ".join(tr[-10:])}.' if tr else '')
     try:
         prompt = core.WF.ask_vision(kind if kind == 'click' else 'game', q, img if img is not None else core.WF.grab(),

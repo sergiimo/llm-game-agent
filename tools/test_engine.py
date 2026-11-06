@@ -1881,6 +1881,7 @@ class Screen(Base):
         self.assertEqual(R('gameplay', []), 'gameplay')
         self.assertEqual(R('overlay', []), 'gameplay')   # a textless overlay = HUD hidden (camera on a bed), L144
         self.assertEqual(R('overlay', ['Game Paused', 'Resume Game']), 'pause')
+        self.assertEqual(R('cutscene', ['Game Paused', 'Resume Game']), 'pause')
         self.assertEqual(R('overlay', ['Inventory', 'Seeds', 'Tulip Bulbs']), 'picker')
         self.assertEqual(R('overlay', ['Tulip Bulbs', 'Plant these tulip bulbs in a', 'Select']), 'card')
         self.assertEqual(R('overlay', ['Settings', 'Music Volume']), 'menu')

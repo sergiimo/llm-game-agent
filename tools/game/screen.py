@@ -37,12 +37,15 @@ MENU = ('settings', 'volume', 'return to menu', 'exit game', 'настройки
 
 def classify(mode, texts):
     low = [str(t).lower() for t in texts]
+    # The daemon can retain its pre-pause mode (notably ``cutscene``) while the
+    # pause overlay is on top.  Visible pause controls are stronger evidence
+    # than that stale underlying mode.
+    if paused(texts):
+        return 'pause'
     if mode in ('dialogue', 'popup', 'cutscene'):
         return mode
     if mode == 'gameplay' or not texts:
         return 'gameplay'
-    if paused(texts):
-        return 'pause'
     if any(any(w in t for w in MENU) for t in low):
         return 'menu'
     if any(t.strip() in PICKER for t in low):

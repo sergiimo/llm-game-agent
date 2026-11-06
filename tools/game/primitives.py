@@ -63,7 +63,11 @@ def execute(store, task, turn_id, action, expects, adapter, log):
     except ValueError as ex:
         prepared, refusal = dict(action), str(ex)
     if task.active is None:
-        task.active = Interaction(f'{task.task_id}:{turn_id}')
+        task.active = Interaction(f'{task.task_id}:{turn_id}', provisional={
+            'frame': before.get('frame_path'), 'point': action.get('point'), 'cell': action.get('cell'),
+            'projected_node': action.get('projected_node')}, crop=action.get('crop'))
+    if action.get('crop'):
+        task.active.crop = action['crop']  # explicit model classification; never object identity
     if task.active.pending_intent is not None:
         raise ValueError('pending intent must be reconciled before input')
     intent = Intent(turn_id, prepared, adapter.mark(), time.time(), before, expects)

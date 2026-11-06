@@ -1,0 +1,13 @@
+> **Summary:** `./wf garden` observes a durable garden task and returns `NEXT`; the gameplay model chooses one primitive per continuation. No call schedules or completes a hidden garden pass.
+
+Start an active run, then call `./wf garden region=GardenSouth crops=Tulip`. The JSON after `NEXT` contains the turn ID, full-size frame path, active transaction, coverage, clues, interrupts, and one optional recommendation. Bare retries return the saved turn without input, including when the active region is GardenSouth.
+
+Continue with `./wf garden turn_id=N answer=accept`, or explicitly choose `answer=look`, `answer=stop`, `answer=space`, `answer=close`, `answer=press:Collect`, `answer=target:J6 crop=Tulip`, or `answer=walk:F7`. A target answer confirms that the object and its full walkable road are visible; a walk answer confirms one short visible-ground waypoint. JSON Decisions are accepted in `answer=` for other primitives and corrections. Always use the returned turn ID; stale turns perform no input.
+
+The model keeps choosing turns until the task status is terminal. A recommendation with no action requires a model choice or the named handoff; accepting it is rejected. `look` exposes the already captured frame and keeps the same turn. After a surprise, inspect the evidence and supply a correction Decision before accepting another recommendation.
+
+One transaction retains the crop through Collect → Seeds → seed selection → confirmation → water → verification. Projected graph names never bind the actual bed; positioned events do. Verification is an explicit zero-input `read` turn before coverage is recorded. A protected flower stays unless `crops=` authorizes it. A water drop is ambiguous until the interaction identifies dry versus wilted. Narrow water/harvest jobs close pre-existing empty-bed pickers.
+
+Rain, darkness, or a task started after 19:00 require sleep and a next-day retry; after 23:00 garden input is blocked. An empty can requires the refill subtask. The same fresh checks guard model overrides. Map/dialogue/unknown screens block world input and require the model to resolve them. Task state is in the active run's `garden-task.json`; turn reasoning is in `log.jsonl`, raw experiences in `experiences.jsonl`.
+
+Offline proof: `PYTHONPATH=tools .venv/bin/python -m unittest tools.test_garden_turn tools.test_turn`. The captured replay fixture records original evidence and IDs, explicitly notes pruned frames, and includes three retained historical screenshots as supplementary evidence. Live verification remains a separate bounded gate.

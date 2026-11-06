@@ -85,13 +85,17 @@ class TurnContext(Snapshot):
 class TurnLoop:
     """adapter: observe/mark/prepare/perform/capture; policy(task snapshot, clues) is input-free.
 
+    Optional reducer(task, integrated_experience) only folds domain evidence into durable state. It must be
+    idempotent, perform no input, and never choose a target or execute a follow-up action.
+
     The task file lives in the active run directory; its sibling log.jsonl is the turn timeline.
     A persisted context is returned unchanged until consumed, so accept always refers to exact saved data.
     """
-    def __init__(self, store, adapter=None, policy=None):
+    def __init__(self, store, adapter=None, policy=None, reducer=None):
         from .primitives import GameAdapter
         self.store, self.adapter = store, adapter or GameAdapter()
         self.policy = policy or (lambda task, obs: Recommendation())
+        self.reducer = reducer  # evidence-only domain state update; never input or target selection
 
     def _log(self, task, turn_id, phase, **data):
         path = os.path.join(os.path.dirname(self.store.path), 'log.jsonl')
@@ -146,10 +150,13 @@ class TurnLoop:
         if e.verdict.value == 'hit' and e.id not in task.active.completed_actions:
             task.active.completed_actions.append(e.id)
         task.last_experience = e.to_dict()
+        if self.reducer:
+            self.reducer(task, e)
         if recovered or e.verdict.value in ('miss', 'unsafe') or result.get('errors'):
             task.last_surprise = Surprise.of(e, 'pending_intent_reconciled' if recovered else
                                              'integration_error' if result.get('errors') else 'mismatch').to_dict()
-        task.active.pending_intent = None
+        if task.active:
+            task.active.pending_intent = None
         task.current_turn = None
         task.revision += 1
         self.store.save(task)

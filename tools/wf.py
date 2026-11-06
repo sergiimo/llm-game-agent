@@ -1575,7 +1575,7 @@ def garden_cli_args(args):
         key, sep, value = arg.partition('=')
         if not sep:
             raise ValueError(f'garden argument must be key=value, got {arg!r}')
-        params[key] = int(value) if key == 'max_clicks' else value
+        params[key] = int(value) if key in ('max_clicks', 'turn_id') else value
     click = params.pop('answer', params.pop('click', None))
     relative, distance, crop = (params.pop('relative', None), params.pop('distance', None),
                                 params.pop('crop', None))
@@ -1614,7 +1614,10 @@ def game_cmd(kind, args):
                 params, click = garden_cli_args(args)
             except ValueError as e:
                 raise game.Failed(str(e)) from None
-            res = garden.summary(garden.do(click=click, **params))
+            try:
+                res = garden.summary(garden.turn(answer=click, **params))
+            except ValueError as e:
+                raise game.Failed(str(e)) from None
         elif kind == 'sleep':
             from game import sleep
             params = {}
@@ -4155,8 +4158,8 @@ def main(argv=None):
     p = sub.add_parser('achieve', help='the engine (L138): wf achieve <goal|json> [k=v ...] [answer=X]; goals in '
                                        'tools/game/goals.json, e.g. wf achieve plant seed=Tulip region=GardenSouth')
     p.add_argument('args', nargs='+')
-    p = sub.add_parser('garden', help='inspect and immediately harvest, replant, and water every bed: '
-                                      'wf garden [region=Garden] [crops=Tulip] [answer=...] [max_clicks=40]')
+    p = sub.add_parser('garden', help='observe a model-owned garden turn; continue with one decision: '
+                                      'wf garden [region=Garden] [crops=Tulip] [turn_id=N answer=accept|...]')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('sleep', help='navigate to Tara\'s bed and sleep; resume vision with answer=walk:<cell>')
     p.add_argument('args', nargs='*')

@@ -235,6 +235,8 @@ def on_click(c, img0=None, here=None):
 def propose(e):
     ctx = dict(e.action.context or ()) if e.action else {}
     world, memory, transitions = [], [], []
+    if e.artifacts.turn_id is not None and e.evidence.at and e.evidence.events:
+        world.append(X.Update('world', 'event_state'))
     if e.action and e.action.kind == 'click':
         if e.evidence.at:
             world.append(X.Update('world', 'card_state'))
@@ -295,9 +297,79 @@ def _img(e, img0):
     return None
 
 
+def _save_world(g):
+    """Commit graph data before its applied key, so a daemon restart cannot lose a learned fact."""
+    import tempfile
+    from . import learn
+    path = learn.graph_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix='.world-')
+    os.close(fd)
+    try:
+        g.save(tmp)
+        with open(tmp, 'rb') as f:
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def event_node(e):
+    """Resolve canonical ownership again on replay; an already-applied update need not return its old result."""
+    from . import learn, world
+    g = learn.MEMORY['graph']
+    if g is None:
+        return None
+    found = None
+    for line in e.evidence.lines:
+        at = A.position_of(line)
+        target = re.search(r'target=([A-Za-z]+)', line)
+        if at and target and A.events_of([line]):
+            found = world.find(g, target[1], at)
+    return found
+
+
 def _run(u, e, img0):
     """One update by the existing rules. Its result (a learned name, a node id) or None."""
     from . import learn as LN
+    if u.consumer == 'gap' and u.op == 'bundle':
+        return gap([e.id], u.args['invariant'], u.args.get('owner', 'turn'), u.args.get('kind', 'capability'))
+    if u.consumer == 'world' and u.op == 'event_state':
+        from . import world
+        g = LN.MEMORY['graph']
+        if g is None:
+            return None
+        nid = None
+        for line in e.evidence.lines:
+            at = A.position_of(line)
+            target = re.search(r'target=([A-Za-z]+)', line)
+            events = A.events_of([line])
+            if at and target and events:
+                nid = world.place(g, target[1], at, events, stamp=LN.stamp(), lines=[line])
+                note(g, nid, e.id)
+        if nid:
+            _save_world(g)
+        return nid
+    if u.consumer == 'world' and u.op == 'model_state':
+        g = LN.MEMORY['graph']
+        nid, values = u.args['node'], u.args['state']
+        if g is None or nid not in g.nodes:
+            raise ValueError('world correction requires an existing graph node')
+        if e.evidence.at:
+            from . import world
+            proven = world.find(g, None, tuple(e.evidence.at))
+            if proven and proven != nid:
+                raise ValueError('model correction cannot rebind positioned event identity')
+        for key, value in values.items():
+            reading = g.nodes[nid].state.get(key)
+            if isinstance(reading, dict) and reading.get('source') == 'event' and reading.get('value') != value:
+                raise ValueError('model correction conflicts with event evidence')
+        for key, value in values.items():
+            g.set_state(nid, key, value, LN.stamp(), 'vision')
+        note(g, nid, e.id)
+        _save_world(g)
+        return nid
     if u.consumer == 'world' and u.op == 'card_state':
         nid = LN.observe_card(_ns(e))
         g = LN.MEMORY['graph']
@@ -309,6 +381,9 @@ def _run(u, e, img0):
         return nid
     if u.consumer == 'memory':
         img = _img(e, img0)
+        strict = u.args.get('require_proof', False)
+        if strict and (img is None or (u.op == 'badge' and (not e.action or not e.action.pt))):
+            raise ValueError('appearance correction needs the captured frame and clicked target')
         if u.op == 'bubble_label':
             return LN.learn_bubble(_ns(e), img)
         if u.op == 'answer_look':
@@ -322,10 +397,14 @@ def _run(u, e, img0):
             return f'badge:{u.args["label"]}'
         if u.op == 'proven_look':   # a box on the frame before the click, named by a later log proof
             ok = LN.relabel(img, tuple(u.args['box']), u.args['kind'])
+            if strict and not ok:
+                raise ValueError('appearance correction could not store the labelled crop')
             return f'look:{u.args["kind"]}' if ok else None
         if u.op == 'relabel':
             kind = LN.kind_of(u.args['node'])
             ok = LN.relabel(img, tuple(u.args['box']), kind)
+            if strict and not ok:
+                raise ValueError('appearance correction could not store the labelled crop')
             return f'look:{kind}' if ok else None
         if u.op == 'direction':
             a, b, d = u.args['toward']
@@ -336,6 +415,28 @@ def _run(u, e, img0):
             return None
     if u.consumer == 'transitions':
         from . import steps
+        if u.op == 'model_expect':
+            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'actions.json')
+            with open(path) as f:
+                table = json.load(f)
+            row = next((r for r in table['rows'] if r['id'] == u.args['row']), None)
+            index = u.args['step']
+            if row is None or not 0 <= index < len(row['steps']):
+                raise ValueError('transition correction needs an existing row and step')
+            row['steps'][index]['expect'] = u.args['expect']
+            import tempfile
+            fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix='.actions-')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(table, f, indent=1)
+                    f.write('\n')
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp, path)
+            finally:
+                if os.path.exists(tmp):
+                    os.unlink(tmp)
+            return u.args['row']
         ch = e.verdict.checks[u.args['i']]
         try:
             with open(steps.OBSERVED, 'a') as f:
@@ -346,7 +447,7 @@ def _run(u, e, img0):
         except OSError:
             pass
         return None
-    return None
+    raise ValueError(f'unsupported correction {u.consumer}:{u.op}')
 
 
 def apply(e, correction=None, img0=None):
@@ -363,6 +464,7 @@ def apply(e, correction=None, img0=None):
         except Exception as ex:   # noqa: BLE001 (learning never breaks play)
             r = None
             out.setdefault('errors', []).append(f'{u.op}: {ex}')
+            continue  # failed corrections are retryable; never durably mark them as applied
         keys.add(k)
         _append('applied.txt', k)
         out['applied'] += 1
@@ -370,6 +472,34 @@ def apply(e, correction=None, img0=None):
         if r and u.consumer == 'memory' and out['learned'] is None:
             out['learned'] = r
     return out
+
+
+def correct(e, kind, data):
+    """Model-selected correction on the same immutable experience. Runtime mutates data only, never source."""
+    if kind in ('unresolved', 'stop'):
+        return {'applied': 0, 'status': kind}
+    if kind == 'world':
+        if not isinstance(data.get('state'), dict) or not data.get('node'):
+            raise ValueError('world correction needs node and state')
+        correction = X.Correction(e.id, world=(X.Update('world', 'model_state', data),))
+    elif kind == 'appearance':
+        op = data.get('op', 'proven_look')
+        if op not in ('proven_look', 'badge', 'relabel'):
+            raise ValueError('unsupported appearance correction')
+        args = {k: v for k, v in data.items() if k != 'op'}
+        args['require_proof'] = True
+        correction = X.Correction(e.id, memory=(X.Update('memory', op, args),))
+    elif kind == 'transition':
+        if not isinstance(data.get('expect'), dict) or not isinstance(data.get('step'), int) or not data.get('row'):
+            raise ValueError('transition correction needs row, step and expect')
+        correction = X.Correction(e.id, transitions=(X.Update('transitions', 'model_expect', data),))
+    elif kind == 'gap':
+        if not data.get('invariant'):
+            raise ValueError('gap correction needs invariant')
+        correction = X.Correction(e.id, gap=(X.Update('gap', 'bundle', data),))
+    else:
+        raise ValueError(f'unknown correction class {kind!r}')
+    return apply(e, correction)
 
 
 def replay(path=None):
@@ -468,7 +598,8 @@ def _tables():
     for t in TABLES:
         p = os.path.join(os.path.dirname(os.path.abspath(__file__)), t)
         try:
-            out[t] = hashlib.sha1(open(p, 'rb').read()).hexdigest()[:12]
+            with open(p, 'rb') as f:
+                out[t] = hashlib.sha1(f.read()).hexdigest()[:12]
         except OSError:
             pass
     return out
@@ -490,7 +621,8 @@ def gaps():
         for f in sorted(os.listdir(d)):
             if f.endswith('.json'):
                 try:
-                    out.append(json.load(open(os.path.join(d, f))))
+                    with open(os.path.join(d, f)) as bundle:
+                        out.append(json.load(bundle))
                 except (OSError, ValueError):
                     continue
     return out

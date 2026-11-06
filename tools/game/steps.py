@@ -18,6 +18,34 @@ KIND = {'press': 'press', 'press_space': 'space', 'pick_card': 'pick', 'close': 
         'read_card': 'read'}   # step -> the experience's action kind
 
 
+def recommend(row, params, index, point=None):
+    """Pure: recommend exactly one resolved step. Missing visual coordinates stay for the model to supply.
+
+    The legacy run() remains for unmigrated callers; model-owned tasks use this function and primitives instead.
+    Card selection never scans through cards: the model supplies one visible card point.
+    """
+    from .plan import resolve
+    from .turn import Recommendation
+    r = resolve(row, params or {})
+    if not 0 <= index < len(r['steps']):
+        return Recommendation(None, 1., ('transition finished; verify evidence',), {})
+    s = r['steps'][index]
+    kinds = {'click_bubble': 'bubble', 'click_object': 'target', 'press': 'press', 'press_space': 'space',
+             'pick_card': 'select_card', 'close': 'close', 'click_cell': 'cell', 'read_card': 'read'}
+    action = {'kind': kinds[s['do']], 'row': r['id'], 'step': index}
+    if point is not None:
+        action['point'] = list(point)
+    if s['do'] == 'press':
+        action['label'] = s['arg']
+    if s['do'] == 'pick_card':
+        action['name'] = s['arg']
+    if s['do'] == 'click_cell':
+        action['cell'] = s['arg']
+    if s['do'] == 'read_card':
+        action['store'] = s.get('store', 'crop')
+    return Recommendation(action, 1., (f'transition {r["id"]} step {index}',), s.get('expect') or {})
+
+
 def _lines_since(mark):
     if not core.seen(A.EVENT.pattern, mark, 0):
         core.seen(A.EVENT.pattern, mark, A.EVENT_WAIT)

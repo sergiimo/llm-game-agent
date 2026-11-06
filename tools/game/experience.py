@@ -94,6 +94,7 @@ class Artifacts:
     run_dir: str = None
     log_mark: int = None
     t: float = None             # capture time (s)
+    turn_id: int = None         # model-owned loop: same id in the task's chronological log
 
 
 FIELDS = ('goal', 'before', 'prediction', 'action', 'evidence', 'verdict', 'discrepancy', 'artifacts')

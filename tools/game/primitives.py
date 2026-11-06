@@ -1,0 +1,178 @@
+"""Atomic I/O: persist one intent, issue at most one raw input, capture one experience.
+
+No target selection, workflow, vision request, modal cleanup, or retries live here. A refused guard performs zero
+inputs. The caller owns integration/final state persistence via TurnLoop's write-ahead completion boundary.
+"""
+import os
+import re
+import time
+import uuid
+from dataclasses import replace
+
+from . import experience as X
+from .task_state import Intent, Interaction
+
+
+def experience(intent, before, expects, evidence, frames=()):
+    from . import integrate
+    checks, _ = integrate.verify(expects, evidence.lines, evidence.events, ' / '.join(evidence.texts))
+    if expects.get('moved') is not None:
+        checks.append(X.Check('moved', expects['moved'], evidence.moved, evidence.moved == expects['moved']))
+    if expects.get('events') and expects['events'] != '?':
+        allowed = {ev for alt in expects['events'] for ev in alt.split('|')}
+        allowed.update(expects.get('allowed_events') or ())
+        unexpected = sorted(set(evidence.events) - allowed)
+        if unexpected:
+            checks.append(X.Check('unexpected_events', [], unexpected, False))
+    screen = before.get('screen') or {}
+    return X.Experience.new(
+        before=X.Observation(screen.get('kind'), (), X._t(tuple(sorted(screen.items())))),
+        prediction=X.Prediction(events=X._t(expects.get('events') or ()), card=expects.get('card'),
+                                log=expects.get('log'), moved=expects.get('moved')),
+        action=X.Action(intent.action['kind'], intent.action.get('what'),
+                        X._t(intent.action.get('point')), intent.action.get('label'),
+                        (('turn_id', intent.turn_id),)),
+        evidence=evidence, verdict=integrate._verdict(checks),
+        artifacts=X.Artifacts(tuple(frames), before.get('frame_path'), None, intent.log_mark, intent.written_at,
+                              intent.turn_id))
+
+
+def execute(store, task, turn_id, action, expects, adapter, log):
+    """Leave a durable pending intent if input/capture crashes. Never retry an uncertain input."""
+    before = adapter.observe()
+    refusal = None
+    try:
+        prepared = adapter.prepare(dict(action), before)
+    except ValueError as ex:
+        prepared, refusal = dict(action), str(ex)
+    if task.active is None:
+        task.active = Interaction(f'{task.task_id}:{turn_id}')
+    if task.active.pending_intent is not None:
+        raise ValueError('pending intent must be reconciled before input')
+    intent = Intent(turn_id, prepared, adapter.mark(), time.time(), before, expects)
+    task.active.pending_intent = intent
+    store.save(task)
+    log('intent', intent=intent)
+    if refusal:
+        s = before.get('screen') or {}
+        e = experience(intent, before, expects, X.Evidence(mode=s.get('kind'), texts=tuple(s.get('texts') or ())))
+        e = replace(e, verdict=X.Verdict('unsafe', (X.Check('guard', 'safe input', refusal, False),)),
+                    discrepancy=X.Discrepancy('guard', 'safe input', refusal))
+        intent.experience = e.to_dict()
+        store.save(task)
+        return
+    if prepared['kind'] not in ('wait', 'read'):
+        adapter.perform(prepared)
+    # TurnLoop._finish captures and persists the result, including zero-input observations.
+
+
+class GameAdapter:
+    """Production I/O adapter. clue_provider may add domain graph clues and interrupts, never inputs."""
+    def __init__(self, clue_provider=None):
+        self.clue_provider = clue_provider
+
+    def mark(self):
+        from . import core
+        return core.WF.log_mark()
+
+    def observe(self):
+        from . import act, core, observe, screen
+        image = core.WF.grab()
+        directory = act.frames_dir()
+        os.makedirs(directory, exist_ok=True)
+        path = os.path.join(directory, f'turn-{uuid.uuid4().hex}.jpg')
+        image.convert('RGB').save(path, quality=90)  # full virtual frame; never resize
+        s = screen.read()
+        clues = dict(self.clue_provider() if self.clue_provider else {})
+        clues.update(screen={'kind': s.kind, 'texts': s.texts}, frame_path=path,
+                     visible_affordances=[{'kind': a.kind, 'point': list(a.pt), 'drop': a.drop, 'ready': a.ready,
+                                           'highlighted': a.highlighted} for a in observe.scan()])
+        clues.setdefault('graph_clues', [])
+        clues.setdefault('interrupts', [])
+        return clues
+
+    def prepare(self, action, observation):
+        """Resolve only the model-selected control. Guards may refuse, never close menus or choose another target."""
+        from . import core, observe
+        kind = action.get('kind')
+        screen = (observation.get('screen') or {}).get('kind', 'unknown')
+        if kind in ('wait', 'read'):
+            return action
+        if kind in ('click', 'target', 'cell', 'bubble', 'waypoint'):
+            if screen != 'gameplay':
+                raise ValueError(f'world input blocked by {screen}')
+            point = action.get('point')
+            if point is None and action.get('cell'):
+                m = re.fullmatch(r'([A-Xa-x])(1[0-6]|[1-9])', action['cell'])
+                if not m:
+                    raise ValueError('cell must be A1-X16')
+                point = ((ord(m[1].upper()) - 65 + .5) * 80, (int(m[2]) - .5) * 67.5)
+            if point is None or len(point) != 2 or not observe.on_frame(point):
+                raise ValueError('click point is outside walkable frame or on HUD')
+            if kind == 'waypoint' and not action.get('walkable'):
+                raise ValueError('waypoint needs model-confirmed visible walkable ground')
+            if kind != 'waypoint' and not action.get('visible_road'):
+                raise ValueError('target and full visible walkable road must be confirmed')
+            action['point'] = [round(p) for p in point]
+            action['command'] = f'click:{action["point"][0]}:{action["point"][1]}'
+        elif kind == 'space':
+            if screen != 'gameplay':
+                raise ValueError(f'Space blocked by {screen}; choose its named control')
+            if not any(a.get('highlighted') for a in observation.get('visible_affordances', ())):
+                raise ValueError('Space requires a visible highlighted affordance')
+            action['command'] = 'key:space'
+        elif kind == 'press':
+            if screen not in ('card', 'picker', 'pause', 'dialogue', 'popup'):
+                raise ValueError(f'named control blocked by {screen}')
+            label = action.get('label')
+            if not isinstance(label, str) or not label.strip():
+                raise ValueError('press requires a label')
+            if screen == 'pause' and label.lower() != 'resume game':
+                raise ValueError('only Resume Game may be pressed on pause')
+            hits = core.WF.find_text(label, exact=True)
+            if len(hits or ()) != 1:
+                raise ValueError('named control missing or ambiguous')
+            action['point'] = [round(hits[0]['cx']), round(hits[0]['cy'])]
+            action['command'] = f'click:{action["point"][0]}:{action["point"][1]}'
+        elif kind == 'select_card':
+            if screen not in ('card', 'picker') or not action.get('point'):
+                raise ValueError('select_card needs one model-selected visible card point')
+            x, y = action['point']
+            if not (0 <= x < 1920 and 0 <= y < 1080):
+                raise ValueError('card point outside frame')
+            action['command'] = f'click:{round(x)}:{round(y)}'
+        elif kind == 'close':
+            if screen not in ('card', 'picker'):
+                raise ValueError(f'close blocked by {screen}')
+            action['command'] = 'key:escape'
+        else:
+            raise ValueError(f'unknown primitive {kind!r}')
+        return action
+
+    def perform(self, action):
+        from . import core
+        msg = core.WF.run_action(action['command'])  # exactly one actuator invocation, even if it fails
+        if msg:
+            raise RuntimeError(str(msg))
+
+    def capture(self, intent, before, expects):
+        from . import act, core, observe
+        core.WF.wait_settle()
+        if expects.get('events'):
+            core.seen(act.EVENT.pattern, intent.log_mark, act.EVENT_WAIT)
+        after = self.observe()
+        lines = core.log_text(intent.log_mark).splitlines()
+        at = next((p for p in map(act.position_of, lines) if p), None)
+        # Canonical identity is assigned by integration's positioned-event consumer, not target=kind.
+        moved = None
+        if before.get('frame_path') and after.get('frame_path'):
+            from PIL import Image
+            with Image.open(before['frame_path']) as a, Image.open(after['frame_path']) as b:
+                moved = observe.view_changed(a, b)
+        if moved and not at:
+            from . import where
+            where.walked()
+        evidence = X.Evidence(tuple(lines), tuple(act.events_of(lines)), at, None,
+                              after['screen']['kind'], tuple(after['screen']['texts']), (),
+                              tuple(tuple(sorted(a.items())) for a in after['visible_affordances']), moved)
+        return experience(intent, before, expects, evidence, (after['frame_path'],))

@@ -30,6 +30,14 @@ def _fresh(g, nid, today):
     return 'unknown'
 
 
+def graph_clues(g, targets, today):
+    """Read-only hypotheses with field provenance. Positioned event/card evidence outranks projections."""
+    return [{'id': nid, 'kind': g.nodes[nid].kind, 'fresh': _fresh(g, nid, today),
+             'readings': {k: dict(v) for k, v in g.nodes[nid].state.items() if isinstance(v, dict)},
+             'position': g.nodes[nid].extra.get('pos'), 'identity': 'graph_hint'}
+            for nid in targets if nid in g.nodes]
+
+
 def _area_objects(g, kind, targets):
     areas = {world.area_of(g, nid) for nid in targets if nid in g.nodes} - {None}
     kinds = (kind,) if isinstance(kind, str) else tuple(kind)

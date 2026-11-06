@@ -627,6 +627,13 @@ class World(unittest.TestCase):
         self.assertEqual(self.g.state_value('GardenBed#6.4,-59.4', 'stage'), 'empty')
         self.assertEqual(world.count(self.g, {'kind': 'GardenBed', 'region': 'GardenSouth', 'stage': 'empty'}), 11)
 
+    def test_water_event_after_an_empty_save_proves_the_bed_is_no_longer_empty(self):
+        world.refresh(self.g, self.save(), [L('9:00:00 AM', 'water', 'GardenBed', 6.39, -63.11)],
+                      'D185 8:00:00 AM')
+        nid = 'GardenBed#6.4,-63.1'
+        self.assertEqual(world.state_of(self.g, nid)['stage'], 'growing')
+        self.assertTrue(world.state_of(self.g, nid)['watered'])
+
     def test_a_new_kind_appears_from_the_log(self):
         world.refresh(self.g, self.save(), [L('9:00:00 AM', 'interact', 'Mailbox', 40.0, 10.0)], None)
         self.assertEqual(self.g.nodes['Mailbox#40.0,10.0'].kind, 'Mailbox')
@@ -1212,6 +1219,30 @@ class StreamingGarden(EngineBase):
         self.assertIsNone(f.card)
         self.assertEqual(f.objects['e']['state']['stage'], 'empty')
 
+    def test_a_navigation_answer_replants_an_empty_bed_when_the_garden_task_names_a_crop(self):
+        empty = obj('e', pos=(NX[0], NZ[0]), bubble=(920, 371), stage='empty', watered=False,
+                    wilted=False, crop=None)
+        f = self.use(FakeGame([empty], GAME, inventory={'TulipSeed': 2}))
+        g = self.graph()
+        world.refresh(g, f.read_save()[1], [], None)
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {'region': 'Garden', 'crops': 'Tulip'},
+            'navigation_only': True}})
+        res = nav.new_res('garden')
+        res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area='Garden',
+                   spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}},
+                   flower_names={'Tulip'}, authorized_crops=['Tulip'], harvested=0, replanted=0, watered=0,
+                   acted=[], params={}, skip=[], fails={}, btried=[])
+
+        engine._answer(g, 'garden', {'region': 'Garden', 'crops': 'Tulip'}, 'target L6 crop=Tulip', res)
+
+        self.assertIn('totalPlanted.TulipSeed', '\n'.join(f.log))
+        self.assertEqual(res['replanted'], 1)
+        self.assertEqual(f.objects['e']['state']['crop'], 'Tulip')
+        planted = world.find(g, 'GardenBed', empty['pos'])
+        self.assertEqual(world.state_of(g, planted)['stage'], 'growing')
+        self.assertEqual(world.state_of(g, planted)['crop'], 'Tulip')
+
     def test_a_walk_answer_inside_a_projected_bed_is_rejected_before_input(self):
         f = self.use(FakeGame([], GAME))
         g = self.graph()
@@ -1265,6 +1296,51 @@ class StreamingGarden(EngineBase):
         self.assertNotIn('> grab_item ', '\n'.join(f.log))
         self.assertEqual(res['harvested'], 0)
         self.assertEqual(f.objects['flower']['state']['stage'], 'produced')
+
+    def test_a_target_answer_collects_a_flower_authorized_by_the_garden_task(self):
+        # The model clicks the bed/card target, not necessarily the exact bubble centre (live: 40 px offset).
+        flower = obj('flower', pos=(NX[0], NZ[0]), bubble=(724, 353), body=(760, 371),
+                     stage='produced', watered=True,
+                     wilted=False, crop='Tulip')
+        flower['icon'] = 'Tulip'
+        f = self._game([flower])
+        g = self.graph()
+        world.refresh(g, f.read_save()[1], [], None)
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {'crops': 'Tulip'},
+            'navigation_only': True, 'avoid': []}})
+        res = nav.new_res('garden')
+        res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area='Garden',
+                   spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}},
+                   flower_names={'Tulip'}, harvested=0, acted=[], params={},
+                   skip=[], fails={}, btried=[])
+
+        engine._answer(g, 'garden', {'crops': 'Tulip'}, 'target J6 crop=Tulip', res)
+
+        self.assertIn('> grab_item ', '\n'.join(f.log))
+        self.assertEqual(res['harvested'], 1)
+        self.assertEqual(f.objects['flower']['state']['stage'], 'growing')
+
+    def test_a_target_answer_that_only_moves_does_not_synthesize_a_collect_card(self):
+        self.use(FakeGame([], GAME))
+        g = self.graph()
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {'crops': 'Tulip'},
+            'navigation_only': True, 'avoid': []}})
+        res = nav.new_res('garden')
+        res.update(goal='garden', clicks=0, learned=[], done=[], notes=[], surprises=[], area='Garden',
+                   spec={'kind': 'GardenBed', 'where': {'region': 'Garden'}, 'make': {}},
+                   flower_names={'Tulip'}, authorized_crops=['Tulip'], harvested=0, acted=[], params={},
+                   skip=[], fails={}, btried=[])
+        walked = act.Click((760, 371), 'object', 0, moved=True, mode='overlay', texts=[])
+
+        with mock.patch.object(act, 'click', return_value=walked), \
+                mock.patch.object(ui, 'shows', return_value=False), \
+                mock.patch.object(engine, 'finish_card', wraps=engine.finish_card) as finish:
+            engine._answer(g, 'garden', {'crops': 'Tulip'}, 'target J6 crop=Tulip', res)
+
+        finish.assert_not_called()
+        self.assertEqual(res['harvested'], 0)
 
     def test_a_navigation_click_that_triggers_a_bed_action_is_not_progress(self):
         f = self.use(FakeGame([], GAME))
@@ -2451,6 +2527,7 @@ class Screen(Base):
         R = screen.classify
         self.assertEqual(R('gameplay', []), 'gameplay')
         self.assertEqual(R('overlay', []), 'gameplay')   # a textless overlay = HUD hidden (camera on a bed), L144
+        self.assertEqual(R('overlay', ['']), 'gameplay')   # live OCR may retain one empty numbered row after resume
         self.assertEqual(R('overlay', ['Game Paused', 'Resume Game']), 'pause')
         self.assertEqual(R('cutscene', ['Game Paused', 'Resume Game']), 'pause')
         self.assertEqual(R('overlay', ['Inventory', 'Seeds', 'Tulip Bulbs']), 'picker')

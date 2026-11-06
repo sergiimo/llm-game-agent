@@ -561,7 +561,8 @@ def finish_card(c, res):
     near = [a for a in c.before if O.d(a.pt, c.pt) <= 160]
     b = min(near, key=lambda a: O.d(a.pt, c.pt)) if near else None
     crop = res.get('target_crop') or ((res.get('icon_of') or {}).get(tuple(b.pt)) if b else None)
-    if res.get('explicit_click') and b is not None and O.d(b.pt, c.pt) > 30:
+    if (res.get('explicit_click') and b is not None and O.d(b.pt, c.pt) > 30
+            and res.get('target_crop') is None):
         crop = None
     elif res.get('explicit_click') and b is not None and crop is None:
         crop = getattr(b, 'icon', None)
@@ -1030,8 +1031,44 @@ def _answer(g, name, params, answer, res):
             world.place(g, c.node.split('@')[0] if c.node else 'Object', c.at, c.events, stamp=_stamp())
             res['area'] = world.area_of(g, c.at)
         if pend.get('navigation_only'):
+            seeds_open = (click_mode == 'target' and name == 'garden'
+                          and (any('seeds' in t.lower() for t in c.texts)
+                               or ui.shows('Seeds', wait=1.0)))
+            if seeds_open:
+                param_crops = ((params.get('crops') or '').split('|')
+                               if isinstance(params.get('crops'), str) else ())
+                seed = target_crop or next((crop.strip() for crop in param_crops if crop.strip()), None)
+                if seed:
+                    row = _garden_row('plant')
+                    out = steps.run(dict(row, steps=row['steps'][1:]), {'seed': seed}, None)
+                    res['clicks'] += out['clicks']
+                    actual = _learn(g, out, 'GardenBed', row, res)
+                    plan.count(row['id'], out['ok'])
+                    I.reasoning('outcome', cycle, action='plant', target=actual, seed=seed,
+                                events=out.get('events'), experience=(out.get('exps') or [None])[-1],
+                                verdict='hit' if out['ok'] else 'miss',
+                                code_fix=None if out['ok'] else 'evaluate_gap')
+                    if out['ok']:
+                        res['replanted'] = res.get('replanted', 0) + 1
+                        watered_now = any(event in ('water', 'hazel_waterplant') for event in out.get('events', ()))
+                        if actual:
+                            # Live target-card continuation can emit ``complete`` then ``water`` without the
+                            # usual totalPlanted log line. The successfully completed plant row is still stronger
+                            # than the pre-action save snapshot, so keep its proven effects in today's graph state.
+                            g.set_state(actual, 'stage', 'growing', _stamp(), 'transition')
+                            g.set_state(actual, 'crop', seed, _stamp(), 'transition')
+                            g.set_state(actual, 'ready', False, _stamp(), 'transition')
+                            g.set_state(actual, 'watered', watered_now, _stamp(), 'event' if watered_now else 'transition')
+                        if watered_now:
+                            res['watered'] = res.get('watered', 0) + 1
+                        if actual and actual not in res.setdefault('acted', []):
+                            res['acted'].append(actual)
+                        ask.progress(name)
+                    A.gameplay()
+                    return
             collect_open = (click_mode == 'target' and name == 'garden'
-                            and ((target_crop is not None and c.mode != 'gameplay')
+                            and ((target_crop is not None and c.mode != 'gameplay' and not c.moved
+                                  and not any('seeds' in t.lower() for t in c.texts))
                                  or any('collect' in t.lower() for t in c.texts)
                                  or ui.shows('Collect', wait=3.0)))
             if collect_open:
@@ -1040,9 +1077,20 @@ def _answer(g, name, params, answer, res):
                 if target_crop is not None and not any('collect' in t.lower() for t in c.texts):
                     c.texts = list(c.texts) + ['Collect']   # the model named the visible ready crop; OCR may miss UI
                 row = _garden_row('pick')
-                res.update(row_now=row, target_crop=target_crop, skip_names=set(res.get('flower_names') or ()),
+                param_crops = ((params.get('crops') or '').split('|')
+                               if isinstance(params.get('crops'), str) else ())
+                authorized_now = (set(res.get('authorized_crops') or ()) |
+                                  {crop.strip() for crop in param_crops if crop.strip()})
+                skip_names = set(res.get('flower_names') or ()) - authorized_now
+                res.update(row_now=row, target_crop=target_crop, skip_names=skip_names,
                            explicit_click=True, graph_crop_ok=False, params=params)
-                if finish_card(c, res):
+                I.reasoning('collect_gate', cycle, target_crop=target_crop,
+                            authorized=sorted(authorized_now), skip_names=sorted(skip_names), moved=c.moved,
+                            texts=list(c.texts), navigation_only=True)
+                finished = finish_card(c, res)
+                I.reasoning('collect_gate_result', cycle, finished=finished,
+                            card_runs=len(res.get('card_runs') or ()), skip=list(res.get('skip') or ()))
+                if finished:
                     out = res.pop('card_runs')[-1]
                     actual = _learn(g, out, 'GardenBed', row, res)
                     plan.count(row['id'], out['ok'])

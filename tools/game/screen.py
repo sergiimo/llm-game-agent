@@ -47,7 +47,7 @@ def classify(mode, texts):
         return 'pause'
     if mode in ('dialogue', 'popup', 'cutscene'):
         return mode
-    if mode == 'gameplay' or not texts:
+    if mode == 'gameplay' or not any(str(t).strip() for t in texts):
         return 'gameplay'
     if any(any(w in t for w in MENU) for t in low):
         return 'menu'

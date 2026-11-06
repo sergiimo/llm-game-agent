@@ -392,6 +392,10 @@ def place(g, kind, at, events, effects=None, frame=None, stamp=None, scene='Farm
     for ev in events:
         eff = plan.effects_of_event(ev, params, lines) if effects is None else effects
         _set(g, nid, eff, stamp, 'event')
+        if kind == 'GardenBed' and ev in ('water', 'hazel_waterplant') and state_of(g, nid).get('stage') == 'empty':
+            # Empty beds cannot be watered. A water proof after an older empty save means planting completed just
+            # before it (some picker flows emit only ``complete`` + ``water``, without totalPlanted in the log).
+            _set(g, nid, {'stage': 'growing', 'ready': False}, stamp, 'event')
     if frame:
         _set(g, nid, frame, stamp, 'frame')
     if 'Tara' in g.nodes and events:

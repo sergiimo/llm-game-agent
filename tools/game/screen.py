@@ -53,6 +53,10 @@ def classify(mode, texts):
         return 'menu'
     if any(t.strip() in PICKER for t in low):
         return 'picker'
+    # Scenery OCR can leave a lone fragment such as "ain" with the HUD template missed. It is not evidence of
+    # a card. Preserve short named controls (Buy / Yes / No / OK), which are actionable even without a title.
+    if not any(t.strip() in BUTTONS or re.search(r'[^\W\d_]{4,}', t) for t in low):
+        return 'gameplay'
     return 'card'
 
 

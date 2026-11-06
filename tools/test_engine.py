@@ -1623,6 +1623,14 @@ class Screen(Base):
         self.assertEqual(R('overlay', ['Settings', 'Music Volume']), 'menu')
         self.assertEqual(R('dialogue', ['Hello']), 'dialogue')
 
+    def test_captured_scenery_ocr_fragment_is_not_a_card_but_short_controls_are(self):
+        # D209 turn 25, turn-6b0fd8403fa949d199d04097372df5a9.jpg: HUD + two bubbles, no card.
+        # Real comparison turn-239041414174482dbce58391c373c3a7.jpg: a visible Collect card.
+        self.assertEqual(screen.classify('overlay', ['ain']), 'gameplay')
+        for texts in (['Collect'], ['Buy'], ['Yes'], ['No'], ['OK'], ['Tulip', '3 days remaining']):
+            with self.subTest(texts=texts):
+                self.assertEqual(screen.classify('overlay', texts), 'card')
+
     def test_persistent_progress_details_are_closed_before_world_is_allowed(self):
         for texts in (['Carrot', 'A crisp orange vegetable', '3 days remaining', 'Makes 4'],
                       ['Pumpkin', '1 day remaining'], ['Honey', 'Makes 1']):

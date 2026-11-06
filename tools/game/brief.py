@@ -4,7 +4,7 @@ import statistics
 
 from PIL import ImageDraw
 
-from . import core, observe, where, world
+from . import affordances, core, observe, where, world
 
 
 LIVE_SOURCES = {'card', 'bubble', 'vision', 'event'}
@@ -76,13 +76,36 @@ def build(g, kind, targets, res):
                         detections=[{'kind': d['kind'], 'pt': list(d['pt'])} for d in heatmap])
     except (AttributeError, TypeError):
         pass
-    return {
+    state = {
         'tara': {'pos': tara, 'source': source, 'relative': relative},
         'objects': objects,
         'bubbles': bubbles,
         'heatmap': heatmap,
         'recent': list(res.get('recent') or [])[-6:],
     }
+    state['region_conflicts'] = region_conflicts(g, state, region) if region else []
+    return state
+
+
+def region_conflicts(g, state, region):
+    """Distinctive visible kinds owned elsewhere veto entry; shared appearances prove no identity."""
+    visible = {h['kind'] for h in state.get('heatmap', ())}
+    visible.update(affordances.OWNER[b['kind']] for b in state.get('bubbles', ())
+                   if b['kind'] in affordances.OWNER)
+    actor = g.nodes.get('Tara')
+    if actor is not None:
+        visible.discard(actor.kind)  # the controlled actor moves; its graph parent cannot identify a region
+    conflicts = []
+    for kind in sorted(visible):
+        owners = [n for n in g.nodes.values() if n.kind == kind and n.type in ('unique', 'member')
+                  and not n.extra.get('transient') and n.region]
+        if owners and not any(region in g.chain(n.id) for n in owners):
+            areas = {world.area_of(g, n.id) for n in owners} - {None}
+            if not areas:
+                continue
+            regions = ', '.join(sorted(areas))
+            conflicts.append(f'visible {kind} belongs to {regions}, not {region}; likely current region: {regions}')
+    return conflicts
 
 
 def text(state):
@@ -121,13 +144,16 @@ def entry_text(state, region):
         counts[h['kind']] = counts.get(h['kind'], 0) + 1
     lines = [f'ENTRY {region}: {len(state.get("objects", ()))} graph targets; '
              + ', '.join(f'{k}={v}' for k, v in sorted(counts.items())) + ' visible detections.']
+    for conflict in state.get('region_conflicts', ()):
+        lines.append(f'REGION CONTRADICTION: {conflict}. Do not confirm inside; correct localization from this frame.')
     if hits:
         cx = statistics.median(h['pt'][0] for h in hits)
         cy = statistics.median(h['pt'][1] for h in hits)
         toward = OG.compass((cx - observe.CENTRE[0], cy - observe.CENTRE[1]))
         relative = OG.compass((observe.CENTRE[0] - cx, observe.CENTRE[1] - cy))
         lines.append(f'NON-MODEL GEOMETRY: visible target cluster is {toward} of Tara '
-                     f'(median {round(cx)},{round(cy)}); therefore Tara is approximately {relative} of {region}.')
+                     f'(median {round(cx)},{round(cy)}); Tara is approximately {relative} of this visible cluster. '
+                     f'Appearance alone does not identify it as {region}.')
         shown = hits[:16]
         lines.append('VISIBLE TARGETS: ' + ', '.join(f'{h["kind"]}@{h["pt"][0]},{h["pt"][1]}' for h in shown)
                      + (f' (+{len(hits) - len(shown)} more)' if len(hits) > len(shown) else ''))

@@ -3202,14 +3202,22 @@ def places():
 
 
 def map_snapshot():
-    """Open the map, grab it, close it. Returns the frame (map visible) or None if the map didn't open."""
+    """Capture the map and verify it closed. Abort the call if its overlay cannot be dismissed."""
     key('m')
     time.sleep(0.9)
     img = grab()
     if map_pin(img):
+        img.save(MAP_LAST)  # preserve the map even when closing fails
         key('escape')
         time.sleep(0.6)
-        img.save(MAP_LAST)  # the last map picture: road cells for the coverage matrix (L67)
+        if map_pin(grab()):
+            key('m')
+            time.sleep(0.6)
+            if map_pin(grab()):
+                # Map callers can swallow Exception/None and continue seeking world targets. Abort this CLI call;
+                # the daemon handles SystemExit as an error response and keeps serving.
+                sys.exit(f'MAP STILL OPEN: map did not close after Escape and M; stop world-target decisions; '
+                         f'inspect {MAP_LAST}')
         return img
     s = state()  # map didn't open: a blind Escape would open the pause menu
     if s['mode'] != 'gameplay' and not is_paused(s):

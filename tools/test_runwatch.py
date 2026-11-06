@@ -51,6 +51,11 @@ class Rules(unittest.TestCase):
                             'after': 'overlay: Game Paused / Game progress is saved automatically while / you play.'}])
         self.assertEqual(out[0][0], 'STOP')
 
+    def test_a_nested_close_ignores_the_parent_actions_stale_screen_snapshot(self):
+        out = self.levels([{'type': 'action', 'name': 'ui.close', 'depth': 1, 'ok': True,
+                            'after': 'overlay: Game Paused / Game progress is saved automatically while / you play.'}])
+        self.assertEqual(out, [])
+
     def test_a_graph_step_from_a_look_alike_node_is_an_alert(self):   # attempt 2: walked away from the beds
         out = self.levels([{'type': 'seek', 'what': 'graph', 'here': 'GardenBed@Garden', 'to': 'GardenSouth',
                             'dir': [0.17, 0.99]}])

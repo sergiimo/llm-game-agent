@@ -962,6 +962,23 @@ def _answer(g, name, params, answer, res):
             raise
     if pend.get('collect_open'):
         return _collect_answer(g, pend, answer, params, res)
+    entry_words = [w for w in str(answer).strip().lower().split()
+                   if w.partition('=')[0] not in ('relative', 'distance')]
+    if pend.get('garden_entry_only') and entry_words == ['inside']:
+        from . import brief
+        region = (pend.get('params') or {}).get('region')
+        state = brief.build(g, ('GardenBed', 'BeeHive'),
+                            world.query(g, {'kind': 'GardenBed|BeeHive', 'region': region}),
+                            dict(res, inside_region=None))
+        if state['region_conflicts']:
+            # Reject before persisting relative=... distance=inside, and retain all task/coverage fields.
+            checkpoint = ask.load_state(name)
+            checkpoint['pending'] = pend
+            ask.save_state(checkpoint)
+            ask.ask('click', brief.entry_text(state, region) + '\nInside answer rejected. '
+                    'Choose target <cell> or walk <cell> toward the requested region and report '
+                    'relative=<compass> distance=<near|far>.', pend, res,
+                    img=ask.draw_grid(brief.draw(core.WF.grab(), state)))
     answer = _record_relative_answer(g, pend, answer, res)
     if pend.get('garden_entry_only') and str(answer).strip().lower() == 'inside':
         res['inside_region'] = (pend.get('params') or {}).get('region')
@@ -1444,6 +1461,24 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
         res['coverage_targets'] = True
         res['allowed_events'] = set().union(*[_row_events(r) for r in plan.rows()]) | NEUTRAL_EVENTS
         A.ON_EVENT = lambda c: red_flag(c, res)
+        # A persisted entry claim may predate landmark validation. Check it before consuming an old bed answer
+        # or performing any subgoal/action; contradictory appearance must return to model localization.
+        if res.get('inside_region') == region:
+            from . import brief
+            state = brief.build(g, ('GardenBed', 'BeeHive'), list(remaining), dict(res, inside_region=None))
+            if state['region_conflicts']:
+                res['inside_region'] = None
+                pending = {k: v for k, v in pending_before.items()
+                           if k not in ('inside_region', 'node', 'walk_cells')}
+                pending.update(garden_entry_only=True, covered=sorted(covered),
+                               avoid=[list(b['pt']) for b in state['bubbles']])
+                checkpoint = ask.load_state('garden')
+                checkpoint['pending'] = pending
+                ask.save_state(checkpoint)
+                ask.ask('click', brief.entry_text(state, region) + '\nStored entry claim invalidated; '
+                        'the previous bed answer is not executed. Choose target <cell> or walk <cell> '
+                        'toward the requested region and report relative=<compass> distance=<near|far>.',
+                        pending, res, img=ask.draw_grid(brief.draw(W.grab(), state)))
         if answer is not None:
             _answer(g, 'garden', task_params, answer, res)
             if pending_before.get('garden_entry_only') and res.get('inside_region') != region:
@@ -1454,6 +1489,14 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                 res['stop'] = f'unresolved: model sees no route to {len(beds)} beds'
                 return res
             ask.progress('garden')
+
+        # A refill interrupted by vision may resume in a later process while Tara is already at the Well. Honor the
+        # proven empty-can state before sending her back through the garden entrance, or the routine loops away from
+        # the refill and immediately needs the same round trip again.
+        if 'water' in enabled and g.state_value('Tara', 'can') == 'empty':
+            if not _subgoal(g, 'Tara.can', 'full', 'garden', task_params, res):
+                res['stop'] = res.get('stop') or 'unresolved: fill watering can before garden entry'
+                return res
 
         # A garden pass is only valid from inside the named region. If Tara's position is unknown or
         # resolves to another area, ask for a visible entrance waypoint before inspecting any beds.
@@ -1520,7 +1563,7 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                 need = row.get('needs') or {}
                 for key, value in need.items():
                     if key.startswith('Tara.') and g.state_value('Tara', key.split('.', 1)[1]) not in (None, value):
-                        if not _subgoal(g, key, value, 'garden', {}, res):
+                        if not _subgoal(g, key, value, 'garden', task_params, res):
                             res['stop'] = f'unresolved: sub-goal {key}={value} failed for visible {row["id"]} bubble'
                             break
                 if res['stop']:
@@ -1702,7 +1745,7 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                 need = row.get('needs') or {}
                 for key, value in need.items():
                     if key.startswith('Tara.') and g.state_value('Tara', key.split('.', 1)[1]) not in (None, value):
-                        if not _subgoal(g, key, value, 'garden', {}, res):
+                        if not _subgoal(g, key, value, 'garden', task_params, res):
                             res['unresolved'].append(tid)
                             remaining.remove(tid)
                             _garden_log(tid, 'unresolved', actions, f'sub-goal {key}={value} failed')

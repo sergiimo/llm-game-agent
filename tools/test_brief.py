@@ -95,6 +95,14 @@ class StateBrief(unittest.TestCase):
         self.assertIn(self.make()['tara']['source'], {'event', 'walk', 'save', 'unknown'})
         self.assertIn('Tara event', brief.text(self.make()))
 
+    def test_landmark_owner_groups_are_reported_as_areas(self):
+        self.g.nodes['GardenSouth'] = Node('GardenSouth', 'region', region='Farm', area=True)
+        self.g.nodes['BeeHive'] = Node('BeeHive', 'unique', kind='BeeHive', region='Garden')
+        self.g.nodes['hive-one'] = Node('hive-one', 'member', kind='BeeHive', region='BeeHive')
+        state = {'heatmap': [{'kind': 'BeeHive', 'pt': (400, 400)}]}
+        self.assertEqual(brief.region_conflicts(self.g, state, 'GardenSouth'), [
+            'visible BeeHive belongs to Garden, not GardenSouth; likely current region: Garden'])
+
     def test_relative_vision_localization_is_in_the_next_brief(self):
         observe_relative(self.g, 'Tara', 'Garden', 'NW', 'near', 'D202 12:34:56 PM')
         out = self.make()
@@ -112,7 +120,8 @@ class StateBrief(unittest.TestCase):
         text = brief.entry_text(out, 'Garden')
         self.assertTrue(text.startswith('ENTRY Garden:'), text)
         self.assertIn('visible target cluster is W of Tara', text)
-        self.assertIn('Tara is approximately E of Garden', text)
+        self.assertIn('Tara is approximately E of this visible cluster', text)
+        self.assertIn('Appearance alone does not identify it as Garden', text)
         self.assertIn('GardenBed@260,620', text)
         self.assertIn('porch railing is solid', text)
         self.assertIn('opening between two white posts with no railing', text)

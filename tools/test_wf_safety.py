@@ -2,7 +2,9 @@
 Run: .venv/bin/python tools/test_wf_safety.py"""
 import os
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.argv = ['x']
@@ -101,6 +103,58 @@ class GotoByLook(unittest.TestCase):
             self.assertTrue(wf.goto('well').startswith('SHORT'))
         finally:
             wf._goto, wf._seen_near = saved
+
+
+class MapSnapshot(unittest.TestCase):
+    def setUp(self):
+        from PIL import Image
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.map_frame = Image.new('RGB', (1920, 1080), 'red')
+        self.game_frame = Image.new('RGB', (1920, 1080), 'green')
+        self.map_open, self.toggle_closes, self.keys = False, True, []
+        for name, value in (
+                ('key', self.key), ('grab', lambda: self.map_frame if self.map_open else self.game_frame),
+                ('map_pin', lambda img: (900, 500) if img is self.map_frame else None),
+                ('MAP_LAST', os.path.join(self.tmp.name, 'map.png')),
+                ('ASK_FRAME', os.path.join(self.tmp.name, 'vision.png')),
+                ('ASK_CTX', os.path.join(self.tmp.name, 'vision.json')),
+                ('run_log', lambda *a, **kw: None)):
+            patch = mock.patch.object(wf, name, value)
+            patch.start()
+            self.addCleanup(patch.stop)
+        patch = mock.patch.object(wf.time, 'sleep', lambda _: None)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def key(self, name):
+        self.keys.append(name)
+        if name == 'm' and (not self.map_open or self.toggle_closes):
+            self.map_open = not self.map_open
+        # Escape deliberately fails, as in the live failure.
+
+    def test_escape_failure_uses_map_toggle_before_returning_to_vision(self):
+        from PIL import Image
+        self.assertIs(wf.map_snapshot(), self.map_frame)
+        self.assertEqual(self.keys, ['m', 'escape', 'm'])
+        self.assertFalse(self.map_open)
+        with Image.open(wf.MAP_LAST) as saved:
+            self.assertEqual(saved.getpixel((0, 0)), (255, 0, 0))
+        wf.ask_vision('game', 'Which bed should be clicked?', wf.grab())
+        with Image.open(wf.ASK_FRAME) as vision:
+            self.assertEqual(vision.getpixel((0, 0)), (0, 128, 0))
+
+    def test_unclosable_map_aborts_before_any_target_decision_and_keeps_capture(self):
+        from PIL import Image
+        self.toggle_closes = False
+        decisions = []
+        with self.assertRaisesRegex(SystemExit, 'map.*clos|MAP.*OPEN'):
+            wf.map_snapshot()
+            decisions.append('world target decision')
+        self.assertEqual(decisions, [])
+        self.assertEqual(self.keys, ['m', 'escape', 'm'])
+        with Image.open(wf.MAP_LAST) as saved:
+            self.assertEqual(saved.getpixel((0, 0)), (255, 0, 0))
 
 
 class Mapping(unittest.TestCase):

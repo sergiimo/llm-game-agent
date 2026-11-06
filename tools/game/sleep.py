@@ -39,16 +39,17 @@ def do(answer=None):
             raise core.Failed(f'sleep answer rejected: {e}') from None
         click = A.click(pt, 'vision', context={'goal': 'sleep', 'answer': str(answer)})
         res['clicks'] += 1
+        if click.moved or 'sleep_transition' in click.events:
+            ask.progress('sleep')
         if 'sleep_transition' in click.events:
             res.update(done=True, stop='done: slept')
             return res
         A.gameplay()
-    try:
-        bubble = nav.reach(plan.fits(row), kind='Bed', node='Bed', region='House',
-                           target="Tara's pink bed sleep bubble")
-    except core.Failed as e:
-        res['vision'] += 1
-        raise core.Failed(f'{e} Resume with ./wf sleep answer=walk:<cell>.') from None
+    def waypoint(question, img):
+        ask.ask('click', question, {'goal': 'sleep', 'params': {}, 'navigation_only': True}, res, img=img)
+
+    bubble = nav.reach(plan.fits(row), kind='Bed', node='Bed', region='House',
+                       target="Tara's pink bed sleep bubble", on_unreached=waypoint)
     out = steps.run(row, {}, bubble)
     res['clicks'] += out.get('clicks', 0)
     if not out.get('ok') or 'sleep_transition' not in out.get('events', ()):

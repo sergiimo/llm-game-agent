@@ -1073,6 +1073,8 @@ class StreamingGarden(EngineBase):
         info.update(click_event='plant_growing', event=None,
                     card=[{'texts': ['Tulip', '4 days remaining'], 'next': 'space'}])
         f = self._game([covered, hidden], game=game)
+        # Real passive progress hints fade while settling; they are never dismissed with Escape.
+        f.wait_settle = lambda: f.close() if f.card and f.card['beh'] is info else None
         cards_at_observation = []
         build = brief.build
 
@@ -1255,13 +1257,94 @@ class StreamingGarden(EngineBase):
 
     def test_model_can_confirm_garden_entry_without_manufacturing_a_position_event(self):
         self._game(self._north())
-        with mock.patch.object(brief, '_position', return_value=('unknown', None)):
+        with mock.patch.object(brief, '_position', return_value=('unknown', None)), \
+                mock.patch.object(observe, 'see_all', return_value=[mock.Mock(kind='Well', point=(400, 400))]):
             with self.assertRaises(NeedVision):
                 engine.tend_garden('Garden', ('water',))
             res = engine.tend_garden('Garden', ('water',), answer='inside')
 
         self.assertNotEqual(res['stop'], 'entry step completed; re-evaluate Garden region before tending')
         self.assertEqual(res['inside_region'], 'Garden')
+
+    def test_controlled_actor_and_shared_appearance_do_not_veto_region_entry(self):
+        south = beds('s', SX, SZ, 'near', 500, 300, stage='growing', watered=True,
+                     wilted=False, crop='Tulip')
+        f = self._game(self._north() + south)
+        hits = [mock.Mock(kind='Tara', point=(960, 540)), mock.Mock(kind='Garden', point=(800, 600))]
+        with mock.patch.object(brief, '_position', return_value=('unknown', None)), \
+                mock.patch.object(observe, 'see_all', return_value=hits):
+            with self.assertRaises(NeedVision) as cm:
+                engine.tend_garden('GardenSouth', ('harvest',), crops='Tulip')
+            self.assertNotIn('REGION CONTRADICTION', str(cm.exception))
+            res = engine.tend_garden('GardenSouth', ('harvest',), crops='Tulip',
+                                     answer='inside relative=N distance=inside', max_clicks=0)
+        self.assertEqual(res['inside_region'], 'GardenSouth')
+        self.assertEqual(f.clicks, [])
+
+    def test_distinctive_landmark_vetoes_wrong_region_entry_without_losing_checkpoint(self):
+        south = beds('s', SX, SZ, 'near', 500, 300, stage='growing', watered=True,
+                     wilted=False, crop='Tulip')
+        f = self._game(self._north() + south)
+        for evidence in ('heatmap', 'bubble', 'metadata_first'):
+            with self.subTest(evidence=evidence):
+                ask.progress('garden')
+                hits = [mock.Mock(kind='Garden', point=(800, 600))]
+                if evidence != 'bubble':
+                    hits.append(mock.Mock(kind='Well', point=(400, 400)))
+                bubbles = ([Affordance('fill_can', None, (400, 400), False, 200)]
+                           if evidence == 'bubble' else [])
+                with mock.patch.object(brief, '_position', return_value=('unknown', None)), \
+                        mock.patch.object(observe, 'see_all', return_value=hits), \
+                        mock.patch.object(observe, 'scan', return_value=bubbles):
+                    with self.assertRaises(NeedVision):
+                        engine.tend_garden('GardenSouth', ('harvest',), crops='Tulip')
+                    before = ask.load_state('garden')['pending']
+                    checkpoint = ask.load_state('garden')
+                    checkpoint['asks'] = ask.MAX_ASKS
+                    ask.save_state(checkpoint)
+                    with self.assertRaises(NeedVision) as cm:
+                        engine.tend_garden('GardenSouth', ('harvest',), crops='Tulip',
+                                           answer=('relative=N distance=inside inside' if evidence == 'metadata_first'
+                                                   else 'inside relative=N distance=inside'))
+                pending = ask.load_state('garden')['pending']
+                self.assertEqual(pending['params'], {'region': 'GardenSouth', 'crops': 'Tulip'})
+                self.assertEqual(pending['covered'], before['covered'])
+                self.assertTrue(pending.get('garden_entry_only'), pending)
+                self.assertNotEqual(engine.LAST.get('inside_region'), 'GardenSouth')
+                self.assertIsNone(OG.relative_to(self.graph(), 'Tara', 'GardenSouth'))
+                self.assertIn('Well', str(cm.exception))
+                self.assertIn('Garden', str(cm.exception))
+                self.assertIn('contradict', str(cm.exception).lower())
+                self.assertEqual(f.clicks, [])
+
+    def test_stale_inside_checkpoint_is_relocalized_before_bare_retry_or_old_answer(self):
+        south = beds('s', SX, SZ, 'near', 500, 300, stage='growing', watered=True,
+                     wilted=False, crop='Tulip')
+        f = self._game(self._north() + south)
+        for answer in (None, 'target K6'):
+            with self.subTest(answer=answer):
+                params = {'region': 'GardenSouth', 'crops': 'Tulip'}
+                covered = ['GardenBed#6.4,-59.4']
+                ask.save_state({'goal': 'garden', 'asks': ask.MAX_ASKS, 'history': [], 'pending': {
+                    'kind': 'click', 'goal': 'garden', 'params': params, 'navigation_only': True,
+                    'node': 'GardenBed#2.6,-59.4', 'inside_region': 'GardenSouth',
+                    'covered': covered, 'streaming': True}})
+                with mock.patch.object(brief, '_position', return_value=('unknown', None)), \
+                        mock.patch.object(observe, 'see_all', return_value=[
+                            mock.Mock(kind='Well', point=(400, 400))]), \
+                        mock.patch.object(observe, 'scan', return_value=[
+                            Affordance('fill_can', None, (400, 400), False, 200)]):
+                    with self.assertRaises(NeedVision) as cm:
+                        engine.tend_garden('GardenSouth', ('harvest',), crops='Tulip', answer=answer)
+                self.assertEqual(f.clicks, [])
+                pending = ask.load_state('garden')['pending']
+                self.assertTrue(pending.get('garden_entry_only'), pending)
+                self.assertIsNone(pending.get('inside_region'))
+                self.assertIsNone(engine.LAST.get('inside_region'))
+                self.assertEqual(pending['params'], params)
+                self.assertEqual(pending['covered'], covered)
+                self.assertIn('REGION CONTRADICTION', str(cm.exception))
+                self.assertIn('Well belongs to Garden, not GardenSouth', str(cm.exception))
 
     def test_model_entry_confirmation_persists_relative_localization(self):
         self._game(self._north())
@@ -1339,6 +1422,43 @@ class StreamingGarden(EngineBase):
         self.assertEqual(set(summary['covered']), set(summary['targets']))
         self.assertEqual(summary['unresolved'], [])
         self.assertEqual(summary['stop'], res['stop'])
+
+    def test_a_fill_can_vision_checkpoint_preserves_the_garden_task_parameters(self):
+        garden = self._north()
+        garden[0]['state']['watered'] = False
+        f = self._game(garden)
+        f.tara['can'] = 'empty'
+        f.emit('out_of_water', f.objects[garden[0]['id']])
+
+        with mock.patch.object(engine.N, 'search', return_value=None), self.assertRaises(NeedVision) as cm:
+            engine.tend_garden('Garden', ('water',), crops='Tulip')
+
+        pending = ask.load_state('garden')['pending']
+        self.assertEqual(pending['params'], {'region': 'Garden', 'crops': 'Tulip'})
+        self.assertIn('./wf garden region=Garden crops=Tulip answer=', str(cm.exception))
+
+    def test_a_fresh_garden_call_refills_a_proven_empty_can_before_region_entry(self):
+        garden = beds('s', SX, SZ, 'south', 500, 300, stage='growing', watered=False, wilted=False,
+                      crop='Tulip')
+        north = beds('n', NX, NZ, 'far', 500, 300, stage='growing', watered=True, wilted=False,
+                     crop='Green Bean')
+        well = obj('well', kind='Well', pos=(1.0, -27.0), zone='near', bubble=(1500, 300))
+        f = self.use(FakeGame(north + garden + [well], GAME))
+        f.tara['can'] = 'empty'
+        f.emit('out_of_water', f.objects[garden[0]['id']])
+        g = self.graph()
+        g.set_state('Tara', 'can', 'empty', f.game_stamp(), 'event')
+        g.save(learn.GRAPH)
+        self.assertEqual(self.graph().state_value('Tara', 'can'), 'empty')
+
+        with mock.patch.object(brief, '_position', return_value=('event', (1.0, -27.0))):
+            try:
+                engine.tend_garden('GardenSouth', ('water',), crops='Tulip')
+            except NeedVision:
+                pass
+
+        self.assertTrue(any('> fill_watering_can ' in line for line in f.log), f.log)
+        self.assertEqual(f.tara['can'], 'full')
 
     def test_visible_unowned_water_bubble_is_acted_on_before_asking_to_navigate(self):
         garden = self._north()
@@ -1606,6 +1726,49 @@ class Wrappers(EngineBase):
         from game import sleep as sleep_task
         self.assertEqual(sleep_task._cell('walk:F7'), ask.parse_point('F7'))
         self.assertEqual(sleep_task._cell('target:J6'), ask.parse_point('J6'))
+
+    def test_sleep_stuck_route_asks_actionable_vision_and_resumes_waypoint(self):
+        from game import sleep as sleep_task
+        from PIL import Image
+        f = self.use(FakeGame([], GAME))
+        frame = Image.new('RGB', (1920, 1080), 'red')
+        current_frame = [frame]
+        close_memory = learn.close_memory
+        route = 'STUCK: 3 map clicks in a row did not move her'
+
+        def stuck_search(target, res, rounds):
+            res['trace'] = ['map House toward pink bed', route]
+            f.walk_frames = 0
+            return None
+
+        def close_after_failure():
+            close_memory()
+            current_frame[0] = Image.new('RGB', (1920, 1080), 'blue')
+
+        with mock.patch.object(nav, 'search', side_effect=stuck_search), \
+                mock.patch.object(f, 'grab', side_effect=lambda: current_frame[0]), \
+                mock.patch.object(learn, 'close_memory', side_effect=close_after_failure), \
+                mock.patch.object(f, 'ask_vision', wraps=f.ask_vision) as vision:
+            with self.assertRaises(NeedVision) as cm:
+                sleep_task.do()
+        message = str(cm.exception)
+        self.assertNotIn('DIAGNOSTIC ONLY', message)
+        self.assertIn(route, message)
+        self.assertIn('./wf sleep answer=walk:<cell>', message)
+        pending = ask.load_state('sleep')['pending']
+        self.assertEqual((pending['goal'], pending['kind']), ('sleep', 'click'))
+        self.assertIs(vision.call_args.args[2], frame)
+
+        click = act.Click(ask.parse_point('F7'), 'vision', 0, events=[], mode='gameplay', moved=True)
+        bubble = Affordance('sleep', None, (900, 400), False, 0.0)
+        with mock.patch.object(act, 'click', return_value=click), \
+                mock.patch.object(nav, 'search', return_value=bubble), \
+                mock.patch.object(steps, 'run', return_value={
+                    'ok': True, 'events': ['sleep_transition'], 'clicks': 1}):
+            res = sleep_task.do(answer='walk:F7')
+        self.assertTrue(res['done'])
+        self.assertEqual(res['clicks'], 2)
+        self.assertIsNone(ask.load_state('sleep').get('pending'))
 
     def test_cli_parses_goal_params_and_answer(self):
         self.assertEqual(engine.parse_cli(['plant', 'seed=Tulip', 'region=GardenSouth', 'answer=Q14']),
@@ -2095,6 +2258,89 @@ class Screen(Base):
         f.run_action = lambda a: (keys.append(a), run(a))[1]
         self.close.__wrapped__()   # textless overlay = gameplay: nothing to close
         self.assertEqual(keys, [])
+
+
+class WorldMapGuard(EngineBase):
+    def map_game(self, objects=(), escape_closes=True, toggle_closes=True):
+        from PIL import Image
+        f = self.use(FakeGame(objects, GAME))
+        f.blank_overlay = True  # both the map and garden zoom can have no OCR text
+        f.map_open = True
+        f.map_frame = Image.new('RGB', (1920, 1080), 'red')
+        f.world_frame = Image.new('RGB', (1920, 1080), 'green')
+        f.grab = lambda: f.map_frame if f.map_open else f.world_frame
+        f.map_pin = lambda img: (900, 500) if img is f.map_frame else None
+        f.keys = []
+        run_action = f.run_action
+
+        def run(command):
+            if f.map_open and command in ('key:escape', 'key:m'):
+                f.keys.append(command)
+                if (command == 'key:escape' and escape_closes) or (command == 'key:m' and toggle_closes):
+                    f.map_open = False
+                return None
+            return run_action(command)
+
+        f.run_action = run
+        return f
+
+    def test_act_gameplay_closes_a_textless_map_before_world_perception(self):
+        f = self.map_game()
+        act.gameplay()
+        self.assertFalse(f.map_open)
+        self.assertEqual(f.keys, ['key:escape'])
+        self.assertIs(f.grab(), f.world_frame)
+
+    def test_textless_nonmap_garden_zoom_remains_gameplay_without_input(self):
+        f = self.map_game()
+        f.map_open = False
+        act.gameplay()
+        self.assertEqual(screen.require_world().kind, 'gameplay')
+        self.assertEqual(f.keys, [])
+        self.assertFalse(f.paused)
+
+    def test_resuming_pause_rechecks_the_map_it_reveals_before_returning_world(self):
+        f = self.map_game()
+        f.paused = True
+        f.map_pin = lambda img: (900, 500) if not f.paused and img is f.map_frame else None
+        self.assertEqual(screen.require_world().kind, 'gameplay')
+        self.assertFalse(f.paused)
+        self.assertFalse(f.map_open)
+        self.assertEqual(f.keys, ['key:escape'])
+        self.assertIs(f.grab(), f.world_frame)
+
+    def test_map_toggle_is_only_used_after_verified_escape_failure(self):
+        f = self.map_game(escape_closes=False)
+        self.assertEqual(screen.require_world().kind, 'gameplay')
+        self.assertFalse(f.map_open)
+        self.assertEqual(f.keys, ['key:escape', 'key:m'])
+
+    def test_unclosable_textless_map_blocks_gameplay_and_world_click(self):
+        f = self.map_game(escape_closes=False, toggle_closes=False)
+        for operation in (act.gameplay, lambda: act.click((900, 700), 'point')):
+            with self.subTest(operation=operation):
+                with self.assertRaisesRegex(observe.LawsStuck, 'MAP'):
+                    operation()
+        self.assertEqual(f.clicks, [])
+
+    def test_garden_retry_from_a_stale_map_asks_vision_on_fresh_world_frame(self):
+        garden = beds('s', SX, SZ, 'near', 500, 300, stage='growing', watered=True,
+                      wilted=False, crop='Tulip')
+        north = beds('n', NX, NZ, 'far', 500, 300, stage='growing', watered=True,
+                     wilted=False, crop='Green Bean')
+        f = self.map_game(north + garden)
+        params = {'region': 'GardenSouth', 'crops': 'Tulip'}
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': params, 'garden_entry_only': True,
+            'navigation_only': True, 'covered': [], 'streaming': True}})
+        with mock.patch.object(brief, '_position', return_value=('unknown', None)), \
+                mock.patch.object(f, 'ask_vision', wraps=f.ask_vision) as vision:
+            with self.assertRaises(NeedVision):
+                engine.tend_garden('GardenSouth', ('harvest',), crops='Tulip')
+        self.assertFalse(f.map_open)
+        self.assertEqual(vision.call_args.args[2].getpixel((101, 101)), (0, 128, 0))
+        self.assertEqual(f.clicks, [])
+        self.assertEqual(ask.load_state('garden')['pending']['params'], params)
 
 
 class Smoke(Base):

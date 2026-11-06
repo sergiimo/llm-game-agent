@@ -88,7 +88,8 @@ class Watch:
                 out.append(('STOP', f"click @{r['pt'][0]},{r['pt'][1]} with the pause menu on screen "
                                     f"(Resume / Settings / Exit Game): stop the agent now"))
         elif t == 'action':
-            if r.get('name') == 'ui.close' and _paused([r.get('after') or '']):
+            if (r.get('name') == 'ui.close' and not r.get('depth')
+                    and _paused([r.get('after') or ''])):
                 out.append(('STOP', 'a close left the pause menu open: Escape toggled it'))
             elif r.get('name') == 'ui.pick_card' and r.get('ok') is False:
                 out.append(('ALERT', f"pick_card({r.get('args')}) failed: {str(r.get('why'))[:120]}"))

@@ -7,7 +7,7 @@ Rules:
 - a world click only in gameplay (`require_world`): a card/picker is closed first, the pause menu resumed; anything
   else that stays = terminal (LawsStuck), never clicked through;
 - Escape only on a known card or picker, once, and checked; the pause menu is never escaped into.
-A textless overlay is gameplay (the HUD hides while the camera zooms on a bed, L144)."""
+A textless overlay is gameplay unless the map pin proves the full map is open (the HUD also hides on beds, L144)."""
 from dataclasses import dataclass, field
 
 from . import core
@@ -105,18 +105,34 @@ def close():
     return after
 
 
+def _world_screen():
+    """Recheck the live map signal whenever an overlay transition may have revealed it."""
+    map_pin = getattr(core.WF, 'map_pin', None)
+    if map_pin is not None and map_pin(core.WF.grab()):
+        for control in ('escape', 'm'):
+            core.WF.run_action(f'key:{control}')
+            _settle()
+            if not map_pin(core.WF.grab()):
+                break
+        else:
+            raise LawsStuck('SCREEN MAP: Escape and M did not close the map; no world perception or click is safe. '
+                            'Stop and report.')
+    return read()
+
+
 def require_world():
     """Before a world click: gameplay, or close what is open (twice at most); else terminal."""
     for _ in range(2):
-        s = read()
+        s = _world_screen()
         if s.kind == 'gameplay':
             return s
         if passive(s):   # a tooltip / hint ("Rusty Watering Can", D186): wait it out; a world click is safe under it
             _settle()
-            s = _wait_hint(read())
+            _wait_hint(s)
+            s = _world_screen()
             return s if s.kind == 'gameplay' or passive(s) else require_world()
         close()
-    s = read()
+    s = _world_screen()
     if s.kind != 'gameplay':
         raise LawsStuck(f'SCREEN {s.kind.upper()}: {" / ".join(s.texts)[:120]} stays open; no world click is safe. '
                         f'Stop and report.')

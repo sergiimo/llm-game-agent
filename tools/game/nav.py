@@ -744,11 +744,12 @@ def search(t, res, rounds=SEEK_TURNS, halt=None):
 
 
 def reach(fits=lambda a: True, kind='GardenBed', node=None, region='Garden', marker=None, target=None,
-          rounds=SEEK_TURNS):
+          rounds=SEEK_TURNS, on_unreached=None):
     """The low-level navigation (L133): get Tara in reach of ANY node of `kind` whose bubble `fits`. Returns the nearest
     fitting Affordance (not clicked: the caller acts). Raises Failed with NEED_VISION (the trace) when the search gives
     nothing. E.g. `reach(lambda a: a.kind == 'plant')` = an empty bed; `reach(lambda a: a.kind == 'fill_can',
-    kind='Well', node='Well')` = the well."""
+    kind='Well', node='Well')` = the well. A task can supply `on_unreached(question, frame)` to raise its own resumable
+    vision question at the innermost failure instead of the default diagnostic."""
     t = Target('reach', fits, target or f'a {kind}', None, kind, region, node or f'{kind}@{region}', marker)
     res = new_res('reach')
     L.open_memory()
@@ -760,9 +761,11 @@ def reach(fits=lambda a: True, kind='GardenBed', node=None, region='Garden', mar
         if a is not None:
             return a
         tr = '; '.join(res.get('trace', [])[-10:]) or 'nothing tried'
+        question = (f'Tara (frame centre) must reach {t.target}. The search tried: {tr}. '
+                    f'What blocks it? Give the click point of {t.target}, or of free ground toward it.')
+        if on_unreached is not None:
+            on_unreached(question, core.WF.grab())  # task-owned continuation, before failure cleanup
         raise core.Failed(f'reach {t.node}: no fitting bubble after the search ({tr}); '
-                          + core.ask_vision(f'Tara (frame centre) must reach {t.target}. The search tried: {tr}. '
-                                            f'What blocks it? Give the click point of {t.target}, or of free ground '
-                                            f'toward it.'))
+                          + core.ask_vision(question))
     finally:
         L.close_memory()

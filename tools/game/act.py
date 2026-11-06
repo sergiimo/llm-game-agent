@@ -190,5 +190,4 @@ def after_press(pt, mark, before, after):
 def gameplay():
     """Close any card/panel: back to gameplay (failure = reset, law 5), by the screen rules."""
     from . import screen
-    if screen.read().kind != 'gameplay':
-        ui.close()
+    return screen.require_world()

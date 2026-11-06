@@ -142,8 +142,8 @@ def hint(goal, params):
     ps = ' '.join(f'{k}={v}' for k, v in (params or {}).items())
     if isinstance(goal, str) and goal.startswith('forage:'):   # the foraging strategy (game/forage.py)
         return f'./wf forage {goal.split(":", 1)[1]}{" " + ps if ps else ""} answer='
-    if goal == 'garden':
-        return f'./wf garden{" " + ps if ps else ""} answer='
+    if goal in ('garden', 'sleep'):
+        return f'./wf {goal}{" " + ps if ps else ""} answer='
 
     g = goal if isinstance(goal, str) and re.fullmatch(r'\w+', goal) else f"'{json.dumps(goal)}'"
     return f'./wf achieve {g}{" " + ps if ps else ""} answer='
@@ -179,6 +179,8 @@ def ask(kind, question, pending, res, img=None):
     if pending.get('decide'):
         how = 'click <object id> | walk <cell> | settle <ids>: key=value | done'
     ans = hint(goal, st['pending'].get('params')) + f'<{how}>'
+    if goal == 'sleep' and kind == 'click':
+        ans = hint(goal, st['pending'].get('params')) + 'walk:<cell>'
     q = question + (f' The search already tried, in order: {"; ".join(tr[-10:])}.' if tr else '')
     try:
         prompt = core.WF.ask_vision(kind if kind == 'click' else 'game', q, img if img is not None else core.WF.grab(),

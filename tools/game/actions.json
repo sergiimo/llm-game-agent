@@ -69,8 +69,8 @@
     "Tara.can": "full"
    },
    "source": "seed: game D156/D185 (L131)",
-   "seen": 0,
-   "ok": 0,
+   "seen": 1,
+   "ok": 1,
    "surprises": 0
   },
   {
@@ -160,9 +160,9 @@
     "item": "$seedSeed"
    },
    "source": "seed: game D148/D185 (L137); user D186: opening the picker logs plant, Space confirms via totalPlanted (and may log complete), a second Space waters the bed just planted",
-   "seen": 11,
-   "ok": 2,
-   "surprises": 9,
+   "seen": 13,
+   "ok": 3,
+   "surprises": 10,
    "proof": "totalPlanted"
   },
   {
@@ -196,8 +196,8 @@
     "watered": false
    },
    "source": "seed: game D150; live D188: the ready bubble is the crop icon + \"!\" (read as plant_growing +ready), not 'pickup'; user D188: the click opens a Collect prompt, Space confirms it; live D189 8:36 (the first engine pick): Space on Collect logs `> harvest target=GardenBed at (...)`, then a quest toast",
-   "seen": 20,
-   "ok": 6,
+   "seen": 21,
+   "ok": 7,
    "surprises": 14
   },
   {
@@ -221,8 +221,8 @@
    ],
    "effect": {},
    "source": "seed: game D183; garden coverage: harmless inspection event identifies the exact bed coordinates",
-   "seen": 9,
-   "ok": 9,
+   "seen": 11,
+   "ok": 11,
    "surprises": 0
   },
   {

@@ -207,11 +207,12 @@ class DetectTests(unittest.TestCase):
         self.check_found('BeeHive', FRAMES)
 
     def test_gardenbed_found(self):
-        self.check_found('GardenBed', ['normal-2', 'zoom-1', 'zoom-2', 'zoom-3'])
+        self.check_found('GardenBed', ['zoom-1', 'zoom-2', 'zoom-3'])
 
-    @unittest.expectedFailure   # relabel, plan Task 3 (normal-1 GardenBed)
-    def test_gardenbed_normal_1(self):
-        self.check_found('GardenBed', ['normal-1'])
+    def test_gardenbed_makes_no_claim_in_unsupported_farm_views(self):
+        for frame in ('normal-1', 'normal-2'):
+            with self.subTest(frame=frame):
+                self.assertIsNone(self.top(frame, 'GardenBed'))
 
     def test_mailbox_found(self):
         self.check_found('Mailbox', FRAMES)
@@ -360,6 +361,16 @@ class DetectTests(unittest.TestCase):
         self.assertEqual(self.D.thresholds(st, 'House'), {'K': 4.0, 'L': 5.0})    # unknown region: default
         open(os.path.join(root, 'thresholds.json'), 'w').write('{"K": 3.5}')
         self.assertEqual(self.D.thresholds(st, 'Garden'), {'K': 3.5, 'L': self.D.Z_MIN})   # old flat form: every region
+
+    def test_region_can_disable_an_unreliable_kind_without_disabling_it_close_up(self):
+        root = tempfile.mkdtemp()
+        st = S.Store(root)
+        st.add('GardenBed', crop(), unit(1))
+        st.add('Tara', crop(), unit(2))
+        open(os.path.join(root, 'thresholds.json'), 'w').write(
+            '{"Farm": {"_disabled": ["GardenBed"]}, "Garden": {"_disabled": []}}')
+        self.assertEqual(self.D.disabled_kinds(st), {'GardenBed'})
+        self.assertEqual(self.D.disabled_kinds(st, 'Garden'), set())
 
     def test_dino_shapes(self):
         from objects import dino

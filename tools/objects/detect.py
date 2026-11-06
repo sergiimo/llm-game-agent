@@ -20,6 +20,7 @@ SUP = 4                # peak suppression radius, patches
 MAX_PEAKS = 24         # per kind (a 3x4 bed grid must be countable)
 THRESHOLDS = 'thresholds.json'
 RAW_KEY = '_raw'      # per-region section of thresholds.json: {kind: raw cosine threshold}; absent = raw path off
+DISABLED_KEY = '_disabled'  # unsupported kinds for a region; a region list replaces Farm's list
 # dist = the peak's z-score (higher = better; the field keeps its old name for the CLI); example_id is None
 # (patch-level scoring has no single nearest example). `raw` = the peak's raw cosine (None when not computed).
 Detection = namedtuple('Detection', 'kind box dist example_id point raw', defaults=(None,))
@@ -74,6 +75,24 @@ def raw_thresholds(store, region=None):
     except (ValueError, TypeError, OSError, AttributeError):
         return {}
     return out
+
+
+def disabled_kinds(store, region=None):
+    """Kinds whose appearance detector is not reliable in this region.
+
+    A region-specific list replaces the Farm list so a kind can be disabled in
+    wide Farm views but enabled for its calibrated close-up region.
+    """
+    path = os.path.join(store.root, THRESHOLDS)
+    try:
+        with open(path) as fh:
+            data = json.load(fh)
+        farm = data.get('Farm') if isinstance(data.get('Farm'), dict) else {}
+        section = data.get(region) if region and region != 'Farm' and isinstance(data.get(region), dict) else None
+        values = (section if section is not None and DISABLED_KEY in section else farm).get(DISABLED_KEY, [])
+        return {str(k) for k in values if k in store.kinds()}
+    except (ValueError, TypeError, OSError, AttributeError):
+        return set()
 
 
 def kind_vectors(store, kind):
@@ -169,13 +188,15 @@ def detect(img, store, kinds=None, light=None, region=None, exclude=()):
     `light` is accepted for API compatibility and unused. `region` picks that region's thresholds (else the default).
     `exclude`: container kinds (a region's own kind and its ancestors') left out of the per-patch competition, so their
     crops (which contain the region's objects) can't win the patches of the objects inside."""
-    all_kinds = [k for k in store.kinds() if k not in exclude]
+    disabled = disabled_kinds(store, region)
+    excluded = set(exclude) | disabled
+    all_kinds = [k for k in store.kinds() if k not in excluded]
     want = [k for k in (kinds if kinds is not None else all_kinds) if k in all_kinds]
     if not want:
         return []
     th = thresholds(store, region)
     rth = raw_thresholds(store, region)
-    all_kinds, z, best, (sx, sy), raw = _maps(img, store, exclude)
+    all_kinds, z, best, (sx, sy), raw = _maps(img, store, excluded)
     out = []
     for k in want:
         zk = np.where(best == all_kinds.index(k), z[k], -np.inf)

@@ -428,7 +428,7 @@ class Base(unittest.TestCase):
               mock.patch.object(icons, 'DIR', os.path.join(self.tmp.name, 'crop_icons')),
               mock.patch.object(act, 'BURST', (0.0, 0.0)), mock.patch.object(act, 'EVENT_WAIT', 0.0),
               mock.patch.object(observe, 'see', lambda kind, tried=(): []),
-              mock.patch.object(observe, 'see_all', lambda: []),
+              mock.patch.object(observe, 'see_all', lambda region=None: []),
               mock.patch.object(nav, 'map_direction', lambda node: None)]
         for p in ps:
             p.start()

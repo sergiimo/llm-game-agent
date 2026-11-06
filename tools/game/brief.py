@@ -69,7 +69,8 @@ def build(g, kind, targets, res):
                       default=None)
         owner = nearest[1] if nearest is not None and nearest[0] <= engine.OWN_PX else None
         bubbles.append({'pt': tuple(a.pt), 'kind': a.kind, 'icon': a.icon, 'badge': a.badge, 'owner': owner})
-    heatmap = [{'kind': d.kind, 'pt': tuple(d.point)} for d in observe.see_all()]
+    detector_region = region if res.get('inside_region') == region else None
+    heatmap = [{'kind': d.kind, 'pt': tuple(d.point)} for d in observe.see_all(region=detector_region)]
     try:
         core.WF.run_log('perception', source='object_heatmap',
                         detections=[{'kind': d['kind'], 'pt': list(d['pt'])} for d in heatmap])

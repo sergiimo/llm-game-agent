@@ -65,6 +65,16 @@ class StateBrief(unittest.TestCase):
             'pt': bubble.pt, 'kind': 'pickup', 'icon': 'Tulip', 'badge': 'ready', 'owner': 'bed-today'
         }])
 
+    def test_confirmed_garden_entry_uses_the_close_garden_detector(self):
+        seen = mock.Mock(return_value=[])
+        self.res['inside_region'] = 'Garden'
+        with mock.patch('game.where.position', return_value=('unknown', None)), \
+                mock.patch('game.observe.scan', return_value=[]), \
+                mock.patch('game.observe.see_all', seen), \
+                mock.patch.object(engine, '_today', return_value=185):
+            brief.build(self.g, 'GardenBed', ['bed-today', 'bed-save'], self.res)
+        seen.assert_called_once_with(region='Garden')
+
     def test_the_drawing_is_full_scale_with_labels(self):
         detection = Detection('GardenBed', (1, 2, 3, 4), 8.0, None, (400, 300), 0.8)
         wf = mock.Mock()

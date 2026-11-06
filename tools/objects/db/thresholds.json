@@ -1,5 +1,8 @@
 {
  "Farm": {
+  "_disabled": [
+   "GardenBed"
+  ],
   "BeeHive": 5.19,
   "Garden": 2.78,
   "GardenBed": 3.04,
@@ -13,6 +16,7 @@
   }
  },
  "Garden": {
+  "_disabled": [],
   "BeeHive": 3.08,
   "Garden": 4.5,
   "GardenBed": 2.98,

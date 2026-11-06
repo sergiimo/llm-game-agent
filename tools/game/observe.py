@@ -199,11 +199,11 @@ def see(kind, tried=()):
     return sorted(dets, key=lambda x: d(x.point, CENTRE))
 
 
-def see_all():
-    """Every object the detector sees (any kind)."""
+def see_all(region=None):
+    """Every object the detector sees (any kind), under the region's calibrated reliability contract."""
     try:
         from objects import detect as D, store as S
-        return D.detect(core.WF.grab(), S.Store())
+        return D.detect(core.WF.grab(), S.Store(), region=region)
     except Exception:   # noqa: BLE001
         return []
 

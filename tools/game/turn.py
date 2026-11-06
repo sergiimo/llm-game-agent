@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass, fields
 
 from . import experience as X, integrate as I
-from .task_state import freeze, thaw
+from .task_state import Subgoal, freeze, thaw
 
 
 class StaleTurn(ValueError):
@@ -82,6 +82,70 @@ class TurnContext(Snapshot):
         return cls(**d)
 
 
+def outcome_surprise(task, intent, e):
+    """Compare one immutable outcome to the active goal, never equate camera movement with progress."""
+    import math
+    current = task.stack[-1] if task.stack else task
+    params, goal = current.params, current.goal
+    expected, before, after = intent.expects, intent.before, dict(e.evidence.state)
+    for key in ('region', 'node'):
+        want = expected.get(key)
+        got = after.get(key) if key == 'region' else (I.event_node(e) or e.evidence.node)
+        if want is not None and got != want:
+            return 'wrong_' + key
+    for key in ('route_valid', 'vector_match'):
+        if after.get(key) is False:
+            return 'stale_route_clue' if key == 'route_valid' else 'stale_vector_clue'
+    if intent.action.get('kind') in ('read', 'wait'):
+        return None
+    requested = expected.get('events') or ()
+    matched_event = any(any(ev in e.evidence.events for ev in alt.split('|')) for alt in requested)
+    expected_card = expected.get('card')
+    matched_card = bool(expected_card and expected_card != '?' and
+                        expected_card.casefold() in ' / '.join(e.evidence.texts).casefold())
+    import re
+    matched_log = bool(expected.get('log') and expected['log'] != '?' and
+                       any(re.search(expected['log'], line) for line in e.evidence.lines))
+    changed_mode = e.evidence.mode != (before.get('screen') or {}).get('kind')
+    changed_text = tuple(e.evidence.texts) != tuple((before.get('screen') or {}).get('texts') or ())
+    matched_mode = bool(expected.get('mode') and e.evidence.mode == expected['mode'] and
+                        (changed_mode or changed_text))
+    # A new card is a relevant observation of a model-selected interaction even before its object is bound.
+    changed_card = (e.evidence.mode in ('card', 'picker') and bool(e.evidence.texts) and
+                    tuple(e.evidence.texts) != tuple((before.get('screen') or {}).get('texts') or ()))
+    garden_event = goal == 'garden' and bool(set(e.evidence.events) & {
+        'inspect', 'unplant', 'unplant_impl', 'plant', 'plant_growing', 'water', 'hazel_waterplant',
+        'harvest', 'grab_item', 'beehive_collect', 'beehive_progress'})
+    purchase = intent.action.get('purchase')
+    receipt = False
+    if purchase:
+        item = purchase['item']
+        old_count, count = before.get('inventory', {}).get(item), after.get('inventory', {}).get(item)
+        old_money, money = before.get('money'), after.get('money')
+        receipt = (None not in (old_count, count, old_money, money) and
+                   count - old_count == purchase['quantity'] and old_money - money == purchase['price'])
+    closed = intent.action.get('kind') == 'close' and changed_mode and e.evidence.mode == 'gameplay'
+    sleep_event = goal == 'sleep' and 'sleep_transition' in e.evidence.events
+    relevant = (matched_event or matched_card or matched_mode or matched_log or changed_card or garden_event or
+                receipt or closed or sleep_event)
+    if expected.get('region') and after.get('region') == expected['region']:
+        relevant = True
+    walking = intent.action.get('kind') == 'waypoint'
+    if e.evidence.moved is False and not relevant and intent.action.get('kind') != 'close':
+        return 'no_progress'
+    if walking or e.evidence.moved:
+        destination = expected.get('destination_position', params.get('destination_position'))
+        old_pos, new_pos = before.get('position'), after.get('position')
+        reduction = (destination is not None and old_pos is not None and new_pos is not None and
+                     math.dist(new_pos, destination) < math.dist(old_pos, destination) - .01)
+        if not reduction and not relevant:
+            return 'irrelevant_movement' if e.evidence.moved else 'missing_progress_evidence'
+        relevant = relevant or reduction
+    if not relevant:
+        return 'unexpected_evidence' if e.evidence.events or changed_mode else 'missing_evidence'
+    return None
+
+
 class TurnLoop:
     """adapter: observe/mark/prepare/perform/capture; policy(task snapshot, clues) is input-free.
 
@@ -116,8 +180,15 @@ class TurnLoop:
         allowed = ('look', 'correct', 'stop') if surprise else ('accept', 'act', 'look', 'stop')
         if not surprise and task.last_experience:
             allowed += ('correct',)  # explicit model resolution also covers ambiguous, non-mismatching outcomes
-        if task.status != 'active':
-            allowed = ('look', 'stop')
+        if not surprise:
+            allowed += ('push', 'suspend', 'complete')
+            if task.stack:
+                if task.stack[-1].status == 'complete':
+                    allowed = ('look', 'stop', 'resume')
+                elif task.stack[-1].status == 'suspended':
+                    allowed = ('look', 'stop', 'resume', 'push')
+        if task.status != 'active' and not surprise:
+            allowed = ('look', 'stop', 'push') if task.status == 'complete' and task.unresolved else ('look', 'stop')
         c = TurnContext(task.turn_seq, task.to_dict() | {'current_turn': None}, thaw(task.active),
                         observation.get('screen'), observation.get('frame_path'),
                         observation.get('visible_affordances', ()), observation.get('graph_clues', ()),
@@ -161,12 +232,25 @@ class TurnLoop:
         if not administrative and e.verdict.value == 'hit' and e.id not in task.active.completed_actions:
             task.active.completed_actions.append(e.id)
         task.last_experience = e.to_dict()
+        if not task.stack:
+            rows = task.params.setdefault('_outcomes', [])
+            if not any(row['experience']['id'] == e.id for row in rows):
+                rows.append({'experience': e.to_dict(), 'before': intent.before, 'action': intent.action})
+        if task.stack:
+            top = task.stack[-1]
+            if e.id not in top.evidence_refs:
+                top.evidence_refs.append(e.id)
+                top.result.setdefault('outcomes', []).append({'experience': e.to_dict(), 'before': intent.before,
+                                                            'action': intent.action})
+            top.phase = 'verify'
         if self.reducer and not administrative:
             self.reducer(task, e)
-        if identity_conflict or recovered or e.verdict.value in ('miss', 'unsafe') or result.get('errors'):
+        mismatch = outcome_surprise(task, intent, e)
+        if identity_conflict or recovered or mismatch or e.verdict.value in ('miss', 'unsafe') or result.get('errors'):
             task.last_surprise = Surprise.of(e, 'conflicting_positioned_identity' if identity_conflict else
                                              'pending_intent_reconciled' if recovered else
-                                             'integration_error' if result.get('errors') else 'mismatch').to_dict()
+                                             'integration_error' if result.get('errors') else
+                                             'mismatch' if e.verdict.value in ('miss', 'unsafe') else mismatch).to_dict()
         if administrative:
             task.pending_intent = None
         elif task.active:
@@ -181,6 +265,56 @@ class TurnLoop:
             if task.pending_intent or task.active and task.active.pending_intent:
                 self._finish(task, recovered=True)
             return self._context(task)
+
+    def _subgoal(self, task, decision):
+        """Explicit durable model operations; verification folds captured evidence and performs no input."""
+        from .play import verify_completion
+        if decision.kind == 'push':
+            data = thaw(decision.action or {})
+            if not data.get('goal') or not isinstance(data.get('params', {}), dict):
+                raise DecisionRejected('push needs goal and params')
+            if task.stack:
+                task.stack[-1].status = 'suspended'
+            task.stack.append(Subgoal(data['goal'], data.get('params', {}), parent_interaction=task.active))
+            task.active = None
+            task.status = 'active'
+        elif decision.kind == 'suspend':
+            if not task.stack:
+                raise DecisionRejected('suspend needs an active subgoal; push preserves the root interaction')
+            task.stack[-1].status = 'suspended'
+        elif decision.kind == 'complete':
+            current = task.stack[-1] if task.stack else task
+            result = verify_completion(task, current)
+            if not task.stack:
+                task.status = 'complete'
+            else:
+                current.result.update(result)
+                current.status = 'complete'
+                current.phase = 'verified'
+                task.active = None
+                if result.get('item') and result.get('acquired', 0) > 0:
+                    item = result['item']
+                    # Acquiring seeds removes only matching constraints, never garden action facts or coverage.
+                    def matches(row):
+                        return (row.get('reason') == 'seed_shortage' and row.get('item') == item)
+                    task.unresolved = [row for row in task.unresolved if not matches(row)]
+        elif decision.kind == 'resume':
+            if not task.stack:
+                raise DecisionRejected('resume needs a subgoal')
+            top = task.stack[-1]
+            if top.status == 'complete':
+                task.stack.pop()
+                task.active = top.parent_interaction
+                task.params.setdefault('_subgoal_results', []).append(
+                    {'goal': top.goal, 'params': top.params, 'evidence_refs': top.evidence_refs, 'result': top.result})
+                if task.stack:
+                    task.stack[-1].status = 'active'
+            elif top.status == 'suspended':
+                top.status = 'active'
+            else:
+                raise DecisionRejected('parent resumes only after verified subgoal completion')
+        task.last_experience = None
+        task.last_surprise = None
 
     def decide(self, turn_id, decision):
         from . import primitives
@@ -201,6 +335,8 @@ class TurnLoop:
                 return c
             if decision.kind == 'stop':
                 task.status = 'stopped'
+            elif decision.kind in ('push', 'suspend', 'complete', 'resume'):
+                self._subgoal(task, decision)
             elif decision.kind == 'correct':
                 correction = thaw(decision.correction or {})
                 kind, data = correction.get('kind'), correction.get('data', {})
@@ -211,14 +347,23 @@ class TurnLoop:
                     if (not active or not active.actual_node or active.actual_node not in task.targets or
                             data.get('node') != active.actual_node or not isinstance(reason, str) or not reason.strip()):
                         raise DecisionRejected('blocked_target needs the active event-owned target and a nonempty reason')
+                    item = data.get('item')
+                    if reason.strip() == 'seed_shortage' and (not isinstance(item, str) or not item.strip()):
+                        raise DecisionRejected('seed_shortage needs the exact inventory seed item')
                     data = {'node': active.actual_node, 'phase': active.phase, 'crop': active.crop,
                             'transaction_id': active.transaction_id, 'reason': reason.strip(),
                             'experience': e.id, 'evidence_refs': list(decision.evidence_refs) or [e.id, c.frame_path]}
+                if kind == 'blocked_target' and item:
+                    data['item'] = item
+                if kind in ('graph', 'appearance'):
+                    data.setdefault('frame_path', e.artifacts.frames[-1] if e.artifacts.frames else e.artifacts.img0)
+                    data.setdefault('rationale', decision.rationale)
+                    data.setdefault('evidence_refs', list(decision.evidence_refs) or [e.id, c.frame_path])
                 result = I.correct(e, kind, data)
                 self._log(task, turn_id, 'correction', experience=e.id, kind=kind, data=data, result=result)
                 if result.get('errors'):
                     raise DecisionRejected(f'correction failed: {result["errors"]}')
-                if kind == 'unresolved':
+                if kind in ('unresolved', 'human'):
                     task.unresolved.append({'experience': e.id, **data})
                     task.status = 'unresolved'
                 if kind == 'blocked_target':

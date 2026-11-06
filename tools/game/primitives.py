@@ -39,7 +39,8 @@ def experience(intent, before, expects, evidence, frames=()):
                       original, (original, intent.action.get('what')))
     if kind == 'click' and what is None:
         what = 'point'
-    state = dict(screen)
+    state = {k: v for k, v in before.items() if k not in ('screen', 'visible_affordances', 'graph_clues')}
+    state.update(screen)
     if before.get('game_time') is not None:
         state['game_time'] = before['game_time']
     return X.Experience.new(
@@ -67,7 +68,7 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     refusal = None
     try:
         if guard:
-            refusal = guard(freeze(task.to_dict()), freeze(action))
+            refusal = guard(freeze(dict(task.to_dict(), _observation=before)), freeze(action))
             if refusal:
                 raise ValueError(refusal)
         prepared = adapter.prepare(dict(action), before)
@@ -92,6 +93,8 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
         raise ValueError('pending intent must be reconciled before input')
     intent = Intent(turn_id, prepared, adapter.mark(), time.time(), before, expects)
     owner.pending_intent = intent
+    if not refusal and action.get('purchase'):
+        task.params.setdefault('_purchase_intents', []).append(dict(action['purchase'], turn_id=turn_id))
     store.save(task)
     log('intent', intent=intent)
     if refusal:
@@ -125,6 +128,9 @@ class GameAdapter:
         image.convert('RGB').save(path, quality=90)  # full virtual frame; never resize
         affordances = observe.scan()
         s = screen.read(world_visible=any(a.kind not in (None, 'unknown') for a in affordances))
+        if s.kind == 'gameplay' and getattr(core.WF, 'map_pin', None) and core.WF.map_pin(image):
+            from .screen import Screen
+            s = Screen('map', [])
         clues = dict(self.clue_provider() if self.clue_provider else {})
         clues.update(screen={'kind': s.kind, 'texts': s.texts}, frame_path=path,
                      visible_affordances=[{'kind': a.kind, 'point': list(a.pt), 'drop': a.drop, 'ready': a.ready,
@@ -161,13 +167,18 @@ class GameAdapter:
             action['point'] = [round(p) for p in point]
             action['command'] = f'click:{action["point"][0]}:{action["point"][1]}'
         elif kind == 'space':
-            if screen != 'gameplay':
+            if screen not in ('gameplay', 'dialogue', 'popup', 'cutscene'):
                 raise ValueError(f'Space blocked by {screen}; choose its named control')
-            if not any(a.get('highlighted') for a in observation.get('visible_affordances', ())):
+            if screen == 'gameplay' and not any(a.get('highlighted') for a in observation.get('visible_affordances', ())):
                 raise ValueError('Space requires a visible highlighted affordance')
             action['command'] = 'key:space'
+        elif kind == 'key':
+            label = str(action.get('label', '')).casefold()
+            if screen != 'gameplay' or label not in ('j', 'm', 'i'):
+                raise ValueError('menu key requires gameplay and one of j/m/i; movement keys are forbidden')
+            action['command'] = 'key:' + label
         elif kind == 'press':
-            if screen not in ('card', 'picker', 'pause', 'dialogue', 'popup'):
+            if screen not in ('card', 'picker', 'shop', 'journal', 'inventory', 'pause', 'dialogue', 'popup'):
                 raise ValueError(f'named control blocked by {screen}')
             label = action.get('label')
             if not isinstance(label, str) or not label.strip():
@@ -183,44 +194,65 @@ class GameAdapter:
             action['command'] = ('text:Resume Game' if screen == 'pause' else
                                  f'click:{action["point"][0]}:{action["point"][1]}')
         elif kind == 'select_card':
-            if screen not in ('card', 'picker') or not action.get('point'):
+            if screen not in ('card', 'picker', 'shop', 'inventory') or not action.get('point'):
                 raise ValueError('select_card needs one model-selected visible card point')
             x, y = action['point']
             if not (0 <= x < 1920 and 0 <= y < 1080):
                 raise ValueError('card point outside frame')
             action['command'] = f'click:{round(x)}:{round(y)}'
         elif kind == 'close':
-            if screen not in ('card', 'picker'):
+            if screen not in ('card', 'picker', 'map', 'journal', 'inventory', 'shop'):
                 raise ValueError(f'close blocked by {screen}')
             action['command'] = 'key:escape'
         else:
             raise ValueError(f'unknown primitive {kind!r}')
         return action
 
+    def _release(self):
+        from . import core
+        if getattr(self, '_focused', False):
+            release = getattr(core.WF, 'release_focus', None)
+            if release:
+                release()
+            self._focused = False
+
     def perform(self, action):
         from . import core
-        msg = core.WF.run_action(action['command'])  # exactly one actuator invocation, even if it fails
-        if msg:
-            raise RuntimeError(str(msg))
+        focus = getattr(core.WF, 'ensure_front', None)
+        if focus:
+            focus()
+            self._focused = True
+        try:
+            msg = core.WF.run_action(action['command'])  # exactly one actuator invocation, even if it fails
+            if msg:
+                raise RuntimeError(str(msg))
+        except BaseException:
+            self._release()
+            raise
 
     def capture(self, intent, before, expects):
-        from . import act, core, observe
-        core.WF.wait_settle()
-        if expects.get('events'):
-            core.seen(act.EVENT.pattern, intent.log_mark, act.EVENT_WAIT)
-        after = self.observe()
-        lines = core.log_text(intent.log_mark).splitlines()
-        at = next((p for p in map(act.position_of, lines) if p), None)
-        # Canonical identity is assigned by integration's positioned-event consumer, not target=kind.
-        moved = None
-        if before.get('frame_path') and after.get('frame_path'):
-            from PIL import Image
-            with Image.open(before['frame_path']) as a, Image.open(after['frame_path']) as b:
-                moved = observe.view_changed(a, b)
-        if moved and not at:
-            from . import where
-            where.walked()
-        evidence = X.Evidence(tuple(lines), tuple(act.events_of(lines)), at, None,
-                              after['screen']['kind'], tuple(after['screen']['texts']), (),
-                              _affordances(after['visible_affordances']), moved)
-        return experience(intent, before, expects, evidence, (after['frame_path'],))
+        try:
+            from . import act, core, observe
+            core.WF.wait_settle()
+            if expects.get('events'):
+                core.seen(act.EVENT.pattern, intent.log_mark, act.EVENT_WAIT)
+            after = self.observe()
+            lines = core.log_text(intent.log_mark).splitlines()
+            at = next((p for p in map(act.position_of, lines) if p), None)
+            # Canonical identity is assigned by integration's positioned-event consumer, not target=kind.
+            moved = None
+            if before.get('frame_path') and after.get('frame_path'):
+                from PIL import Image
+                with Image.open(before['frame_path']) as a, Image.open(after['frame_path']) as b:
+                    moved = observe.view_changed(a, b)
+            if moved and not at:
+                from . import where
+                where.walked()
+            evidence = X.Evidence(tuple(lines), tuple(act.events_of(lines)), at, None,
+                                  after['screen']['kind'], tuple(after['screen']['texts']), (),
+                                  _affordances(after['visible_affordances']), moved,
+                                  X._t(tuple((k, v) for k, v in after.items()
+                                             if k not in ('screen', 'visible_affordances', 'graph_clues'))))
+            return experience(intent, before, expects, evidence, (after['frame_path'],))
+        finally:
+            self._release()

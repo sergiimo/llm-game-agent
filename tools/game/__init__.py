@@ -1,6 +1,8 @@
-"""Game functions for agents (L77). `./wf py "<code>"` runs code with these names in scope; `./wf call garden.water_all`
-runs one. Chores are goals of the engine (`achieve`, L138); `smoke` holds the proven primitives (L147)."""
-from . import affordances, badges, core, garden, integrate, sleep, smoke, track, ui  # noqa: F401 (integrate: boundary)
+"""Compatibility names for universal model-owned gameplay; CLI code strings are never evaluated.
+
+Use play.turn to observe/resume every domain. Legacy gameplay functions below return a turn, not a scheduler.
+"""
+from . import affordances, badges, core, garden, integrate, play, sleep, smoke, track, ui  # noqa: F401 (integrate: boundary)
 from .ask import NeedVision  # noqa: F401
 from .core import Failed, bind  # noqa: F401
 from .engine import achieve  # noqa: F401

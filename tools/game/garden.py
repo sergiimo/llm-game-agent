@@ -2,8 +2,6 @@
 `> unplant` = Space on a wilted bed (card/prompt), `> unplant_impl` = removed; `> plant` is written when the planting
 panel closes, `[STATS] totalPlanted.<Seed>` = planted; `> water` = watered."""
 import json
-import os
-import uuid
 
 from .core import action
 from .primitives import GameAdapter
@@ -36,59 +34,15 @@ class GardenAdapter(GameAdapter):
         return result
 
 
-def turn(region=None, chores=('plant', 'replant', 'harvest', 'water'), answer=None, crops=None,
+def turn(region=None, chores=None, answer=None, crops=None,
          *, store=None, adapter=None, turn_id=None, decision=None, seed=None):
-    """The public garden boundary. Bare calls observe; decisions consume an exact saved turn."""
-    from . import core, engine, garden_policy as policy, learn, observe, ask, world
-    from .task_state import TaskState, TaskStore
-    from .turn import TurnLoop, Decision
-    if set(chores) - set(policy.CHORES):
-        raise ValueError('unknown garden chores')
-    if store is None:
-        directory = core.WF.run_dir()
-        if not directory:
-            raise ValueError('garden requires an active run: ./wf run start')
-        store = TaskStore(os.path.join(directory, 'garden-task.json'))
-    existing = store.load() if os.path.exists(store.path) else None
-    if existing and region is not None and region != existing.params.get('region', region):
-        raise ValueError('active garden region differs; finish/stop it and start a new run')
-    region = region or (existing.params.get('region') if existing else None) or 'Garden'
-    if adapter is None:
-        # Bind the canonical graph before integration; stale process memory must never own event identity.
-        graph = engine._open_graph()
-        _, save = core.WF.read_save()
-        world.refresh(graph, save, core.WF.today_log()[0])
-        def clues():
-            hour, light = observe.clock()
-            rows = [{'node': n.id, 'kind': n.kind, 'state': n.state} for n in graph.nodes.values()
-                    if n.id in policy.coverage(graph, region)]
-            data = {'graph_clues': rows, 'hour': hour, 'light': light, 'rain': ask.rain(),
-                    'can': graph.state_value('Tara', 'can')}
-            state = store.load().to_dict() if os.path.exists(store.path) else {'params': {'_started_late': hour is not None and hour > 19}}
-            blocked = policy.interrupt(state, data)
-            data['interrupts'] = [blocked] if blocked else []
-            return data
-        adapter = GardenAdapter(lambda: store.load(), clues)
-    else:
-        graph = learn.MEMORY.get('graph')
-    if not os.path.exists(store.path):
-        if answer is not None or decision is not None:
-            raise ValueError('observe the garden task before supplying a decision')
-        with open(os.path.join(os.path.dirname(__file__), 'kinds.json')) as f:
-            flowers = json.load(f).get('_lists', {}).get('flowers', [])
-        obs = adapter.observe()
-        params = {'region': region, 'chores': list(chores), 'crops': crops, 'seed': seed, 'flowers': flowers,
-                  '_started_late': obs.get('hour') is not None and obs['hour'] > 19}
-        store.create(TaskState(uuid.uuid4().hex, 'garden', params=params,
-                               targets=policy.coverage(graph, region) if graph else []))
-    loop = TurnLoop(store, adapter, policy.recommend, reducer=policy.reduce, guard=policy.guard)
-    if decision is None and answer is not None:
-        decision = ask.garden_decision(answer)
-    if decision is None:
-        return loop.context()
-    if turn_id is None:
-        raise ValueError('garden continuation requires turn_id from NEXT')
-    return loop.decide(int(turn_id), decision if isinstance(decision, Decision) else Decision(**decision))
+    """Compatibility alias; all domains share play.turn and its durable task file."""
+    from . import play
+    params = {'chores': list(chores)} if chores is not None else {}
+    for key, value in {'region': region, 'crops': crops, 'seed': seed, 'turn_id': turn_id}.items():
+        if value is not None:
+            params[key] = value
+    return play.turn('garden', params, decision if decision is not None else answer, store, adapter)
 
 
 def crop_name(card_text):

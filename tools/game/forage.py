@@ -117,40 +117,16 @@ def _work(name, job, pt, res):
     return True
 
 
-def run(name, answer=None, max_clicks=MAX_CLICKS):
-    """One step of the foraging job `name`. Raises NeedVision with the next question; returns res when it stops."""
-    job = _job(name)
-    goal = f'forage:{name}'
-    res = {'goal': goal, 'clicks': 0, 'vision': 0, 'done': [], 'stop': None, 'notes': [], 'trace': [],
-           'max_clicks': max_clicks}
-    O.check_language()
-    A.gameplay()
-    if answer is not None:
-        ask.take_answer(goal)
-        a = str(answer).strip()
-        if a.lower() == 'none':
-            ask.progress(goal)
-            res['stop'] = 'done: vision sees none left'
-            return res
-        try:
-            if a.lower().startswith('walk:'):
-                pt = ask.parse_point(a.split(':', 1)[1])
-                A.click(pt, 'step')
-                res['clicks'] += 1
-            else:
-                pt = ask.parse_point(a)
-                if _stops(name, job, res):
-                    return res
-                if _work(name, job, pt, res):
-                    ask.progress(goal)
-        except ValueError as e:
-            raise core.Failed(f'answer rejected: {e}. Answer a grid cell A1-X16, walk:<cell>, or none') from None
-        A.gameplay()
-    if _stops(name, job, res):
-        return res
-    _ask(name, job, res)
+def run(name, answer=None, max_clicks=MAX_CLICKS, **params):
+    """Compatibility alias; foraging targets are model vision decisions, never graph scheduling."""
+    from . import play
+    store, adapter = params.pop('store', None), params.pop('adapter', None)
+    return play.turn('forage', dict(params, job=name), answer, store, adapter)
 
 
 def summary(res):
+    if hasattr(res, 'to_dict'):
+        from .play import summary as turn_summary
+        return turn_summary(res)
     return (f"{res['goal']}: done {len(res['done'])} ({[d.get('result') for d in res['done']]}), clicks {res['clicks']}"
             f", stop: {res['stop']}")

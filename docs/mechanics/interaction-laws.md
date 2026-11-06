@@ -1,13 +1,16 @@
 # Interaction laws
 
-> **Summary:** the gameplay model owns each garden turn: read clues, accept or override one recommendation,
+> **Summary:** the gameplay model owns every gameplay turn: read clues, accept or override one recommendation,
 > execute at most one input, then read its evidence. A durable transaction retains crop, phase and event-owned
 > identity across calls. The graph supplies coverage and dated clues; the positioned game event owns identity.
 
-## Garden turn contract (offline verified; full live pass pending)
+## Universal turn contract (offline verified; full live pass pending)
 
 An active `./wf run start <task> <goal>` is required. The supervisor writes and reviews its `plan.md` before play.
-`./wf garden region=GardenSouth [crops=Tulip]` observes without input and prints `NEXT` plus a JSON TurnContext.
+`./wf play <goal> [k=v ...]` (or `./wf garden region=GardenSouth [crops=Tulip]`) observes without input and prints `NEXT` plus a JSON TurnContext.
+All domains share the active run task file, including existing `garden-task.json`; `./wf play` resumes it.
+Load `.claude/skills/wylde-play/actions/INDEX.md` then the one workflow file. **Docs choose sequences; Python never does.**
+Legacy `do`, `py`, `call`, `sleep`, `goto`, `advance`, and route aliases return turns rather than run private workflows.
 The model reads screen/card, visible affordances, graph clues with their source/time, active transaction, coverage,
 last outcome, surprise, interrupts, recommendation and allowed decisions. Accept obvious recommendations promptly.
 
@@ -21,7 +24,7 @@ Continue with the exact returned turn ID; each command is its own tool call:
 ```
 
 `accept` consumes the exact saved recommendation. `act` selects one primitive: target/cell/bubble, waypoint, press
-label, space, close, wait or read. `look` returns the saved full-scale frame path without input or a new turn; Read
+label, space, select_card, guarded menu key (j/m/i), close, wait or read. `look` returns the saved full-scale frame path without input or a new turn; Read
 that image. `correct` applies the model's smallest correction; `stop` ends safely. Stale IDs refuse input. Use
 Decision JSON for concise rationale categories and evidence references; no separate `run think` row is needed for
 the same decision. Shell-safe alternatives include `answer=walk:F7`, `answer=target:K8`, `answer=press:Collect`.
@@ -47,8 +50,8 @@ waypoint (`{"kind":"waypoint","cell":"F7","walkable":true}`). Never infer actual
    General garden maintenance plants pre-existing empty beds using an available seed. Narrow water/harvest jobs do
    not. Collect ready non-flower crops and ready honey; preserve flowers unless authorized. Water after planting
    unless raining. A plant plus drop icon needs interaction evidence to distinguish dry from wilted.
-5. **The model handles surprises.** Read the preserved frame before diagnosing uncertain evidence. Choose a world,
-   appearance, transition, gap, unresolved or stop correction (`integrate.correct`); code never patches itself.
+5. **The model handles surprises.** Read the preserved frame before diagnosing uncertain evidence. Choose a graph,
+   appearance, transition, gap, human or stop correction (`integrate.correct`); code never patches itself.
    If the model chose the wrong primitive (for example a world bubble while Collect is already open), choose
    `correct` with `{"kind":"revise_decision","data":{"reason":"<mistaken choice>"}}`. This records the decision
    revision and clears the surprise without learning, a gap, an input or a task/transaction reset. The next normal
@@ -73,6 +76,27 @@ waypoint (`{"kind":"waypoint","cell":"F7","walkable":true}`). Never infer actual
    review. A blocked replant is never counted as planted, watered or covered; the whole task stays active while
    other targets remain unaccounted for.
 
+## Explicit nested subgoals and corrections
+
+`push` with `action:{goal,params}` freezes the parent interaction. `suspend` holds a subgoal; `complete` verifies its
+captured domain evidence without restoring the parent. A separate `resume` restores it. Pending intents reconcile
+without repeat at any nesting depth. Sleep requires `sleep_transition`; region travel requires matching captured
+region evidence. Unsupported proof becomes a gap/human resolution, never a model assertion of completion.
+
+A shop task/subgoal names item, bounded quantity and max_spend; the root task supplies
+`authorization:{purchases:[{item,quantity,max_spend}]}`. A purchasing action supplies `purchase:{item,quantity,price}`
+(total price). Root authorization is reserved durably before input, so a restart or ambiguous outcome cannot spend
+it twice. Completion requires matching inventory AND money deltas. Save-derived evidence retains save count/time
+and can lag. Only verified acquisition clears matching `reason:seed_shortage,item:<seed ID>` constraints; those beds
+return to remaining coverage and are never marked planted, watered or covered by buying seeds.
+
+Every primitive compares evidence with its active goal: no move, irrelevant/away movement, wrong object/region/modal,
+stale route/vector, missing or unexpected evidence is a surprise. While unresolved, only look/correct/stop is allowed.
+Public `graph` corrections name one existing node (state/placement) or exact `edge:{a,b,rel}` plus bounded values;
+legacy `world` remains a compatible node/state spelling. `appearance` can sample a bounded crop or reembed one named
+kind. Vision corrections retain captured frame, rationale, evidence refs and experience ID, apply idempotently, and
+perform no gameplay input. Never invent object identity or overwrite current positioned-event facts.
+
 ## One timeline and hot learning
 
 `runs/<run>/log.jsonl` contains chronological `type=turn` rows joined by `task_id` and `turn_id`: clues,
@@ -91,13 +115,13 @@ exact failing test, then resume the same task/transaction. Full discovery is a f
 
 | Module | Responsibility |
 |---|---|
-| `garden.py`, `turn.py`, `task_state.py` | Public one-turn API, immutable context/decisions, durable transaction and write-ahead recovery |
+| `play.py`, `garden.py`, `turn.py`, `task_state.py` | Public one-turn API, immutable context/decisions, durable transaction and write-ahead recovery |
 | `garden_policy.py` | Pure recommendations, evidence reduction and coverage; no inputs, model calls or target scheduler |
 | `primitives.py` | Guard and execute zero or one selected input, capture evidence |
 | `observe.py`, `screen.py`, `brief.py` | Fresh frame/screen/affordance readings and graph clues |
 | `world.py`, `objects/graph.py` | Dated facts, event-owned nodes, coverage clues |
 | `integrate.py`, `experience.py` | Immutable evidence, idempotent world/memory/transition corrections and gap bundles |
-| `plan.py`, `steps.py` | Transition data and pure next-step recommendation; generic legacy goals still use row execution |
+| `plan.py`, `steps.py` | Transition data and pure next-step recommendation; no public gameplay alias executes a row workflow |
 
-Offline proof: `tools/test_turn.py`, `test_garden_turn.py` (captured tulip Collect → Seeds → plant → water trace),
+Offline proof: `tools/test_play.py`, `tools/test_turn.py`, `test_garden_turn.py` (captured tulip Collect → Seeds → plant → water trace),
 `test_experience.py`, `test_runtime_data.py`, `test_runwatch.py`. A full live south-garden pass remains required.

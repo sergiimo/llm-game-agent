@@ -3849,5 +3849,28 @@ class UnknownBubbles(EngineBase):
         self.assertIn(('badge', 'ready'), learned)
 
 
+
+
+class UniversalAliases(unittest.TestCase):
+    """The old function names observe/resume the real durable loop without navigating or scheduling."""
+    def test_compatibility_aliases_return_before_any_input(self):
+        from game import forage, sleep
+        from game.task_state import TaskStore
+        from test_turn import Port
+        callbacks = [lambda **kw: engine.achieve('water', **kw),
+                     lambda **kw: garden_actions.water_all(**kw),
+                     lambda **kw: sleep.do(**kw),
+                     lambda **kw: forage.run('rock', **kw),
+                     lambda **kw: nav.reach(kind='Bed', region='House', **kw),
+                     lambda **kw: nav.search('Bed', **kw)]
+        for callback in callbacks:
+            with self.subTest(callback=callback), tempfile.TemporaryDirectory() as directory:
+                store, port = TaskStore(os.path.join(directory, 'task.json')), Port()
+                context = callback(store=store, adapter=port)
+                self.assertIn('act', context.allowed_decisions)
+                self.assertEqual(port.inputs, [])
+                self.assertEqual(context.task['task_id'], store.load().task_id)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -310,8 +310,11 @@ class GardenTurns(unittest.TestCase):
         self.assertFalse(c.transaction['provisional'].get('target_selected'))
         self.assertIsNone(c.transaction['actual_node'])
         restarted = call()
+        self.assertIsNotNone(restarted.surprise, 'an unproved waypoint cannot count as progress')
+        c = call(turn_id=restarted.turn_id, decision=Decision('correct', correction={
+            'kind': 'revise_decision', 'data': {'reason': 'fresh frame identifies the visible first target'}}))
         inputs_before = len(port.inputs)
-        c = call(turn_id=restarted.turn_id, decision=Decision('act', action=target()))
+        c = call(turn_id=c.turn_id, decision=Decision('act', action=target()))
         self.assertEqual(len(port.inputs) - inputs_before, 1)
         self.assertTrue(c.transaction['provisional']['target_selected'])
         self.assertEqual(c.transaction['actual_node'], 'A')
@@ -543,7 +546,11 @@ class GardenTurns(unittest.TestCase):
                 self.assertIsNone(c.surprise)  # Seeds is expected here; the retired picker expected Collect.
                 c = call(turn_id=c.turn_id, decision=Decision('accept'))
                 self.assertEqual(c.transaction['crop'], 'Tulip')
-                # The captured old selection did not record the confirmation card; model supplies that input.
+                # The captured old selection lacks confirmation-card evidence. Resolve that surprise explicitly
+                # before supplying the next input; never invent a successful card observation in the fixture.
+                self.assertIsNotNone(c.surprise)
+                c = call(turn_id=c.turn_id, decision=Decision('correct', correction={
+                    'kind': 'revise_decision', 'data': {'reason': 'inspect confirmation before selecting'}}))
                 c = call(turn_id=c.turn_id, decision=Decision('act', action={'kind': 'press', 'label': 'Select',
                                                                           'expects': {'log': 'totalPlanted'}}))
                 self.assertEqual(c.transaction['phase'], 'water')

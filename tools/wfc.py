@@ -89,6 +89,7 @@ def chain_refusal(argv, parent):
 
 
 CODE = [os.path.join(ROOT, 'tools')]
+# play and all domain aliases share the daemon's durable task; none are LOCAL_ONLY.
 # These change executable vocabulary/configuration loaded at import time. Learning journals, actions.json,
 # graph JSON and image/vector stores are read hot and must never erase the daemon's process context.
 CONFIG = {'goals.json', 'kinds.json', 'forage.json'}

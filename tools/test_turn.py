@@ -319,6 +319,8 @@ class Turns(unittest.TestCase):
                 mock.patch.object(wf, 'state', state), \
                 mock.patch.object(wf, 'find_text', return_value=[{'cx': 960, 'cy': 700}]), \
                 mock.patch.object(wf, 'click', click), \
+                mock.patch.object(wf, 'ensure_front'), \
+                mock.patch.object(wf, 'release_focus'), \
                 mock.patch.object(wf, 'key', side_effect=AssertionError('unexpected extra key')), \
                 mock.patch.object(wf, 'log_mark', return_value=0), \
                 mock.patch.object(wf, 'seg_estimate', return_value=None), \

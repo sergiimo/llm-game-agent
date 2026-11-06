@@ -52,6 +52,26 @@ class Interaction:
 
 
 @dataclass
+class Subgoal:
+    goal: object
+    params: dict = field(default_factory=dict)
+    phase: str = 'observe'
+    status: str = 'active'
+    parent_interaction: Interaction = None
+    evidence_refs: list = field(default_factory=list)
+    result: dict = field(default_factory=dict)
+
+
+def interaction(data):
+    if not data:
+        return None
+    data = dict(data)
+    if data.get('pending_intent'):
+        data['pending_intent'] = Intent(**data['pending_intent'])
+    return Interaction(**data)
+
+
+@dataclass
 class TaskState:
     task_id: str
     goal: str
@@ -68,6 +88,7 @@ class TaskState:
     turn_seq: int = 0
     current_turn: dict = None
     pending_intent: Intent = None  # administrative input, independent of an object interaction
+    stack: list[Subgoal] = field(default_factory=list)
 
     def to_dict(self):
         return thaw(self)
@@ -84,11 +105,9 @@ class TaskState:
         data = dict(data)
         if data.get('pending_intent'):
             data['pending_intent'] = Intent(**data['pending_intent'])
-        if data.get('active'):
-            active = dict(data['active'])
-            if active.get('pending_intent'):
-                active['pending_intent'] = Intent(**active['pending_intent'])
-            data['active'] = Interaction(**active)
+        data['active'] = interaction(data.get('active'))
+        data['stack'] = [Subgoal(**dict(row, parent_interaction=interaction(row.get('parent_interaction'))))
+                         for row in data.get('stack', [])]
         return cls(**data)
 
 

@@ -1,83 +1,33 @@
 ---
 name: wylde-play
-description: Play Wylde Flowers on this Mac through ./wf — the observe→decide→act loop, cheap screen checks, advancing quests, and recording playbook notes and learnings. Use whenever asked to play, progress a quest, or do something in the game.
+description: Play Wylde Flowers through the universal model-owned one-turn boundary; read clues, choose one atomic input, verify evidence and record docs.
 ---
 
 # Playing Wylde Flowers
 
-Session start: read `AGENTS.md`, `docs/INDEX.md`, `docs/progress.md`. Then load progressively, only what the step
-needs (index → one file; `head -8` gives the summary). The game UI is **English**; see `docs/ui/glossary.md`.
+Session start: read `AGENTS.md`, `docs/INDEX.md`, `docs/progress.md`; then load only the relevant index/detail.
+The supervisor owns one current goal and a reviewed run plan; gameplay children use the user's cheapest-model rule.
+Check permissions, exact clock and current save/log before starting. A new task after 19:00 requires pre-approved
+sleep first. Focus mode is front: pause before coding, documentation or long thinking.
 
-For garden work, load `docs/mechanics/interaction-laws.md` and use its **model-owned turn contract**. Bare
-`./wf garden region=…` observes; the gameplay model chooses every exact `turn_id=N` continuation. Accept an obvious
-recommendation or choose one primitive with Decision JSON and concise rationale/evidence refs. Read its outcome
-before choosing again. Preserve the active crop/phase/actual event-owned node through pauses and corrections.
-The canonical timeline is the run's `log.jsonl`; `experiences.jsonl` is machine replay. This contract supersedes
-older batching, engine-owned bubble loops, and automatic card-reset instructions for garden tasks.
+For **every gameplay domain**, load [actions/INDEX.md](actions/INDEX.md), then the one workflow file it routes to.
+Docs choose sequences; Python never does. `./wf play <goal> [k=v]` and bare domain aliases return `NEXT` without input.
+Continue with the exact `turn_id` and one explicit model decision. Accept an obvious saved recommendation, choose one
+primitive, inspect the full-scale source frame, correct data, push/suspend/complete/resume a subgoal, or stop. Read the
+outcome before deciding again. Never use legacy `py`, `call`, batched commands or routes to run a hidden workflow.
 
-## 0. Preflight
-```
-./wf status          # running, permissions both true. Run outside the sandbox
-```
-If permissions are false, stop and ask the user to enable Warp in Screen Recording and Accessibility.
+Game files first: `./wf log` for live events; `./wf save` for exact but potentially stale autosave facts; `./wf state`
+for screen/HUD text. A `look` decision returns the saved 1920×1080 frame without input; read it for uncertainty.
+Tara is at frame centre. A target needs its entire visible walkable road; otherwise choose one short visible-ground
+waypoint. Move only by clicking. Current modal and guard rules apply to each primitive; no blind key loops.
 
-## 1. Loop: observe → decide → act → verify
-**Golden rules:** one game command per tool call. Garden commands execute at most one selected input. Focus mode
-is **front**: the clock runs between calls. Pause before off-game work; never assume time is frozen.
+A surprise blocks gameplay until `look`, `correct` or `stop` resolves it. Preserve the active crop/phase/node and
+parent interaction. Pending input reconciles from recorded evidence without repetition. Corrections update named
+graph/vector/transition data with provenance, revise a decision, mark a constraint, record a gap, or report ambiguity
+to the human; never patch runtime code while playing. Purchases require explicit root-task quantity/spend bounds and
+matching inventory/money proof. Do not change settings, sell valuables or choose major story actions without scope.
 
-**Observe (cheapest first)**
-- **Game files (exact, no screenshot; `docs/ui/game-files.md`):** `./wf log` = new event-log lines (quest
-  start/advance/complete, every dialogue line, building/scene changes, pickups, purchases, friendship). Input commands
-  print them automatically as `log: …`. `./wf save` = day/time, money, stamina, scene, quest goal counters, inventory
-  from the last autosave (may be minutes old). Read both at goal start; read the log after every action.
-- `./wf state` → one line `mode | clock | money | bubble@x,y | text`. Modes: `gameplay` (HUD visible),
-  `dialogue` (subtitle "Name: …"), `popup` (quest card with Confirm), `cutscene` (letterbox), `overlay`
-  (journal/map/menu/shop/inventory). `--json` for full detail.
-- Need to see the scene (positions, icon bubbles, obstacles)? `./wf look` (full-scale 1920×1080 JPEG) or
-  `./wf look --crop X Y W H --scale 1` to zoom. Image→game coords: `game = offset + img / scale`.
-- Full-res `./wf shot` only for fine detail.
-
-**Decide**
-- What is the current quest? `./wf key j`, then `./wf state` reads it. Get the actionable step with
-  `./wf click-text "Show Hint"`, read it, then `./wf click-text OK --exact` and `./wf key escape`.
-- Look up anything unknown: skill `wylde-lookup` (wiki, items, characters, shop hours).
-- Open `docs/quests/INDEX.md` → the active quest's file. If it has **Verified steps**, follow them. Unknown screen?
-  `docs/ui/INDEX.md` → the screen file. Unknown system? `docs/mechanics/INDEX.md` → the topic file.
-
-**Act (one call per step)**
-- `./wf do <actions…> [--look]`: actions `go:<x>:<y>` (click-to-move: the **only** way to move, L54),
-  `key:space` (Space = **interact**/confirm), `text:<label>`, `click:x:y`, `wait:<s>`, `still`. It prints the settled
-  state, and the look path with `--look`.
-- Interaction pattern: `./wf do go:<object x>:<y>` → see `bubble@x,y` → `./wf do key:space`.
-- **Leaving the farmhouse cutaway:** every lower-wall segment with a porch railing is solid. The exit is the
-  **opening between two white posts with no railing across it**. Its screen column changes as the camera follows Tara:
-  it starts far right when she is by the pink bed and recentres after she crosses the rooms. Use the fresh frame,
-  never a previous cell. Click clear floor through the no-railing opening; if Tara has crossed it and stands on porch
-  boards, click the stairs below; then move beyond the porch until the house interior disappears. Only then navigate
-  toward the Garden.
-- Dialogue/cutscene/quest popups: `./wf advance`. It presses Space only in dialogue/popup/cutscene and stops on
-  anything else.
-- Mechanical text-only loops (long dialogue, routes, repeated interactions): delegate to the **wylde-runner** agent
-  (Haiku) with a goal + stop conditions; keep decisions here.
-
-**Verify**: the `log:` lines first (`[QUEST]`, `[STATS]`, `grab_item`, …), then the state line. Did mode/text/money change as expected? If not, note it as a surprise (step 3).
-
-## 2. Guardrails
-- No blind loops: every scripted loop must check state and stop on anything unexpected.
-- Ask the user before: changing settings/language, selling rare items, big purchases, sleeping/ending the day
-  (unless already authorized), romance or other irreversible story choices. At a new task's start check the exact
-  clock: later than 19:00 means approved sleep and next-day advance before task input.
-- Focus mode is the user's choice (`./wf focus-mode`). **front** (current): the game stays focused and game time runs
-  between calls, so batch actions, keep thinking short, and watch the clock. **background**: time is frozen between calls.
-
-## 3. Record progress (mandatory)
-- **Quest step done:** append to the quest file's `## Verified steps` (start state → exact commands → what appears
-  (exact on-screen text) → done-signal → gotchas). New quest seen: set front-matter `id:` (internal name from `./wf log`) and `status: active`; finished: `status: done`.
-  Then `python3 -I tools/gen_quests.py` (rebuilds the index, keeps your text).
-- **New screen / HUD element / key:** add or extend `docs/ui/screens/<screen>.md` (Recognise · Elements · Actions ·
-  Exit), `ui/hud.md`, `ui/controls.md` (✅/❓) and the index table; new strings go to `ui/glossary.md`.
-- **Mechanic confirmed or contradicted:** edit its "Verified in-game" section in `docs/mechanics/<topic>.md`.
-- **Session end:** update `docs/progress.md` (current state + one log row).
-- **Surprise** (doc/wiki/assumption was wrong, tool misbehaved, unexpected UI): add a row to `docs/learnings.md`
-  (expected → actual → now → updated), then fix the doc/tool/skill it affects.
-- A way that worked (landmarks + `go:` hops): add it to `docs/world/locations.md`.
+The canonical chronological timeline is `runs/<run>/log.jsonl`; `experiences.jsonl` is machine replay evidence.
+After milestones update verified quest steps/status, run `python3 -I tools/gen_quests.py`, and update
+`docs/progress.md`. Record surprises in `docs/learnings.md` and fix their one canonical doc/tool/skill in the same pass.
+Completion is evidence-backed coverage/proof; constrained work is reported as constrained. Filling doc gaps beats winning.

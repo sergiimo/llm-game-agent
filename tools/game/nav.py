@@ -716,7 +716,7 @@ def _predicted_arrival(t, c):
     return hit
 
 
-def search(t, res, rounds=SEEK_TURNS, halt=None):
+def _legacy_search(t, res, rounds=SEEK_TURNS, halt=None):
     """Seek rounds until a fitting bubble shows: the nearest fitting Affordance, or None (stuck / nothing found /
     `halt(bubbles)` says stop). A seek click that walked her does not use up a round (up to WALK_MAX)."""
     r, walks = 0, 0
@@ -743,7 +743,7 @@ def search(t, res, rounds=SEEK_TURNS, halt=None):
     return None
 
 
-def reach(fits=lambda a: True, kind='GardenBed', node=None, region='Garden', marker=None, target=None,
+def _legacy_reach(fits=lambda a: True, kind='GardenBed', node=None, region='Garden', marker=None, target=None,
           rounds=SEEK_TURNS, on_unreached=None):
     """The low-level navigation (L133): get Tara in reach of ANY node of `kind` whose bubble `fits`. Returns the nearest
     fitting Affordance (not clicked: the caller acts). Raises Failed with NEED_VISION (the trace) when the search gives
@@ -769,3 +769,19 @@ def reach(fits=lambda a: True, kind='GardenBed', node=None, region='Garden', mar
                           + core.ask_vision(question))
     finally:
         L.close_memory()
+
+
+def search(t, res=None, rounds=SEEK_TURNS, halt=None, **params):
+    """Compatibility clue request; never invokes the legacy navigation loop."""
+    from . import play
+    store, adapter = params.pop('store', None), params.pop('adapter', None)
+    return play.turn('navigate', {'target': getattr(t, 'target', str(t)), **params}, store=store, adapter=adapter)
+
+
+def reach(fits=None, kind='GardenBed', node=None, region='Garden', marker=None, target=None,
+          rounds=SEEK_TURNS, on_unreached=None, **params):
+    """Compatibility alias; model selects each waypoint from the returned clues."""
+    from . import play
+    store, adapter = params.pop('store', None), params.pop('adapter', None)
+    return play.turn('navigate', dict(params, kind=kind, node=node, region=region, target=target),
+                     store=store, adapter=adapter)

@@ -1599,72 +1599,60 @@ def garden_cli_args(args):
     return params, click
 
 
+# Every registered workflow command enters play before focusing the game. Observation-only variants are excluded
+# by turn_command. Raw/batched legacy requests are descriptions for the model, never an executable shortcut.
+PLAY_COMMANDS = frozenset({'play', 'garden', 'sleep', 'forage', 'achieve', 'py', 'call', 'goto', 'go-world',
+                           'improve', 'calib', 'advance', 'teach', 'where', 'pos', 'ask-step', 'do', 'key',
+                           'click', 'click-text', 'hold', 'walk', 'path', 'scroll', 'type', 'resume', 'route', 'plan'})
+
+OBSERVATION_COMMANDS = frozenset({'status', 'shot', 'ocr', 'find', 'hud', 'state', 'bubble', 'look', 'until',
+    'save-template', 'wiki', 'run', 'coverage', 'tara-box', 'world', 'gaps', 'bench', 'objects', 'graph',
+    'eval', 'record', 'routines', 'learn', 'actions', 'tips', 'log', 'save', 'wait', 'serve'})
+
+
 def game_cmd(kind, args):
-    """`wf py "<code>"` / `wf call <module.fn> [args…]`: game functions (tools/game, L77), each proven by the game log
-    and tracked as an action tree in the run log."""
+    """Compatibility command adapter. No eval/exec or legacy multi-input workflow is reachable here."""
     import game
+    from game import play
     game.bind(sys.modules[__name__])
-    game.track.LINES.clear()
-    ns = game.namespace()
-    res, err = None, None
     try:
-        if kind == 'achieve':
-            from game import engine
-            goal, params, answer = engine.parse_cli(args)
-            res = engine.summary(game.achieve(goal, answer=answer, **params))
-        elif kind == 'garden':
-            from game import garden
-            try:
-                params, click = garden_cli_args(args)
-            except ValueError as e:
-                raise game.Failed(str(e)) from None
-            try:
-                res = garden.summary(garden.turn(answer=click, **params))
-            except ValueError as e:
-                raise game.Failed(str(e)) from None
-        elif kind == 'sleep':
-            from game import sleep
-            params = {}
-            for arg in args:
-                key, sep, value = arg.partition('=')
-                if not sep or key != 'answer':
-                    raise game.Failed(f'sleep argument must be answer=<cell>, got {arg!r}')
-                params[key] = value
-            res = sleep.summary(sleep.do(**params))
+        args = list(args)
+        if kind in ('play', 'achieve'):
+            goal = args.pop(0) if args and '=' not in args[0] else None
         elif kind == 'forage':
-            from game import forage
-            _, params, answer = engine_parse(args)
-            out = forage.run(args[0], answer=answer, **params)
-            res = forage.summary(out) if out else None
-        elif kind == 'py':
-            code = ' '.join(args)
-            try:
-                res = eval(compile(code, '<wf py>', 'eval'), ns)
-            except SyntaxError:
-                exec(compile(code, '<wf py>', 'exec'), ns)
+            job = args.pop(0) if args else None
+            goal = 'forage'
+            if job:
+                args.insert(0, 'job=' + job)
+        elif kind in ('garden', 'sleep'):
+            goal = kind
         else:
-            mod, _, fn = args[0].rpartition('.')
-            f = getattr(getattr(game, mod), fn) if mod else ns[fn]
-            res = f(*[int(a) if re.fullmatch(r'-?\d+', a) else a for a in args[1:]])
-    except game.Failed as e:
-        err = str(e)
-    except _LawsStuck() as e:   # terminal (LAWS_STUCK): print it plainly, the agent stops and reports
-        for line in game.track.LINES:
-            print(line)
-        print(str(e))
-        return 3
-    except _NeedVision() as e:   # a vision question is an answer request, not a crash: print just its prompt
-        for line in game.track.LINES:
-            print(line)
-        print(e.args[0] if e.args else str(e))
-        return 2
-    for line in game.track.LINES:
-        print(line)
-    if err:
-        print(f'FAILED: {err}')
-    elif res is not None:
-        print('\n'.join(map(str, res)) if isinstance(res, list) else res)
-    return 1 if err else 0
+            return print(play.summary(play.turn(kind, {'request': args})))
+        print(play.cli(goal, args))
+    except (ValueError, game.Failed) as error:
+        print(f'FAILED: {error}')
+        return 1
+    return 0
+
+
+def turn_command(a):
+    """Route registered gameplay aliases; return False only for observation/one-input safety controls."""
+    if a.cmd == 'route' and (a.list or not a.name):
+        return False
+    selected = a.cmd in PLAY_COMMANDS or a.cmd == 'edge' and a.sub in ('add', 'replay') or a.cmd == 'road' and a.go
+    if not selected:
+        return False
+    if a.cmd in ('play', 'achieve', 'garden', 'sleep', 'forage', 'py', 'call'):
+        code = game_cmd(a.cmd, a.args)
+        if code:
+            raise SystemExit(code)
+    else:
+        import game
+        from game import play
+        game.bind(sys.modules[__name__])
+        params = {key: value for key, value in vars(a).items() if key != 'cmd'}
+        print(play.summary(play.turn(a.cmd, params)))
+    return True
 
 
 def run_report(path):
@@ -3529,22 +3517,18 @@ def is_paused(s=None):
 
 def set_paused(want):
     """Idempotent pause/resume: look first, press Escape only if needed (Escape toggles; blind presses un-pause)."""
-    resume_clicked = False
-    for _ in range(3):
-        s = state()
-        if is_paused(s) == want:
-            return f'{"paused" if want else "running"}: {brief(s)}'
-        if not want and is_paused(s):
-            hits = find_text('Resume Game', exact=True) or find_text('Resume Game')
-            if hits and not resume_clicked:
-                click(hits[0]['cx'], hits[0]['cy'])
-                resume_clicked = True
-            else:
-                key('escape')
-        else:
-            key('escape')
-        time.sleep(0.7)
-    return f'could not {"pause" if want else "resume"}: {brief(state())}'
+    s = state()
+    if is_paused(s) == want:
+        return f'{"paused" if want else "running"}: {brief(s)}'
+    if want:
+        key('escape')
+    else:
+        hits = find_text('Resume Game', exact=True)
+        if len(hits or ()) != 1:
+            return 'could not resume: Resume Game missing or ambiguous; model must inspect'
+        click(hits[0]['cx'], hits[0]['cy'])
+    time.sleep(0.7)
+    return f'{"paused" if want else "running"}: {brief(state())}'
 
 
 def run_action(spec):
@@ -4159,6 +4143,8 @@ def main(argv=None):
     p.add_argument('args', nargs='*')
     p = sub.add_parser('eval', help='hits/misses of predictions: wf eval [all] | pending | mark <id> hit|miss')
     p.add_argument('args', nargs='*')
+    p = sub.add_parser('play', help='universal model-owned turn: [goal] [k=v] [turn_id=N answer=Decision-JSON]')
+    p.add_argument('args', nargs='*')
     p = sub.add_parser('achieve', help='the engine (L138): wf achieve <goal|json> [k=v ...] [answer=X]; goals in '
                                        'tools/game/goals.json, e.g. wf achieve plant seed=Tulip region=GardenSouth')
     p.add_argument('args', nargs='+')
@@ -4338,6 +4324,9 @@ def main(argv=None):
     if a.cmd == 'route' and (a.list or not a.name):
         for f in sorted(os.listdir(ROUTES)):
             print(f[:-4] + ':', open(os.path.join(ROUTES, f)).readline().strip('# \n'))
+        return
+
+    if turn_command(a):
         return
 
     # --- input commands: game must be frontmost (focus is given back afterwards; see release_focus)

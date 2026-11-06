@@ -351,6 +351,40 @@ def _run(u, e, img0):
         if nid:
             _save_world(g)
         return nid
+    if u.consumer == 'world' and u.op == 'model_edge':
+        g = LN.MEMORY['graph']
+        edge, values = u.args['edge'], u.args['values']
+        if g is None or edge['a'] not in g.nodes or edge['b'] not in g.nodes:
+            raise ValueError('graph correction requires existing named endpoints')
+        matches = [row for row in g.edges(edge['a'], edge['rel']) if row['b'] == edge['b']]
+        if len(matches) != 1:
+            raise ValueError('graph correction needs exactly one existing named edge')
+        row = matches[0]
+        row.update(values, source='vision', provenance=_provenance(e, u.args))
+        if 'dir' in values:
+            from objects.graph import compass
+            row['compass'] = compass(values['dir'])
+        _save_world(g)
+        return edge
+    if u.consumer == 'world' and u.op == 'model_placement':
+        g = LN.MEMORY['graph']
+        nid, values = u.args['node'], u.args['placement']
+        if g is None or nid not in g.nodes:
+            raise ValueError('graph correction requires existing named node')
+        if 'region' in values and values['region'] not in g.nodes:
+            raise ValueError('graph correction requires an existing region')
+        node = g.nodes[nid]
+        if e.evidence.at and list(values.get('pos', e.evidence.at)) != list(e.evidence.at):
+            raise ValueError('placement correction conflicts with current positioned evidence')
+        for key, value in values.items():
+            if key == 'region':
+                node.region = value
+            else:
+                node.extra[key] = value
+        node.extra['placement_provenance'] = _provenance(e, u.args)
+        note(g, nid, e.id)
+        _save_world(g)
+        return nid
     if u.consumer == 'world' and u.op == 'model_state':
         from . import plan, world
         g = LN.MEMORY['graph']
@@ -386,6 +420,8 @@ def _run(u, e, img0):
         for key, value in values.items():
             g.set_state(nid, key, value, stamp, 'vision')
         note(g, nid, e.id)
+        if u.args.get('frame_path'):
+            g.nodes[nid].extra['state_provenance'] = _provenance(e, u.args)
         _save_world(g)
         return nid
     if u.consumer == 'world' and u.op == 'card_state':
@@ -399,6 +435,34 @@ def _run(u, e, img0):
             if nid and e.artifacts.turn_id is not None:
                 _save_world(g)
         return nid
+    if u.consumer == 'memory' and u.op in ('reembed', 'sample'):
+        from objects import store as vectors, dino
+        from PIL import Image
+        store = vectors.Store()
+        kind = u.args['kind']
+        provenance = _provenance(e, u.args)
+        if u.op == 'reembed':
+            examples = store.examples(kind)
+            if not examples:
+                raise ValueError('named kind has no appearance samples to reembed')
+            vecs = {}
+            for example in examples:
+                with Image.open(store.example_path(kind, example.id)) as crop:
+                    vecs[example.id] = dino.mean_vector(crop.convert('RGB'))
+                example.source = provenance
+            return store.set_vecs(kind, vecs)
+        with Image.open(u.args['frame_path']) as captured:
+            image = captured.convert('RGB')
+        if image is None:
+            raise ValueError('appearance sample needs captured frame')
+        box = u.args['box']
+        if not (0 <= box[0] < box[2] <= image.width and 0 <= box[1] < box[3] <= image.height):
+            raise ValueError('appearance box outside captured frame')
+        crop = image.convert('RGB').crop(tuple(box))
+        sample = store.add(kind, crop, dino.mean_vector(crop), source=provenance, force=True)
+        if sample is None:
+            raise ValueError('appearance sample was not stored')
+        return sample.id
     if u.consumer == 'memory':
         img = _img(e, img0)
         strict = u.args.get('require_proof', False)
@@ -494,18 +558,58 @@ def apply(e, correction=None, img0=None):
     return out
 
 
+def _provenance(e, data):
+    return {'source': 'vision', 'experience': e.id, 'frame_path': data['frame_path'],
+            'rationale': data['rationale'], 'evidence_refs': data['evidence_refs']}
+
+
+def _validate_provenance(e, data):
+    frames = {e.artifacts.img0, *e.artifacts.frames} - {None}
+    if (not data.get('frame_path') or data['frame_path'] not in frames or
+            not isinstance(data.get('rationale'), str) or not data['rationale'].strip() or
+            not isinstance(data.get('evidence_refs'), (list, tuple)) or not data['evidence_refs']):
+        raise ValueError('vision correction needs captured frame, rationale and evidence references')
+
+
 def correct(e, kind, data):
     """Model-selected correction on the same immutable experience. Runtime mutates data only, never source."""
     # The model may revise its own choice without attributing a fault to game facts or learned data.
     # TurnLoop records this correction and clears the surprise; no replay/learning or retry input occurs here.
-    if kind in ('unresolved', 'stop', 'revise_decision', 'blocked_target'):
+    if kind in ('unresolved', 'human', 'stop', 'revise_decision', 'blocked_target'):
         return {'applied': 0, 'status': kind}
+    if kind == 'graph':
+        _validate_provenance(e, data)
+        if data.get('edge'):
+            edge, values = data['edge'], data.get('values')
+            if (set(edge) != {'a', 'b', 'rel'} or not all(isinstance(v, str) and v for v in edge.values()) or
+                    not isinstance(values, dict) or not values or set(values) - {'dir', 'distance', 'valid'}):
+                raise ValueError('graph edge correction needs exact endpoints/relation and bounded values')
+            if 'dir' in values:
+                import math
+                direction = values['dir']
+                if not isinstance(direction, (tuple, list)) or len(direction) != 2 or not all(
+                        isinstance(v, (int, float)) and math.isfinite(v) for v in direction) or not any(direction):
+                    raise ValueError('graph direction needs two finite nonzero coordinates')
+            return apply(e, X.Correction(e.id, world=(X.Update('world', 'model_edge', data),)))
+        if data.get('placement'):
+            if not data.get('node') or set(data['placement']) - {'pos', 'region', 'scene'}:
+                raise ValueError('graph placement needs exact node and pos/region/scene')
+            return apply(e, X.Correction(e.id, world=(X.Update('world', 'model_placement', data),)))
+        kind = 'world'  # backward-compatible node/state validation and current-event precedence below
     if kind == 'world':
         if not isinstance(data.get('state'), dict) or not data.get('node'):
             raise ValueError('world correction needs node and state')
         correction = X.Correction(e.id, world=(X.Update('world', 'model_state', data),))
     elif kind == 'appearance':
         op = data.get('op', 'proven_look')
+        if op in ('reembed', 'sample'):
+            from objects.store import KIND_RE
+            _validate_provenance(e, data)
+            if not isinstance(data.get('kind'), str) or not KIND_RE.fullmatch(data['kind']):
+                raise ValueError('appearance correction needs one named kind')
+            if op == 'sample' and (not isinstance(data.get('box'), (tuple, list)) or len(data['box']) != 4):
+                raise ValueError('appearance sample needs one bounded crop box')
+            return apply(e, X.Correction(e.id, memory=(X.Update('memory', op, data),)))
         if op not in ('proven_look', 'badge', 'relabel'):
             raise ValueError('unsupported appearance correction')
         args = {k: v for k, v in data.items() if k != 'op'}

@@ -1338,77 +1338,10 @@ def _open_graph():
 
 
 def achieve(goal, answer=None, max_clicks=MAX_CLICKS, **params):
-    """Reach the goal (a library name or a raw {kind, where, make} query) on every object its filter selects.
-    Returns {'goal', 'done', 'left', 'clicks', 'vision', 'subgoals', 'surprises', 'learned', 'stop', ...};
-    raises NeedVision with ONE question (answer by calling again with answer=...)."""
-    name, spec = _goal(goal)
-    W = core.WF
-    res = N.new_res(name)
-    res.update(goal=name, subgoals=0, learned=[], surprises=[], area=None, skip=[], fails={}, btried=[], params=params)
-    g = _open_graph()
-    try:
-        O.check_language()
-        pending = ask.load_state(name).get('pending') or {}
-        if not (answer is not None and pending.get('collect_open')):
-            A.gameplay()
-        if ask.late(res):
-            return res
-        r = ask.rain()
-        if r:
-            res['stop'] = f'rain ({r} today): no chores in the rain for now (user D187) - ask the user, try a dry day'
-            return res
-        if spec.get('light') and res.get('light') and res['light'] != spec['light']:
-            res['stop'] = (f'dark ({res["light"]}): {name} reads bubble icons, reliable only in daylight - suggest '
-                           f'sleeping (ask the user), then retry in the morning')
-            return res
-        _, save = W.read_save()
-        world.refresh(g, save, W.today_log()[0])
-        tp = world.tara_pos(g)
-        res['area'] = world.area_of(g, tp) if tp else None
-        missing = [p for p in spec.get('required', []) if p not in params]
-        if missing:
-            res['stop'] = f'NEED_INPUT {name}: ' + _need_input(g, spec, missing)[len('NEED_INPUT '):]
-            return res
-        region = _where(spec, params).get('region')
-        if region and not (region in g.nodes and g.nodes[region].type == 'region'):
-            res['stop'] = (f'NEED_INPUT {name}: ' + _need_input(g, spec, ['region'])[len('NEED_INPUT '):]
-                           + f' - {region!r} is not an area')
-            return res
-        res['lookalike'] = _lookalikes(g)
-        from . import where as WH
-        if len(WH.pairs()) >= 2 and WH.fit() is None:   # the map can't place her: say so, never a silent fallback
-            res['notes'].append(f'map calibration unusable ({len(WH.pairs())} pairs disagree > {WH.MAX_ERR} units): '
-                                f'far navigation has only the map compass')
-        if answer is not None:
-            res['red_events'] = _red_events(spec['kind'], spec.get('make', {}))
-            A.ON_EVENT = lambda c: red_flag(c, res)
-            res['spec'], res['skip_names'] = spec, _skip_names(spec, params)
-            _answer(g, name, params, answer, res)
-        _loop(g, name, spec, params, save, max_clicks, res)
-        return res
-    finally:
-        res['left'] = len(_targets(g, spec, _where(spec, params), [])) if 'kind' in spec else None
-        n = max(1, len(res['done']))
-        res['clicks_per_target'] = round(res['clicks'] / n, 2)
-        res['vision_per_target'] = round(res['vision'] / n, 2)
-        res['surprises'] = res['surprises'] + list(L.SURPRISES)
-        try:
-            res['learned'] += [f'{c[0]} {c[1]}[{c[2]}] {c[3]}' for c in L.settle_rows()]
-        except Exception:   # noqa: BLE001 (the table never breaks play)
-            pass
-        try:
-            res['gaps'] = I.settle()   # repeated unresolved misses -> gap bundles (offline code factory)
-        except Exception:   # noqa: BLE001
-            res['gaps'] = []
-        try:
-            g.save(L.graph_path())
-        except OSError:
-            pass
-        L.MEMORY['graph'] = None
-        A.ON_EVENT = None
-        LAST.clear()
-        LAST.update(res)
-        _log(res)
+    """Compatibility alias. The old object scheduler is private and unreachable from gameplay commands."""
+    from . import play
+    store, adapter = params.pop('store', None), params.pop('adapter', None)
+    return play.turn(goal, params, answer, store, adapter)
 
 
 def _garden_row(row_id):
@@ -1443,7 +1376,7 @@ def _garden_inspected(g, targets, lines):
     return out
 
 
-def garden_turn(region='Garden', chores=('plant', 'replant', 'harvest', 'water'), answer=None,
+def garden_turn(region=None, chores=None, answer=None,
                 max_clicks=MAX_CLICKS, crops=None, *, store=None, adapter=None, turn_id=None, decision=None,
                 seed=None):
     """Observe or execute one model-owned garden turn. No implicit action or nested vision call."""
@@ -1461,7 +1394,10 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
 
 
 def summary(res):
-    """One line for the agent: done/left, clicks, vision, sub-goals, learned rows, surprises, stop."""
+    """One-line compatibility output; universal tasks use their immutable NEXT context."""
+    if hasattr(res, 'to_dict'):
+        from .play import summary as turn_summary
+        return turn_summary(res)
     return (f"{res['goal']}: done {len(res['done'])}, left {res.get('left')}, clicks {res['clicks']}, "
             f"vision {res['vision']}, sub-goals {res['subgoals']}, per target: clicks {res.get('clicks_per_target')} "
             f"vision {res.get('vision_per_target')}"

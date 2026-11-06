@@ -63,6 +63,7 @@ class Evidence:
     burst_texts: tuple = ()
     after: tuple = ()           # bubbles after (str)
     moved: bool = None
+    state: tuple = ()           # captured after-state: region/position/money/inventory, with provenance
 
 
 @dataclass(frozen=True)

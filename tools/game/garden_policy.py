@@ -38,8 +38,7 @@ def guard(task, action):
     active = task.get('active')
     if not active:
         return None
-    selected = (active.get('actual_node') or active.get('provisional', {}).get('target_selected') or
-                active.get('phase') != 'approach')
+    selected = active.get('actual_node') or active.get('provisional', {}).get('target_selected')
     kind = action.get('kind')
     if selected and kind in ('target', 'cell'):
         return 'resolve the current transaction before selecting a new target'
@@ -142,7 +141,8 @@ def reduce(task, experience):
         task.status = 'unresolved'
         return
     facts = a.provisional.setdefault('facts', {})
-    if a.phase == 'approach' and experience.action.kind in ('click', 'space'):
+    if (a.phase == 'approach' and experience.action.kind in ('click', 'space') and
+            experience.action.what != 'step'):
         a.phase = 'inspect'
     ev, text = set(experience.evidence.events), ' / '.join(experience.evidence.texts)
     if experience.action.pt and not a.provisional.get('point'):

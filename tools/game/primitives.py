@@ -56,6 +56,11 @@ def experience(intent, before, expects, evidence, frames=()):
 
 def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     """Leave a durable pending intent if input/capture crashes. Never retry an uncertain input."""
+    action = dict(action)
+    # The raw-click spelling has the same world-target semantics as target. Normalize before guards,
+    # ownership bookkeeping, preparation, and intent persistence so no alias can evade the invariant.
+    if action.get('kind') == 'click':
+        action['kind'] = 'target'
     before = adapter.observe()
     refusal = None
     try:
@@ -72,7 +77,7 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
             'projected_node': action.get('projected_node')}, crop=action.get('crop') if not refusal else None)
     if not refusal and action.get('crop'):
         task.active.crop = action['crop']  # explicit model classification; never object identity
-    if not refusal and action.get('kind') in ('target', 'cell', 'bubble'):
+    if not refusal and action.get('kind') in ('target', 'cell', 'bubble', 'space'):
         if not task.active.provisional.get('target_selected'):
             task.active.provisional.update(frame=before.get('frame_path'), point=prepared.get('point'),
                                            cell=prepared.get('cell'))

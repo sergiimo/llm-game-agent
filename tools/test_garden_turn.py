@@ -46,6 +46,51 @@ class GardenTurns(unittest.TestCase):
                 self.assertEqual(list(c.coverage['covered']), [])
                 self.assertIsNotNone(c.surprise)
 
+    def test_raw_click_alias_cannot_replace_harvested_bed_before_verification(self):
+        for alias in ('target', 'cell', 'click'):
+            with self.subTest(alias=alias):
+                store, port, call = self.session([event('harvest', 'A'), event('plant', 'B', ['Inventory', 'Seeds'])])
+                c = call()
+                c = call(turn_id=c.turn_id, decision=Decision('act', action=target('Carrot')))
+                self.assertEqual(c.transaction['phase'], 'plant')
+                inputs_before = len(port.inputs)
+                c = call(turn_id=c.turn_id, decision=Decision('act', action={
+                    **target('Tulip'), 'kind': alias, 'point': [1100, 540]}))
+                self.assertEqual(len(port.inputs) - inputs_before, 0, 'replacement alias must issue zero input')
+                self.assertEqual(c.transaction['actual_node'], 'A')
+                self.assertEqual(c.transaction['crop'], 'Carrot')
+                self.assertTrue(c.transaction['provisional']['facts']['emptied'])
+                self.assertEqual(c.task['status'], 'active')
+                self.assertIsNotNone(c.surprise)
+                self.assertEqual(list(c.coverage['covered']), [])
+
+    def test_raw_click_first_selection_records_ownership_before_a_positioned_event(self):
+        store, port, call = self.session([event(texts=['Collect']), event('plant', 'B', ['Inventory', 'Seeds'])])
+        c = call()
+        c = call(turn_id=c.turn_id, decision=Decision('act', action={**target('Carrot'), 'kind': 'click'}))
+        self.assertIsNone(c.transaction['actual_node'])
+        self.assertTrue(c.transaction['provisional'].get('target_selected'))
+        c = call(turn_id=c.turn_id, decision=Decision('act', action={**target('Tulip'), 'point': [1100, 540]}))
+        self.assertEqual(len(port.inputs), 1)
+        self.assertEqual(c.transaction['crop'], 'Carrot')
+
+    def test_waypoint_is_provisional_navigation_and_allows_first_target_after_restart(self):
+        store, port, call = self.session([event(), event('plant', 'A', ['Inventory', 'Seeds'])])
+        c = call()
+        c = call(turn_id=c.turn_id, decision=Decision('act', action={
+            'kind': 'waypoint', 'point': [600, 600], 'walkable': True}))
+        self.assertEqual(c.transaction['phase'], 'approach')
+        self.assertFalse(c.transaction['provisional'].get('target_selected'))
+        self.assertIsNone(c.transaction['actual_node'])
+        restarted = call()
+        inputs_before = len(port.inputs)
+        c = call(turn_id=restarted.turn_id, decision=Decision('act', action=target()))
+        self.assertEqual(len(port.inputs) - inputs_before, 1)
+        self.assertTrue(c.transaction['provisional']['target_selected'])
+        self.assertEqual(c.transaction['actual_node'], 'A')
+        self.assertEqual(c.transaction['phase'], 'plant')
+        self.assertIsNone(c.surprise)
+
     def test_verified_transaction_can_finish_before_model_selects_another_target(self):
         store, port, call = self.session([event('water', 'A'), event('plant', 'B', ['Inventory', 'Seeds'])])
         c = call()

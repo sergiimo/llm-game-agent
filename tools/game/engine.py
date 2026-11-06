@@ -1453,6 +1453,20 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
         inspected_before = _garden_inspected(g, targets, today_lines)
         covered = covered_before | inspected_before
         remaining, replanting, seen_bubbles = targets - covered, {}, set(seen_before)
+
+        def skip_covered_bubble(actual, kind, bubble):
+            # Only an event-owned target of this task can be a harmless duplicate.
+            node = g.nodes.get(actual)
+            if actual not in targets or node is None or node.kind != kind or actual in remaining:
+                return False
+            point = tuple(bubble.pt)
+            seen_bubbles.add(point)
+            if point not in res['btried']:
+                res['btried'].append(point)
+            res['notes'].append(f'skipped covered bubble {bubble.pt}: event proved {actual}')
+            A.gameplay()  # close the harmless card before observing another target
+            return True
+
         res['btried'].extend(p for p in seen_before if p not in res['btried'])
         res['visited'].extend(n for n in beds if n in covered)
         res['hives_visited'] = [n for n in hives if n in covered]
@@ -1577,14 +1591,12 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     res['stop'] = out.get('why') or f'visible {row["id"]} action failed'
                     break
                 if tid not in remaining:
-                    # An ambiguous projected owner pointed at a bubble already
-                    # proved to belong to a covered bed. Remember the exact
-                    # point and keep scheduling; do not restart and click it.
-                    if tuple(a.pt) not in res['btried']:
-                        res['btried'].append(tuple(a.pt))
-                    res['notes'].append(f'skipped covered bubble {a.pt}: event proved {tid}')
-                    A.gameplay()   # close the covered bed's info card before observing another target
-                    continue
+                    if skip_covered_bubble(tid, row['kind'], a):
+                        continue
+                    res['stop'] = core.ask_vision(
+                        f'Visible garden interaction proved {tid}, which is not a task {row["kind"]}. '
+                        'Decide whether the graph, transition, or visual label is wrong.')
+                    break
                 actions = [row['id']]
                 if tid not in res['acted']:
                     res['acted'].append(tid)
@@ -1800,11 +1812,13 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                 actual = nid or tid
                 if actual != tid:
                     nominated = tid
-                    if actual not in remaining or g.nodes.get(actual) is None or g.nodes[actual].kind != target_kind:
+                    if actual not in targets or g.nodes.get(actual) is None or g.nodes[actual].kind != target_kind:
                         res['stop'] = core.ask_vision(
                             f'Garden interaction near projected {nominated} proved {actual}, which is not an '
                             f'unvisited {target_kind}. Decide whether the graph, transition, or visual label is wrong.')
                         break
+                    if skip_covered_bubble(actual, target_kind, a):
+                        break  # keep the unvisited nomination available to the outer scheduler
                     # Screen projection nominated a candidate only. The event's world coordinates own the result.
                     tid = actual
                     state = world.state_of(g, tid)

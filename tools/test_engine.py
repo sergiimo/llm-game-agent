@@ -1567,6 +1567,81 @@ class StreamingGarden(EngineBase):
         self.assertEqual(engine.LAST['unresolved'], [])
         self.assertIn(actual_id, ask.load_state('garden')['pending']['covered'])
 
+    def test_a_projected_bubble_proving_a_covered_bed_keeps_the_nomination_pending_on_retry(self):
+        garden = self._north()
+        projected, actual = garden[:2]
+        projected['state'].update(stage='empty', watered=False, crop=None)
+        projected['icon'] = None
+        point = projected['bubble_pt']
+        actual['bubble_pt'] = point
+        projected['bubble_pt'] = None
+        f = self._game(garden, inventory={'CarrotSeed': 1})
+        f.relabel['plant_growing'] = 'plant'  # force the per-target inspection path
+        for inspected in garden[1:]:
+            f.log.append(L('9:01:00 AM', 'plant_growing', 'GardenBed', *inspected['pos']))
+
+        try:
+            res = engine.tend_garden('Garden', ('plant', 'water'))
+        except NeedVision:
+            res = engine.LAST
+        else:
+            self.fail(f'Expected navigation for the unvisited nomination; stopped: {res["stop"]}')
+        projected_id = world.find(self.graph(), 'GardenBed', projected['pos'])
+        actual_id = world.find(self.graph(), 'GardenBed', actual['pos'])
+        self.assertNotIn(projected_id, res['visited'])
+        self.assertEqual(res['unresolved'], [])
+        self.assertEqual(res['visited'].count(actual_id), 1)
+        self.assertIn(tuple(point), res['btried'])
+        self.assertIsNone(f.card)
+        pending = ask.load_state('garden')['pending']
+        self.assertEqual(pending['node'], projected_id)
+        self.assertEqual(len(pending['covered']), 11)
+        self.assertNotIn(projected_id, pending['covered'])
+        self.assertIn(list(point), pending['seen_bubbles'])
+        clicks = list(f.clicks)
+        with self.assertRaises(NeedVision):
+            engine.tend_garden('Garden', ('plant', 'water'))
+        self.assertEqual(f.clicks, clicks)
+        self.assertEqual(sum('> plant_growing ' in line for line in f.log), 12)
+        self.assertEqual(engine.LAST['visited'].count(actual_id), 1)
+        self.assertEqual(engine.LAST['unresolved'], [])
+        self.assertNotIn(projected_id, ask.load_state('garden')['pending']['covered'])
+        self.assertEqual(f.inventory['CarrotSeed'], 1)
+        self.assertFalse(any('totalPlanted' in line for line in f.log))
+
+    def test_invalid_event_identity_keeps_the_diagnostic_boundary(self):
+        for invalid in ('missing', 'wrong_kind', 'outside_task'):
+            with self.subTest(identity=invalid):
+                garden = self._north()
+                projected, actual = garden[:2]
+                projected['state'].update(stage='empty', watered=False, crop=None)
+                projected['icon'] = None
+                actual['bubble_pt'] = projected['bubble_pt']
+                projected['bubble_pt'] = None
+                outside = obj('outside', pos=(SX[0], SZ[0]), zone='south', bubble=None,
+                              stage='growing', watered=True, wilted=False, crop='Tulip')
+                f = self._game(garden + [outside], inventory={'CarrotSeed': 1})
+                f.relabel['plant_growing'] = 'plant'
+                for inspected in garden[1:]:
+                    f.log.append(L('9:01:00 AM', 'plant_growing', 'GardenBed', *inspected['pos']))
+                learn_result = engine._learn
+
+                def invalid_identity(g, *args, **kwargs):
+                    nid = learn_result(g, *args, **kwargs)
+                    if invalid == 'missing':
+                        del g.nodes[nid]
+                    elif invalid == 'wrong_kind':
+                        g.nodes[nid].kind = 'Well'
+                    else:
+                        return world.find(g, 'GardenBed', outside['pos'])
+                    return nid
+
+                with mock.patch.object(engine, '_learn', side_effect=invalid_identity):
+                    res = engine.tend_garden('Garden', ('plant', 'water'))
+                self.assertIn('DIAGNOSTIC ONLY', res['stop'])
+                self.assertEqual(res['unresolved'], [])
+                self.assertFalse(any('skipped covered bubble' in note for note in res['notes']))
+
     def test_a_proven_info_bubble_counts_as_coverage_on_the_next_command(self):
         garden = self._north()
         inspected = garden[0]

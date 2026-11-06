@@ -8,7 +8,7 @@
 | Move to an object/place, or forage | [navigation.md](navigation.md) |
 | Enter/exit the farmhouse or another region | [regions.md](regions.md) |
 | Reach Tara's bed and sleep | [sleep.md](sleep.md) |
-| Open a merchant UI and buy authorized items | [shop.md](shop.md) |
+| Open a merchant UI, sell authorized items and buy discovered types | [shop.md](shop.md) |
 | Maintain every bed/hive in a named region | [garden.md](garden.md) |
 | Talk, advance a quest, use inventory or craft | Read the relevant `docs/ui/INDEX.md` screen and `docs/actions.md` row; apply the same atomic loop below. |
 
@@ -39,7 +39,8 @@ A surprise permits only `look`, `correct`, `stop`. Read its source frame before 
 `revise_decision`, `graph`, `appearance`, `transition`, `blocked_target`, `gap`, `human`; legacy `world` remains accepted.
 Graph corrections name one existing node (`state` or `placement`) or exact `edge:{a,b,rel}` plus `values`. Appearance
 corrections name one kind and `op:sample` with a bounded `box`, or `op:reembed`. Keep the captured `frame_path`, rationale
-and evidence references. Corrections apply data idempotently and issue no gameplay input. A stale route/vector clue
+and evidence references. Public appearance ops are only `sample` and `reembed`; legacy `proven_look`, `relabel` and `badge` model corrections
+are rejected instead of discarding provenance. Corrections apply data idempotently and issue no gameplay input. A stale route/vector clue
 must be corrected or reported before reuse. Movement alone never proves progress.
 
 `push` freezes the parent interaction; `suspend` explicitly holds a subgoal. `complete` requires captured domain proof
@@ -48,5 +49,8 @@ reconciled without repeating input. `human` records unresolved ambiguity; `gap` 
 Unsupported completion proof is a gap, never permission to mark success from a model assertion.
 
 Check interrupts every turn. A new task after 19:00 requires the pre-approved sleep subgoal before work; rain/darkness
-requires the documented sleep/refill handoff. After 23:00 finish the immediate safety step and sleep. Pause before
+requires the documented sleep handoff. Empty-can constraints apply only to garden work that needs water: explicitly
+push `refill`, navigate to the well, choose its fill action, and complete only after `fill_watering_can`; then resume
+the frozen garden interaction. The refill subgoal and unrelated harvest/shop/navigation work do not inherit an
+empty-can prohibition. Clock/weather safety interrupts still apply. After 23:00 finish the immediate safety step and sleep. Pause before
 coding or long off-game work. Never change the user's settings. `./wf pause` remains a single guarded safety input.

@@ -487,6 +487,7 @@ class BoundaryValidation(PlayCase):
             data = self.play()._clues(self.store)
         self.assertIn('inventory', data, 'production clues must retain purchase evidence')
         self.assertEqual(data['inventory'], {'TulipSeed': 2})
+        self.assertTrue(data['inventory_complete'])
         self.assertEqual(data['money'], 95)
         self.assertEqual(data['region'], 'House')
         self.assertEqual(data['state_provenance']['inventory']['save_count'], 7)
@@ -580,6 +581,381 @@ class BoundaryValidation(PlayCase):
             'action': {'kind': 'select_card', 'point': [1000, 600]}}, store=self.store, adapter=self.port)
         self.assertEqual(self.port.inputs, [])
         self.assertIsNotNone(c.surprise)
+
+
+class ReviewRoundOne(PlayCase):
+    def real_adapter(self, snapshot, evidence):
+        """Keep real prepare and universal guard; fake only observation and physical I/O/capture."""
+        adapter = primitives.GameAdapter()
+        inputs = []
+        mock.patch.object(adapter, 'observe', return_value=snapshot).start()
+        mock.patch.object(adapter, 'mark', return_value=0).start()
+        mock.patch.object(adapter, 'perform', side_effect=lambda action: inputs.append(action['command'])).start()
+        mock.patch.object(adapter, 'capture', side_effect=lambda intent, old, expected:
+            primitives.experience(intent, old, expected, evidence, ('after.jpg',))).start()
+        return adapter, inputs
+
+    def choose(self, c, adapter, kind, **data):
+        return self.play().turn(answer={'turn_id': c.turn_id, 'kind': kind, **data},
+                                store=self.store, adapter=adapter)
+
+    def test_observed_purchase_surface_protects_coordinates_under_any_declared_goal(self):
+        from game import experience as X
+        snapshot = dict(self.port.snapshot, screen={'kind': 'card', 'texts': ['Tulip Seeds', 'Buy (1)']})
+        adapter, inputs = self.real_adapter(snapshot, X.Evidence(mode='card', texts=('Buy (1)',)))
+        action = {'kind': 'select_card', 'point': [1000, 600]}
+        self.assertEqual(adapter.prepare(dict(action), snapshot)['command'], 'click:1000:600')
+        c = self.play().turn('navigate', store=self.store, adapter=adapter)
+        c = self.choose(c, adapter, 'act', action=action)
+        self.assertEqual(inputs, [], 'observed Buy surface must gate the coordinate regardless of goal')
+        self.assertIsNotNone(c.surprise)
+
+    def test_refill_subgoal_can_navigate_fill_and_resume_its_empty_can_parent(self):
+        from game import experience as X
+        snapshot = dict(self.port.snapshot, hour=9., can='empty', position=[0., 0.],
+                        visible_affordances=[{'kind': 'fill_can', 'point': [1100, 600], 'highlighted': True}])
+        adapter, inputs = self.real_adapter(snapshot, X.Evidence(mode='gameplay', moved=True,
+                                                                 state=(('position', [3., 0.]),)))
+        self.store.create(S.TaskState('garden-root', 'garden', params={'chores': ['water']},
+                                      active=S.Interaction('parent-bed', phase='water')))
+        c = self.play().turn(store=self.store, adapter=adapter)
+        c = self.choose(c, adapter, 'push', action={'goal': 'refill', 'params': {'destination_position': [10., 0.]}})
+        c = self.choose(c, adapter, 'act', action={'kind': 'waypoint', 'point': [1100, 600], 'walkable': True})
+        self.assertEqual(len(inputs), 1, 'empty can must not block its own resolving navigation')
+        self.assertIsNone(c.surprise)
+        adapter.capture.side_effect = lambda intent, old, expected: primitives.experience(intent, old, expected,
+            X.Evidence(mode='gameplay', events=('fill_watering_can',), state=(('can', 'full'),)))
+        c = self.choose(c, adapter, 'act', action={'kind': 'space', 'expects': {'events': ['fill_watering_can']}})
+        self.assertEqual(len(inputs), 2)
+        c = self.choose(c, adapter, 'complete')
+        snapshot['can'] = 'full'
+        c = self.choose(c, adapter, 'resume')
+        self.assertEqual(c.transaction['transaction_id'], 'parent-bed')
+        self.assertEqual(c.transaction['phase'], 'water')
+
+    def test_complete_sparse_inventory_proves_zero_to_positive_purchase(self):
+        from game import experience as X
+        self.port.snapshot.update(inventory={}, inventory_complete=True, money=95)
+        self.port.capture = lambda intent, old, expected: primitives.experience(intent, old, expected,
+            X.Evidence(mode='card', state=(('inventory', {'TulipSeed': 2}), ('inventory_complete', True), ('money', 75))))
+        c = self.play().turn('shop', {'item': 'TulipSeed', 'quantity': 2, 'max_spend': 20,
+            'authorization': {'purchases': [{'item': 'TulipSeed', 'quantity': 2, 'max_spend': 20}]}},
+            store=self.store, adapter=self.port)
+        c = self.choose(c, self.port, 'act', action={'kind': 'press', 'label': 'Buy',
+                         'purchase': {'item': 'TulipSeed', 'quantity': 2, 'price': 20}})
+        self.assertIsNone(c.surprise, 'complete sparse inventory has known zero count for the absent item')
+        c = self.choose(c, self.port, 'complete')
+        self.assertEqual(c.task['status'], 'complete')
+
+    def test_incomplete_sparse_inventory_still_cannot_prove_purchase(self):
+        from game import experience as X
+        self.port.snapshot.update(inventory={}, inventory_complete=False, money=95)
+        self.port.capture = lambda intent, old, expected: primitives.experience(intent, old, expected,
+            X.Evidence(mode='card', state=(('inventory', {'TulipSeed': 2}), ('inventory_complete', True), ('money', 75))))
+        c = self.play().turn('shop', {'item': 'TulipSeed', 'quantity': 2, 'max_spend': 20,
+            'authorization': {'purchases': [{'item': 'TulipSeed', 'quantity': 2, 'max_spend': 20}]}},
+            store=self.store, adapter=self.port)
+        c = self.choose(c, self.port, 'act', action={'kind': 'press', 'label': 'Buy',
+                         'purchase': {'item': 'TulipSeed', 'quantity': 2, 'price': 20}})
+        with self.assertRaises(turn.DecisionRejected):
+            self.choose(c, self.port, 'complete')
+        self.assertEqual(c.task['status'], 'active')
+
+    def test_explicitly_incomplete_inventory_rejects_even_a_named_stock_count(self):
+        from game import experience as X
+        for before_complete, after_complete in [(False, True), (True, False)]:
+            with self.subTest(before=before_complete, after=after_complete), tempfile.TemporaryDirectory() as directory:
+                self.store = S.TaskStore(os.path.join(directory, 'task.json'))
+                self.port.snapshot.update(inventory={'SeedA': 0}, inventory_complete=before_complete, money=95)
+                self.port.capture = lambda intent, old, expected: primitives.experience(intent, old, expected,
+                    X.Evidence(mode='card', state=(('inventory', {'SeedA': 2}),
+                                                 ('inventory_complete', after_complete), ('money', 75))))
+                c = self.play().turn('shop', {'item': 'SeedA', 'quantity': 2, 'max_spend': 20,
+                    'authorization': {'purchases': [{'item': 'SeedA', 'quantity': 2, 'max_spend': 20}]}},
+                    store=self.store, adapter=self.port)
+                c = self.choose(c, self.port, 'act', action={'kind': 'press', 'label': 'Buy',
+                    'purchase': {'item': 'SeedA', 'quantity': 2, 'price': 20}})
+                self.assertIsNotNone(c.surprise)
+                with self.assertRaises(turn.DecisionRejected):
+                    self.choose(c, self.port, 'complete')
+
+    def test_unchanged_matching_region_does_not_make_a_waypoint_progress(self):
+        from game import experience as X
+        for moved, position in [(False, [0., 0.]), (True, [0., 3.])]:
+            with self.subTest(moved=moved), tempfile.TemporaryDirectory() as directory:
+                self.store = S.TaskStore(os.path.join(directory, 'task.json'))
+                self.port.snapshot.update(region='House', position=[0., 0.])
+                self.port.capture = lambda intent, old, expected: primitives.experience(intent, old, expected,
+                    X.Evidence(mode='gameplay', moved=moved, state=(('region', 'House'), ('position', position))))
+                c = self.play().turn('navigate', {'destination_position': [10., 0.]},
+                                     store=self.store, adapter=self.port)
+                c = self.choose(c, self.port, 'act', action={'kind': 'waypoint', 'point': [1100, 600],
+                    'walkable': True, 'expects': {'region': 'House'}})
+                self.assertIsNotNone(c.surprise)
+                count = len(self.port.inputs)
+                with self.assertRaises(turn.DecisionRejected):
+                    self.choose(c, self.port, 'act', action={'kind': 'space'})
+                self.assertEqual(len(self.port.inputs), count)
+
+    def test_public_legacy_appearance_forms_are_rejected_even_with_provenance(self):
+        import numpy as np
+        from PIL import Image
+        from objects import store as vectors, dino
+        from game import badges, experience as X
+        frame = os.path.join(self.tmp.name, 'appearance.png')
+        Image.new('RGB', (1920, 1080), 'blue').save(frame)
+        before = dict(self.port.snapshot, frame_path=frame)
+        e = primitives.experience(S.Intent(1, {'kind': 'target', 'point': [1100, 600]}, 0, 1.), before, {}, X.Evidence())
+        db = vectors.Store(os.path.join(self.tmp.name, 'db'))
+        with mock.patch.object(vectors, 'Store', return_value=db), \
+                mock.patch.object(dino, 'mean_vector', return_value=np.array([1., 0.])), \
+                mock.patch.object(badges, 'DIR', os.path.join(self.tmp.name, 'badges')):
+            for op, values in [('proven_look', {'kind': 'Bed', 'box': [0, 0, 10, 10]}),
+                               ('relabel', {'node': 'Bed', 'box': [0, 0, 10, 10]}),
+                               ('badge', {'label': 'ready'})]:
+                for provenance in ({}, {'frame_path': frame, 'rationale': 'model source', 'evidence_refs': [frame]}):
+                    with self.subTest(op=op, provenance=bool(provenance)), self.assertRaises(ValueError):
+                        I.correct(e, 'appearance', {'op': op, **values, **provenance})
+        self.assertEqual(db.kinds(), [])
+
+    def test_accepted_appearance_sample_preserves_all_provenance_and_replays_once(self):
+        import numpy as np
+        from PIL import Image
+        from objects import store as vectors, dino
+        from game import experience as X
+        frame = os.path.join(self.tmp.name, 'appearance.png')
+        Image.new('RGB', (20, 20), 'blue').save(frame)
+        e = primitives.experience(S.Intent(1, {'kind': 'wait'}, 0, 1.),
+                                 dict(self.port.snapshot, frame_path=frame), {}, X.Evidence())
+        db = vectors.Store(os.path.join(self.tmp.name, 'db'))
+        data = {'op': 'sample', 'kind': 'Bed', 'box': [0, 0, 10, 10], 'frame_path': frame,
+                'rationale': 'named bed source', 'evidence_refs': [frame, e.id]}
+        with mock.patch.object(vectors, 'Store', return_value=db), \
+                mock.patch.object(dino, 'mean_vector', return_value=np.array([1., 0.])):
+            self.assertEqual(I.correct(e, 'appearance', data)['applied'], 1)
+            self.assertEqual(I.correct(e, 'appearance', data)['applied'], 0)
+        self.assertEqual(len(db.examples('Bed')), 1)
+        self.assertEqual(db.examples('Bed')[0].source, {'source': 'vision', 'frame_path': frame,
+            'experience': e.id, 'rationale': 'named bed source', 'evidence_refs': [frame, e.id]})
+
+
+class TradeReview(PlayCase):
+    real_adapter = ReviewRoundOne.real_adapter
+    choose = ReviewRoundOne.choose
+
+    def test_observed_sale_surface_blocks_coordinates_without_sale_authority_under_other_goal(self):
+        from game import experience as X
+        snapshot = dict(self.port.snapshot, screen={'kind': 'card', 'texts': ['Grown crop', 'Sell 2']})
+        adapter, inputs = self.real_adapter(snapshot, X.Evidence(mode='card', texts=('Sell 2',)))
+        action = {'kind': 'select_card', 'point': [1000, 600]}
+        self.assertEqual(adapter.prepare(dict(action), snapshot)['command'], 'click:1000:600')
+        c = self.play().turn('navigate', store=self.store, adapter=adapter)
+        c = self.choose(c, adapter, 'act', action=action)
+        self.assertEqual(inputs, [])
+        self.assertIsNotNone(c.surprise)
+
+    def trade_outcome(self, item, quantity, price, selling=False):
+        from game import experience as X
+        old_money = self.port.snapshot['money']
+        old_quantity = self.port.snapshot['inventory'].get(item, 0)
+        new_quantity = old_quantity + (-quantity if selling else quantity)
+        inventory = dict(self.port.snapshot['inventory'])
+        if new_quantity:
+            inventory[item] = new_quantity
+        else:
+            inventory.pop(item, None)
+        after = {'inventory': inventory, 'inventory_complete': True,
+                 'money': old_money + (price if selling else -price)}
+        def capture(intent, before, expected):
+            self.port.snapshot = dict(self.port.snapshot, **after)
+            return primitives.experience(intent, before, expected,
+                X.Evidence(mode='card', state=tuple(after.items())))
+        self.port.capture = capture
+
+    def test_sale_is_bounded_reserved_and_verified_with_opposite_signed_sparse_deltas(self):
+        self.port.snapshot.update(inventory={'GrownA': 3}, inventory_complete=True, money=5)
+        c = self.play().turn('shop', {'trade': 'sell', 'item': 'GrownA', 'quantity': 3,
+            'authorization': {'sales': [{'item': 'GrownA', 'quantity': 3}]}}, store=self.store, adapter=self.port)
+        self.trade_outcome('GrownA', 3, 12, selling=True)
+        action = {'kind': 'press', 'label': 'Sell 3', 'sale': {'item': 'GrownA', 'quantity': 3, 'price': 12}}
+        c = self.choose(c, self.port, 'act', action=action)
+        self.assertIsNone(c.surprise)
+        self.assertEqual(len(self.port.inputs), 1)
+        self.port.snapshot = dict(self.port.snapshot, inventory={'GrownA': 3}, money=5)  # stale save
+        c = self.play().turn(store=S.TaskStore(self.store.path), adapter=self.port)
+        c = self.choose(c, self.port, 'act', action=action)
+        self.assertEqual(len(self.port.inputs), 1, 'sale quantity reservation must survive the next turn')
+        self.assertIsNotNone(c.surprise)
+        c = self.choose(c, self.port, 'correct', correction={'kind': 'revise_decision'})
+        c = self.choose(c, self.port, 'complete')
+        self.assertEqual(c.task['status'], 'complete')
+        self.assertEqual(len(self.store.load().params['_sale_intents']), 1)
+
+    def test_sale_missing_wrong_item_and_excess_quantity_authorization_issue_no_input(self):
+        for auth, sale in [({}, {'item': 'GrownA', 'quantity': 2, 'price': 12}),
+                           ({'sales': [{'item': 'Other', 'quantity': 2}]},
+                            {'item': 'GrownA', 'quantity': 2, 'price': 12}),
+                           ({'sales': [{'item': 'GrownA', 'quantity': 1}]},
+                            {'item': 'GrownA', 'quantity': 2, 'price': 12})]:
+            with self.subTest(auth=auth), tempfile.TemporaryDirectory() as directory:
+                self.store = S.TaskStore(os.path.join(directory, 'task.json'))
+                self.port.inputs.clear()
+                c = self.play().turn('shop', {'trade': 'sell', 'item': 'GrownA', 'quantity': 2,
+                    'authorization': auth}, store=self.store, adapter=self.port)
+                c = self.choose(c, self.port, 'act', action={'kind': 'press', 'label': 'Sell 2', 'sale': sale})
+                self.assertEqual(self.port.inputs, [])
+                self.assertIsNotNone(c.surprise)
+
+    def test_wrong_signed_sale_deltas_cannot_complete(self):
+        from game import experience as X
+        self.port.snapshot.update(inventory={'GrownA': 2}, inventory_complete=True, money=20)
+        self.port.capture = lambda intent, before, expected: primitives.experience(intent, before, expected,
+            X.Evidence(mode='gameplay', state=(('inventory', {}), ('inventory_complete', True), ('money', 8))))
+        c = self.play().turn('shop', {'trade': 'sell', 'item': 'GrownA', 'quantity': 2,
+            'authorization': {'sales': [{'item': 'GrownA', 'quantity': 2}]}}, store=self.store, adapter=self.port)
+        c = self.choose(c, self.port, 'act', action={'kind': 'press', 'label': 'Sell 2',
+            'sale': {'item': 'GrownA', 'quantity': 2, 'price': 12}})
+        self.assertIsNotNone(c.surprise)
+        with self.assertRaises(turn.DecisionRejected):
+            self.choose(c, self.port, 'complete')
+
+    def catalogue(self, *items):
+        return [{'item': item, 'category': 'seed', 'available': True, 'frame_path': 'full.jpg',
+                 'evidence_refs': ['full.jpg']} for item in items]
+
+    def test_sale_then_exact_quantity_per_discovered_available_type_completes_only_after_all_trades(self):
+        self.port.snapshot.update(inventory={'GrownA': 2, 'HiveProduct': 3}, inventory_complete=True, money=20)
+        authorization = {'sales': [{'item': 'GrownA', 'quantity': 2}, {'item': 'HiveProduct', 'quantity': 3}],
+                         'purchases': [{'category': 'seed', 'quantity_per_type': 10, 'max_spend': 100}]}
+        c = self.play().turn('shop', {'authorization': authorization}, store=self.store, adapter=self.port)
+        for item, quantity, price in [('GrownA', 2, 12), ('HiveProduct', 3, 15)]:
+            c = self.choose(c, self.port, 'push', action={'goal': 'shop', 'params':
+                {'trade': 'sell', 'item': item, 'quantity': quantity}})
+            self.trade_outcome(item, quantity, price, selling=True)
+            c = self.choose(c, self.port, 'act', action={'kind': 'press', 'label': 'Sell',
+                'sale': {'item': item, 'quantity': quantity, 'price': price}})
+            self.assertIsNone(c.surprise)
+            c = self.choose(c, self.port, 'complete')
+            c = self.choose(c, self.port, 'resume')
+        for item in ('SeedA', 'SeedB'):
+            c = self.choose(c, self.port, 'push', action={'goal': 'shop', 'params':
+                {'item': item, 'quantity': 10, 'max_spend': 20, 'catalogue': self.catalogue('SeedA', 'SeedB'),
+                 'catalogue_complete': True}})
+            self.trade_outcome(item, 10, 20)
+            c = self.choose(c, self.port, 'act', action={'kind': 'press', 'label': 'Buy',
+                'purchase': {'item': item, 'quantity': 10, 'price': 20}})
+            self.assertIsNone(c.surprise)
+            c = self.choose(c, self.port, 'complete')
+            self.assertEqual(c.task['stack'][-1]['result']['acquired'], 10)
+            c = self.choose(c, self.port, 'resume')
+            if item == 'SeedA':
+                with self.assertRaises(turn.DecisionRejected):
+                    self.choose(c, self.port, 'complete')
+        c = self.choose(c, self.port, 'complete')
+        self.assertEqual(c.task['status'], 'complete')
+        self.assertEqual(self.port.snapshot['inventory'], {'SeedA': 10, 'SeedB': 10})
+        self.assertEqual(self.port.snapshot['money'], 7)
+        self.assertEqual(len(self.port.inputs), 4)
+
+    def test_catalogue_purchase_rejects_unavailable_wrong_category_and_excess_per_type(self):
+        for change, quantity in [({'available': False}, 10), ({'category': 'food'}, 10), ({}, 11)]:
+            with self.subTest(change=change, quantity=quantity), tempfile.TemporaryDirectory() as directory:
+                self.store = S.TaskStore(os.path.join(directory, 'task.json'))
+                self.port.inputs.clear()
+                catalogue = self.catalogue('SeedA')
+                catalogue[0].update(change)
+                c = self.play().turn('shop', {'authorization': {'purchases':
+                    [{'category': 'seed', 'quantity_per_type': 10, 'max_spend': 100}]}},
+                    store=self.store, adapter=self.port)
+                c = self.choose(c, self.port, 'push', action={'goal': 'shop', 'params':
+                    {'item': 'SeedA', 'quantity': quantity, 'max_spend': 20, 'catalogue': catalogue}})
+                c = self.choose(c, self.port, 'act', action={'kind': 'press', 'label': 'Buy',
+                    'purchase': {'item': 'SeedA', 'quantity': quantity, 'price': 20}})
+                self.assertEqual(self.port.inputs, [])
+                self.assertIsNotNone(c.surprise)
+
+    def test_catalogue_discovery_requires_its_captured_source_frame(self):
+        c = self.play().turn('shop', {'authorization': {'purchases':
+            [{'category': 'seed', 'quantity_per_type': 10, 'max_spend': 100}]}},
+            store=self.store, adapter=self.port)
+        catalogue = self.catalogue('SeedA')
+        catalogue[0]['frame_path'] = 'invented.jpg'
+        with self.assertRaises(turn.DecisionRejected):
+            self.choose(c, self.port, 'push', action={'goal': 'shop', 'params':
+                {'item': 'SeedA', 'quantity': 10, 'max_spend': 20, 'catalogue': catalogue}})
+        self.assertEqual(list(self.store.load().stack), [])
+
+
+    def test_ambiguous_observed_trade_coordinates_require_named_financial_control(self):
+        from game import experience as X
+        snapshot = dict(self.port.snapshot, screen={'kind': 'card', 'texts': ['Buy', 'Sell']},
+                        inventory={'SeedA': 1}, inventory_complete=True, money=20)
+        adapter, inputs = self.real_adapter(snapshot, X.Evidence(mode='card'))
+        c = self.play().turn('shop', {'item': 'SeedA', 'quantity': 1, 'max_spend': 10,
+            'authorization': {'purchases': [{'item': 'SeedA', 'quantity': 1, 'max_spend': 10}]}},
+            store=self.store, adapter=adapter)
+        c = self.choose(c, adapter, 'act', action={'kind': 'select_card', 'point': [1000, 600],
+            'purchase': {'item': 'SeedA', 'quantity': 1, 'price': 10}})
+        self.assertEqual(inputs, [], 'coordinate metadata cannot resolve a Buy/Sell control ambiguity')
+        self.assertIsNotNone(c.surprise)
+
+
+    def test_available_money_budget_uses_captured_funds_and_verified_sales_not_a_later_stale_balance(self):
+        self.port.snapshot.update(inventory={'GrownA': 3}, inventory_complete=True, money=5)
+        authorization = {'sales': [{'item': 'GrownA', 'quantity': 3}],
+                         'purchases': [{'item': 'SeedA', 'quantity': 2, 'max_spend': 'available_money'}]}
+        c = self.play().turn('shop', {'authorization': authorization}, store=self.store, adapter=self.port)
+        c = self.choose(c, self.port, 'push', action={'goal': 'shop', 'params':
+            {'trade': 'sell', 'item': 'GrownA', 'quantity': 3}})
+        self.trade_outcome('GrownA', 3, 12, selling=True)
+        c = self.choose(c, self.port, 'act', action={'kind': 'press', 'label': 'Sell',
+            'sale': {'item': 'GrownA', 'quantity': 3, 'price': 12}})
+        c = self.choose(c, self.port, 'complete')
+        c = self.choose(c, self.port, 'resume')
+        c = self.choose(c, self.port, 'push', action={'goal': 'shop', 'params':
+            {'item': 'SeedA', 'quantity': 2, 'max_spend': 20}})
+        self.port.snapshot = dict(self.port.snapshot, money=999)  # cannot inflate the authorized budget
+        try:
+            c = self.choose(c, self.port, 'act', action={'kind': 'press', 'label': 'Buy',
+                'purchase': {'item': 'SeedA', 'quantity': 2, 'price': 18}})
+        except TypeError as error:
+            self.fail(f'available_money must be an explicit bounded authorization mode: {error}')
+        self.assertEqual(len(self.port.inputs), 1)
+        self.assertIsNotNone(c.surprise)
+        c = self.choose(c, self.port, 'correct', correction={'kind': 'revise_decision'})
+        self.port.snapshot = dict(self.port.snapshot, money=17)
+        self.trade_outcome('SeedA', 2, 17)
+        c = self.choose(c, self.port, 'act', action={'kind': 'press', 'label': 'Buy',
+            'purchase': {'item': 'SeedA', 'quantity': 2, 'price': 17}})
+        self.assertIsNone(c.surprise)
+        c = self.choose(c, self.port, 'complete')
+        c = self.choose(c, self.port, 'resume')
+        c = self.choose(c, self.port, 'complete')
+        self.assertEqual(c.task['status'], 'complete')
+        self.assertEqual(self.port.snapshot['money'], 0)
+        self.assertEqual(len(self.port.inputs), 2)
+
+
+    def test_observed_financial_control_protects_world_click_alias_even_if_mode_says_gameplay(self):
+        from game import experience as X
+        snapshot = dict(self.port.snapshot, screen={'kind': 'gameplay', 'texts': ['Buy (1)']})
+        adapter, inputs = self.real_adapter(snapshot, X.Evidence(mode='gameplay'))
+        action = {'kind': 'target', 'point': [1100, 600], 'visible_road': True}
+        self.assertEqual(adapter.prepare(dict(action), snapshot)['command'], 'click:1100:600')
+        c = self.play().turn('navigate', store=self.store, adapter=adapter)
+        c = self.choose(c, adapter, 'act', action=action)
+        self.assertEqual(inputs, [])
+        self.assertIsNotNone(c.surprise)
+
+    def test_shop_goal_can_open_nonfinancial_merchant_interaction_without_trade_metadata(self):
+        from game import experience as X
+        snapshot = dict(self.port.snapshot, visible_affordances=[
+            {'kind': 'talk', 'point': [1100, 600], 'highlighted': True}])
+        adapter, inputs = self.real_adapter(snapshot, X.Evidence(mode='card', texts=('Merchant', 'Shop')))
+        c = self.play().turn('shop', store=self.store, adapter=adapter)
+        c = self.choose(c, adapter, 'act', action={'kind': 'space', 'expects': {'mode': 'card'}})
+        self.assertEqual(inputs, ['key:space'])
+        self.assertIsNone(c.surprise)
 
 
 if __name__ == '__main__':

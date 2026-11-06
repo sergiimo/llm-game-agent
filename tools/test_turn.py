@@ -256,9 +256,8 @@ class Turns(unittest.TestCase):
 
     def test_unrepresentable_appearance_correction_stays_retryable(self):
         e = primitives.experience(S.Intent(1, {'kind': 'wait'}, 0, 1.), self.port.snapshot, {}, X.Evidence())
-        result = I.correct(e, 'appearance', {'op': 'badge', 'label': 'ready'})
-        self.assertEqual(result['applied'], 0)
-        self.assertTrue(result['errors'])
+        with self.assertRaisesRegex(ValueError, 'provenance-bearing sample or reembed'):
+            I.correct(e, 'appearance', {'op': 'badge', 'label': 'ready'})
 
     def test_current_event_evidence_cannot_be_overwritten_by_model_world_correction(self):
         graph = Graph()

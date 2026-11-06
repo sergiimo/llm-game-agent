@@ -116,19 +116,19 @@ def outcome_surprise(task, intent, e):
     garden_event = goal == 'garden' and bool(set(e.evidence.events) & {
         'inspect', 'unplant', 'unplant_impl', 'plant', 'plant_growing', 'water', 'hazel_waterplant',
         'harvest', 'grab_item', 'beehive_collect', 'beehive_progress'})
-    purchase = intent.action.get('purchase')
+    from .play import trade_receipt
+    purchase, sale = intent.action.get('purchase'), intent.action.get('sale')
     receipt = False
-    if purchase:
-        item = purchase['item']
-        old_count, count = before.get('inventory', {}).get(item), after.get('inventory', {}).get(item)
-        old_money, money = before.get('money'), after.get('money')
-        receipt = (None not in (old_count, count, old_money, money) and
-                   count - old_count == purchase['quantity'] and old_money - money == purchase['price'])
+    if e.verdict.value != 'unsafe' and (purchase or sale):
+        receipt = trade_receipt(before, after, purchase or sale, 'buy' if purchase else 'sell')
+        if not receipt:
+            return 'unverified_trade'
     closed = intent.action.get('kind') == 'close' and changed_mode and e.evidence.mode == 'gameplay'
     sleep_event = goal == 'sleep' and 'sleep_transition' in e.evidence.events
     relevant = (matched_event or matched_card or matched_mode or matched_log or changed_card or garden_event or
                 receipt or closed or sleep_event)
-    if expected.get('region') and after.get('region') == expected['region']:
+    if (expected.get('region') and after.get('region') == expected['region'] and
+            before.get('region') != expected['region']):
         relevant = True
     walking = intent.action.get('kind') == 'waypoint'
     if e.evidence.moved is False and not relevant and intent.action.get('kind') != 'close':
@@ -268,11 +268,16 @@ class TurnLoop:
 
     def _subgoal(self, task, decision):
         """Explicit durable model operations; verification folds captured evidence and performs no input."""
-        from .play import verify_completion
+        from .play import register_catalogue, verify_completion
         if decision.kind == 'push':
             data = thaw(decision.action or {})
             if not data.get('goal') or not isinstance(data.get('params', {}), dict):
                 raise DecisionRejected('push needs goal and params')
+            if data['goal'] == 'shop':
+                frames = {task.current_turn.get('frame_path')}
+                if task.last_experience:
+                    frames.update(task.last_experience['artifacts'].get('frames', ()))
+                register_catalogue(task, data.get('params', {}), frames)
             if task.stack:
                 task.stack[-1].status = 'suspended'
             task.stack.append(Subgoal(data['goal'], data.get('params', {}), parent_interaction=task.active))

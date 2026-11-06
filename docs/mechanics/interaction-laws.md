@@ -86,15 +86,19 @@ region evidence. Unsupported proof becomes a gap/human resolution, never a model
 A shop task/subgoal names item, bounded quantity and max_spend; the root task supplies
 `authorization:{purchases:[{item,quantity,max_spend}]}`. A purchasing action supplies `purchase:{item,quantity,price}`
 (total price). Root authorization is reserved durably before input, so a restart or ambiguous outcome cannot spend
-it twice. Completion requires matching inventory AND money deltas. Save-derived evidence retains save count/time
-and can lag. Only verified acquisition clears matching `reason:seed_shortage,item:<seed ID>` constraints; those beds
+it twice. Completion requires matching inventory AND money deltas. Sale actions instead carry `sale:{item,quantity,price}` and require root `authorization.sales` item/quantity bounds;
+their proof reverses the inventory/money signs. Category purchase rules can set `quantity_per_type` for captured,
+model-discovered available catalogue entries. See the shop action document for exact catalogue/budget accounting.
+Complete sparse inventories may omit zero-stock items; explicitly incomplete readings never prove a trade.
+Save-derived evidence retains save count/time and can lag. Only verified acquisition clears matching `reason:seed_shortage,item:<seed ID>` constraints; those beds
 return to remaining coverage and are never marked planted, watered or covered by buying seeds.
 
 Every primitive compares evidence with its active goal: no move, irrelevant/away movement, wrong object/region/modal,
 stale route/vector, missing or unexpected evidence is a surprise. While unresolved, only look/correct/stop is allowed.
 Public `graph` corrections name one existing node (state/placement) or exact `edge:{a,b,rel}` plus bounded values;
 legacy `world` remains a compatible node/state spelling. `appearance` can sample a bounded crop or reembed one named
-kind. Vision corrections retain captured frame, rationale, evidence refs and experience ID, apply idempotently, and
+kind. Only public `sample`/`reembed` appearance operations are accepted; legacy model `proven_look`/`relabel`/`badge` forms
+are rejected. Vision corrections retain captured frame, rationale, evidence refs and experience ID, apply idempotently, and
 perform no gameplay input. Never invent object identity or overwrite current positioned-event facts.
 
 ## One timeline and hot learning

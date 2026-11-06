@@ -93,8 +93,10 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
         raise ValueError('pending intent must be reconciled before input')
     intent = Intent(turn_id, prepared, adapter.mark(), time.time(), before, expects)
     owner.pending_intent = intent
-    if not refusal and action.get('purchase'):
-        task.params.setdefault('_purchase_intents', []).append(dict(action['purchase'], turn_id=turn_id))
+    if not refusal:
+        for key, ledger in (('purchase', '_purchase_intents'), ('sale', '_sale_intents')):
+            if action.get(key):
+                task.params.setdefault(ledger, []).append(dict(action[key], turn_id=turn_id))
     store.save(task)
     log('intent', intent=intent)
     if refusal:

@@ -610,11 +610,7 @@ def correct(e, kind, data):
             if op == 'sample' and (not isinstance(data.get('box'), (tuple, list)) or len(data['box']) != 4):
                 raise ValueError('appearance sample needs one bounded crop box')
             return apply(e, X.Correction(e.id, memory=(X.Update('memory', op, data),)))
-        if op not in ('proven_look', 'badge', 'relabel'):
-            raise ValueError('unsupported appearance correction')
-        args = {k: v for k, v in data.items() if k != 'op'}
-        args['require_proof'] = True
-        correction = X.Correction(e.id, memory=(X.Update('memory', op, args),))
+        raise ValueError('unsupported appearance correction; use provenance-bearing sample or reembed')
     elif kind == 'transition':
         if not isinstance(data.get('expect'), dict) or not isinstance(data.get('step'), int) or not data.get('row'):
             raise ValueError('transition correction needs row, step and expect')

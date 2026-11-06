@@ -1564,6 +1564,37 @@ def engine_parse(args):
     return goal, {k: int(v) if str(v).isdigit() else v for k, v in params.items()}, answer
 
 
+def garden_cli_args(args):
+    """Garden CLI args -> function kwargs and one engine answer.
+
+    Model agents commonly use shell-safe `walk:F7` plus separate localization fields.  Keep that public form and
+    assemble the engine's richer answer here instead of requiring fragile shell quoting.
+    """
+    params = {}
+    for arg in args:
+        key, sep, value = arg.partition('=')
+        if not sep:
+            raise ValueError(f'garden argument must be key=value, got {arg!r}')
+        params[key] = int(value) if key == 'max_clicks' else value
+    click = params.pop('answer', params.pop('click', None))
+    relative, distance, crop = (params.pop('relative', None), params.pop('distance', None),
+                                params.pop('crop', None))
+    if bool(relative) != bool(distance):
+        raise ValueError('garden localization requires both relative and distance')
+    if click:
+        for mode in ('walk', 'target'):
+            if click.lower().startswith(mode + ':'):
+                click = mode + ' ' + click[len(mode) + 1:]
+                break
+        if crop:
+            click += f' crop={crop}'
+        if relative:
+            click += f' relative={relative} distance={distance}'
+    elif crop or relative:
+        raise ValueError('garden crop/localization metadata requires answer=<cell>')
+    return params, click
+
+
 def game_cmd(kind, args):
     """`wf py "<code>"` / `wf call <module.fn> [args…]`: game functions (tools/game, L77), each proven by the game log
     and tracked as an action tree in the run log."""
@@ -1579,13 +1610,10 @@ def game_cmd(kind, args):
             res = engine.summary(game.achieve(goal, answer=answer, **params))
         elif kind == 'garden':
             from game import garden
-            params = {}
-            for arg in args:
-                key, sep, value = arg.partition('=')
-                if not sep:
-                    raise game.Failed(f'garden argument must be key=value, got {arg!r}')
-                params[key] = int(value) if key == 'max_clicks' else value
-            click = params.pop('answer', params.pop('click', None))
+            try:
+                params, click = garden_cli_args(args)
+            except ValueError as e:
+                raise game.Failed(str(e)) from None
             res = garden.summary(garden.do(click=click, **params))
         elif kind == 'forage':
             from game import forage

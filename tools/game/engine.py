@@ -1399,7 +1399,8 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                  f'Also report Tara relative to {region} using relative=N|NE|E|SE|S|SW|W|NW and '
                  f'distance=inside|near|far. If Tara is visibly inside {region}, answer '
                  f'inside relative=<compass> distance=inside; otherwise answer '
-                 f'walk <cell> relative=<compass> distance=<near|far>.')
+                 f'walk <cell> relative=<compass> distance=<near|far>. Shell-safe call: '
+                 f'./wf garden region={region} answer=walk:<cell> relative=<compass> distance=<near|far>.')
             ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'navigation_only': True,
                                  'garden_entry_only': True, 'avoid': avoid, 'covered': sorted(covered),
                                  'streaming': True}, res,
@@ -1504,7 +1505,9 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                          f'(flowers stay). Otherwise answer walk <cell> on visible '
                          f'free ground toward the unvisited beds and hives in {region}. In either answer also report '
                          f'Tara relative to {region} with relative=N|NE|E|SE|S|SW|W|NW and '
-                         f'distance=inside|near|far. Answer none only if no route exists.')
+                         f'distance=inside|near|far. Shell-safe calls use answer=walk:<cell> or '
+                         f'answer=target:<cell> with relative=<compass> distance=<inside|near|far>. '
+                         f'Answer none only if no route exists.')
                     avoid = [list(o['screen']) for o in state['objects'] if o.get('screen') is not None]
                     avoid += [list(b['pt']) for b in state['bubbles']]
                     ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'node': tid,

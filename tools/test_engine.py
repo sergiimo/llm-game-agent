@@ -993,6 +993,7 @@ class StreamingGarden(EngineBase):
         self.assertIn('walk <cell>', str(cm.exception))
         self.assertIn('relative=N|NE|E|SE|S|SW|W|NW', str(cm.exception))
         self.assertIn('distance=inside|near|far', str(cm.exception))
+        self.assertIn('answer=walk:<cell>', str(cm.exception))
 
     def test_a_preexisting_empty_bed_with_a_noisy_ready_badge_is_never_harvested_or_planted(self):
         garden = self._north()
@@ -1127,6 +1128,7 @@ class StreamingGarden(EngineBase):
         state = ask.load_state('garden')
         self.assertTrue(state['pending'].get('garden_entry_only'))
         self.assertIn('visible entrance', str(cm.exception))
+        self.assertIn('answer=walk:<cell>', str(cm.exception))
         self.assertEqual(state['pending'].get('covered'), [])
 
     def test_model_can_confirm_garden_entry_without_manufacturing_a_position_event(self):
@@ -1377,6 +1379,21 @@ class Wrappers(EngineBase):
             wf.main(['garden'])
             wf.main(['garden', 'region=GardenSouth', 'max_clicks=9'])
         self.assertEqual(calls, [('garden', []), ('garden', ['region=GardenSouth', 'max_clicks=9'])])
+
+    def test_garden_cli_normalizes_shell_safe_structured_vision_answers(self):
+        import wf
+        self.assertEqual(
+            wf.garden_cli_args(['region=Garden', 'answer=walk:F7', 'relative=NW', 'distance=near']),
+            ({'region': 'Garden'}, 'walk F7 relative=NW distance=near'))
+        self.assertEqual(
+            wf.garden_cli_args(['answer=target:J6', 'crop=Green Bean', 'relative=SE', 'distance=inside',
+                                'max_clicks=9']),
+            ({'max_clicks': 9}, 'target J6 crop=Green Bean relative=SE distance=inside'))
+
+    def test_garden_cli_rejects_orphan_localization_metadata(self):
+        import wf
+        with self.assertRaisesRegex(ValueError, 'both relative and distance'):
+            wf.garden_cli_args(['answer=walk:F7', 'relative=NW'])
 
     def test_cli_parses_goal_params_and_answer(self):
         self.assertEqual(engine.parse_cli(['plant', 'seed=Tulip', 'region=GardenSouth', 'answer=Q14']),

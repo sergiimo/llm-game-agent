@@ -27,6 +27,11 @@
    "ready": true,
    "file": "D189_23340_PM-1028-512.png",
    "proof": "pick: ['harvest']"
+  },
+  {
+   "ready": true,
+   "file": "D208_83057_AM-872-524.png",
+   "proof": "pick: ['harvest']"
   }
  ]
 }

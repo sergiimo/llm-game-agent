@@ -142,6 +142,43 @@ class Report(unittest.TestCase):
         self.assertIn('| 1 | 2 | 1 | 1 | 1/0 | 0 | 0 |', md)
         self.assertIn('| 2 | 1 | 0 | 1 | 0/0 | 0 | 1 |', md)
 
+    def test_report_proves_garden_target_coverage_from_the_latest_summary(self):
+        rows = [
+            {'type': 'garden_visit', 'node': 'bed-a', 'status': 'visited', 'actions': ['water']},
+            {'type': 'garden_summary', 'region': 'GardenSouth', 'targets': ['bed-a', 'bed-b'],
+             'covered': ['bed-a'], 'unresolved': [], 'stop': 'NEED_VISION click'},
+            {'type': 'garden_visit', 'node': 'bed-b', 'status': 'visited', 'actions': ['info_growing']},
+            {'type': 'garden_summary', 'region': 'GardenSouth', 'targets': ['bed-a', 'bed-b'],
+             'covered': ['bed-a', 'bed-b'], 'unresolved': [], 'stop': 'done: all beds visited'},
+        ]
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, 'log.jsonl')
+        with open(p, 'w') as f:
+            f.write('\n'.join(json.dumps(r) for r in rows) + '\n')
+
+        md = RW.report(p)
+
+        self.assertIn('## Garden coverage', md)
+        self.assertIn('| GardenSouth | 2 | 2 | 0 | - | - | COMPLETE |', md)
+
+    def test_report_names_each_exact_garden_constraint(self):
+        rows = [
+            {'type': 'garden_visit', 'node': 'bed-a', 'status': 'visited', 'actions': ['water']},
+            {'type': 'garden_visit', 'node': 'bed-b', 'status': 'unresolved', 'actions': ['pick'],
+             'reason': 'missing TulipSeed'},
+            {'type': 'garden_summary', 'region': 'GardenSouth', 'targets': ['bed-a', 'bed-b'],
+             'covered': ['bed-a'], 'unresolved': ['bed-b'], 'stop': 'unresolved: 1 of 2 beds'},
+        ]
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, 'log.jsonl')
+        with open(p, 'w') as f:
+            f.write('\n'.join(json.dumps(r) for r in rows) + '\n')
+
+        md = RW.report(p)
+
+        self.assertIn('bed-b: missing TulipSeed', md)
+        self.assertIn('| CONSTRAINED |', md)
+
 
 class Time(unittest.TestCase):
     """User D189: "do we record time we spend? or action timestamps, and thinking"; "it was standing doing nothing

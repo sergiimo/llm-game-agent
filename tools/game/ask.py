@@ -174,6 +174,8 @@ def ask(kind, question, pending, res, img=None):
     save_state(st)
     how = {'click': 'a grid cell (e.g. Q14), or none', 'button': 'the exact on-screen text to press',
            'name': 'key=value (what changed), or the name'}[kind]
+    if goal == 'garden' and pending.get('navigation_only'):
+        how = 'target:<cell> | walk:<cell> | none'
     if pending.get('decide'):
         how = 'click <object id> | walk <cell> | settle <ids>: key=value | done'
     ans = hint(goal, st['pending'].get('params')) + f'<{how}>'

@@ -98,6 +98,12 @@ def _event_pos():
     else:
         try:
             lines = core.WF.today_log()[0]
+            # The save is a newer exact observation of Tara than any earlier
+            # interaction event.  Do not resurrect a position that the save
+            # has already superseded (for example, after the user moved her).
+            from . import world
+            _, save = core.WF.read_save()
+            lines = list(world._after(lines, world.save_time(save)))
         except Exception:   # noqa: BLE001
             lines = []
     for line in reversed(lines):

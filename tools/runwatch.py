@@ -240,6 +240,35 @@ def time_table(rows, game_lines=()):
     return '\n'.join(lines)
 
 
+def garden_table(rows):
+    """Latest structured garden checkpoint per region: every target must be covered or explicitly unresolved."""
+    latest, visits = {}, {}
+    for row in rows:
+        if row.get('type') == 'garden_summary' and row.get('region'):
+            latest[row['region']] = row
+        elif row.get('type') == 'garden_visit' and row.get('node'):
+            visits[row['node']] = row
+    lines = ['| region | required | covered | unresolved | missing | constraints | status |',
+             '|---|---|---|---|---|---|---|']
+    for region, row in latest.items():
+        targets = set(row.get('targets') or ())
+        covered = set(row.get('covered') or ()) & targets
+        unresolved = set(row.get('unresolved') or ()) & targets
+        missing = sorted(targets - covered - unresolved)
+        reasons = {node: str((visits.get(node) or {}).get('reason') or '').strip() for node in unresolved}
+        constraints = '; '.join(f'{node}: {reasons[node].replace("|", "/")}' for node in sorted(unresolved)
+                                if reasons[node])
+        exact_constraints = len(reasons) == len(unresolved) and all(reasons.values())
+        stop = str(row.get('stop') or '')
+        status = ('COMPLETE' if not missing and not unresolved and stop.startswith('done:') else
+                  'CONSTRAINED' if not missing and unresolved and exact_constraints
+                  and stop.startswith('unresolved:') else
+                  'PENDING')
+        lines.append(f'| {region} | {len(targets)} | {len(covered)} | {len(unresolved)} | '
+                     f'{", ".join(missing) if missing else "-"} | {constraints or "-"} | {status} |')
+    return '\n'.join(lines) if latest else ''
+
+
 def _game_log_lines():
     try:
         sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -295,7 +324,9 @@ def report(path):
             lines += [f'- engine: {e}' for e in a['engine']]
             lines += [f'- STOP: {m}' for m in a['stops'][:5]]
             lines += [f'- ALERT: {m}' for m in a['alerts'][:8]]
-    md = ('\n'.join(lines) + '\n\n## Time\n' + time_table(rows, _game_log_lines()) + '\n\n## Trace (last attempt)\n'
+    gardens = garden_table(rows)
+    md = ('\n'.join(lines) + ('\n\n## Garden coverage\n' + gardens if gardens else '')
+          + '\n\n## Time\n' + time_table(rows, _game_log_lines()) + '\n\n## Trace (last attempt)\n'
           + '\n'.join(trace_lines(rows[max((i for i, r in enumerate(rows) if r.get('type') == 'plan_step'
                                               and r.get('state') == 'start'), default=0):])) + '\n')
     try:

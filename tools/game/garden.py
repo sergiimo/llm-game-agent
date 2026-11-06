@@ -14,15 +14,18 @@ def _go(goal, click, **params):
     return engine.achieve(goal, answer=click, **{k: v for k, v in params.items() if v is not None})
 
 
-def _tend(chores, click=None, region='Garden', max_clicks=40):
+def _tend(chores, click=None, region='Garden', max_clicks=40, crops=None):
     from . import engine
-    return engine.tend_garden(region, chores, answer=click, max_clicks=max_clicks)
+    return engine.tend_garden(region, chores, answer=click, max_clicks=max_clicks, crops=crops)
 
 
 @action
-def do(region='Garden', click=None, max_clicks=40):
-    """Treat every bed and hive: harvest/collect, plant empty beds, replant wilted crops, and water."""
-    return _tend(('plant', 'replant', 'harvest', 'water'), click, region, max_clicks)
+def do(region='Garden', click=None, max_clicks=40, crops=None):
+    """Treat every bed and hive: harvest/collect, plant empty beds, replant wilted crops, and water.
+
+    `crops` explicitly authorizes named flowers that the default routine preserves for bees.
+    """
+    return _tend(('plant', 'replant', 'harvest', 'water'), click, region, max_clicks, crops)
 
 
 @action
@@ -47,7 +50,7 @@ def harvest_all(crops=None, click=None, region='Garden', max_clicks=40):
     """Pick the ripe beds of `crops` (goal `harvest`). No default: "!" is not an order to collect (user D185: flowers
     serve the bees), so without crops the engine answers NEED_INPUT with the crops seen."""
     if crops:
-        return _go('harvest', click, crops=crops)
+        return _go('harvest', click, crops=crops, region=region)
     return _tend(('harvest',), click, region, max_clicks)
 
 

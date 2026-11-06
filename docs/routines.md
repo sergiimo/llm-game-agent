@@ -32,3 +32,8 @@ flowers and pre-existing empty beds stay untouched.
 With no fitting bubble, answer `target <cell>` only when the target and the full road from Tara are visible; otherwise
 use `walk <cell>` for one short visible-ground waypoint. The event position, never projected ownership, decides which
 target received coverage. Use `region=GardenSouth` for the south plot.
+
+The supervisor verifies the pass with `./wf run report`: its **Garden coverage** table compares the routine's exact
+target IDs with covered and unresolved IDs. `COMPLETE` means every target is covered with a terminal `done` result;
+`CONSTRAINED` means every target is accounted for and the terminal result names exact unresolved constraints;
+`PENDING` lists the missing target IDs and is never completion.

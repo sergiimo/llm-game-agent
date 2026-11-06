@@ -66,7 +66,8 @@ bad state carried over to the next call. These laws keep one guess per click and
    last planted in a bed) and when to stop (save count = 0). They never decide where to click and never block a click.
 7. **Done** = the task's coverage queue is empty. For `./wf garden`, every bed and hive in the region needs a
    current-pass proof (action event, inspection event/card, or explicit vision settlement). Coverage persists across
-   streaming calls. Report counts by kind plus harvested/replanted/watered/honey actions.
+   streaming calls. Every call emits a structured `garden_summary`; `./wf run report` compares its target, covered,
+   unresolved and missing ID sets. Only `COMPLETE` or an explicitly reviewed `CONSTRAINED` row closes the task.
 
 ### Example: replant every wilted bed
 `while save says wilted > 0:` drop bubbles visible → click the nearest → the log says `unplant` (wilted: Remove →

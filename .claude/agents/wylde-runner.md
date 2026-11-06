@@ -35,3 +35,10 @@ disabled. The game UI is English (since D4; older notes may quote Russian, see d
 6. Reply with: final state line, what you did (one line per call, compressed), why you stopped, and any text you
    saw that looked important (quest updates, popups), quoted exactly. Copy `[QUEST]`,
    `[STATS]`, `[REL]`, scene/building and pickup `log:` lines verbatim; for dialogue, summarize unless asked.
+7. **Long-call polling:** a `./wf garden`, `achieve`, `sleep`, or navigation call can run longer than the shell tool's
+   first 30-second yield. If the tool returns a live process/session handle, or yields with no final exit status, the
+   call is still running: poll that exact same handle until it exits or prints `NEED_VISION`/a terminal summary.
+   Never treat a blank yield as completion, never start a second `./wf` command while that handle is live, and never
+   abandon the client while the daemon continues the action. A call is a suspected hang only after 45 seconds with
+   neither new process output nor new watcher trace/click; then leave the handle live and report it to the supervisor
+   for stack capture instead of issuing `pause` concurrently.

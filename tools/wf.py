@@ -3514,14 +3514,16 @@ def is_paused(s=None):
 
 def set_paused(want):
     """Idempotent pause/resume: look first, press Escape only if needed (Escape toggles; blind presses un-pause)."""
+    resume_clicked = False
     for _ in range(3):
         s = state()
         if is_paused(s) == want:
             return f'{"paused" if want else "running"}: {brief(s)}'
         if not want and is_paused(s):
             hits = find_text('Resume Game', exact=True) or find_text('Resume Game')
-            if hits:
+            if hits and not resume_clicked:
                 click(hits[0]['cx'], hits[0]['cy'])
+                resume_clicked = True
             else:
                 key('escape')
         else:
@@ -4146,7 +4148,7 @@ def main(argv=None):
                                        'tools/game/goals.json, e.g. wf achieve plant seed=Tulip region=GardenSouth')
     p.add_argument('args', nargs='+')
     p = sub.add_parser('garden', help='inspect and immediately harvest, replant, and water every bed: '
-                                      'wf garden [region=Garden] [answer=...] [max_clicks=40]')
+                                      'wf garden [region=Garden] [crops=Tulip] [answer=...] [max_clicks=40]')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('sleep', help='navigate to Tara\'s bed and sleep; resume vision with answer=walk:<cell>')
     p.add_argument('args', nargs='*')

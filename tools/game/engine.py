@@ -49,6 +49,10 @@ def _where(spec, params):
     """The goal's filter with $params; a list becomes alternatives ('Carrot|Tulip'); '!$x' = none of them."""
     out = {}
     for k, v in spec.get('where', {}).items():
+        # CLI selectors use a natural plural (`crops=Tulip`) to override a
+        # reusable default filter such as `crop: !$flowers`.
+        if f'{k}s' in params:
+            v = params[f'{k}s']
         neg = isinstance(v, str) and v.startswith('!$')
         if isinstance(v, str) and (v.startswith('$') or neg):
             p = _param(v.lstrip('!$'), params)
@@ -56,15 +60,30 @@ def _where(spec, params):
                 continue
             v = ('!' if neg else '') + ('|'.join(p) if isinstance(p, (list, tuple)) else p)
         out[k] = v
+    # A caller may scope any library goal to a named region even when the
+    # reusable goal definition has no region placeholder of its own.
+    if params.get('region') is not None and 'region' not in out:
+        out['region'] = params['region']
     return out
 
 
 def _skip_names(spec, params):
     """Bubble values to leave alone (skip_bubbles: {crop: $flowers}): a set of names, or empty."""
     out = set()
-    for v in (spec.get('skip_bubbles') or {}).values():
+    for key, v in (spec.get('skip_bubbles') or {}).items():
         p = _param(str(v).lstrip('$'), params) if str(v).startswith('$') else v
         out |= set(p if isinstance(p, (list, tuple)) else [p]) - {None}
+        plural = f'{key}s'
+        if plural in params:
+            chosen = params[plural]
+            out -= set(chosen if isinstance(chosen, (list, tuple)) else [chosen])
+            continue
+        requested = (spec.get('where') or {}).get(key)
+        if isinstance(requested, str) and requested.startswith('$'):
+            name = requested.lstrip('$')
+            if name in params:  # an explicit request overrides the default preservation policy
+                chosen = params[name]
+                out -= set(chosen if isinstance(chosen, (list, tuple)) else [chosen])
     return out
 
 
@@ -249,10 +268,36 @@ def world_of(tara, pt):
     return (tara[0] + (pt[0] - O.CENTRE[0]) / PX_PER_UNIT, tara[1] - (pt[1] - O.CENTRE[1]) / PX_PER_UNIT)
 
 
+def _guard_walk_cells(avoid, toward=None, limit=6):
+    """Grid cells that pass the same non-model geometry guard as a `walk:` answer.
+
+    They are only candidates: vision still rejects fences/water/cards.  Ranking near the requested target keeps the
+    cheap model from inventing a cell on Tara or a bed when a legal dirt waypoint is already known.
+    """
+    out = []
+    for col in range(ask.COLS):
+        for row in range(4, 15):   # world view, excluding HUD and bottom letterbox
+            cell = f'{chr(65 + col)}{row + 1}'
+            pt = ask.parse_point(cell)
+            if O.d(pt, O.CENTRE) < N.SELF_PX:
+                continue
+            if any(O.d(pt, tuple(p)) < N.FREE_GAP for p in avoid):
+                continue
+            score = O.d(pt, toward) if toward is not None else O.d(pt, O.CENTRE)
+            out.append((score, O.d(pt, O.CENTRE), cell))
+    return [cell for _, _, cell in sorted(out)[:limit]]
+
+
 def _other_kinds(kind, row):
     """Bubble kinds that belong to OTHER rows of `kind` (the planting icon = the plant row): never this row's bubble
     (live D189: the pick clicked the just-harvested bed's planting icon again and again)."""
     if row is None:
+        return set()
+    bubble = row.get('bubble') or {}
+    # A sub-icon is the discriminator even when the main crop icon is also
+    # used by another row: `plant_growing +ready` is ripe, and
+    # `plant_growing +drop` needs water/wilt handling.
+    if 'ready' in bubble or 'drop' in bubble:
         return set()
     out = set()
     for r in plan.rows(kind):
@@ -944,7 +989,7 @@ def _answer(g, name, params, answer, res):
         except ValueError as e:
             raise core.Failed(f'answer rejected: {e}. Answer target <cell>, walk <cell>, or none') from None
         if (pend.get('navigation_only') and click_mode == 'walk'
-                and any(O.d(pt, tuple(p)) < OWN_PX for p in pend.get('avoid') or ())):
+                and any(O.d(pt, tuple(p)) < N.FREE_GAP for p in pend.get('avoid') or ())):
             raise core.Failed(f'answer rejected: navigation point {pt} is inside a garden object hitbox')
         what = 'object' if click_mode == 'target' else 'point'
         cycle = pend.get('reasoning_cycle') or I.reasoning(
@@ -1333,7 +1378,8 @@ def _garden_inspected(g, targets, lines):
     return out
 
 
-def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=None, max_clicks=MAX_CLICKS):
+def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=None, max_clicks=MAX_CLICKS,
+                crops=None):
     """Inspect and immediately tend each garden bed before advancing to the next one.
 
     The graph is only the coverage list.  A live bubble chooses the action; cards and events prove its result.
@@ -1346,9 +1392,13 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
         raise core.Failed(f'unknown garden chores: {", ".join(sorted(unknown))}')
     W = core.WF
     res = N.new_res('garden')
+    authorized = set(crops if isinstance(crops, (list, tuple, set)) else
+                     [x.strip() for x in str(crops).split('|') if x.strip()] if crops else ())
+    task_params = {'region': region, **({'crops': '|'.join(sorted(authorized))} if authorized else {})}
     res.update(goal='garden', region=region, chores=sorted(enabled), visited=[], acted=[], flowers=[], unresolved=[],
                harvested=0, watered=0, replanted=0, clicks=0, vision=0, subgoals=0, learned=[], surprises=[],
-               notes=[], area=None, skip=[], fails={}, btried=[], params={})
+               notes=[], area=None, skip=[], fails={}, btried=[], params=task_params,
+               authorized_crops=sorted(authorized))
     g = _open_graph()
     try:
         O.check_language()
@@ -1367,8 +1417,11 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
         if ask.late(res):
             return res
         pending_before = ask.load_state('garden').get('pending') or {}
-        covered_before = set(pending_before.get('covered') or ()) if answer is not None else set()
-        res['inside_region'] = pending_before.get('inside_region')
+        continuing = (pending_before.get('streaming') is True
+                      and pending_before.get('params') == task_params)
+        covered_before = set(pending_before.get('covered') or ()) if continuing else set()
+        seen_before = {tuple(p) for p in pending_before.get('seen_bubbles') or ()} if continuing else set()
+        res['inside_region'] = pending_before.get('inside_region') if continuing else None
         _, save = W.read_save()
         today_lines = W.today_log()[0]
         world.refresh(g, save, today_lines)
@@ -1382,7 +1435,8 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
         targets = set(beds + hives)
         inspected_before = _garden_inspected(g, targets, today_lines)
         covered = covered_before | inspected_before
-        remaining, replanting, seen_bubbles = targets - covered, {}, set()
+        remaining, replanting, seen_bubbles = targets - covered, {}, set(seen_before)
+        res['btried'].extend(p for p in seen_before if p not in res['btried'])
         res['visited'].extend(n for n in beds if n in covered)
         res['hives_visited'] = [n for n in hives if n in covered]
         res['honey'] = sum(1 for line in today_lines if '> beehive_collect ' in line and 'target=BeeHive' in line)
@@ -1391,7 +1445,7 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
         res['allowed_events'] = set().union(*[_row_events(r) for r in plan.rows()]) | NEUTRAL_EVENTS
         A.ON_EVENT = lambda c: red_flag(c, res)
         if answer is not None:
-            _answer(g, 'garden', {}, answer, res)
+            _answer(g, 'garden', task_params, answer, res)
             if pending_before.get('garden_entry_only') and res.get('inside_region') != region:
                 res['stop'] = 'entry step completed; re-evaluate Garden region before tending'
                 return res
@@ -1421,8 +1475,9 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                  f'target <cell> or walk <cell> relative=<compass> distance=<near|far>. Shell-safe calls: '
                  f'./wf garden region={region} answer=target:<cell> relative=<compass> distance=<near|far> or '
                  f'./wf garden region={region} answer=walk:<cell> relative=<compass> distance=<near|far>.')
-            ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'navigation_only': True,
+            ask.ask('click', q, {'goal': 'garden', 'params': task_params, 'navigation_only': True,
                                  'garden_entry_only': True, 'avoid': avoid, 'covered': sorted(covered),
+                                 'seen_bubbles': [list(p) for p in sorted(seen_bubbles)],
                                  'streaming': True}, res,
                     img=ask.draw_grid(brief.draw(W.grab(), state)))
 
@@ -1452,7 +1507,8 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                           and not a.ready and not a.drop else
                           'water' if a is not None and a.kind == 'water' and 'water' in enabled else
                           'remove_wilted' if a is not None and a.kind == 'unplant' and 'replant' in enabled else
-                          'pick' if a is not None and a.ready and a.icon is not None and a.icon not in flowers
+                          'pick' if a is not None and a.ready and a.icon is not None
+                          and (a.icon not in flowers or a.icon in authorized)
                           and 'harvest' in enabled else None)
                 if row_id:
                     visible_actions.append((a, _garden_row(row_id)))
@@ -1474,9 +1530,18 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                 res['clicks'] += out['clicks']
                 tid = _learn(g, out, row['kind'], row, res)
                 plan.count(row['id'], out['ok'])
-                if not out['ok'] or tid not in remaining:
-                    res['stop'] = (out.get('why') or f'visible {row["id"]} action did not identify a remaining bed')
+                if not out['ok']:
+                    res['stop'] = out.get('why') or f'visible {row["id"]} action failed'
                     break
+                if tid not in remaining:
+                    # An ambiguous projected owner pointed at a bubble already
+                    # proved to belong to a covered bed. Remember the exact
+                    # point and keep scheduling; do not restart and click it.
+                    if tuple(a.pt) not in res['btried']:
+                        res['btried'].append(tuple(a.pt))
+                    res['notes'].append(f'skipped covered bubble {a.pt}: event proved {tid}')
+                    A.gameplay()   # close the covered bed's info card before observing another target
+                    continue
                 actions = [row['id']]
                 if tid not in res['acted']:
                     res['acted'].append(tid)
@@ -1484,22 +1549,30 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     if row['id'] == 'hive_collect':
                         res['honey'] += 1
                     remaining.remove(tid)
+                    if tuple(a.pt) not in res['btried']:
+                        res['btried'].append(tuple(a.pt))
                     res['hives_visited'].append(tid)
                     _garden_log(tid, 'visited', [row['id']])
                     ask.progress('garden')
+                    A.gameplay()
                     continue
                 if row['id'] == 'water':
                     res['watered'] += 1
                     remaining.remove(tid)
+                    if tuple(a.pt) not in res['btried']:
+                        res['btried'].append(tuple(a.pt))
                     res['visited'].append(tid)
                     _garden_log(tid, 'visited', actions)
                     ask.progress('garden')
                     continue
                 if row['id'] == 'info_growing':
                     remaining.remove(tid)
+                    if tuple(a.pt) not in res['btried']:
+                        res['btried'].append(tuple(a.pt))
                     res['visited'].append(tid)
                     _garden_log(tid, 'visited', actions)
                     ask.progress('garden')
+                    A.gameplay()   # close the info card before the next frame/vision question
                     continue
                 if row['id'] == 'pick':
                     res['harvested'] += 1
@@ -1533,7 +1606,8 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     state = brief.build(g, ('GardenBed', 'BeeHive'), list(remaining), res)
                     q = (brief.text(state) + f'\nNo bubble for {tid} is in reach. If a garden target and its full '
                          f'walkable road are visible, answer target <cell>; add crop=<name> for a visible ready crop '
-                         f'(flowers stay). Otherwise answer walk <cell> on visible '
+                         f'(flowers stay unless explicitly authorized by crops={"|".join(sorted(authorized)) or "none"}). '
+                         f'Otherwise answer walk <cell> on visible '
                          f'free ground toward the unvisited beds and hives in {region}. In either answer also report '
                          f'Tara relative to {region} with relative=N|NE|E|SE|S|SW|W|NW and '
                          f'distance=inside|near|far. Shell-safe calls use answer=walk:<cell> or '
@@ -1541,9 +1615,16 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                          f'Answer none only if no route exists.')
                     avoid = [list(o['screen']) for o in state['objects'] if o.get('screen') is not None]
                     avoid += [list(b['pt']) for b in state['bubbles']]
-                    ask.ask('click', q, {'goal': 'garden', 'params': {'region': region}, 'node': tid,
+                    target_screen = next((o['screen'] for o in state['objects'] if o['id'] == tid), None)
+                    walk_cells = _guard_walk_cells(avoid, target_screen)
+                    if walk_cells:
+                        q += (f' Guard-valid walk cells near the target: {", ".join(walk_cells)}. Choose among these '
+                              f'only when the frame visibly shows dirt/path there; otherwise use target or none.')
+                    ask.ask('click', q, {'goal': 'garden', 'params': task_params, 'node': tid,
                                          'covered': sorted(targets - remaining), 'navigation_only': True,
                                          'avoid': avoid, 'inside_region': res.get('inside_region'),
+                                         'walk_cells': walk_cells,
+                                         'seen_bubbles': [list(p) for p in sorted(seen_bubbles)],
                                          'streaming': True}, res,
                             img=ask.draw_grid(brief.draw(W.grab(), state)))
 
@@ -1551,6 +1632,8 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     row = _garden_row('hive_collect' if a.ready or a.kind == 'honey' else 'hive_inspect')
                     out = steps.run(row, {}, a, world.state_of(g, tid))
                     seen_bubbles.add(tuple(a.pt))
+                    if tuple(a.pt) not in res['btried']:
+                        res['btried'].append(tuple(a.pt))
                     res['clicks'] += out['clicks']
                     actual = _learn(g, out, 'BeeHive', row, res)
                     plan.count(row['id'], out['ok'])
@@ -1596,7 +1679,7 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                         break
                     row, row_params = _garden_row('plant'), {'seed': seed}
                 elif a.ready:
-                    if crop in flowers:
+                    if crop in flowers and crop not in authorized:
                         res['flowers'].append(tid)
                         remaining.remove(tid)
                         res['visited'].append(tid)
@@ -1671,6 +1754,7 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
                     res['visited'].append(tid)
                     _garden_log(tid, 'visited', actions)
                     ask.progress('garden')
+                    A.gameplay()   # the next brief must not be captured behind this card
                     break
                 elif row['id'] == 'remove_wilted':
                     seed = out.get('stored', {}).get('crop') or crop
@@ -1691,6 +1775,14 @@ def tend_garden(region='Garden', chores=('replant', 'harvest', 'water'), answer=
         return res
     finally:
         res['left'] = len(remaining) if 'remaining' in locals() else None
+        if 'targets' in locals():
+            try:
+                core.WF.run_log('garden_summary', region=region, targets=sorted(targets),
+                                covered=sorted(set(res.get('visited', ())) |
+                                               set(res.get('hives_visited', ()))),
+                                unresolved=sorted(set(res.get('unresolved', ()))), stop=res.get('stop'))
+            except (AttributeError, TypeError):
+                pass
         try:
             g.save(L.graph_path())
         except OSError:

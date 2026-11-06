@@ -512,6 +512,15 @@ class Table(unittest.TestCase):
             for s in r['steps']:
                 self.assertIn(s['do'], plan.PRIMITIVES)
 
+    def test_an_explicit_region_parameter_scopes_a_library_goal(self):
+        self.assertEqual(engine._where({'where': {'ready': True}}, {'region': 'GardenSouth'}),
+                         {'ready': True, 'region': 'GardenSouth'})
+
+    def test_an_explicit_crop_overrides_the_default_flower_skip_policy(self):
+        spec = {'where': {'crop': '!$flowers'}, 'skip_bubbles': {'crop': '$flowers'}}
+        self.assertEqual(engine._where(spec, {'crops': 'Tulip'}), {'crop': 'Tulip'})
+        self.assertNotIn('Tulip', engine._skip_names(spec, {'crops': 'Tulip'}))
+
     def test_path_from_wilted_to_planted_and_watered(self):
         p = plan.path('GardenBed', {'stage': 'growing', 'wilted': True, 'crop': 'Tulip'},
                       {'crop': '$same', 'watered': True}, {})
@@ -551,10 +560,12 @@ class Table(unittest.TestCase):
             Affordance('water', None, (0, 0), False, 0.0, True)))   # event-only rows fit no bubble
 
     def test_counts_are_saved(self):
+        before = next(r for r in plan.rows() if r['id'] == 'water')
         plan.count('water', True)
         plan.count('water', False)
         r = next(r for r in plan.rows() if r['id'] == 'water')
-        self.assertEqual((r['seen'], r['ok'], r['surprises']), (2, 1, 1))
+        self.assertEqual((r['seen'], r['ok'], r['surprises']),
+                         (before['seen'] + 2, before['ok'] + 1, before['surprises'] + 1))
 
 
 NORTH = [obj(f'n{x}{z}', pos=(x, z), stage='growing', watered=True, wilted=False)
@@ -997,6 +1008,23 @@ class StreamingGarden(EngineBase):
         self.assertFalse(f.objects['south']['state']['watered'])
         self.assertNotIn(world.find(self.graph(), 'GardenBed', south['pos']), res['visited'])
 
+    def test_one_garden_task_can_authorize_harvest_replant_and_water_of_a_flower(self):
+        garden = self._north()
+        flower = garden[0]
+        flower['state'].update(stage='produced', crop='Tulip')
+        flower['icon'] = 'Tulip'
+        game = json.loads(json.dumps(GAME))
+        next(r for r in game if r.get('event') == 'grab_item')['effect'] = {
+            'stage': 'empty', 'crop': None, 'watered': False}
+        f = self._game(garden, inventory={'TulipSeed': 1}, game=game)
+
+        res = garden_actions.do(crops='Tulip')
+
+        events = [f.event_kind([line]) for line in f.log if '> ' in line]
+        self.assertEqual([e for e in events if e in ('grab_item', 'plant', 'water')],
+                         ['grab_item', 'plant', 'water'])
+        self.assertEqual((res['harvested'], res['replanted'], res['watered']), (1, 1, 1))
+
     def test_missing_replant_seed_marks_only_that_bed_unresolved(self):
         garden = self._north()
         wilted = garden[0]
@@ -1018,13 +1046,46 @@ class StreamingGarden(EngineBase):
         garden[0]['bubble_pt'] = None
         self._game(garden)
         with self.assertRaises(NeedVision) as cm:
-            engine.tend_garden('Garden', ('water',))
+            engine.tend_garden('Garden', ('water',), crops='Tulip')
         self.assertIn('target <cell>', str(cm.exception))
-        self.assertIn('./wf garden region=Garden answer=', str(cm.exception))
+        self.assertIn('./wf garden region=Garden crops=Tulip answer=', str(cm.exception))
         self.assertIn('walk <cell>', str(cm.exception))
         self.assertIn('relative=N|NE|E|SE|S|SW|W|NW', str(cm.exception))
         self.assertIn('distance=inside|near|far', str(cm.exception))
         self.assertIn('answer=walk:<cell>', str(cm.exception))
+        self.assertIn('crops=Tulip', str(cm.exception))
+        self.assertIn('answer=<target:<cell> | walk:<cell> | none>', str(cm.exception))
+        self.assertIn('Guard-valid walk cells', str(cm.exception))
+        pending = ask.load_state('garden')['pending']
+        self.assertTrue(pending['walk_cells'])
+        for cell in pending['walk_cells']:
+            pt = ask.parse_point(cell)
+            self.assertGreaterEqual(observe.d(pt, observe.CENTRE), nav.SELF_PX)
+            self.assertTrue(all(observe.d(pt, tuple(p)) >= nav.FREE_GAP for p in pending['avoid']))
+
+    def test_an_ambiguous_bubble_proven_to_be_covered_is_not_clicked_again_for_the_next_bed(self):
+        covered = obj('covered', pos=(NX[0], NZ[0]), bubble=(1032, 540), stage='growing',
+                      watered=True, wilted=False, crop='Tulip')
+        hidden = obj('hidden', pos=(NX[1], NZ[0]), bubble=None, stage='produced',
+                     watered=False, wilted=False, crop='Tulip')
+        game = json.loads(json.dumps(GAME))
+        info = next(r for r in game if r.get('event') == 'plant_growing')
+        info.update(click_event='plant_growing', event=None,
+                    card=[{'texts': ['Tulip', '4 days remaining'], 'next': 'space'}])
+        f = self._game([covered, hidden], game=game)
+        cards_at_observation = []
+        build = brief.build
+
+        with mock.patch.object(brief, 'build', side_effect=lambda *a, **k:
+                               (cards_at_observation.append(f.card is not None), build(*a, **k))[1]):
+            with self.assertRaises(NeedVision):
+                engine.tend_garden('Garden', ('harvest',), crops='Tulip')
+
+        self.assertEqual(sum('> plant_growing ' in line for line in f.log), 1)
+        self.assertIsNone(f.card)
+        self.assertFalse(cards_at_observation[-1], cards_at_observation)
+        pending = ask.load_state('garden')['pending']
+        self.assertIn([1032, 540], pending['seen_bubbles'])
 
     def test_garden_stops_before_navigation_outside_daylight_with_exact_sleep_handoff(self):
         f = self._game(self._north())
@@ -1248,6 +1309,37 @@ class StreamingGarden(EngineBase):
 
         self.assertEqual(res['inside_region'], 'Garden')
 
+    def test_a_bare_streaming_retry_keeps_the_pending_garden_coverage(self):
+        garden = self._north()
+        f = self._game(garden)
+        g = self.graph()
+        world.refresh(g, f.read_save()[1], f.today_log()[0], None)
+        covered = [world.find(g, 'GardenBed', item['pos']) for item in garden]
+        ask.save_state({'goal': 'garden', 'asks': 1, 'history': [], 'pending': {
+            'kind': 'click', 'goal': 'garden', 'params': {'region': 'Garden'},
+            'navigation_only': True, 'covered': covered, 'seen_bubbles': [[840, 540]],
+            'streaming': True}})
+
+        res = engine.tend_garden('Garden', ('water',))
+
+        self.assertEqual(set(res['visited']), set(covered))
+        self.assertEqual(res['stop'], 'done: all beds visited')
+        self.assertEqual(f.clicks, [])
+
+    def test_a_terminal_garden_call_emits_a_structured_coverage_summary(self):
+        f = self._game(self._north())
+
+        res = engine.tend_garden('Garden', ('water',))
+
+        summaries = [data for kind, data in f.runlog if kind == ('garden_summary',)]
+        self.assertEqual(len(summaries), 1)
+        summary = summaries[0]
+        self.assertEqual(summary['region'], 'Garden')
+        self.assertEqual(len(summary['targets']), 12)
+        self.assertEqual(set(summary['covered']), set(summary['targets']))
+        self.assertEqual(summary['unresolved'], [])
+        self.assertEqual(summary['stop'], res['stop'])
+
     def test_visible_unowned_water_bubble_is_acted_on_before_asking_to_navigate(self):
         garden = self._north()
         dry = garden[0]
@@ -1278,7 +1370,9 @@ class StreamingGarden(EngineBase):
         for inspected in garden[2:]:
             f.log.append(L('9:01:00 AM', 'plant_growing', 'GardenBed', *inspected['pos']))
 
-        res = engine.tend_garden('Garden', ('water',))
+        with self.assertRaises(NeedVision):
+            engine.tend_garden('Garden', ('water',))
+        res = engine.LAST
 
         projected_id = world.find(self.graph(), 'GardenBed', projected['pos'])
         actual_id = world.find(self.graph(), 'GardenBed', actual['pos'])
@@ -1437,18 +1531,19 @@ class Wrappers(EngineBase):
         from game import garden
         calls = []
         with mock.patch.object(engine, 'tend_garden',
-                               lambda region='Garden', chores=(), answer=None, max_clicks=40:
-                               calls.append((region, tuple(chores), answer, max_clicks)) or {}), \
+                               lambda region='Garden', chores=(), answer=None, max_clicks=40, crops=None:
+                               calls.append((region, tuple(chores), answer, max_clicks, crops)) or {}), \
              mock.patch.object(engine, 'achieve', lambda goal, answer=None, **kw: calls.append(('achieve', goal)) or {}):
             self.use(FakeGame([], GAME))
             garden.water_all(click='Q14')
             garden.plant_all(seed='Tulip', region='GardenSouth')
             garden.harvest_all()
             garden.replant_all()
-            garden.do(region='GardenSouth')
-        self.assertEqual(calls, [('Garden', ('water',), 'Q14', 40), ('achieve', 'plant'),
-                                 ('Garden', ('harvest',), None, 40), ('Garden', ('replant',), None, 40),
-                                 ('GardenSouth', ('plant', 'replant', 'harvest', 'water'), None, 40)])
+            garden.do(region='GardenSouth', crops='Tulip')
+        self.assertEqual(calls, [('Garden', ('water',), 'Q14', 40, None), ('achieve', 'plant'),
+                                 ('Garden', ('harvest',), None, 40, None),
+                                 ('Garden', ('replant',), None, 40, None),
+                                 ('GardenSouth', ('plant', 'replant', 'harvest', 'water'), None, 40, 'Tulip')])
 
     def test_garden_cli_defaults_to_the_main_garden(self):
         import wf
@@ -1468,8 +1563,8 @@ class Wrappers(EngineBase):
             ({'region': 'Garden'}, 'walk F7 relative=NW distance=near'))
         self.assertEqual(
             wf.garden_cli_args(['answer=target:J6', 'crop=Green Bean', 'relative=SE', 'distance=inside',
-                                'max_clicks=9']),
-            ({'max_clicks': 9}, 'target J6 crop=Green Bean relative=SE distance=inside'))
+                                'max_clicks=9', 'crops=Tulip']),
+            ({'max_clicks': 9, 'crops': 'Tulip'}, 'target J6 crop=Green Bean relative=SE distance=inside'))
 
     def test_garden_cli_rejects_orphan_localization_metadata(self):
         import wf
@@ -2194,6 +2289,11 @@ class Where(Base):
         src, pos = where.position()
         self.assertEqual((src, tuple(round(v) for v in pos)), ('map', (5, -44)))
 
+    def test_an_event_older_than_the_save_does_not_override_the_saved_position(self):
+        f = self.use(FakeGame([], GAME))
+        f.log.append(L('7:35:00 AM', 'beehive_progress', 'BeeHive', 6.47, -23.46))
+        self.assertEqual(where.position(far_ok=False), (None, None))
+
     def test_pairs_that_disagree_give_no_calibration(self):
         """Live D187: beds 3.75 units apart gave the same pin; the map then put her 10 units off. A fit with a large
         error is no calibration: the position is unknown, not wrong."""
@@ -2586,6 +2686,17 @@ class OwnerKind(EngineBase):
 
 
 class CollectPrompt(EngineBase):
+    def test_a_ready_badge_wins_when_the_main_icon_also_names_another_row(self):
+        """Live D208: a ripe Tulip is `plant_growing +ready`; the ready badge makes it collectable."""
+        ripe_game = [dict(b, bubble={'kind': 'plant_growing'})
+                     if b['kind'] == 'GardenBed' and b.get('when', {}).get('stage') == 'produced' else b
+                     for b in GAME]
+        f = self.use(FakeGame([obj('b', pos=(NX[0], NZ[0]), bubble=(700, 400), stage='produced',
+                                   watered=True, wilted=False, crop='Tulip')], ripe_game))
+        with mock.patch.object(icons, 'name_of', lambda a: 'Tulip'):
+            res = engine.achieve('harvest', crops='Tulip', region='Garden')
+        self.assertEqual(f.objects['b']['state']['stage'], 'growing', res)
+
     def test_a_ready_bed_is_collected_with_space_on_the_collect_prompt(self):
         """User D188: the harvest click was right but nothing confirmed the "Collect" button; Space confirms it."""
         f = self.use(FakeGame([obj('b', pos=(NX[0], NZ[0]), bubble=(700, 400), stage='produced', watered=True,

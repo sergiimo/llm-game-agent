@@ -12,11 +12,21 @@ import wf  # noqa: E402
 class NoClickThroughMenus(unittest.TestCase):
     def setUp(self):
         self.clicks = []
-        self._orig = (wf.state, wf.click)
+        self._orig = (wf.state, wf.click, wf.key, wf.find_text, wf.time.sleep)
         wf.click = lambda x, y, *a, **k: self.clicks.append((x, y))
 
     def tearDown(self):
-        wf.state, wf.click = self._orig
+        wf.state, wf.click, wf.key, wf.find_text, wf.time.sleep = self._orig
+
+    def test_resume_falls_back_to_escape_when_the_ocr_button_click_does_nothing(self):
+        paused = [True]
+        wf.state = lambda save=False: ({'mode': 'overlay', 'text': ['0) Game Paused', '1) Resume Game']}
+                                       if paused[0] else {'mode': 'gameplay', 'text': []})
+        wf.find_text = lambda *a, **k: [{'cx': 960, 'cy': 700}]
+        wf.key = lambda name: paused.__setitem__(0, False) if name == 'escape' else None
+        wf.time.sleep = lambda _: None
+        self.assertTrue(wf.set_paused(False).startswith('running:'))
+        self.assertFalse(paused[0])
 
     def test_refuses_on_pause_menu(self):
         wf.state = lambda save=False: {'mode': 'overlay', 'text': ['0) Game Paused', '1) Settings']}

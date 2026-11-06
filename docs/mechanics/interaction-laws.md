@@ -64,6 +64,8 @@ waypoint (`{"kind":"waypoint","cell":"F7","walkable":true}`). Never infer actual
    start sleep gate is pre-approved. After 23:00 stop optional work. Empty can calls for refill then this transaction.
    Dialogue, pause, cutscene, map and unknown menus block world input. Pause before coding or long off-game work;
    front focus mode means the clock runs between calls. Do not change user settings.
+   Arbitrary OCR text does not establish a card: controls/detail/hint semantics distinguish cards, recognized
+   world affordances support gameplay, and unmatched overlay text with no such signal stays unknown for inspection.
 7. **Account for every target.** Each bed/hive must be in `coverage.covered` with actual event-owned proof, or have
    an explicit per-target `unresolved` entry with event-owned identity, interrupted phase, reason and evidence.
    A final zero-input verification turn marks successful coverage. `task.status=complete` means accounting is

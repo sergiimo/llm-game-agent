@@ -123,11 +123,12 @@ class GameAdapter:
         os.makedirs(directory, exist_ok=True)
         path = os.path.join(directory, f'turn-{uuid.uuid4().hex}.jpg')
         image.convert('RGB').save(path, quality=90)  # full virtual frame; never resize
-        s = screen.read()
+        affordances = observe.scan()
+        s = screen.read(world_visible=any(a.kind not in (None, 'unknown') for a in affordances))
         clues = dict(self.clue_provider() if self.clue_provider else {})
         clues.update(screen={'kind': s.kind, 'texts': s.texts}, frame_path=path,
                      visible_affordances=[{'kind': a.kind, 'point': list(a.pt), 'drop': a.drop, 'ready': a.ready,
-                                           'highlighted': a.highlighted} for a in observe.scan()])
+                                           'highlighted': a.highlighted} for a in affordances])
         clues.setdefault('graph_clues', [])
         clues.setdefault('interrupts', [])
         stamp = getattr(core.WF, 'game_stamp', None)

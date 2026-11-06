@@ -238,6 +238,22 @@ class Turns(unittest.TestCase):
                                 {'screen': {'kind': 'pause'}})
             self.assertEqual(raw.inputs, ['click:1100:600'])
 
+    def test_captured_nate_observation_uses_recognized_world_affordances(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act, observe
+        from game.affordances import Affordance
+        raw = SimpleNamespace(grab=lambda: Image.new('RGB', (1920, 1080)),
+                              state=lambda: {'mode': 'overlay', 'text': ['NATE']})
+        seen = [Affordance('plant', None, (1080, 536), True, 120),
+                Affordance('plant_growing', None, (864, 540), False, 96)]
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name), \
+                mock.patch.object(observe, 'scan', return_value=seen):
+            snapshot = primitives.GameAdapter().observe()
+        self.assertEqual(snapshot['screen']['kind'], 'gameplay')
+        self.assertEqual(snapshot['screen']['texts'], ['NATE'])  # preserve raw clues, don't erase disagreements
+        self.assertEqual(len(snapshot['visible_affordances']), 2)
+
     def test_unrepresentable_appearance_correction_stays_retryable(self):
         e = primitives.experience(S.Intent(1, {'kind': 'wait'}, 0, 1.), self.port.snapshot, {}, X.Evidence())
         result = I.correct(e, 'appearance', {'op': 'badge', 'label': 'ready'})

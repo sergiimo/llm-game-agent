@@ -1626,10 +1626,33 @@ class Screen(Base):
     def test_captured_scenery_ocr_fragment_is_not_a_card_but_short_controls_are(self):
         # D209 turn 25, turn-6b0fd8403fa949d199d04097372df5a9.jpg: HUD + two bubbles, no card.
         # Real comparison turn-239041414174482dbce58391c373c3a7.jpg: a visible Collect card.
-        self.assertEqual(screen.classify('overlay', ['ain']), 'gameplay')
+        self.assertNotEqual(screen.classify('overlay', ['ain']), 'card')
         for texts in (['Collect'], ['Buy'], ['Yes'], ['No'], ['OK'], ['Tulip', '3 days remaining']):
             with self.subTest(texts=texts):
                 self.assertEqual(screen.classify('overlay', texts), 'card')
+
+    def test_captured_nate_needs_semantic_screen_evidence_not_text_length(self):
+        # Resume exp 2983f90507bbc166: NATE was read over two recognized world affordances.
+        self.assertEqual(screen.classify('overlay', ['NATE']), 'unknown')
+        for text in ('ain', 'NATE', 'Unrecognized overlay title'):
+            with self.subTest(text=text):
+                self.assertEqual(screen.classify('overlay', [text]), 'unknown')
+                self.assertEqual(screen.classify('overlay', [text], world_visible=True), 'gameplay')
+        for texts, expected in [(['Collect'], 'card'), (['Inventory', 'Seeds'], 'picker'),
+                                (['Tulip', '3 days remaining'], 'card'), (['Game Paused'], 'pause')]:
+            with self.subTest(texts=texts):
+                self.assertEqual(screen.classify('overlay', texts, world_visible=True), expected)
+
+    def test_unknown_overlay_is_not_closed_or_clicked_through(self):
+        f = self.use(FakeGame([], GAME))
+        f.blank_overlay, f.overlay_texts = True, ['Unrecognized overlay title']
+        commands = []
+        f.run_action = lambda command: commands.append(command)
+        self.assertEqual(screen.read().kind, 'unknown')
+        self.assertEqual(screen.close().kind, 'unknown')
+        with self.assertRaises(observe.LawsStuck):
+            screen.require_world()
+        self.assertEqual(commands, [])
 
     def test_persistent_progress_details_are_closed_before_world_is_allowed(self):
         for texts in (['Carrot', 'A crisp orange vegetable', '3 days remaining', 'Makes 4'],

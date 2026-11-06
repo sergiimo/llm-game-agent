@@ -2,7 +2,7 @@
 toggled the pause menu, world clicks hit Exit Game).
 
 States: gameplay | card (an info/detail card, e.g. "Tulip Bulbs … Select") | picker (the Inventory / Seeds panel) |
-pause (Game Paused menu) | menu (settings or other buttons) | dialogue | popup | cutscene.
+pause (Game Paused menu) | menu (settings or other buttons) | dialogue | popup | cutscene | unknown.
 Rules:
 - a world click only in gameplay (`require_world`): a card/picker is closed first, the pause menu resumed; anything
   else that stays = terminal (LawsStuck), never clicked through;
@@ -18,6 +18,7 @@ PICKER = ('inventory',)
 BUTTONS = ('select', 'remove', 'cancel', 'confirm', 'buy', 'sell', 'collect', 'yes', 'no', 'ok')
 # Numeric object-progress/detail markers; descriptions alone also occur in transient hints.
 DETAIL = re.compile(r'\b\d+ days? remaining\b|\bmakes\s+\d+\b', re.I)
+HINTS = ('fill watering can', 'rusty watering can')  # verified passive watering hints, not arbitrary OCR text
 HINT_WAIT = 4.0   # s a short hint gets to fade (the watering-can hint lasts longer than one settle, D186)
 
 
@@ -38,7 +39,7 @@ def _wait_hint(s):
 MENU = ('settings', 'volume', 'return to menu', 'exit game', 'настройки', 'громкость')
 
 
-def classify(mode, texts):
+def classify(mode, texts, *, world_visible=False):
     low = [str(t).lower() for t in texts]
     # The daemon can retain its pre-pause mode (notably ``cutscene``) while the
     # pause overlay is on top.  Visible pause controls are stronger evidence
@@ -53,11 +54,12 @@ def classify(mode, texts):
         return 'menu'
     if any(t.strip() in PICKER for t in low):
         return 'picker'
-    # Scenery OCR can leave a lone fragment such as "ain" with the HUD template missed. It is not evidence of
-    # a card. Preserve short named controls (Buy / Yes / No / OK), which are actionable even without a title.
-    if not any(t.strip() in BUTTONS or re.search(r'[^\W\d_]{4,}', t) for t in low):
-        return 'gameplay'
-    return 'card'
+    # Text length never proves a card (live "ain" / "NATE"). Require semantic controls/detail/hint structure.
+    if any(t.strip() in BUTTONS or DETAIL.search(t) or any(t.startswith(h) for h in HINTS) for t in low):
+        return 'card'
+    # Recognized world affordances are a positive clue, subordinate to real modal controls above. Without
+    # either signal, preserve uncertainty: neither Escape nor a world click is safe on an unknown overlay.
+    return 'gameplay' if world_visible else 'unknown'
 
 
 @dataclass
@@ -66,13 +68,13 @@ class Screen:
     texts: list = field(default_factory=list)
 
 
-def read():
+def read(*, world_visible=False):
     try:
         s = core.WF.state()
     except Exception:   # noqa: BLE001 (fakes / no frame): gameplay
         return Screen('gameplay', [])
     ts = [t.split(') ', 1)[-1] for t in s.get('text', [])]
-    return Screen(classify(s.get('mode', 'gameplay'), ts), ts)
+    return Screen(classify(s.get('mode', 'gameplay'), ts, world_visible=world_visible), ts)
 
 
 def _settle():

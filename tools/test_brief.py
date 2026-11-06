@@ -104,8 +104,10 @@ class StateBrief(unittest.TestCase):
         self.assertIn('visible target cluster is W of Tara', text)
         self.assertIn('Tara is approximately E of Garden', text)
         self.assertIn('GardenBed@260,620', text)
-        self.assertIn('solid central porch railing', text)
-        self.assertIn('far-right/southeast wall opening', text)
+        self.assertIn('porch railing is solid', text)
+        self.assertIn('opening between two white posts with no railing', text)
+        self.assertIn('screen column changes when the camera follows Tara', text)
+        self.assertIn('click the stairs below', text)
         self.assertNotIn("status={'ready'", text)   # verbose object state does not bury navigation clues
 
 

@@ -136,10 +136,12 @@ def entry_text(state, region):
     if old:
         lines.append(f'STORED PRIOR (may be stale after every walk): Tara {old["compass"]} of {old["b"]}, '
                      f'distance={old["distance"]}. Re-evaluate it from this frame; never repeat it blindly.')
-    lines.append('FARMHOUSE CUTAWAY LANDMARK (apply only when the house interior is visible): the central lower edge '
-                 'is a solid central porch railing, not an exit. First cross the rooms to the '
-                 'far-right/southeast wall opening with no railing, click ground through that opening onto the porch; '
-                 'then click the visible stairs; then move beyond the porch until the interior disappears.')
+    lines.append('FARMHOUSE CUTAWAY LANDMARK (apply only when the house interior is visible): every lower-wall '
+                 'segment carrying a porch railing is solid. The exit is the opening between two white posts with no '
+                 'railing. Its screen column changes when the camera follows Tara: from the bed it begins far right, '
+                 'then recentres after crossing the rooms. Always use the fresh frame, never the previous cell. Click '
+                 'ground through that opening; if Tara already crossed it onto porch boards, click the stairs below; '
+                 'then move beyond the porch until the interior disappears.')
     lines.append('Choose one visible, unobstructed ground waypoint toward the target cluster. '
                  'If already among its beds/hives, answer inside. Report relative from this frame.')
     return '\n'.join(lines)

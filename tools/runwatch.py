@@ -72,13 +72,18 @@ class Watch:
         return [] if self.alive() else [('STOP', 'the game process is gone (Wylde Flowers not running)')]
 
     def feed(self, r):
-        t = r.get('type')
+        t = r.get('type') or r.get('event')  # old model-owned captures used event=turn
         out = []
-        if t in ('call', 'click', 'seek', 'action', 'engine', 'plan_step'):
+        if t in ('call', 'click', 'seek', 'action', 'engine', 'plan_step', 'turn'):
             self.last_t, self.idle_flagged = max(r.get('end') or 0, r.get('t') or 0), False
             if t == 'call':
                 self.last_cmd = r.get('cmd')
-        if t == 'click':
+        if t == 'turn':
+            surprise = r.get('surprise')
+            experience = r.get('experience')
+            miss = (experience.get('verdict') or {}).get('value') in ('miss', 'unsafe') if isinstance(experience, dict) else False
+            out.append(('ALERT' if surprise or miss else 'INFO', trace_lines([r])[0][9:]))
+        elif t == 'click':
             ts = r.get('texts') or []
             moved = {True: 'walked', False: 'still'}.get(r.get('moved'), '?')
             out.append(('INFO', f"click {r.get('what')} @{r['pt'][0]},{r['pt'][1]}: {moved}; events "
@@ -146,7 +151,7 @@ class Watch:
         return out
 
 
-TRACED = ('decide', 'reasoning', 'click', 'think', 'vision', 'perception', 'call', 'action', 'engine', 'game', 'gap', 'learn',
+TRACED = ('turn', 'decide', 'reasoning', 'click', 'think', 'vision', 'perception', 'call', 'action', 'engine', 'game', 'gap', 'learn',
           'plan_step')
 
 
@@ -155,11 +160,27 @@ def trace_lines(rows):
     absolute trace (user D189). One short line each."""
     out = []
     for r in rows:
-        t = r.get('type')
+        t = r.get('type') or r.get('event')
         if t not in TRACED:
             continue
         ts = time.strftime('%H:%M:%S', time.localtime(r.get('t') or 0))
-        if t == 'decide':
+        if t == 'turn':
+            # Preserve every phase, rationale/evidence reference and experience link in one timeline.
+            # Raw outcome data remains in log.jsonl and the machine replay journal; keep the watch line readable.
+            data = {k: v for k, v in r.items() if k not in ('t', 'type', 'event', 'task_id', 'turn_id', 'phase')}
+            if r.get('phase') == 'clues':
+                tx = data.get('transaction') or {}
+                data['transaction'] = {k: tx[k] for k in ('transaction_id', 'phase', 'crop', 'actual_node') if k in tx}
+                data['visible_affordances'] = len(data.get('visible_affordances') or ())
+                data['graph_clues'] = len(data.get('graph_clues') or ())
+            if isinstance(data.get('experience'), dict):
+                e = data['experience']
+                data['experience'] = {k: e[k] for k in ('id', 'verdict', 'artifacts') if k in e}
+                evidence = e.get('evidence') or {}
+                data['experience']['evidence'] = {k: evidence[k] for k in ('events', 'texts', 'node', 'at', 'mode')
+                                                   if k in evidence}
+            body = f"turn {r.get('turn_id')} {r.get('phase')}: " + json.dumps(data, ensure_ascii=False)
+        elif t == 'decide':
             body = (f"decide {r.get('target')} ({r.get('dist')} units): {r.get('why')}"
                     f"{' row ' + str(r.get('row')) if r.get('row') else ''}")
         elif t == 'reasoning':
@@ -245,7 +266,16 @@ def garden_table(rows):
     """Latest structured garden checkpoint per region: every target must be covered or explicitly unresolved."""
     latest, visits = {}, {}
     for row in rows:
-        if row.get('type') == 'garden_summary' and row.get('region'):
+        if (row.get('type') or row.get('event')) == 'turn' and row.get('phase') == 'clues' and row.get('region'):
+            coverage = row.get('coverage') or {}
+            unresolved = coverage.get('unresolved') or []
+            nodes = [u.get('node') for u in unresolved if isinstance(u, dict) and u.get('node')]
+            visits.update({u['node']: {'reason': u.get('reason')} for u in unresolved
+                           if isinstance(u, dict) and u.get('node')})
+            latest[row['region']] = dict(coverage, unresolved=nodes,
+                stop=('unresolved:' if nodes else 'done:') if row.get('task_status') == 'complete' else
+                     'unresolved:' if row.get('task_status') == 'unresolved' else '')
+        elif row.get('type') == 'garden_summary' and row.get('region'):
             latest[row['region']] = row
         elif row.get('type') == 'garden_visit' and row.get('node'):
             visits[row['node']] = row
@@ -283,14 +313,16 @@ def _game_log_lines():
 def rows_of(path, start=0):
     with open(path) as f:
         f.seek(start)
-        data = f.read()
-        pos = f.tell()
-    rows = []
-    for line in data.splitlines():
-        try:
-            rows.append(json.loads(line))
-        except ValueError:
-            continue
+        rows, pos = [], start
+        while True:
+            line = f.readline()
+            if not line.endswith('\n'):
+                break  # an in-progress append must be reread from its beginning on the next poll
+            pos = f.tell()
+            try:
+                rows.append(json.loads(line))
+            except ValueError:
+                continue
     return rows, pos
 
 

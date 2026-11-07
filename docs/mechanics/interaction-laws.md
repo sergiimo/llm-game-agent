@@ -1,104 +1,144 @@
 # Interaction laws
 
-> **Summary:** four laws (user, D183) for any task that acts on objects. 1. Tara is always at the centre of the
-> frame. 2. A click on a visible object is very reliable, so vision's only job at the start is "give the click point of
-> the first node". 3. Every click produces feedback (log events, short-lived text, bubble changes, cards), so record it
-> right after the click and update state from it. 4. Bubbles guide the next click: click every bubble that fits the task
-> until none is left, then go back to 2. No layouts, grids or positions are carried between steps.
+> **Summary:** the gameplay model owns every gameplay turn: read clues, accept or override one recommendation,
+> execute at most one input, then read its evidence. A durable transaction retains crop, phase and event-owned
+> identity across calls. The graph supplies coverage and dated clues; the positioned game event owns identity.
 
-Why (L124): the graph-chain runner (spec 2026-11-02 §10) chained four guesses (vision geometry → fitted layout → click
-point → camera-shift proof) before the game confirmed anything. Runs 1, B and C each broke on a different link, and the
-bad state carried over to the next call. These laws keep one guess per click and let the game confirm it at once.
+## Universal turn contract (offline verified; full live pass pending)
 
-## Mechanics (what the game does)
-| # | Law | Facts |
-|---|---|---|
-| M1 | **Tara is always at the frame centre** | The camera follows her: she stands at **(960, 540)** in the 1920×1080 frame (`chain_step.CENTRE`), in every area, at every zoom. A screen offset from the centre is her direction and distance to the object (the zoom changes only the scale). Her position never needs to be asked or estimated. |
-| M2 | **A click on a visible object reaches it when its road is visible** | The game pathfinds to a clicked object and stops in front of it with its bubble showing. If it is already in reach, the click **interacts** (bed → card, well → fill). The click is reliable only when the target and the whole walkable road from Tara to it are visible in the current frame; an off-screen/occluded road can make the click be ignored. Otherwise click one short visible-ground waypoint, take a fresh frame, then try the target. Exception: some fence spots fail (`Jump failed while pathfinding`, D151): use a waypoint on Tara's side. See [basic-actions](basic-actions.md). |
-| M3 | **Every action leaves feedback, some only briefly** | Four channels, from most to least lasting: (a) **game log** event lines (`> unplant`, `> unplant_impl`, `> plant`, `totalPlanted.X`, `> water`, `> out_of_water`, `> grab_item`, `> plant_growing`, `> fill_watering_can`), which stay; (b) **cards/panels** (Remove card, planting picker), which stay until closed; (c) **bubble changes** (a bubble vanishes, its icon changes, the water-drop sub-icon goes after watering, a seedling bubble appears after removing), which last until Tara moves; (d) **on-screen text** (pickup notices, short messages), which disappears after about 1–2 s ❓ (to measure). Channels (c) and (d) are lost unless frames are captured right after the click. |
-| M4 | **Bubbles show what is in reach and its state** | A bubble appears above every object in reach, several at once; clicking any bubble runs its action, highlighted or not. A crop bubble with a pale-blue **water drop** = needs water **or** wilted; a seedling bubble without a sub-icon = empty bed; **only the drop means "needs water"** (a crop icon without it — tulip, bean — is never clicked to water); the orange **"!"** sub-icon (top right, `Affordance.ready`) = its product is **ready to collect, not an order to collect** (flowers serve the bees; collect only when the task says so). Kinds, drop and ready flags: `affordances.scan()`. **Soil (user D185):** light-brown bed soil = needs water, dark brown = watered (median grey of soil pixels ≥ 88 dry, ≤ 80 wet, daylight; `affordances.soil_map` / `dry_spots`, a heat map of dry soil on the frame). |
+An active `./wf run start <task> <goal>` is required. The supervisor writes and reviews its `plan.md` before play.
+`./wf play <goal> [k=v ...]` (or `./wf garden region=GardenSouth [crops=Tulip]`) observes without input and prints `NEXT` plus a JSON TurnContext.
+All domains share the active run task file, including existing `garden-task.json`; `./wf play` resumes it.
+Load `.claude/skills/wylde-play/actions/INDEX.md` then the one workflow file. **Docs choose sequences; Python never does.**
+Legacy `do`, `py`, `call`, `sleep`, `goto`, `advance`, and route aliases return turns rather than run private workflows.
+The model reads screen/card, learned `vector_detections`, visible affordances, graph clues with their source/time,
+active transaction, coverage, last outcome, surprise, interrupts, recommendation and allowed decisions. Vectors are
+the primary current-frame navigation evidence; graph/routes contextualize them. Detection, OCR, bubbles and the saved
+frame must come from one capture. Every `NEXT` also prints the compact `model_workflow` stages observe → decide →
+vision → act → verify → learn → repeat so omissions are visible without exposing private chain-of-thought.
 
-## Rules (any task: replant, water, harvest, forage, talk)
-1. **Never locate Tara.** She is at the centre (M1). Describe everything as an offset from the centre ("the bed
-   up-right of her"). Questions never ask "which bed is she at".
-2. **First node: bubble → visible target → visible waypoint (user D191).** If a bubble that fits the task is visible,
-   go to rule 4. Otherwise vision chooses exactly one move from the fresh full-scale frame: `target <cell>` when the
-   target and its entire walkable road from Tara are visible, or `walk <cell>` for one short visible-ground waypoint
-   when they are not. A target cell is deliberately allowed to hit the object; a walk cell must avoid objects and
-   bubbles. The click result, not projected ownership, identifies the actual node. Garden maintenance queues every
-   GardenBed and BeeHive in the region and immediately runs the clicked target's state rule.
-   **Legacy fallback:** If vision cannot name either move, at most `SEEK_TURNS` (6) rounds may use graph/map hints
-   (a bubble without the task's sub-icon is never clicked; bubble kinds are
-   learned from the bubbles the task does click, `wf.learn_bubble`): (1) **graph**: the last event's target says which node she is at
-   (`target=Well` after a refill, `target=BeeHive` after a hive click) → the graph's screen direction from that node to the
-   target node (`graph.toward`, edges `toward` or `TOWARD` defaults: Well → hives → beds) → a step; (1b) **water: dry soil** → walk to the nearest light-brown blob of the soil heat map (`dry_spots`; it also sees
-   beds behind the hive row); (a) **see** the target node by its appearance vectors (`objects/db/<kind>`,
-   e.g. GardenBed) on the frame → click the nearest match (not the one under Tara; a match whose click names another node,
-   e.g. a hive, is never clicked again this call) → rule 4; (b) not seen and **inside the target's region** (her last event named a node of the Garden: a bed, a hive, the well) →
-   **explore**: the map has nothing finer here (like inside a house), so click **free ground** (away from every bubble and
-   detected object) in a direction not tried yet this call, 300 px out, to bring more nodes into view; (b') outside the
-   region → **map**: open
-   it, Tara's pin + the node's map picture (`objects/map_db`, e.g. MapGarden) + the road route between them give a
-   direction → (c) **step**: click 320 px from the centre in that direction (camera looks north like the map); she didn't
-   move → turn ±35°, then a shorter step → back to rule 4. A seek click is a **walk** only when the burst frames show she moved (a bubble set that changes while she stands still
-   is flicker), or its event is on the **target** node (a step toward the beds that lands on a bed = arrived, back to
-   rule 4). **Stuck = 3 seek clicks in a row without either** (and no task work): stop clicking, vision gets the trace.
-   A step or explore click that another object takes (it logs that object's event, e.g. `beehive_progress`) is
-   **blocked**, never progress. Every try goes into a trace; only when these give nothing, ask vision **one** question
-   on the current frame, with the trace, so vision **debugs the algorithm** (what blocked it) and answers a cell of free
-   ground around the blocker, or the target: *"Give the click point (x, y in the 1920×1080 frame) of the nearest
-   <target kind> [that looks <state>]. If none is visible, answer `none` and the direction to walk."* Click that point.
-   Vision gives a point to click, never a layout, grid or map of everything. Cheap checks on the answer: inside the
-   frame, not on the HUD (clock, map, journal or inventory buttons). `none` → click open ground in that direction, then
-   ask again.
-3. **Record every click result before deciding anything.** After each click capture: the frame before, a burst after
-   (immediately, ~0.5 s, ~1.5 s, settled), the new log lines, the bubbles before/after (`scan()`), and any card or text.
-   Update state from it in this order of trust: **log event > card > bubble change > text > vision.** A result that
-   none of these explains (no event, no card, no bubble change, no move) → ask vision on the burst frames: "what
-   happened after this click?"
-4. **Bubble loop.** While a bubble that fits the task is visible: click it (nearest to the centre first), record the
-   result (rule 3), update the actual event-position node, and finish that node's state rule before advancing. No fitting
-   bubble left → back to rule 2. In a garden pass, non-action bed/hive bubbles are inspections and still count as
-   coverage; ready flowers stay for bees, honey is collected only when ready, and pre-existing empty beds stay empty.
-5. **Failure = reset, not diagnosis.** On anything unexpected: close cards (`ui.close()`), take a fresh frame, go back to
-   rule 4 or 2. No stored layout, grid or position survives a failure.
-6. **Memory is a hint, never a gate.** The graph and the save say what to look for (save: "4 wilted"; graph: the crop
-   last planted in a bed) and when to stop (save count = 0). They never decide where to click and never block a click.
-7. **Done** = the task's coverage queue is empty. For `./wf garden`, every bed and hive in the region needs a
-   current-pass proof (action event, inspection event/card, or explicit vision settlement). Coverage persists across
-   streaming calls. Every call emits a structured `garden_summary`; `./wf run report` compares its target, covered,
-   unresolved and missing ID sets. Only `COMPLETE` or an explicitly reviewed `CONSTRAINED` row closes the task.
+**Long-distance navigation (user rule):** first issue canonical guarded
+`{kind:"key",label:"m",expects:{mode:"map"}}`, inspect the full-scale map and learn pin/landmarks/road connections
+with source-frame rationale/evidence references before selecting a route. Close it explicitly before world input.
+Visible-road-only travel is local approach or fallback after a correctly issued request/result proves the map
+unavailable/insufficient; record why. A refusal is not unavailability. The model decides routes and each map action;
+Python does not infer a distance threshold or schedule navigation. See the navigation action doc for learning and
+provenance. A HUD map icon or pin-colored scenery alone cannot establish the full paper-map modal.
 
-### Example: replant every wilted bed
-`while save says wilted > 0:` drop bubbles visible → click the nearest → the log says `unplant` (wilted: Remove →
-same crop → water) or something else (growing/dry: record it, close the card) → next drop bubble. No drop bubble →
-vision: "click point of the nearest wilted bed" → click → its bubble or card appears → continue the loop.
+Continue with the exact returned turn ID; each command is its own tool call:
 
-## Framework: observe → act → learn → nav, goals on top (L134, L138: the generic engine)
-| Module | Job | Never |
-|---|---|---|
-| `game/observe.py` | Read the frame: bubbles (kind, `drop`, `ready`), soil heat map, **the closest node** (where she is), detections, screen mode/texts, clock + light, language | act; carry anything between frames |
-| `game/act.py` | One click + its full record (`Click`: burst frames at 0 / 0.5 / 1.5 s, moved, log events, the event's node and position, bubbles before/after, screen, short-lived text OCR'd from the burst on every click, L142: a crop card gives the object's crop / days left / wilted); close cards | decide |
-| `game/world.py` + `kinds.json` | **The world graph** from the save (every positioned object; kind by `save_has`, or named by a log event on it), today's log (`target=Kind at (x, y, z)`, newer than the save wins) and click results. **Places are grouped only by distance** (areas over objects of every kind: `Garden` = 12 beds + 8 hives, `GardenSouth` = 12 beds); kind and state are filters (`query`, `count`) | group by kind |
-| `game/plan.py` + `actions.json` | **The transition table**: per action `when` / `bubble` / `steps` / `effect` / `needs`, seeded (water, fill_can, remove_wilted, plant, pick, out_of_water) + learned; `path` = BFS over effects | use a learned row before 2 agreeing sightings |
-| `game/steps.py` | Run a row's steps (click_bubble, press, press_space, pick_card, read_card, close) with checked expectations; every field observed (`observed-steps.jsonl`) | — |
-| `game/ask.py` | The ONE vision question (`click` cell / `button` / `name` key=value) with a pending record; the grid; the clock stop; LAWS_STUCK after 4 | guess |
-| `game/learn.py` | Memory hints; bubble kinds from the event after a click; object looks relabelled; **new rows from play** (frame change / event / vision's name) and `settle_rows` (gaps after 2 agreeing, revisions after 3 agreeing contradictions); graph directions that reached their node | gate a click (law 6) |
-| `game/nav.py` | `search` / `seek`: any bubble that fits — the area known from the last event (look-alike beds), else the closest node → graph/position direction; marker (dry soil); vectors; explore free ground inside the area / map outside; stuck after 3 still clicks; the trace | click a bubble without the target's sub-icon |
-| `game/engine.py` + `goals.json` | `achieve(goal, answer=None, **params)`: refresh → targets (filter) → nearest → path → needs (missing item = stop; can = sub-goal from the table) → nav in the target's area → steps → events update the world → done = filter empty. Missing required params → `NEED_INPUT` with the values seen | goal or kind names in code |
-A new chore = one goal line (`{kind, where, make}`) or a raw query; an unknown bubble is learned once and replayed.
+```sh
+./wf garden turn_id=7 answer=accept
+./wf garden turn_id=8 answer=look
+./wf garden turn_id=8 answer='{"kind":"act","action":{"kind":"bubble","cell":"K8","visible_road":true},"rationale":"visible_target_and_road","evidence_refs":["<frame_path>"]}'
+./wf garden turn_id=9 answer='{"kind":"correct","correction":{"kind":"gap","data":{"invariant":"<missing behavior>"}},"rationale":"capability_gap","evidence_refs":["<experience-id>"]}'
+```
 
-## Tool status
-| Piece | Status |
+`accept` consumes the exact saved recommendation. `act` selects one primitive: target/cell/bubble, waypoint, press
+label, space, select_card, guarded menu key (j/m/i), close, wait or read. `look` returns the saved full-scale frame path without input or a new turn; Read
+that image. `correct` applies the model's smallest correction; `stop` ends safely. Stale IDs refuse input. Use
+Decision JSON for concise rationale categories and evidence references; no separate `run think` row is needed for
+the same decision. Shell-safe alternatives include `answer=walk:F7`, `answer=target:K8`, `answer=press:Collect`.
+
+Administrative controls (for example Resume Game) keep a task-level pending intent, separate from the bed/hive
+transaction. They do not create or mutate the active garden interaction. Resume succeeds when evidence returns
+to gameplay; it needs no world event. Interrupted menu input reconciles from its recorded intent without repetition.
+
+The model selects the next target only when the active transaction has completed. A target click needs the target
+and its full walkable road visible from Tara at the frame centre. On a long clear road, click the farthest safe
+visible-ground point whose entire path remains visible. Use a short waypoint
+(`{"kind":"waypoint","cell":"F7","walkable":true}`) only at bends, thresholds, occlusion, or uncertainty.
+Never infer actual node ownership from projection.
+
+## Evidence and garden rules
+
+1. **Tara stays at the centre.** Describe targets relative to the centre; use fresh full-scale frames (1920×1080).
+2. **Record before deciding again.** Each selected action persists its intent, captures evidence, integrates one
+   immutable Experience and saves the transaction. A pending intent after interruption reconciles from evidence;
+   it never repeats an uncertain input. A read/guard refusal can record an experience with zero physical inputs.
+3. **Identity needs a positioned game event.** Trust event > card > bubble > text > vision for state. Projection
+   is a provisional clue. Vision can classify a crop/state but cannot manufacture an actual graph node.
+4. **Finish the same interaction.** Inspect → collect/remove when allowed → plant → water → verify. Carry the
+   observed crop across calls; an explicitly requested crop controls planting and flower authorization, not identity.
+   General garden maintenance plants pre-existing empty beds using an available seed. Narrow water/harvest jobs do
+   not. Collect ready non-flower crops and ready honey; preserve flowers unless authorized. Water after planting
+   unless raining. A plant plus drop icon needs interaction evidence to distinguish dry from wilted.
+5. **The model handles surprises.** Read the preserved frame before diagnosing uncertain evidence. Choose a graph,
+   appearance, transition, gap, human or stop correction (`integrate.correct`); code never patches itself.
+   If the model chose the wrong primitive (for example a world bubble while Collect is already open), choose
+   `correct` with `{"kind":"revise_decision","data":{"reason":"<mistaken choice>"}}`. This records the decision
+   revision and clears the surprise without learning, a gap, an input or a task/transaction reset. The next normal
+   turn may explicitly press `Collect` with observed `crop` metadata, preserving that same interaction.
+   If this actual target cannot be finished (for example its Seeds picker is empty and purchases are not authorized),
+   choose `correct` with `{"kind":"blocked_target","data":{"node":"<actual_node>","reason":"<constraint>"}}`
+   and evidence references. It records that event-owned node, interrupted phase, crop, transaction and evidence in
+   `unresolved`, releases only this interaction and leaves remaining work active. It teaches no data and performs
+   no input. The model may then accept a separate close-card recommendation before selecting the next target.
+   Preserve the active crop/card/transaction while fixing the smallest issue. Do not close a useful card or start
+   the whole task again as generic recovery.
+6. **Check interrupts each turn.** Rain/darkness or a new task after 19:00 calls for sleep/resume; the standing task
+   start sleep gate is pre-approved. After 23:00 stop optional work. Empty can calls for refill then this transaction.
+   Dialogue, pause, cutscene, map and unknown menus block world input. Pause before coding or long off-game work;
+   front focus mode means the clock runs between calls. Do not change user settings.
+   Arbitrary OCR text does not establish a card: controls/detail/hint semantics distinguish cards, recognized
+   world affordances support gameplay, and unmatched overlay text with no such signal stays unknown for inspection.
+7. **Account for every target.** Each bed/hive must be in `coverage.covered` with actual event-owned proof, or have
+   an explicit per-target `unresolved` entry with event-owned identity, interrupted phase, reason and evidence.
+   A final zero-input verification turn marks successful coverage. `task.status=complete` means accounting is
+   finished: the watcher reports `COMPLETE` only with no unresolved targets, otherwise `CONSTRAINED` for supervisor
+   review. A blocked replant is never counted as planted, watered or covered; the whole task stays active while
+   other targets remain unaccounted for.
+
+## Explicit nested subgoals and corrections
+
+`push` with `action:{goal,params}` freezes the parent interaction. `suspend` holds a subgoal; `complete` verifies its
+captured domain evidence without restoring the parent. A separate `resume` restores it. Pending intents reconcile
+without repeat at any nesting depth. Sleep requires `sleep_transition`; region travel requires matching captured
+region evidence. Unsupported proof becomes a gap/human resolution, never a model assertion of completion.
+
+A shop task/subgoal names item, bounded quantity and max_spend; the root task supplies
+`authorization:{purchases:[{item,quantity,max_spend}]}`. A purchasing action supplies `purchase:{item,quantity,price}`
+(total price). Root authorization is reserved durably before input, so a restart or ambiguous outcome cannot spend
+it twice. Completion requires matching inventory AND money deltas. Sale actions instead carry `sale:{item,quantity,price}` and require root `authorization.sales` item/quantity bounds;
+their proof reverses the inventory/money signs. Category purchase rules can set `quantity_per_type` for captured,
+model-discovered available catalogue entries. See the shop action document for exact catalogue/budget accounting.
+Complete sparse inventories may omit zero-stock items; explicitly incomplete readings never prove a trade.
+Save-derived evidence retains save count/time and can lag. Only verified acquisition clears matching `reason:seed_shortage,item:<seed ID>` constraints; those beds
+return to remaining coverage and are never marked planted, watered or covered by buying seeds.
+
+Every primitive compares evidence with its active goal: no move, irrelevant/away movement, wrong object/region/modal,
+stale route/vector, missing or unexpected evidence is a surprise. While unresolved, only look/correct/stop is allowed.
+Public `graph` corrections name one existing node (state/placement) or exact `edge:{a,b,rel}` plus bounded values;
+legacy `world` remains a compatible node/state spelling. `appearance` can sample a bounded crop or reembed one named
+kind. Only public `sample`/`reembed` appearance operations are accepted; legacy model `proven_look`/`relabel`/`badge` forms
+are rejected. Vision corrections retain captured frame, rationale, evidence refs and experience ID, apply idempotently, and
+perform no gameplay input. Never invent object identity or overwrite current positioned-event facts.
+
+## One timeline and hot learning
+
+`runs/<run>/log.jsonl` contains chronological `type=turn` rows joined by `task_id` and `turn_id`: clues,
+recommendation, decision, optional vision, intent, outcome, integration and correction. Calls/game events share
+this log. `experiences.jsonl` is a machine replay journal only; follow its IDs for raw evidence, not a second
+reasoning history. `.venv/bin/python tools/runwatch.py <run> --follow` watches every phase and alerts on surprises;
+`--report` writes coverage, timing and trace to `watch.md`. Legacy `event=turn` captures remain readable.
+
+Learning `actions.json`, graph JSON, observation journals and image/vector data does not restart the daemon.
+Transitions/graph/stores are reopened at their command boundaries; image feature caches refresh on PNG revisions.
+Python source and import-time vocabulary/configuration (`goals.json`, `kinds.json`, `forage.json`) still restart it.
+After a live issue: pause, preserve task/log/experience/frames, add the real replay, make the smallest fix, run the
+exact failing test, then resume the same task/transaction. Full discovery is a final gate, never the live fix loop.
+
+## Code boundaries
+
+| Module | Responsibility |
 |---|---|
-| Centre constant, bubble scan with kinds and drop flag | ✅ `laws.CENTRE`, `affordances.scan()` |
-| Click-result record (burst frames + new log lines + bubbles before/after + screen + burst OCR) | ✅ `laws.record_click` → `Click` (run log `click`, frames in `<run>/clicks/`) |
-| See → map → step before vision (`laws._seek`: `_see` detect, `_map_direction` map pin + MapGarden + road route, `_step`) | ✅ offline tests `Seek`; map direction checked on `.shots/map_last.png`; live check pending |
-| Vision "click point of the next node" (one grid cell) | ✅ `NEED_VISION click` (`wf.ask_vision('click', …)`), answer `click='Q14'`; `LAWS_STUCK` after 4 asks without progress |
-| `./wf achieve <goal> k=v [answer=X]`; `water_all` / `replant_all` / `harvest_all(crops)` / `plant_all(seed, region)` = one-line goals | ✅ `game/engine.py` (offline `tools/test_engine.py`); live: south-garden planting (Task 9) |
-| Transition table, surprises, gap filling, revisions, learned rows | ✅ `game/plan.py` + `actions.json`, `learn.settle_rows` (chains.json removed, L138) |
-| World graph (areas by distance, filters, `./wf world kinds|nodes`) | ✅ `game/world.py`, `kinds.json` |
-| Graph memory (law 6): per group today's tally per event (removed/planted/watered/harvested/growing_seen/can_ran_dry), crops grown, last event, the can; read back as a hint in the vision question | ✅ `objects/graph.note_click` / `hint`, fed by every recorded click and press; saved in `graph/Farm.json` |
-| Framework split (observe / act / learn / nav, goals in the engine) | ✅ L134/L138, tests `test_laws` (Framework, Reach, Record, Points), `test_engine` (Nav, Loop, Learning) |
-| `nav.reach(fits, kind=…)` (also `laws.reach`): the low-level navigation — any node of a kind whose bubble fits (the same search), returns the bubble, doesn't click; replaces `goto_bed` (L133) | ✅ offline tests `Reach` |
-| Old graph-chain runner (anchor question, layout fit, camera-shift proof, `./wf anchor`) | ❌ removed (L124) |
+| `play.py`, `garden.py`, `turn.py`, `task_state.py` | Public one-turn API, immutable context/decisions, durable transaction and write-ahead recovery |
+| `garden_policy.py` | Pure recommendations, evidence reduction and coverage; no inputs, model calls or target scheduler |
+| `primitives.py` | Guard and execute zero or one selected input, capture evidence |
+| `observe.py`, `screen.py`, `brief.py` | Fresh frame/screen/affordance readings and graph clues |
+| `world.py`, `objects/graph.py` | Dated facts, event-owned nodes, coverage clues |
+| `integrate.py`, `experience.py` | Immutable evidence, idempotent world/memory/transition corrections and gap bundles |
+| `plan.py`, `steps.py` | Transition data and pure next-step recommendation; no public gameplay alias executes a row workflow |
+
+Offline proof: `tools/test_play.py`, `tools/test_turn.py`, `test_garden_turn.py` (captured tulip Collect → Seeds → plant → water trace),
+`test_experience.py`, `test_runtime_data.py`, `test_runwatch.py`. A full live south-garden pass remains required.

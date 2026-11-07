@@ -1,0 +1,206 @@
+{
+  "source_run": "20261106-2027-model-owned-south-garden",
+  "source_turn": 16,
+  "source_experience": "650e42170a9375b7",
+  "task": {
+    "active": {
+      "actual_node": "GardenBed#2.6,-66.9",
+      "completed_actions": [],
+      "crop": "Tulip",
+      "evidence_ids": [
+        "f0907fec1ca8b26a",
+        "2cd2c3309400298a",
+        "8022eaa157a09da8",
+        "ea25a8bb61631eb5",
+        "75f4d0fad86a4779",
+        "75e723cc27bf7a95",
+        "f89f38df4ebecfa5",
+        "d3812041a94e28b0",
+        "650e42170a9375b7"
+      ],
+      "pending_intent": null,
+      "phase": "plant",
+      "provisional": {
+        "cell": "J11",
+        "facts": {
+          "emptied": true,
+          "seed_selected": false
+        },
+        "frame": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-3a674f27e6804bd388495dd1cb6a8e1b.jpg",
+        "point": [
+          760,
+          709
+        ],
+        "projected_node": null,
+        "target_selected": true
+      },
+      "transaction_id": "ec38380aa35a4b97b5875b801d3aa766:1"
+    },
+    "covered": [],
+    "global_interrupt": null,
+    "goal": "garden",
+    "last_experience": {
+      "action": {
+        "arg": null,
+        "context": [
+          [
+            "turn_id",
+            15
+          ],
+          [
+            "primitive",
+            "bubble"
+          ]
+        ],
+        "kind": "click",
+        "pt": [
+          964,
+          496
+        ],
+        "what": "bubble"
+      },
+      "artifacts": {
+        "frames": [
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-fee2dc4f71c64b65b54b47b327dad1b4.jpg"
+        ],
+        "img0": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-ce2916a5f3554bfca82d11ac1d7d5a25.jpg",
+        "log_mark": 733380,
+        "run_dir": null,
+        "t": 1793990908.4088142,
+        "turn_id": 15
+      },
+      "before": {
+        "affordances": [
+          [
+            "plant",
+            968,
+            496,
+            false,
+            false,
+            true
+          ]
+        ],
+        "screen": "gameplay",
+        "state": [
+          [
+            "game_time",
+            "D209 4:19:38 PM"
+          ],
+          [
+            "kind",
+            "gameplay"
+          ],
+          [
+            "texts",
+            []
+          ]
+        ]
+      },
+      "discrepancy": null,
+      "evidence": {
+        "after": [],
+        "at": [
+          2.64,
+          -66.86
+        ],
+        "burst_texts": [],
+        "events": [
+          "plant"
+        ],
+        "lines": [
+          "[D209 4:47:44 PM] > plant me=Player target=GardenBed(Clone) at (2.64, 0.10, -66.86)"
+        ],
+        "mode": "picker",
+        "moved": true,
+        "node": null,
+        "texts": [
+          "Inventory",
+          "Seeds",
+          "You can buy more seeds from Lina's General",
+          "Store."
+        ]
+      },
+      "goal": {
+        "name": null,
+        "params": [],
+        "row": null,
+        "step": null,
+        "target": null
+      },
+      "id": "650e42170a9375b7",
+      "prediction": {
+        "arrive": null,
+        "card": null,
+        "delta": [],
+        "events": [],
+        "log": null,
+        "moved": null
+      },
+      "verdict": {
+        "checks": [],
+        "value": "unknown"
+      }
+    },
+    "last_surprise": null,
+    "params": {
+      "_garden_reduced": "650e42170a9375b7",
+      "_started_late": false,
+      "chores": [
+        "plant",
+        "replant",
+        "harvest",
+        "water"
+      ],
+      "crops": "Tulip",
+      "flowers": [
+        "Anemone Flower",
+        "Crocus",
+        "Marigold",
+        "Moly Flower",
+        "Primrose",
+        "Snowdrop",
+        "Sunflower",
+        "Tiger Lily",
+        "Tulip",
+        "Turtlehead Flower"
+      ],
+      "region": "GardenSouth",
+      "seed": null
+    },
+    "pending_intent": null,
+    "revision": 31,
+    "status": "active",
+    "targets": [
+      "GardenBed#10.1,-59.4",
+      "GardenBed#10.1,-63.1",
+      "GardenBed#10.1,-66.9",
+      "GardenBed#13.9,-59.4",
+      "GardenBed#13.9,-63.1",
+      "GardenBed#13.9,-66.9",
+      "GardenBed#2.6,-59.4",
+      "GardenBed#2.6,-63.1",
+      "GardenBed#2.6,-66.9",
+      "GardenBed#6.4,-59.4",
+      "GardenBed#6.4,-63.1",
+      "GardenBed#6.4,-66.9"
+    ],
+    "task_id": "ec38380aa35a4b97b5875b801d3aa766",
+    "turn_seq": 16,
+    "unresolved": []
+  },
+  "observation": {
+    "screen": {
+      "kind": "picker",
+      "texts": [
+        "Inventory",
+        "Seeds",
+        "You can buy more seeds from Lina's General",
+        "Store."
+      ]
+    },
+    "frame_path": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-61d36438f85244c19f38203834df36f4.jpg",
+    "visible_affordances": [],
+    "graph_clues": [],
+    "interrupts": []
+  }
+}

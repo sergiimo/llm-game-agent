@@ -1,0 +1,1113 @@
+{
+  "source_run": "20261106-1307-garden-south",
+  "note": "Captured segments, not an uninterrupted trace. Records 3 and 8 show the same positioned bed after harvest; old node/projection is evidence of a faulty hypothesis, never canonical identity. Selection/confirm/harvest had no captured frames. Earlier referenced JPEGs were pruned before migration; missing_frames records that absence. Retained later screenshots are supplementary visual evidence, not substituted into the earlier replay.",
+  "experiences": [
+    {
+      "id": "acaea0b47f71b997",
+      "goal": {
+        "name": null,
+        "params": [],
+        "target": "GardenBed#5.8,-25.3",
+        "row": "pick",
+        "step": 0
+      },
+      "before": {
+        "screen": null,
+        "affordances": [
+          [
+            "plant_growing",
+            872,
+            524,
+            false,
+            true,
+            false
+          ],
+          [
+            "plant_growing",
+            1084,
+            524,
+            false,
+            true,
+            false
+          ]
+        ],
+        "state": []
+      },
+      "prediction": {
+        "events": [],
+        "card": null,
+        "log": null,
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "click",
+        "what": "object",
+        "pt": [
+          924,
+          648
+        ],
+        "arg": null,
+        "context": [
+          [
+            "here",
+            "GardenSouth"
+          ]
+        ]
+      },
+      "evidence": {
+        "lines": [],
+        "events": [],
+        "at": null,
+        "node": null,
+        "mode": "overlay",
+        "texts": [
+          "Collect"
+        ],
+        "burst_texts": [
+          "tin dit",
+          "Collect"
+        ],
+        "after": [],
+        "moved": false
+      },
+      "verdict": {
+        "value": "unknown",
+        "checks": []
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [],
+        "img0": null,
+        "run_dir": "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south",
+        "log_mark": 635256,
+        "t": 1793963543.289,
+        "source_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/131221-924-648-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/131221-924-648-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/131221-924-648-2.jpg"
+        ],
+        "missing_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/131221-924-648-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/131221-924-648-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/131221-924-648-2.jpg"
+        ]
+      }
+    },
+    {
+      "id": "d20558cafd43866e",
+      "goal": {
+        "name": null,
+        "params": [
+          [
+            "crops",
+            "Tulip"
+          ],
+          [
+            "region",
+            "GardenSouth"
+          ]
+        ],
+        "target": null,
+        "row": "pick",
+        "step": 0
+      },
+      "before": {
+        "screen": null,
+        "affordances": [
+          [
+            "plant_growing",
+            872,
+            524,
+            false,
+            true,
+            false
+          ],
+          [
+            "plant_growing",
+            1084,
+            524,
+            false,
+            true,
+            true
+          ]
+        ],
+        "state": []
+      },
+      "prediction": {
+        "events": [],
+        "card": "Collect",
+        "log": null,
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "click",
+        "what": "bubble",
+        "pt": [
+          872,
+          524
+        ],
+        "arg": null,
+        "context": []
+      },
+      "evidence": {
+        "lines": [],
+        "events": [],
+        "at": null,
+        "node": null,
+        "mode": "overlay",
+        "texts": [
+          "Collect"
+        ],
+        "burst_texts": [
+          "Collect",
+          "tin ai"
+        ],
+        "after": [],
+        "moved": false
+      },
+      "verdict": {
+        "value": "hit",
+        "checks": [
+          {
+            "field": "card",
+            "expected": "Collect",
+            "got": "Collect",
+            "ok": true
+          }
+        ]
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [],
+        "img0": null,
+        "run_dir": "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south",
+        "log_mark": 638696,
+        "t": 1793965595.625,
+        "source_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/134633-872-524-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/134633-872-524-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/134633-872-524-2.jpg"
+        ],
+        "missing_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/134633-872-524-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/134633-872-524-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/134633-872-524-2.jpg"
+        ]
+      }
+    },
+    {
+      "id": "6a518d8149d78e2c",
+      "goal": {
+        "name": null,
+        "params": [
+          [
+            "crops",
+            "Tulip"
+          ],
+          [
+            "region",
+            "GardenSouth"
+          ]
+        ],
+        "target": null,
+        "row": "pick",
+        "step": 1
+      },
+      "before": {
+        "screen": null,
+        "affordances": [],
+        "state": []
+      },
+      "prediction": {
+        "events": [
+          "harvest|grab_item"
+        ],
+        "card": null,
+        "log": null,
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "space",
+        "what": null,
+        "pt": null,
+        "arg": null,
+        "context": []
+      },
+      "evidence": {
+        "lines": [
+          "[D208 8:29:32 AM] > harvest me=Player target=GardenBed(Clone) at (6.39, 0.10, -59.36)",
+          "[D208 8:30:56 AM] [STATS] totalCrafted.Tulip = 306",
+          "[D208 8:30:56 AM] [STATS] TulipSeed = growing.14",
+          "[D208 8:30:56 AM] [ACHIEVEMENT] FlowersEverywhere (Achievement) progress is 70%",
+          "2026-11-06 13:46:40.490 Wylde Flowers[68346:3441547] [GameCenter] QueueReportAchievement: FlowersEverywhere 70.000000",
+          "2026-11-06 13:46:40.491 Wylde Flowers[68346:3441547] [GameCenter] FlushReportAchievements",
+          "[D208 8:30:56 AM] < harvest",
+          "[D208 8:30:56 AM] [SAVE] SaveBackgroundAsync beginning",
+          "[D208 8:30:57 AM] [SAVE] SaveBackgroundAsync complete",
+          "[D208 8:30:57 AM] [SAVE] /Users/serg/Library/Containers/com.studiodrydock.mayflower/Data/Library/Application Support/com.studiodrydock.mayflower/save/AoUVi2WfCZ4zyXZ4HpZgKb/1528.local saved (37447 bytes)",
+          "[D208 8:30:57 AM] [SAVE] Purging /Users/serg/Library/Containers/com.studiodrydock.mayflower/Data/Library/Application Support/com.studiodrydock.mayflower/save/AoUVi2WfCZ4zyXZ4HpZgKb/1526.sync",
+          "[D208 8:30:57 AM] [SAVE] Purging /Users/serg/Library/Containers/com.studiodrydock.mayflower/Data/Library/Application Support/com.studiodrydock.mayflower/save/AoUVi2WfCZ4zyXZ4HpZgKb/1527.local",
+          "[D208 8:30:57 AM] [SAVE] Reset SaveGameSlot nextSyncPath because previous one timed out",
+          "[D208 8:30:57 AM] [CLOUD] Push AoUVi2WfCZ4zyXZ4HpZgKb",
+          "[D208 8:30:57 AM] [CLOUD] [iCloudManager] pushGameWithId:AoUVi2WfCZ4zyXZ4HpZgKb path:1528.local syncPath:1527.sync"
+        ],
+        "events": [
+          "harvest"
+        ],
+        "at": null,
+        "node": null,
+        "mode": null,
+        "texts": [],
+        "burst_texts": [],
+        "after": [],
+        "moved": null
+      },
+      "verdict": {
+        "value": "hit",
+        "checks": [
+          {
+            "field": "events",
+            "expected": [
+              "harvest|grab_item"
+            ],
+            "got": [
+              "harvest"
+            ],
+            "ok": true
+          }
+        ]
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [],
+        "img0": null,
+        "run_dir": "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south",
+        "log_mark": 638696,
+        "t": 1793965600.995,
+        "source_frames": []
+      }
+    },
+    {
+      "id": "7adf6d86647b5fe8",
+      "goal": {
+        "name": null,
+        "params": [
+          [
+            "crops",
+            "Tulip"
+          ],
+          [
+            "region",
+            "GardenSouth"
+          ]
+        ],
+        "target": null,
+        "row": "pick",
+        "step": 0
+      },
+      "before": {
+        "screen": null,
+        "affordances": [
+          [
+            "plant",
+            852,
+            540,
+            false,
+            false,
+            false
+          ],
+          [
+            "plant_growing",
+            1068,
+            540,
+            false,
+            true,
+            false
+          ]
+        ],
+        "state": []
+      },
+      "prediction": {
+        "events": [],
+        "card": "Collect",
+        "log": null,
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "click",
+        "what": "bubble",
+        "pt": [
+          852,
+          540
+        ],
+        "arg": null,
+        "context": []
+      },
+      "evidence": {
+        "lines": [
+          "[D208 8:42:16 AM] > plant me=Player target=GardenBed(Clone) at (6.39, 0.10, -59.36)"
+        ],
+        "events": [
+          "plant"
+        ],
+        "at": [
+          6.39,
+          -59.36
+        ],
+        "node": "GardenBed@Garden",
+        "mode": "overlay",
+        "texts": [
+          "Inventory",
+          "Seeds",
+          "Tulip Bulbs"
+        ],
+        "burst_texts": [
+          "Inventory",
+          "Seeds",
+          "Tulip Bulbs"
+        ],
+        "after": [],
+        "moved": false
+      },
+      "verdict": {
+        "value": "miss",
+        "checks": [
+          {
+            "field": "card",
+            "expected": "Collect",
+            "got": "Inventory / Seeds / Tulip Bulbs",
+            "ok": false
+          }
+        ]
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [],
+        "img0": null,
+        "run_dir": "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south",
+        "log_mark": 640742,
+        "t": 1793965645.773,
+        "source_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/134719-852-540-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/134719-852-540-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/134719-852-540-2.jpg"
+        ],
+        "missing_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/134719-852-540-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/134719-852-540-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/134719-852-540-2.jpg"
+        ]
+      }
+    },
+    {
+      "id": "99e8e1a6215bfa84",
+      "goal": {
+        "name": null,
+        "params": [
+          [
+            "seed",
+            "Tulip"
+          ]
+        ],
+        "target": null,
+        "row": "plant",
+        "step": 0
+      },
+      "before": {
+        "screen": null,
+        "affordances": [
+          [
+            "plant",
+            864,
+            540,
+            false,
+            false,
+            false
+          ],
+          [
+            "plant",
+            1080,
+            536,
+            false,
+            false,
+            true
+          ]
+        ],
+        "state": []
+      },
+      "prediction": {
+        "events": [],
+        "card": "Seeds",
+        "log": null,
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "click",
+        "what": "bubble",
+        "pt": [
+          864,
+          540
+        ],
+        "arg": null,
+        "context": []
+      },
+      "evidence": {
+        "lines": [
+          "[D208 9:32:52 AM] > plant me=Player target=GardenBed(Clone) at (6.39, 0.10, -59.36)"
+        ],
+        "events": [
+          "plant"
+        ],
+        "at": [
+          6.39,
+          -59.36
+        ],
+        "node": "GardenBed@Garden",
+        "mode": "overlay",
+        "texts": [
+          "Inventory",
+          "Seeds",
+          "Tulip Bulbs"
+        ],
+        "burst_texts": [
+          "Inventory",
+          "Seeds",
+          "Tulip Bulbs"
+        ],
+        "after": [],
+        "moved": false
+      },
+      "verdict": {
+        "value": "hit",
+        "checks": [
+          {
+            "field": "card",
+            "expected": "Seeds",
+            "got": "Inventory / Seeds / Tulip Bulbs",
+            "ok": true
+          }
+        ]
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [],
+        "img0": null,
+        "run_dir": "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south",
+        "log_mark": 648636,
+        "t": 1793966169.39,
+        "source_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/135607-864-540-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/135607-864-540-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/135607-864-540-2.jpg"
+        ],
+        "missing_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/135607-864-540-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/135607-864-540-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/135607-864-540-2.jpg"
+        ]
+      }
+    },
+    {
+      "id": "4dd795d2ea31795b",
+      "goal": {
+        "name": null,
+        "params": [
+          [
+            "seed",
+            "Tulip"
+          ]
+        ],
+        "target": null,
+        "row": "plant",
+        "step": 1
+      },
+      "before": {
+        "screen": null,
+        "affordances": [],
+        "state": []
+      },
+      "prediction": {
+        "events": [],
+        "card": null,
+        "log": null,
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "pick",
+        "what": null,
+        "pt": null,
+        "arg": "Tulip",
+        "context": []
+      },
+      "evidence": {
+        "lines": [],
+        "events": [],
+        "at": null,
+        "node": null,
+        "mode": null,
+        "texts": [],
+        "burst_texts": [],
+        "after": [],
+        "moved": null
+      },
+      "verdict": {
+        "value": "unknown",
+        "checks": []
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [],
+        "img0": null,
+        "run_dir": "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south",
+        "log_mark": 648720,
+        "t": 1793966176.973,
+        "source_frames": []
+      }
+    },
+    {
+      "id": "7ffb52afc9f2271e",
+      "goal": {
+        "name": null,
+        "params": [
+          [
+            "seed",
+            "Tulip"
+          ]
+        ],
+        "target": null,
+        "row": "plant",
+        "step": 2
+      },
+      "before": {
+        "screen": null,
+        "affordances": [],
+        "state": []
+      },
+      "prediction": {
+        "events": [],
+        "card": null,
+        "log": "totalPlanted",
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "space",
+        "what": null,
+        "pt": null,
+        "arg": null,
+        "context": []
+      },
+      "evidence": {
+        "lines": [
+          "[D208 9:33:56 AM] [STATS] totalPlanted.TulipSeed = 117",
+          "[D208 9:33:56 AM] [STATS] growing.TulipSeed = 14",
+          "[D208 9:33:56 AM] [ACHIEVEMENT] FlowersEverywhere (Achievement) progress is 70%",
+          "2026-11-06 13:56:19.539 Wylde Flowers[68346:3441547] [GameCenter] QueueReportAchievement: FlowersEverywhere 70.000000",
+          "2026-11-06 13:56:19.539 Wylde Flowers[68346:3441547] [GameCenter] FlushReportAchievements",
+          "[D208 9:33:58 AM] < plant"
+        ],
+        "events": [],
+        "at": null,
+        "node": null,
+        "mode": null,
+        "texts": [],
+        "burst_texts": [],
+        "after": [],
+        "moved": null
+      },
+      "verdict": {
+        "value": "hit",
+        "checks": [
+          {
+            "field": "log",
+            "expected": "totalPlanted",
+            "got": "[D208 9:33:56 AM] [STATS] totalPlanted.TulipSeed = 117",
+            "ok": true
+          }
+        ]
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [],
+        "img0": null,
+        "run_dir": "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south",
+        "log_mark": 648720,
+        "t": 1793966183.854,
+        "source_frames": []
+      }
+    },
+    {
+      "id": "26efcf53881de2e3",
+      "goal": {
+        "name": null,
+        "params": [
+          [
+            "seed",
+            "Tulip"
+          ]
+        ],
+        "target": null,
+        "row": "plant",
+        "step": 3
+      },
+      "before": {
+        "screen": null,
+        "affordances": [],
+        "state": []
+      },
+      "prediction": {
+        "events": [],
+        "card": null,
+        "log": null,
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "space",
+        "what": null,
+        "pt": null,
+        "arg": null,
+        "context": []
+      },
+      "evidence": {
+        "lines": [
+          "[D208 9:36:58 AM] > water me=Player target=GardenBed(Clone) at (6.39, 0.10, -59.36)"
+        ],
+        "events": [
+          "water"
+        ],
+        "at": null,
+        "node": null,
+        "mode": null,
+        "texts": [],
+        "burst_texts": [],
+        "after": [],
+        "moved": null
+      },
+      "verdict": {
+        "value": "unknown",
+        "checks": []
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [],
+        "img0": null,
+        "run_dir": "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south",
+        "log_mark": 649142,
+        "t": 1793966187.567,
+        "source_frames": []
+      }
+    },
+    {
+      "id": "98053855c56e0bc3",
+      "goal": {
+        "name": null,
+        "params": [],
+        "target": null,
+        "row": "info_growing",
+        "step": 0
+      },
+      "before": {
+        "screen": null,
+        "affordances": [
+          [
+            "plant",
+            1068,
+            540,
+            false,
+            false,
+            false
+          ],
+          [
+            "plant_growing",
+            852,
+            540,
+            false,
+            false,
+            true
+          ]
+        ],
+        "state": []
+      },
+      "prediction": {
+        "events": [
+          "plant_growing"
+        ],
+        "card": null,
+        "log": null,
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "click",
+        "what": "bubble",
+        "pt": [
+          852,
+          540
+        ],
+        "arg": null,
+        "context": []
+      },
+      "evidence": {
+        "lines": [
+          "[D208 10:06:22 AM] > plant_growing me=Player target=GardenBed(Clone) at (6.39, 0.10, -59.36)"
+        ],
+        "events": [
+          "plant_growing"
+        ],
+        "at": [
+          6.39,
+          -59.36
+        ],
+        "node": "GardenBed@Garden",
+        "mode": "overlay",
+        "texts": [
+          "Tulip",
+          "A cup-shaped flower that",
+          "grows in Spring. Use it as a",
+          "crafting ingredient or sell it",
+          "to Violet.",
+          "4 days remaining",
+          "Makes 4"
+        ],
+        "burst_texts": [
+          "din air",
+          "Tulip",
+          "A cup-shaped flower that",
+          "grows in Spring. Use it as a",
+          "crafting ingredient or sell it",
+          "to Violet.",
+          "4 days remaining",
+          "Makes 4"
+        ],
+        "after": [],
+        "moved": false
+      },
+      "verdict": {
+        "value": "hit",
+        "checks": [
+          {
+            "field": "events",
+            "expected": [
+              "plant_growing"
+            ],
+            "got": [
+              "plant_growing"
+            ],
+            "ok": true
+          }
+        ]
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [],
+        "img0": null,
+        "run_dir": "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south",
+        "log_mark": 649786,
+        "t": 1793966436.489,
+        "source_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/140035-852-540-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/140035-852-540-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/140035-852-540-2.jpg"
+        ],
+        "missing_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/140035-852-540-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/140035-852-540-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/140035-852-540-2.jpg"
+        ]
+      }
+    }
+  ],
+  "visual_evidence": [
+    {
+      "id": "c60d02463378831b",
+      "goal": {
+        "name": null,
+        "params": [],
+        "target": null,
+        "row": "info_growing",
+        "step": 0
+      },
+      "before": {
+        "screen": null,
+        "affordances": [
+          [
+            "plant_growing",
+            864,
+            540,
+            false,
+            false,
+            false
+          ],
+          [
+            "plant",
+            1080,
+            536,
+            false,
+            false,
+            true
+          ]
+        ],
+        "state": []
+      },
+      "prediction": {
+        "events": "?",
+        "card": null,
+        "log": null,
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "click",
+        "what": "bubble",
+        "pt": [
+          1080,
+          536
+        ],
+        "arg": null,
+        "context": []
+      },
+      "evidence": {
+        "lines": [
+          "[D209 10:01:53 AM] > plant_growing me=Player target=GardenBed(Clone) at (6.39, 0.10, -59.36)"
+        ],
+        "events": [
+          "plant_growing"
+        ],
+        "at": [
+          6.39,
+          -59.36
+        ],
+        "node": "GardenBed@Garden",
+        "mode": "overlay",
+        "texts": [
+          "Tulip",
+          "A cup-shaped flower that",
+          "grows in Spring. Use it as a",
+          "crafting ingredient or sell it",
+          "to Violet.",
+          "3 days remaining",
+          "Makes 4"
+        ],
+        "burst_texts": [
+          "Tulip",
+          "A cup-shaped flower that",
+          "grows in Spring. Use it as a",
+          "crafting ingredient or sell it",
+          "to Violet.",
+          "3 days remaining",
+          "Makes 4",
+          "tO vIOlet"
+        ],
+        "after": [],
+        "moved": false
+      },
+      "verdict": {
+        "value": "unknown",
+        "checks": [
+          {
+            "field": "events",
+            "expected": "?",
+            "got": [
+              "plant_growing"
+            ],
+            "ok": null
+          }
+        ]
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [
+          "frames/c60d02463378831b.jpg"
+        ],
+        "img0": null,
+        "run_dir": "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south",
+        "log_mark": 704373,
+        "t": 1793981208.04,
+        "source_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/180646-1080-536-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/180646-1080-536-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/180646-1080-536-2.jpg"
+        ]
+      }
+    },
+    {
+      "id": "6a134e33de27a5be",
+      "goal": {
+        "name": null,
+        "params": [],
+        "target": null,
+        "row": null,
+        "step": null
+      },
+      "before": {
+        "screen": null,
+        "affordances": [
+          [
+            "plant_growing",
+            964,
+            584,
+            false,
+            false,
+            true
+          ],
+          [
+            "plant_growing",
+            964,
+            488,
+            false,
+            true,
+            true
+          ]
+        ],
+        "state": []
+      },
+      "prediction": {
+        "events": [],
+        "card": null,
+        "log": null,
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "click",
+        "what": "object",
+        "pt": [
+          1000,
+          506
+        ],
+        "arg": null,
+        "context": []
+      },
+      "evidence": {
+        "lines": [],
+        "events": [],
+        "at": null,
+        "node": null,
+        "mode": "overlay",
+        "texts": [
+          "Collect"
+        ],
+        "burst_texts": [
+          "Collect"
+        ],
+        "after": [],
+        "moved": false
+      },
+      "verdict": {
+        "value": "unknown",
+        "checks": []
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [
+          "frames/6a134e33de27a5be.jpg"
+        ],
+        "img0": null,
+        "run_dir": "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south",
+        "log_mark": 712434,
+        "t": 1793982735.56,
+        "source_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/183214-1000-506-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/183214-1000-506-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/183214-1000-506-2.jpg"
+        ]
+      }
+    },
+    {
+      "id": "747037850b9821c5",
+      "goal": {
+        "name": null,
+        "params": [],
+        "target": null,
+        "row": null,
+        "step": null
+      },
+      "before": {
+        "screen": null,
+        "affordances": [],
+        "state": []
+      },
+      "prediction": {
+        "events": [],
+        "card": null,
+        "log": null,
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "click",
+        "what": "object",
+        "pt": [
+          1000,
+          506
+        ],
+        "arg": null,
+        "context": []
+      },
+      "evidence": {
+        "lines": [
+          "[D209 2:28:16 PM] > plant me=Player target=GardenBed(Clone) at (6.39, 0.10, -63.11)"
+        ],
+        "events": [
+          "plant"
+        ],
+        "at": [
+          6.39,
+          -63.11
+        ],
+        "node": "GardenBed@Garden",
+        "mode": "overlay",
+        "texts": [
+          "Inventory",
+          "Seeds",
+          "Tulip Bulbs"
+        ],
+        "burst_texts": [
+          "Inventory",
+          "Seeds",
+          "Tulip Bulbs"
+        ],
+        "after": [],
+        "moved": false
+      },
+      "verdict": {
+        "value": "unknown",
+        "checks": []
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [
+          "frames/747037850b9821c5.jpg"
+        ],
+        "img0": null,
+        "run_dir": "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south",
+        "log_mark": 715832,
+        "t": 1793983477.042,
+        "source_frames": [
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/184436-1000-506-0.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/184436-1000-506-1.jpg",
+          "/Users/serg/w/llm-game-agent/runs/20261106-1307-garden-south/clicks/184436-1000-506-2.jpg"
+        ]
+      }
+    }
+  ]
+}

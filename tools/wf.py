@@ -19,6 +19,8 @@ import math
 import os
 import subprocess
 import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from runtime.timing import measure
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -529,7 +531,7 @@ TEMPLATES = os.path.join(ROOT, 'tools', 'templates')
 HUD_TEMPLATES = {'hud_pause': (50, 50, 120, 120), 'hud_journal3': (1605, 55, 110, 110)}
 MONEY_REGION = (1700, 130, 200, 70)
 MONEY_BOX = (1700, 130, 1900, 200)      # same, as a PIL crop box
-CLOCK_REGION = (120, 25, 380, 90)      # day name + time next to the analog clock (top-left); from x 120: "12:50 pm" starts left of 150 (objects-seed)
+CLOCK_REGION = (120, 25, 380, 150)     # day name + time next to the analog clock (top-left); include the time baseline at virtual y≈127–150
 POPUP_WORDS = ('Confirm', 'Hooray', 'Quest Complete', 'Quest complete',  # EN UI (L48; exact EN wording unverified)
                'одтвердить',          # RU "Подтвердить" Confirm (OCR sometimes reads П as Л)
                'Ура!',                # RU completion popup button "Hooray!"
@@ -753,6 +755,7 @@ def _walk_checked(direction, seconds):
 BUBBLE_DIR = os.path.join(ROOT, 'tools', 'bubbles')
 BUBBLE_MAX_DIST = 0.6   # feature-print distance above this = unknown icon
 _BUBBLE_REFS = None
+_BUBBLE_REVISION = None
 
 
 def _featureprint(img):
@@ -772,10 +775,13 @@ def _featureprint(img):
 
 
 def _bubble_refs():
-    global _BUBBLE_REFS
-    if _BUBBLE_REFS is None:
+    from game.data import image_revision
+    global _BUBBLE_REFS, _BUBBLE_REVISION
+    revision = image_revision(BUBBLE_DIR)
+    if _BUBBLE_REFS is None or _BUBBLE_REVISION != revision:
         from PIL import Image
         _BUBBLE_REFS = []
+        _BUBBLE_REVISION = revision
         for kind in sorted(os.listdir(BUBBLE_DIR)) if os.path.isdir(BUBBLE_DIR) else []:
             d = os.path.join(BUBBLE_DIR, kind)
             for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
@@ -1575,7 +1581,7 @@ def garden_cli_args(args):
         key, sep, value = arg.partition('=')
         if not sep:
             raise ValueError(f'garden argument must be key=value, got {arg!r}')
-        params[key] = int(value) if key == 'max_clicks' else value
+        params[key] = int(value) if key in ('max_clicks', 'turn_id') else value
     click = params.pop('answer', params.pop('click', None))
     relative, distance, crop = (params.pop('relative', None), params.pop('distance', None),
                                 params.pop('crop', None))
@@ -1595,69 +1601,60 @@ def garden_cli_args(args):
     return params, click
 
 
+# Every registered workflow command enters play before focusing the game. Observation-only variants are excluded
+# by turn_command. Raw/batched legacy requests are descriptions for the model, never an executable shortcut.
+PLAY_COMMANDS = frozenset({'play', 'garden', 'sleep', 'forage', 'achieve', 'py', 'call', 'goto', 'go-world',
+                           'improve', 'calib', 'advance', 'teach', 'where', 'pos', 'ask-step', 'do', 'key',
+                           'click', 'click-text', 'hold', 'walk', 'path', 'scroll', 'type', 'resume', 'route', 'plan'})
+
+OBSERVATION_COMMANDS = frozenset({'status', 'shot', 'ocr', 'find', 'hud', 'state', 'bubble', 'look', 'until',
+    'save-template', 'wiki', 'run', 'coverage', 'tara-box', 'world', 'gaps', 'bench', 'objects', 'graph',
+    'eval', 'record', 'routines', 'learn', 'actions', 'tips', 'log', 'save', 'wait', 'serve'})
+
+
 def game_cmd(kind, args):
-    """`wf py "<code>"` / `wf call <module.fn> [args…]`: game functions (tools/game, L77), each proven by the game log
-    and tracked as an action tree in the run log."""
+    """Compatibility command adapter. No eval/exec or legacy multi-input workflow is reachable here."""
     import game
+    from game import play
     game.bind(sys.modules[__name__])
-    game.track.LINES.clear()
-    ns = game.namespace()
-    res, err = None, None
     try:
-        if kind == 'achieve':
-            from game import engine
-            goal, params, answer = engine.parse_cli(args)
-            res = engine.summary(game.achieve(goal, answer=answer, **params))
-        elif kind == 'garden':
-            from game import garden
-            try:
-                params, click = garden_cli_args(args)
-            except ValueError as e:
-                raise game.Failed(str(e)) from None
-            res = garden.summary(garden.do(click=click, **params))
-        elif kind == 'sleep':
-            from game import sleep
-            params = {}
-            for arg in args:
-                key, sep, value = arg.partition('=')
-                if not sep or key != 'answer':
-                    raise game.Failed(f'sleep argument must be answer=<cell>, got {arg!r}')
-                params[key] = value
-            res = sleep.summary(sleep.do(**params))
+        args = list(args)
+        if kind in ('play', 'achieve'):
+            goal = args.pop(0) if args and '=' not in args[0] else None
         elif kind == 'forage':
-            from game import forage
-            _, params, answer = engine_parse(args)
-            out = forage.run(args[0], answer=answer, **params)
-            res = forage.summary(out) if out else None
-        elif kind == 'py':
-            code = ' '.join(args)
-            try:
-                res = eval(compile(code, '<wf py>', 'eval'), ns)
-            except SyntaxError:
-                exec(compile(code, '<wf py>', 'exec'), ns)
+            job = args.pop(0) if args else None
+            goal = 'forage'
+            if job:
+                args.insert(0, 'job=' + job)
+        elif kind in ('garden', 'sleep'):
+            goal = kind
         else:
-            mod, _, fn = args[0].rpartition('.')
-            f = getattr(getattr(game, mod), fn) if mod else ns[fn]
-            res = f(*[int(a) if re.fullmatch(r'-?\d+', a) else a for a in args[1:]])
-    except game.Failed as e:
-        err = str(e)
-    except _LawsStuck() as e:   # terminal (LAWS_STUCK): print it plainly, the agent stops and reports
-        for line in game.track.LINES:
-            print(line)
-        print(str(e))
-        return 3
-    except _NeedVision() as e:   # a vision question is an answer request, not a crash: print just its prompt
-        for line in game.track.LINES:
-            print(line)
-        print(e.args[0] if e.args else str(e))
-        return 2
-    for line in game.track.LINES:
-        print(line)
-    if err:
-        print(f'FAILED: {err}')
-    elif res is not None:
-        print('\n'.join(map(str, res)) if isinstance(res, list) else res)
-    return 1 if err else 0
+            return print(play.summary(play.turn(kind, {'request': args})))
+        print(play.cli(goal, args))
+    except (ValueError, game.Failed) as error:
+        print(f'FAILED: {error}')
+        return 1
+    return 0
+
+
+def turn_command(a):
+    """Route registered gameplay aliases; return False only for observation/one-input safety controls."""
+    if a.cmd == 'route' and (a.list or not a.name):
+        return False
+    selected = a.cmd in PLAY_COMMANDS or a.cmd == 'edge' and a.sub in ('add', 'replay') or a.cmd == 'road' and a.go
+    if not selected:
+        return False
+    if a.cmd in ('play', 'achieve', 'garden', 'sleep', 'forage', 'py', 'call'):
+        code = game_cmd(a.cmd, a.args)
+        if code:
+            raise SystemExit(code)
+    else:
+        import game
+        from game import play
+        game.bind(sys.modules[__name__])
+        params = {key: value for key, value in vars(a).items() if key != 'cmd'}
+        print(play.summary(play.turn(a.cmd, params)))
+    return True
 
 
 def run_report(path):
@@ -3522,22 +3519,18 @@ def is_paused(s=None):
 
 def set_paused(want):
     """Idempotent pause/resume: look first, press Escape only if needed (Escape toggles; blind presses un-pause)."""
-    resume_clicked = False
-    for _ in range(3):
-        s = state()
-        if is_paused(s) == want:
-            return f'{"paused" if want else "running"}: {brief(s)}'
-        if not want and is_paused(s):
-            hits = find_text('Resume Game', exact=True) or find_text('Resume Game')
-            if hits and not resume_clicked:
-                click(hits[0]['cx'], hits[0]['cy'])
-                resume_clicked = True
-            else:
-                key('escape')
-        else:
-            key('escape')
-        time.sleep(0.7)
-    return f'could not {"pause" if want else "resume"}: {brief(state())}'
+    s = state()
+    if is_paused(s) == want:
+        return f'{"paused" if want else "running"}: {brief(s)}'
+    if want:
+        key('escape')
+    else:
+        hits = find_text('Resume Game', exact=True)
+        if len(hits or ()) != 1:
+            return 'could not resume: Resume Game missing or ambiguous; model must inspect'
+        click(hits[0]['cx'], hits[0]['cy'])
+    time.sleep(0.7)
+    return f'{"paused" if want else "running"}: {brief(state())}'
 
 
 def run_action(spec):
@@ -4152,11 +4145,13 @@ def main(argv=None):
     p.add_argument('args', nargs='*')
     p = sub.add_parser('eval', help='hits/misses of predictions: wf eval [all] | pending | mark <id> hit|miss')
     p.add_argument('args', nargs='*')
+    p = sub.add_parser('play', help='universal model-owned turn: [goal] [k=v] [turn_id=N answer=Decision-JSON]')
+    p.add_argument('args', nargs='*')
     p = sub.add_parser('achieve', help='the engine (L138): wf achieve <goal|json> [k=v ...] [answer=X]; goals in '
                                        'tools/game/goals.json, e.g. wf achieve plant seed=Tulip region=GardenSouth')
     p.add_argument('args', nargs='+')
-    p = sub.add_parser('garden', help='inspect and immediately harvest, replant, and water every bed: '
-                                      'wf garden [region=Garden] [crops=Tulip] [answer=...] [max_clicks=40]')
+    p = sub.add_parser('garden', help='observe a model-owned garden turn; continue with one decision: '
+                                      'wf garden [region=Garden] [crops=Tulip] [turn_id=N answer=accept|...]')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('sleep', help='navigate to Tara\'s bed and sleep; resume vision with answer=walk:<cell>')
     p.add_argument('args', nargs='*')
@@ -4333,6 +4328,9 @@ def main(argv=None):
             print(f[:-4] + ':', open(os.path.join(ROUTES, f)).readline().strip('# \n'))
         return
 
+    if turn_command(a):
+        return
+
     # --- input commands: game must be frontmost (focus is given back afterwards; see release_focus)
     if a.cmd == 'click-text':
         # OCR while the game is still in the background (fast), then focus only to click
@@ -4490,7 +4488,8 @@ def serve():
             moves0 = MOVES[0]
             with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
                 try:
-                    main(argv)
+                    with measure('server.dispatch', command=argv[0] if argv else ''):
+                        main(argv)
                 except SystemExit as e:
                     if isinstance(e.code, str):
                         print(e.code)
@@ -4517,7 +4516,10 @@ def serve():
                     except Exception:
                         pass
             try:
-                conn.sendall(json.dumps({'out': buf.getvalue(), 'code': code}).encode() + b'\n')
+                with measure('server.encode', bytes=buf.tell()):
+                    response = json.dumps({'out': buf.getvalue(), 'code': code}).encode() + b'\n'
+                with measure('server.send', bytes=len(response)):
+                    conn.sendall(response)
             except OSError:
                 pass
 

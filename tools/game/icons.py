@@ -12,7 +12,7 @@ from . import core
 DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'crop_icons')
 MAX_DIST = 0.6      # feature-print distance above this = not this crop
 HALF = 56           # px half-size of the icon crop inside a bubble (1920x1080 frame)
-_REFS = []          # [(name, vector)]; loaded once per DIR
+_REFS = []          # [(name, vector)]; refreshed when the learned PNG set changes
 _LOADED = [None]
 
 
@@ -104,10 +104,12 @@ def crop112(crop140):
 
 
 def _refs():
-    if _LOADED[0] != DIR:
+    from .data import image_revision
+    revision = image_revision(DIR)
+    if _LOADED[0] != revision:
         from PIL import Image
         reset()
-        _LOADED[0] = DIR
+        _LOADED[0] = revision
         for name in sorted(os.listdir(DIR)) if os.path.isdir(DIR) else []:
             d = os.path.join(DIR, name)
             for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:

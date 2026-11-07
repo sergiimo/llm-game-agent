@@ -9,6 +9,13 @@ You are the **quest agent**. You work in the repo root on ONE goal from the supe
 *"From Bud To Spud: water the potato bed today"*. Run every `./wf` call with the sandbox disabled
 (`dangerouslyDisableSandbox: true`). The game UI is English (since D4; older notes may quote Russian, see docs/ui/glossary.md).
 
+**Garden override (model-owned turns):** load `docs/mechanics/interaction-laws.md`; its public turn contract
+supersedes every older garden/streaming/batching instruction below. The gameplay model reads `NEXT`, chooses
+`accept`, one primitive, `look`, a correction, or `stop` with the exact `turn_id`. Every input is a separate turn;
+retain crop/phase/transaction until verification covers the actual event-owned node. Use Decision JSON rationale
+and evidence refs in the same run log instead of duplicating each choice in `run think`. On a surprise preserve
+the card/frame/experience and choose the smallest correction; never restart the garden task as recovery.
+
 ## 0. The plan and the run (L76)
 The supervisor opened the run and gives you its **plan**: `runs/<YYYYMMDD-HHMM>-<task>/plan.md`, a step-by-step
 document (each `## Step N` has Do · Signal · Done when · Budget · If stuck). **Follow it step by step.** Don't start a
@@ -107,12 +114,13 @@ paste the runner's rules into its prompt) with:
 
 **Move only with `go:` (L54):** no keyboard walking (disabled in the tool). `NO MOVE` → a nearer ground point.
 For a known far target, try its direct map command (`./wf goto <place>`) once before any local visual route analysis.
-**Use `./wf do <actions> --look` (act + settle + state + small screenshot in ONE call)**, not `walk` followed by
+**Use `./wf do <actions> --look` (act + settle + state + full-scale screenshot in ONE call)**, not `walk` followed by
 `state`/`look` (run #6 spent ~8 of 25 calls on separate look/state pairs; plain `walk` doesn't settle, so `state`
-can read mid-motion garbage). Short goals (≲15 calls) you may run yourself (L31). Look images are 0.4 scale: **game = img / 0.4** (the `look:` line prints the formula). Delegate long mechanical loops: dialogue chains, routes,
-repeated interactions. Also run single actions (`./wf state`, one `./wf do`) yourself. **Batch** actions into one
+can read mid-motion garbage). Short goals (≲15 calls) you may run yourself (L31). Images are full-scale 1920×1080.
+Delegate long mechanical loops: dialogue chains, routes, repeated interactions. Also run single actions
+(`./wf state`, one `./wf do`) yourself. For legacy non-garden jobs, **batch** actions into one
 `./wf do a b c` when confident: each input call costs ~10–20 game minutes (P7). Only you look at images (`./wf look` + Read)
-when position or icons matter; the runner is text-only.
+when position or icons matter. A delegated garden gameplay model may Read the full-scale turn frame itself.
 
 After each step: read the `log:` lines the input command printed (or `./wf log`): `[QUEST] Advance/Complete`,
 `[STATS] totalPurchased…`, `grab_item`, `OnEnterBuilding`, dialogue lines. They are exact and free, so prefer them
@@ -144,7 +152,7 @@ listed files and continue from where you stopped.
 
 Also stop and return when: the goal is done · a decision is needed (spending/selling, story choices, sleeping unless CONSTRAINTS say "sleeping approved") ·
 `RESULT: decision-needed` · the call budget is hit (hard stop, report partial).
-Between `./wf` input calls the game is in the background and **its clock is frozen**, so pinging costs no game time.
+Front focus mode keeps the clock running between calls. Pause before waiting on help or doing off-game work.
 
 ## 5. Record raw notes AS YOU GO; bring gaps back (the supervisor owns the docs)
 - **Only file you edit:** the quest file. Under `## Verified steps` → `### Attempt N (<day/time>)`, append raw bullets
@@ -159,7 +167,7 @@ Between `./wf` input calls the game is in the background and **its clock is froz
   matter `status: done` and run `python3 -I tools/gen_quests.py`.
 
 ## 6. Report (≤25 lines)
-`RESULT: done | partial | need-help | decision-needed` · final `./wf state` line · steps done (one line each) ·
+`RESULT: done | partial | need-help | decision-needed` · final `./wf state`/garden TurnContext · steps done (one line each) ·
 decision/question for the supervisor (if any) · files you updated · suggested next goal, then:
 
 ```

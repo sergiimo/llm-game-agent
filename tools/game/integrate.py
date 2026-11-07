@@ -235,6 +235,8 @@ def on_click(c, img0=None, here=None):
 def propose(e):
     ctx = dict(e.action.context or ()) if e.action else {}
     world, memory, transitions = [], [], []
+    if e.artifacts.turn_id is not None and e.evidence.at and e.evidence.events:
+        world.append(X.Update('world', 'event_state'))
     if e.action and e.action.kind == 'click':
         if e.evidence.at:
             world.append(X.Update('world', 'card_state'))
@@ -249,6 +251,14 @@ def propose(e):
             memory.append(X.Update('memory', 'relabel', {'box': list(ctx['det_box']), 'node': e.evidence.node}))
         if ctx.get('toward'):
             memory.append(X.Update('memory', 'direction', {'toward': list(ctx['toward']), 'target': ctx.get('target')}))
+    if e.action and e.action.kind == 'space':
+        highlighted = [a for a in _affs(e.before.affordances) if a.highlighted]
+        target = next((m.group(1) for line in e.evidence.lines
+                       if (m := re.search(r'target=([A-Za-z]+)', line))), None)
+        if len(highlighted) == 1 and target and e.evidence.events:
+            point = [int(highlighted[0].pt[0]), int(highlighted[0].pt[1])]
+            memory.append(X.Update('memory', 'confirmed_bubble', {'point': point}))
+            world.append(X.Update('world', 'interaction_hint', {'target': target, 'point': point}))
     for i, ch in enumerate(e.verdict.checks):
         transitions.append(X.Update('transitions', 'observation', {'i': i}))
     return X.Correction(e.id, world=tuple(world), memory=tuple(memory), transitions=tuple(transitions))
@@ -295,22 +305,246 @@ def _img(e, img0):
     return None
 
 
+def _save_world(g):
+    """Commit graph data before its applied key, so a daemon restart cannot lose a learned fact."""
+    import tempfile
+    from . import learn
+    path = learn.graph_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix='.world-')
+    os.close(fd)
+    try:
+        g.save(tmp)
+        with open(tmp, 'rb') as f:
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def event_node(e):
+    """Resolve canonical ownership again on replay; an already-applied update need not return its old result."""
+    from . import learn, world
+    g = learn.MEMORY['graph']
+    if g is None:
+        return None
+    state = dict(e.evidence.state)
+    found = None
+    for line in e.evidence.lines:
+        at = A.position_of(line)
+        target = re.search(r'target=([A-Za-z]+)', line)
+        if at and target and A.events_of([line]):
+            source = world.event_source(state, line)
+            scene = (source.get('scope') or source.get('scene')) if source else None
+            physical = source.get('scene') if source and not source.get('legacy') else None
+            found = (world.scoped_event_node(g, target[1], at, scene, physical) if scene else
+                     None if source is not None else world.find(g, target[1], at))
+    return found
+
+
 def _run(u, e, img0):
     """One update by the existing rules. Its result (a learned name, a node id) or None."""
     from . import learn as LN
+    if u.consumer == 'gap' and u.op == 'bundle':
+        return gap([e.id], u.args['invariant'], u.args.get('owner', 'turn'), u.args.get('kind', 'capability'))
+    if u.consumer == 'world' and u.op == 'event_state':
+        from . import world
+        g = LN.MEMORY['graph']
+        if g is None:
+            return None
+        nid = None
+        state = dict(e.evidence.state)
+        for line in e.evidence.lines:
+            at = A.position_of(line)
+            target = re.search(r'target=([A-Za-z]+)', line)
+            events = A.events_of([line])
+            if at and target and events:
+                source = world.event_source(state, line)
+                scene = (source.get('scope') or source.get('scene')) if source else None
+                if source and not scene:
+                    raise ValueError('positioned event source scene is unknown')
+                physical = source.get('scene') if source and not source.get('legacy') else None
+                selected = (world.scoped_event_node(g, target[1], at, scene, physical) if scene else
+                            world.find(g, target[1], at))
+                if scene and selected is None:
+                    raise ValueError('positioned event identity unavailable or ambiguous in captured scene')
+                context = {'scene': source['scene'], 'source': source} if source else {}
+                nid = world.place(g, target[1], at, events, stamp=world._stamp_of(line) or LN.stamp(), lines=[line],
+                                  node_id=selected, **context)
+                note(g, nid, e.id)
+        if nid:
+            _save_world(g)
+        return nid
+    if u.consumer == 'world' and u.op == 'interaction_hint':
+        import math
+        g = LN.MEMORY['graph']
+        if g is None:
+            return None
+        target = u.args['target']
+        candidates = ([target] if target in g.nodes else
+                      [node.id for node in g.nodes.values() if node.kind == target])
+        if len(candidates) != 1:
+            return None
+        state = dict(e.evidence.state) or dict(e.before.state)
+        position = state.get('position')
+        if not isinstance(position, (tuple, list)) or len(position) != 2:
+            return None
+        point = u.args['point']
+        dx, dy = float(point[0]) - 960., float(point[1]) - 540.
+        length = math.hypot(dx, dy) or 1.
+        hint = {'position': [float(position[0]), float(position[1])],
+                'screen_point': list(point), 'screen_dir': [dx / length, dy / length],
+                'region': state.get('region'), 'game_time': state.get('game_time'),
+                'source': 'event', 'experience': e.id, 'frame_path': e.artifacts.img0}
+        node = g.nodes[candidates[0]]
+        node.extra['interaction_hint'] = hint
+        from objects import store as vectors
+        node.extra['appearance_needed'] = not bool(vectors.Store().examples(node.kind))
+        note(g, candidates[0], e.id)
+        _save_world(g)
+        return candidates[0]
+    if u.consumer == 'world' and u.op == 'model_edge':
+        g = LN.MEMORY['graph']
+        edge, values = u.args['edge'], u.args['values']
+        if g is None or edge['a'] not in g.nodes or edge['b'] not in g.nodes:
+            raise ValueError('graph correction requires existing named endpoints')
+        matches = [row for row in g.edges(edge['a'], edge['rel']) if row['b'] == edge['b']]
+        if len(matches) != 1:
+            raise ValueError('graph correction needs exactly one existing named edge')
+        row = matches[0]
+        row.update(values, source='vision', provenance=_provenance(e, u.args))
+        if 'dir' in values:
+            from objects.graph import compass
+            row['compass'] = compass(values['dir'])
+        _save_world(g)
+        return edge
+    if u.consumer == 'world' and u.op == 'model_placement':
+        g = LN.MEMORY['graph']
+        nid, values = u.args['node'], u.args['placement']
+        if g is None or nid not in g.nodes:
+            raise ValueError('graph correction requires existing named node')
+        if 'region' in values and values['region'] not in g.nodes:
+            raise ValueError('graph correction requires an existing region')
+        node = g.nodes[nid]
+        if e.evidence.at and list(values.get('pos', e.evidence.at)) != list(e.evidence.at):
+            raise ValueError('placement correction conflicts with current positioned evidence')
+        for key, value in values.items():
+            if key == 'region':
+                node.region = value
+            else:
+                node.extra[key] = value
+        node.extra['placement_provenance'] = _provenance(e, u.args)
+        note(g, nid, e.id)
+        _save_world(g)
+        return nid
+    if u.consumer == 'world' and u.op == 'model_state':
+        from . import plan, world
+        g = LN.MEMORY['graph']
+        nid, values = u.args['node'], u.args['state']
+        if g is None or nid not in g.nodes:
+            raise ValueError('world correction requires an existing graph node')
+        if e.evidence.at:
+            proven = world.find(g, None, tuple(e.evidence.at))
+            if proven and proven != nid:
+                raise ValueError('model correction cannot rebind positioned event identity')
+        # Current positioned events are facts; historical graph event readings are hypotheses whose age matters.
+        current = {}
+        for line in e.evidence.lines:
+            at = A.position_of(line)
+            target = re.search(r'target=([A-Za-z]+)', line)
+            if at and target and world.find(g, target[1], at) == nid:
+                for event in A.events_of([line]):
+                    current.update(plan.effects_of_event(event, dict(e.goal.params), list(e.evidence.lines)))
+        stamp = next((m[1] for line in reversed(e.evidence.lines)
+                      if (m := re.match(r'^\[(D[^\]]+)\]', line)) and world.when(m[1]) is not None),
+                     dict(e.before.state).get('game_time')) or LN.stamp()
+        observed_at = world.when(stamp)
+        for key, value in values.items():
+            if key in current and current[key] != value:
+                raise ValueError('model correction conflicts with current positioned event evidence')
+            reading = g.nodes[nid].state.get(key)
+            if not isinstance(reading, dict) or reading.get('value') == value:
+                continue
+            recorded_at = world.when(reading.get('game_time'))
+            if recorded_at is not None and observed_at is not None and (
+                    recorded_at > observed_at or (recorded_at == observed_at and reading.get('source') == 'event')):
+                raise ValueError('model correction cannot overwrite equally current event evidence or a newer reading')
+        for key, value in values.items():
+            g.set_state(nid, key, value, stamp, 'vision')
+        note(g, nid, e.id)
+        if u.args.get('frame_path'):
+            g.nodes[nid].extra['state_provenance'] = _provenance(e, u.args)
+        _save_world(g)
+        return nid
     if u.consumer == 'world' and u.op == 'card_state':
-        nid = LN.observe_card(_ns(e))
+        state = dict(e.evidence.state)
+        scoped = bool(state.get('region') or state.get('event_sources'))
+        selected = event_node(e) if scoped else None
+        if scoped and selected is None:
+            return None  # no unscoped card/trace attribution after an ambiguous positioned event
+        nid = LN.observe_card(_ns(e), node_id=selected) if scoped else LN.observe_card(_ns(e))
         g = LN.MEMORY['graph']
         if g is not None and e.evidence.at:
             from . import world
-            hit = world.find(g, None, tuple(e.evidence.at)) if hasattr(world, 'find') else None
+            hit = selected if scoped else world.find(g, None, tuple(e.evidence.at))
             for n in {nid, hit} - {None}:
                 note(g, n, e.id)
+            if nid and e.artifacts.turn_id is not None:
+                _save_world(g)
         return nid
+    if u.consumer == 'memory' and u.op in ('reembed', 'sample'):
+        from objects import store as vectors, dino
+        from PIL import Image
+        store = vectors.Store()
+        kind = u.args['kind']
+        provenance = _provenance(e, u.args)
+        if u.op == 'reembed':
+            examples = store.examples(kind)
+            if not examples:
+                raise ValueError('named kind has no appearance samples to reembed')
+            vecs = {}
+            for example in examples:
+                with Image.open(store.example_path(kind, example.id)) as crop:
+                    vecs[example.id] = dino.mean_vector(crop.convert('RGB'))
+                example.source = provenance
+            return store.set_vecs(kind, vecs)
+        with Image.open(u.args['frame_path']) as captured:
+            image = captured.convert('RGB')
+        if image is None:
+            raise ValueError('appearance sample needs captured frame')
+        box = u.args['box']
+        if not (0 <= box[0] < box[2] <= image.width and 0 <= box[1] < box[3] <= image.height):
+            raise ValueError('appearance box outside captured frame')
+        crop = image.convert('RGB').crop(tuple(box))
+        sample = store.add(kind, crop, dino.mean_vector(crop), source=provenance, force=True)
+        if sample is None:
+            raise ValueError('appearance sample was not stored')
+        g = LN.MEMORY['graph']
+        candidates = [node for node in g.nodes.values() if node.kind == kind] if g is not None else []
+        if len(candidates) == 1:
+            candidates[0].extra['appearance_needed'] = False
+            candidates[0].extra['appearance_sample'] = {'id': sample.id, 'experience': e.id,
+                                                        'frame_path': u.args['frame_path']}
+            note(g, candidates[0].id, e.id)
+            _save_world(g)
+        return sample.id
     if u.consumer == 'memory':
         img = _img(e, img0)
+        strict = u.args.get('require_proof', False)
+        if strict and (img is None or (u.op == 'badge' and (not e.action or not e.action.pt))):
+            raise ValueError('appearance correction needs the captured frame and clicked target')
         if u.op == 'bubble_label':
             return LN.learn_bubble(_ns(e), img)
+        if u.op == 'confirmed_bubble':
+            W = LN.core.WF
+            point = tuple(u.args['point'])
+            label = W.event_kind(list(e.evidence.lines)) if hasattr(W, 'event_kind') else None
+            before = _affs(e.before.affordances)
+            bubble = next((a for a in before if a.pt == point and a.highlighted), None)
+            if img is None or bubble is None or not label or not hasattr(W, 'learn_bubble'):
+                return None
+            return (f'bubble:{label}' if W.learn_bubble(W.bubble_crop(img, point), label, bubble.kind) else None)
         if u.op == 'answer_look':
             return LN.learn_answer(_ns(e), img, u.args.get('here'), exp=e.id)
         if u.op == 'badge':   # the clicked bubble's 140-px crop -> its corner is an example of the label
@@ -322,10 +556,14 @@ def _run(u, e, img0):
             return f'badge:{u.args["label"]}'
         if u.op == 'proven_look':   # a box on the frame before the click, named by a later log proof
             ok = LN.relabel(img, tuple(u.args['box']), u.args['kind'])
+            if strict and not ok:
+                raise ValueError('appearance correction could not store the labelled crop')
             return f'look:{u.args["kind"]}' if ok else None
         if u.op == 'relabel':
             kind = LN.kind_of(u.args['node'])
             ok = LN.relabel(img, tuple(u.args['box']), kind)
+            if strict and not ok:
+                raise ValueError('appearance correction could not store the labelled crop')
             return f'look:{kind}' if ok else None
         if u.op == 'direction':
             a, b, d = u.args['toward']
@@ -336,6 +574,28 @@ def _run(u, e, img0):
             return None
     if u.consumer == 'transitions':
         from . import steps
+        if u.op == 'model_expect':
+            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'actions.json')
+            with open(path) as f:
+                table = json.load(f)
+            row = next((r for r in table['rows'] if r['id'] == u.args['row']), None)
+            index = u.args['step']
+            if row is None or not 0 <= index < len(row['steps']):
+                raise ValueError('transition correction needs an existing row and step')
+            row['steps'][index]['expect'] = u.args['expect']
+            import tempfile
+            fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix='.actions-')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(table, f, indent=1)
+                    f.write('\n')
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp, path)
+            finally:
+                if os.path.exists(tmp):
+                    os.unlink(tmp)
+            return u.args['row']
         ch = e.verdict.checks[u.args['i']]
         try:
             with open(steps.OBSERVED, 'a') as f:
@@ -346,7 +606,7 @@ def _run(u, e, img0):
         except OSError:
             pass
         return None
-    return None
+    raise ValueError(f'unsupported correction {u.consumer}:{u.op}')
 
 
 def apply(e, correction=None, img0=None):
@@ -363,6 +623,7 @@ def apply(e, correction=None, img0=None):
         except Exception as ex:   # noqa: BLE001 (learning never breaks play)
             r = None
             out.setdefault('errors', []).append(f'{u.op}: {ex}')
+            continue  # failed corrections are retryable; never durably mark them as applied
         keys.add(k)
         _append('applied.txt', k)
         out['applied'] += 1
@@ -370,6 +631,72 @@ def apply(e, correction=None, img0=None):
         if r and u.consumer == 'memory' and out['learned'] is None:
             out['learned'] = r
     return out
+
+
+def _provenance(e, data):
+    return {'source': 'vision', 'experience': e.id, 'frame_path': data['frame_path'],
+            'rationale': data['rationale'], 'evidence_refs': data['evidence_refs']}
+
+
+def _validate_provenance(e, data):
+    frames = {e.artifacts.img0, *e.artifacts.frames} - {None}
+    if (not data.get('frame_path') or data['frame_path'] not in frames or
+            not isinstance(data.get('rationale'), str) or not data['rationale'].strip() or
+            not isinstance(data.get('evidence_refs'), (list, tuple)) or not data['evidence_refs']):
+        raise ValueError('vision correction needs captured frame, rationale and evidence references')
+
+
+def correct(e, kind, data):
+    """Model-selected correction on the same immutable experience. Runtime mutates data only, never source."""
+    # The model may revise its own choice without attributing a fault to game facts or learned data.
+    # TurnLoop records this correction and clears the surprise; no replay/learning or retry input occurs here.
+    if kind in ('unresolved', 'human', 'stop', 'revise_decision', 'blocked_target'):
+        return {'applied': 0, 'status': kind}
+    if kind == 'graph':
+        _validate_provenance(e, data)
+        if data.get('edge'):
+            edge, values = data['edge'], data.get('values')
+            if (set(edge) != {'a', 'b', 'rel'} or not all(isinstance(v, str) and v for v in edge.values()) or
+                    not isinstance(values, dict) or not values or set(values) - {'dir', 'distance', 'valid'}):
+                raise ValueError('graph edge correction needs exact endpoints/relation and bounded values')
+            if 'dir' in values:
+                import math
+                direction = values['dir']
+                if not isinstance(direction, (tuple, list)) or len(direction) != 2 or not all(
+                        isinstance(v, (int, float)) and math.isfinite(v) for v in direction) or not any(direction):
+                    raise ValueError('graph direction needs two finite nonzero coordinates')
+            return apply(e, X.Correction(e.id, world=(X.Update('world', 'model_edge', data),)))
+        if data.get('placement'):
+            if not data.get('node') or set(data['placement']) - {'pos', 'region', 'scene'}:
+                raise ValueError('graph placement needs exact node and pos/region/scene')
+            return apply(e, X.Correction(e.id, world=(X.Update('world', 'model_placement', data),)))
+        kind = 'world'  # backward-compatible node/state validation and current-event precedence below
+    if kind == 'world':
+        if not isinstance(data.get('state'), dict) or not data.get('node'):
+            raise ValueError('world correction needs node and state')
+        correction = X.Correction(e.id, world=(X.Update('world', 'model_state', data),))
+    elif kind == 'appearance':
+        op = data.get('op', 'proven_look')
+        if op in ('reembed', 'sample'):
+            from objects.store import KIND_RE
+            _validate_provenance(e, data)
+            if not isinstance(data.get('kind'), str) or not KIND_RE.fullmatch(data['kind']):
+                raise ValueError('appearance correction needs one named kind')
+            if op == 'sample' and (not isinstance(data.get('box'), (tuple, list)) or len(data['box']) != 4):
+                raise ValueError('appearance sample needs one bounded crop box')
+            return apply(e, X.Correction(e.id, memory=(X.Update('memory', op, data),)))
+        raise ValueError('unsupported appearance correction; use provenance-bearing sample or reembed')
+    elif kind == 'transition':
+        if not isinstance(data.get('expect'), dict) or not isinstance(data.get('step'), int) or not data.get('row'):
+            raise ValueError('transition correction needs row, step and expect')
+        correction = X.Correction(e.id, transitions=(X.Update('transitions', 'model_expect', data),))
+    elif kind == 'gap':
+        if not data.get('invariant'):
+            raise ValueError('gap correction needs invariant')
+        correction = X.Correction(e.id, gap=(X.Update('gap', 'bundle', data),))
+    else:
+        raise ValueError(f'unknown correction class {kind!r}')
+    return apply(e, correction)
 
 
 def replay(path=None):
@@ -468,7 +795,8 @@ def _tables():
     for t in TABLES:
         p = os.path.join(os.path.dirname(os.path.abspath(__file__)), t)
         try:
-            out[t] = hashlib.sha1(open(p, 'rb').read()).hexdigest()[:12]
+            with open(p, 'rb') as f:
+                out[t] = hashlib.sha1(f.read()).hexdigest()[:12]
         except OSError:
             pass
     return out
@@ -490,7 +818,8 @@ def gaps():
         for f in sorted(os.listdir(d)):
             if f.endswith('.json'):
                 try:
-                    out.append(json.load(open(os.path.join(d, f))))
+                    with open(os.path.join(d, f)) as bundle:
+                        out.append(json.load(bundle))
                 except (OSError, ValueError):
                     continue
     return out

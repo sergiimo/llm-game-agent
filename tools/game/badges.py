@@ -41,10 +41,12 @@ def corner(crop140):
 
 
 def _refs():
-    if _LOADED[0] != DIR:
+    from .data import image_revision
+    revision = image_revision(DIR)
+    if _LOADED[0] != revision:
         from PIL import Image
         reset()
-        _LOADED[0] = DIR
+        _LOADED[0] = revision
         for label in LABELS:
             d = os.path.join(DIR, label)
             for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:

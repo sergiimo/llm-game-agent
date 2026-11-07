@@ -2,12 +2,12 @@
 toggled the pause menu, world clicks hit Exit Game).
 
 States: gameplay | card (an info/detail card, e.g. "Tulip Bulbs … Select") | picker (the Inventory / Seeds panel) |
-pause (Game Paused menu) | menu (settings or other buttons) | dialogue | popup | cutscene.
+pause (Game Paused menu) | menu (settings or other buttons) | dialogue | popup | cutscene | unknown.
 Rules:
 - a world click only in gameplay (`require_world`): a card/picker is closed first, the pause menu resumed; anything
   else that stays = terminal (LawsStuck), never clicked through;
 - Escape only on a known card or picker, once, and checked; the pause menu is never escaped into.
-A textless overlay is gameplay unless the map pin proves the full map is open (the HUD also hides on beds, L144)."""
+A textless overlay is gameplay unless both the full paper map panel and its pin are proved (the HUD also hides on beds, L144)."""
 import re
 from dataclasses import dataclass, field
 
@@ -18,6 +18,7 @@ PICKER = ('inventory',)
 BUTTONS = ('select', 'remove', 'cancel', 'confirm', 'buy', 'sell', 'collect', 'yes', 'no', 'ok')
 # Numeric object-progress/detail markers; descriptions alone also occur in transient hints.
 DETAIL = re.compile(r'\b\d+ days? remaining\b|\bmakes\s+\d+\b', re.I)
+HINTS = ('fill watering can', 'rusty watering can')  # verified passive watering hints, not arbitrary OCR text
 HINT_WAIT = 4.0   # s a short hint gets to fade (the watering-can hint lasts longer than one settle, D186)
 
 
@@ -38,7 +39,29 @@ def _wait_hint(s):
 MENU = ('settings', 'volume', 'return to menu', 'exit game', 'настройки', 'громкость')
 
 
-def classify(mode, texts):
+def map_panel(image):
+    """Positive full-modal layout evidence, independent of pin-colored pixels in world scenery/HUD.
+
+    The large map has a continuous pale paper border on all four sides. Check broad normalized border
+    bands, not the M hotkey icon or a pink candidate alone. Missing layout remains unproved.
+    """
+    import numpy as np
+    pixels = np.asarray(image.convert('RGB'), dtype=np.int16)
+    r, g, b = pixels[..., 0], pixels[..., 1], pixels[..., 2]
+    paper = (r >= 190) & (g >= 175) & (b >= 145) & (r >= g) & (g >= b) & (r - b <= 80)
+    height, width = paper.shape
+    if height < 100 or width < 100:
+        return False
+    rows = paper[:, int(.2 * width):int(.8 * width)].mean(axis=1)
+    columns = paper[int(.2 * height):int(.8 * height), :].mean(axis=0)
+    bands = ((rows[int(.08 * height):int(.25 * height)], height),
+             (rows[int(.75 * height):int(.92 * height)], height),
+             (columns[int(.1 * width):int(.25 * width)], width),
+             (columns[int(.75 * width):int(.9 * width)], width))
+    return all(int((band >= .95).sum()) >= max(2, int(.005 * extent)) for band, extent in bands)
+
+
+def classify(mode, texts, *, world_visible=False):
     low = [str(t).lower() for t in texts]
     # The daemon can retain its pre-pause mode (notably ``cutscene``) while the
     # pause overlay is on top.  Visible pause controls are stronger evidence
@@ -53,7 +76,12 @@ def classify(mode, texts):
         return 'menu'
     if any(t.strip() in PICKER for t in low):
         return 'picker'
-    return 'card'
+    # Text length never proves a card (live "ain" / "NATE"). Require semantic controls/detail/hint structure.
+    if any(t.strip() in BUTTONS or DETAIL.search(t) or any(t.startswith(h) for h in HINTS) for t in low):
+        return 'card'
+    # Recognized world affordances are a positive clue, subordinate to real modal controls above. Without
+    # either signal, preserve uncertainty: neither Escape nor a world click is safe on an unknown overlay.
+    return 'gameplay' if world_visible else 'unknown'
 
 
 @dataclass
@@ -62,13 +90,13 @@ class Screen:
     texts: list = field(default_factory=list)
 
 
-def read():
+def read(*, world_visible=False, image=None):
     try:
-        s = core.WF.state()
-    except Exception:   # noqa: BLE001 (fakes / no frame): gameplay
-        return Screen('gameplay', [])
+        s = core.WF.classify(image) if image is not None and hasattr(core.WF, 'classify') else core.WF.state()
+    except Exception:   # noqa: BLE001 (legacy fakes / no frame retain compatibility)
+        return Screen('unknown' if image is not None else 'gameplay', [])
     ts = [t.split(') ', 1)[-1] for t in s.get('text', [])]
-    return Screen(classify(s.get('mode', 'gameplay'), ts), ts)
+    return Screen(classify(s.get('mode', 'gameplay'), ts, world_visible=world_visible), ts)
 
 
 def _settle():

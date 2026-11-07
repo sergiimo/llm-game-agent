@@ -25,6 +25,34 @@ class NeedVision(Exception):
     """ONE question for model vision: the message carries the framed image and the answer call."""
 
 
+def garden_decision(answer):
+    """Parse one explicit model decision. Never capture, ask vision, or execute gameplay here."""
+    import shlex
+    from .turn import Decision
+    if isinstance(answer, dict):
+        return Decision(**answer)
+    text = str(answer).strip()
+    if text.startswith('{'):
+        return Decision(**json.loads(text))
+    if text in ('accept', 'look', 'stop'):
+        return Decision(text)
+    if text in ('space', 'close', 'wait', 'read'):
+        return Decision('act', action={'kind': text})
+    if text.startswith('press:'):
+        return Decision('act', action={'kind': 'press', 'label': text[6:]})
+    if text.startswith('key:'):
+        return Decision('act', action={'kind': 'key', 'label': text[4:]})
+    words = shlex.split(text)
+    if len(words) >= 2 and words[0] in ('walk', 'target', 'bubble', 'cell'):
+        metadata = {k: v.strip().strip('"\'') for k, v in
+                    re.findall(r'(\w+)=(.*?)(?=\s+\w+=|$)', text)}
+        kind = 'waypoint' if words[0] == 'walk' else words[0]
+        action = {'kind': kind, 'cell': words[1], **metadata}
+        action['walkable' if kind == 'waypoint' else 'visible_road'] = True
+        return Decision('act', action=action)
+    raise ValueError('garden answer must be accept/look/stop, one primitive, or a Decision JSON object')
+
+
 # ---- the vision grid ------------------------------------------------------------------------------------------
 FONTS = ('/System/Library/Fonts/Supplemental/Arial Bold.ttf', '/System/Library/Fonts/Helvetica.ttc',
          '/Library/Fonts/Arial.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')

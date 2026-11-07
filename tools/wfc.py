@@ -5,6 +5,9 @@ import re
 import socket
 import subprocess
 import sys
+import time
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # wrapper uses -I; import only this owned tools dir
+from runtime.timing import measure
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOCK = os.path.join(os.environ.get('WF_SHOT_DIR', os.path.join(ROOT, '.shots')), 'wf.sock')
@@ -13,20 +16,54 @@ WF = os.path.join(ROOT, 'tools', 'wf.py')
 LOCAL_ONLY = {'serve', 'wiki', 'wait', 'tips', 'actions', 'learn', 'routines'}  # run: in the daemon (game clock for step stamps, L76)
 
 
-def via_daemon(argv):
+class DeliveryUnknown(RuntimeError):
+    """The daemon may have accepted this request. Never automatically resend or execute it locally."""
+
+
+def via_daemon(argv, timeout=25.):
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    s.settimeout(600)
-    s.connect(SOCK)
-    s.sendall(json.dumps(argv).encode() + b'\n')
-    data = b''
-    while not data.endswith(b'\n'):
-        chunk = s.recv(65536)
-        if not chunk:
-            break
-        data += chunk
-    res = json.loads(data.decode())
-    sys.stdout.write(res['out'])
-    return res['code']
+    deadline = time.monotonic() + timeout
+    delivered = False
+    received = 0
+    def remaining():
+        seconds = deadline - time.monotonic()
+        if seconds <= 0:
+            raise TimeoutError('RPC deadline exceeded')
+        s.settimeout(seconds)
+    try:
+        with measure('client.connect', command=argv[0] if argv else ''):
+            remaining()
+            s.connect(SOCK)
+        with measure('client.send', command=argv[0] if argv else ''):
+            remaining()
+            delivered = True  # even a partial send can have reached the server
+            s.sendall(json.dumps(argv).encode() + b'\n')
+        chunks = []
+        with measure('client.receive', command=argv[0] if argv else ''):
+            while True:
+                remaining()
+                chunk = s.recv(65536)
+                if not chunk:
+                    raise EOFError('daemon closed before a complete response')
+                chunks.append(chunk)
+                received += len(chunk)
+                if chunk.endswith(b'\n'):
+                    break
+        data = b''.join(chunks)  # linear assembly; repeated bytes concatenation stalls large NEXT evidence
+        with measure('client.decode', bytes=len(data)):
+            res = json.loads(data.decode())
+            if not isinstance(res, dict) or not isinstance(res.get('out'), str) or type(res.get('code')) is not int:
+                raise ValueError('invalid daemon response envelope')
+        with measure('client.output', bytes=len(res['out'])):
+            sys.stdout.write(res['out'])
+        return res['code']
+    except (OSError, ValueError, EOFError) as error:
+        if delivered:
+            raise DeliveryUnknown(f'outcome unknown after request delivery ({received} response bytes): {error}; '
+                                  'not retried; inspect the current task/turn before another decision') from error
+        raise
+    finally:
+        s.close()
 
 
 def log_call(argv):
@@ -45,7 +82,7 @@ def log_call(argv):
     return None
 
 
-def log_end(start, argv):
+def log_end(start, argv, delivery=None):
     """Call end time, so tools/idle.py can split still time into 'command running' vs 'agent thinking';
     also one `call` event in the open run log (tools/wf.py run_log, L53)."""
     if start is not None:
@@ -55,11 +92,14 @@ def log_end(start, argv):
             shots = os.path.dirname(SOCK)
             with open(os.path.join(shots, 'actions_done.log'), 'a') as f:
                 f.write(f'{start:.2f}\t{end:.2f}\n')
-            run = open(os.path.join(shots, 'run.current')).read().strip()
+            with open(os.path.join(shots, 'run.current')) as pointer:
+                run = pointer.read().strip()
             if run:
                 with open(run, 'a') as f:
-                    f.write(json.dumps({'t': start, 'type': 'call', 'start': start, 'end': round(end, 2),
-                                        'cmd': ' '.join(argv)}) + '\n')
+                    row = {'t': end, 'type': 'call', 'start': start, 'end': round(end, 2), 'cmd': ' '.join(argv)}
+                    if delivery:
+                        row['delivery'] = delivery
+                    f.write(json.dumps(row) + '\n')
         except OSError:
             pass
 
@@ -87,15 +127,21 @@ def chain_refusal(argv, parent):
     return None
 
 
-CODE = [os.path.join(ROOT, 'tools', 'wf.py'), os.path.join(ROOT, 'tools', 'game'), os.path.join(ROOT, 'tools', 'objects')]
+CODE = [os.path.join(ROOT, 'tools')]
+# play and all domain aliases share the daemon's durable task; none are LOCAL_ONLY.
+# These change executable vocabulary/configuration loaded at import time. Learning journals, actions.json,
+# graph JSON and image/vector stores are read hot and must never erase the daemon's process context.
+CONFIG = {'goals.json', 'kinds.json', 'forage.json'}
 
 
 def code_mtimes():
     out = []
     for p in CODE:
         if os.path.isdir(p):
-            out += [os.path.getmtime(os.path.join(p, f)) for f in os.listdir(p) if f.endswith(('.py', '.json'))
-                    and not f.startswith('observed')]
+            for directory, subdirs, files in os.walk(p):
+                subdirs[:] = [d for d in subdirs if d != '__pycache__']
+                out += [os.path.getmtime(os.path.join(directory, f)) for f in files
+                        if f.endswith('.py') or (os.path.basename(directory) == 'game' and f in CONFIG)]
         elif os.path.exists(p):
             out.append(os.path.getmtime(p))
     return out
@@ -130,18 +176,26 @@ def main():
             code = via_daemon(argv)
             log_end(start, argv)
             return code
+        except DeliveryUnknown as error:
+            log_end(start, argv, delivery='unknown')
+            print(f'ERROR: {error}', file=sys.stderr)
+            return 1
         except (OSError, ValueError):
             # start the daemon and send this call to it: a process run straight from some shells lacks the
             # Screen Recording grant the daemon has (macOS attributes permissions by launching process)
             import time
-            log = open(os.path.join(os.path.dirname(SOCK), 'daemon.log'), 'a')
-            subprocess.Popen([PY, WF, 'serve'], stdout=log, stderr=log, start_new_session=True)
+            with open(os.path.join(os.path.dirname(SOCK), 'daemon.log'), 'a') as log:
+                subprocess.Popen([PY, WF, 'serve'], stdout=log, stderr=log, start_new_session=True)
             for _ in range(60):
                 time.sleep(0.25)
                 try:
                     code = via_daemon(argv)
                     log_end(start, argv)
                     return code
+                except DeliveryUnknown as error:
+                    log_end(start, argv, delivery='unknown')
+                    print(f'ERROR: {error}', file=sys.stderr)
+                    return 1
                 except (OSError, ValueError):
                     pass
     os.execv(PY, [PY, WF] + argv)

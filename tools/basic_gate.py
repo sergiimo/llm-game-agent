@@ -6,17 +6,19 @@ bounded live-game check. Run it with:
 """
 import unittest
 
-from test_engine import ModelDecides, StreamingGarden
+from test_play import Play, PlayCase, MapModalProof
+from test_turn import Turns
 from test_runwatch import Trace
 
 
 TESTS = (
-    (StreamingGarden, 'test_harvested_crop_is_replanted_and_watered_in_place_before_advancing'),
-    (StreamingGarden, 'test_a_target_answer_finishes_a_known_nonflower_even_when_collect_ocr_is_blank'),
-    (StreamingGarden, 'test_a_target_answer_never_collects_a_named_flower'),
-    (StreamingGarden, 'test_one_garden_pass_inspects_every_hive_and_collects_ready_honey'),
-    (StreamingGarden, 'test_a_walk_answer_inside_a_projected_bed_is_rejected_before_input'),
-    (ModelDecides, 'test_no_direct_action_asks_one_decide_question_with_the_brief'),
+    (Turns, 'test_production_observation_runs_vectors_on_the_exact_saved_grab'),
+    (Turns, 'test_vector_failure_is_explicit_instead_of_looking_like_no_match'),
+    (Turns, 'test_every_context_prints_the_compact_model_workflow'),
+    (PlayCase, 'test_new_task_reuses_its_vector_observation_in_the_first_next'),
+    (Play, 'test_every_public_gameplay_alias_returns_before_input'),
+    (Play, 'test_one_decision_performs_at_most_one_input'),
+    (MapModalProof, 'test_confirmed_interaction_missing_vector_requests_model_appearance_sample'),
     (Trace, 'test_reasoning_cycle_is_visible_in_the_single_trace'),
 )
 

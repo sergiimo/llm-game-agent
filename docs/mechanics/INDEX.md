@@ -14,6 +14,7 @@ Load order: this index → only the mechanic you need. "(wiki)" sections are unv
 | [quests-system](quests-system.md) | Journal quests by questline + bulletin board requests; the hint button gives the actionable step. |
 | [seasons-and-weather](seasons-and-weather.md) | Seasons change only via coven rituals; out-of-season crops vanish at the change. |
 | [farming](farming.md) | Garden beds (4 seeds), water daily from the well, harvest; compost makes soil; bees need blooming flowers. |
+| [garden-turns](garden-turns.md) | Model-owned garden command: observe `NEXT`, choose one primitive, preserve the active crop/bed transaction across calls. |
 | [animals](animals.md) | Pet cat Cleocatra; coop (chickens/ducks) and barn (cows, sheep, alpacas, pigs) unlocked by building quests. |
 | [fishing](fishing.md) | Rod from Bruno (Lure One In); bait chub/worm/cricket; fish by area; wait for the biggest shadow. |
 | [foraging](foraging.md) | Respawning forage on Farm/Woods/Beach/Mountain; hoard it (unlimited inventory). |

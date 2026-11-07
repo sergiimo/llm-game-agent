@@ -11,7 +11,8 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from test_engine import GAME, NX, NZ, EngineBase, FakeGame, L, obj  # noqa: E402
-from game import act, engine, experience as X, integrate as I, learn, steps  # noqa: E402
+from game import act, engine, experience as X, integrate as I, learn, play, primitives, steps, world
+from game.task_state import TaskStore  # noqa: E402
 
 GAME_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'game')
 
@@ -67,39 +68,67 @@ class Boundary(EngineBase):
         return self.use(FakeGame([obj('b', pos=(NX[1], NZ[0]), bubble=(1104, 540), stage='produced', watered=True,
                                       wilted=False)], GAME))
 
-    def test_one_click_is_one_experience_referenced_by_learning_eval_and_transition_records(self):
+    def harvest_turns(self):
+        """Exercise the real turn/adapter/integration boundary; only the physical game's controls are faked."""
         f = self.game()
-        with mock.patch('game.icons.name_of', lambda a: 'Green Bean'):
-            engine.achieve('harvest')
+        graph = engine._open_graph()
+        world.refresh(graph, f.read_save()[1], f.today_log()[0])
+        store = TaskStore(os.path.join(self.tmp.name, 'task.json'))
+        adapter = primitives.GameAdapter()
+        raw = f.run_action
+        def input_command(command):
+            if command == 'click:960:500' and f.card:
+                f.clicks.append((960, 500))
+                return f.press_bubble()  # fake game's response to its Collect button, one physical input
+            return raw(command)
+        with mock.patch.object(f, 'find_text', return_value=[{'cx': 960, 'cy': 500}], create=True), \
+                mock.patch.object(f, 'run_action', input_command):
+            c = play.turn('garden', {'chores': ['harvest'], 'crops': 'Green Bean'}, store=store, adapter=adapter)
+            c = play.turn(answer={'turn_id': c.turn_id, 'kind': 'act', 'action': {
+                'kind': 'bubble', 'point': [1104, 540], 'visible_road': True, 'crop': 'Green Bean',
+                'row': 'pick', 'step': 0, 'expects': {'card': 'Collect'}}}, store=store, adapter=adapter)
+            self.assertIsNone(c.surprise)
+            c = play.turn(answer={'turn_id': c.turn_id, 'kind': 'act', 'action': {
+                'kind': 'press', 'label': 'Collect', 'row': 'pick', 'step': 1,
+                'expects': {'events': ['grab_item']}}}, store=store, adapter=adapter)
+            self.assertIsNone(c.surprise)
+        self.assertEqual(len(f.clicks), 2)
+        return f
+
+    def test_one_click_is_one_experience_referenced_by_learning_eval_and_transition_records(self):
+        f = self.harvest_turns()
         exps = I.journal()
         click_ids = [e.id for e in exps if e.action.kind == 'click']
         self.assertTrue(click_ids)
-        obs = [json.loads(l) for l in open(steps.OBSERVED)]
+        with open(steps.OBSERVED) as records:
+            obs = [json.loads(line) for line in records]
         self.assertTrue(obs and all(o.get('exp') in {e.id for e in exps} for o in obs), obs)
-        clicks = [k for a, k in f.runlog if a and a[0] == 'click']
-        self.assertTrue(clicks and all(k.get('exp') in click_ids for k in clicks))
+        with open(os.path.join(self.tmp.name, 'log.jsonl')) as records:
+            timeline = [json.loads(line) for line in records]
+        outcomes = [row['experience']['id'] for row in timeline if row['phase'] == 'outcome']
+        integrated = [row['experience'] for row in timeline if row['phase'] == 'integration']
+        self.assertEqual(set(outcomes), {e.id for e in exps})
+        self.assertEqual(outcomes, integrated)
         g = self.graph()
         nid = next(n for n in g.nodes if n.startswith('GardenBed#0.8,-25.3'))
         self.assertTrue(set(g.nodes[nid].extra.get('exps', [])) & set(click_ids + [e.id for e in exps]))
 
     def test_replay_proposes_the_same_and_applies_nothing_twice(self):
-        self.game()
-        with mock.patch('game.icons.name_of', lambda a: 'Green Bean'):
-            engine.achieve('harvest')
-        before = open(steps.OBSERVED).read()
+        self.harvest_turns()
+        with open(steps.OBSERVED) as records:
+            before = records.read()
         props = [I.propose(e) for e in I.journal()]
         self.assertEqual(props, [I.propose(e) for e in I.journal()])
         applied = I.replay()
         self.assertEqual(applied, 0)
-        self.assertEqual(open(steps.OBSERVED).read(), before)
+        with open(steps.OBSERVED) as records:
+            self.assertEqual(records.read(), before)
 
     def test_a_press_step_is_its_own_experience(self):
-        f = self.game()
-        with mock.patch('game.icons.name_of', lambda a: 'Green Bean'):
-            engine.achieve('harvest')
+        f = self.harvest_turns()
         kinds = [e.action.kind for e in I.journal()]
         self.assertIn('click', kinds)
-        self.assertIn('space', kinds)   # the Collect prompt's Space
+        self.assertIn('press', kinds)   # the model's explicit named Collect control
 
     def test_a_repeated_unresolved_miss_becomes_one_gap_bundle_with_a_fixture(self):
         self.game()
@@ -120,7 +149,8 @@ class Boundary(EngineBase):
         self.assertEqual(b['owner'], 'steps')
         self.assertIn('actions.json', b['tables'])
         path = I.fixture(b['id'], os.path.join(self.tmp.name, 'fixtures'))
-        fx = json.load(open(path))
+        with open(path) as source:
+            fx = json.load(source)
         self.assertEqual(len(fx['experiences']), 2)
         self.assertFalse(I.verify_fixture(fx))   # the gap still reproduces offline: the invariant fails
 
@@ -139,19 +169,22 @@ class Boundary(EngineBase):
 class Safety(unittest.TestCase):
     def test_low_level_actuators_have_no_semantic_learning_imports(self):
         for name in ('act.py', 'ui.py'):
-            src = open(os.path.join(GAME_DIR, name)).read()
+            with open(os.path.join(GAME_DIR, name)) as source:
+                src = source.read()
             self.assertIsNone(re.search(r'^\s*from \. import [^\n]*\blearn\b|import (evals|game\.learn)|from \.learn',
                                         src, re.M), name)
 
     def test_navigation_does_not_write_learned_memory(self):
-        src = open(os.path.join(GAME_DIR, 'nav.py')).read()
+        with open(os.path.join(GAME_DIR, 'nav.py')) as source:
+            src = source.read()
         self.assertNotIn('L.relabel(', src)
         self.assertNotIn('L.learn_toward(', src)
 
     def test_runtime_code_cannot_apply_code_patches(self):
         for f in os.listdir(GAME_DIR):
             if f.endswith('.py'):
-                src = open(os.path.join(GAME_DIR, f)).read()
+                with open(os.path.join(GAME_DIR, f)) as source:
+                    src = source.read()
                 self.assertNotRegex(src, r'git\s+apply|git\s+commit|patch\s+-p|apply_patch', f)
 
 

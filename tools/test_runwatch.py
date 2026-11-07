@@ -244,6 +244,45 @@ class Trace(unittest.TestCase):
         self.assertIn('vision=True', lines[0])
         self.assertIn('gap=evaluate_gap', lines[1])
 
+    def test_model_owned_turns_are_visible_and_surprises_alert_the_supervisor(self):
+        rows = [
+            {'t': 1, 'type': 'turn', 'turn_id': 3, 'phase': 'decision',
+             'decision': {'kind': 'accept', 'rationale': 'policy_matches_card', 'evidence_refs': ['frame.jpg']}},
+            {'t': 2, 'type': 'turn', 'turn_id': 3, 'phase': 'intent', 'action': {'kind': 'space'}},
+            {'t': 3, 'type': 'turn', 'turn_id': 3, 'phase': 'outcome',
+             'experience': {'id': 'exp-3', 'verdict': {'value': 'miss'}, 'evidence': {'events': ['out_of_water']}}},
+            {'t': 4, 'type': 'turn', 'turn_id': 4, 'phase': 'clues',
+             'surprise': {'reason': 'mismatch', 'experience_id': 'exp-3'}},
+        ]
+        trace = '\n'.join(RW.trace_lines(rows))
+        for word in ('turn 3 decision', 'policy_matches_card', 'frame.jpg', 'intent', 'exp-3', 'out_of_water'):
+            self.assertIn(word, trace)
+        watch = RW.Watch(alive=lambda: True)
+        for row in rows[:3]:
+            self.assertTrue(watch.feed(row))
+        self.assertTrue(any(level == 'ALERT' for level, _ in watch.feed(rows[-1])))
+
+    def test_turn_coverage_closes_report_only_on_complete_status(self):
+        rows = [{'type': 'turn', 'phase': 'clues', 'region': 'GardenSouth', 'task_status': 'active',
+                 'coverage': {'targets': ['a', 'b'], 'covered': ['a'], 'unresolved': []}},
+                {'type': 'turn', 'phase': 'clues', 'region': 'GardenSouth', 'task_status': 'complete',
+                 'coverage': {'targets': ['a', 'b'], 'covered': ['a', 'b'], 'unresolved': []}}]
+        self.assertIn('| GardenSouth | 2 | 2 | 0 | - | - | COMPLETE |', RW.garden_table(rows))
+        rows[-1]['task_status'] = 'active'
+        self.assertNotIn('COMPLETE', RW.garden_table(rows))
+
+    def test_follow_retains_partial_row_until_writer_finishes_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, 'log.jsonl')
+            with open(path, 'w') as f:
+                f.write('{"type":"turn",')
+            rows, position = RW.rows_of(path)
+            self.assertEqual(rows, [])
+            with open(path, 'a') as f:
+                f.write('"phase":"intent"}\n')
+            rows, _ = RW.rows_of(path, position)
+            self.assertEqual(rows, [{'type': 'turn', 'phase': 'intent'}])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -5,6 +5,7 @@
 | Where are we in the game right now? | [progress.md](progress.md) (current save state + session log) |
 | What should I do next / quest steps | [quests/INDEX.md](quests/INDEX.md) → one quest file |
 | How do I do an action / use a tool (chop, water, mine, fish, eat, talk, sleep) | [mechanics/basic-actions.md](mechanics/basic-actions.md) |
+| Garden turns, durable interactions, surprise corrections and live trace | [mechanics/interaction-laws.md](mechanics/interaction-laws.md) |
 | Where is something (area, resource, shop, person) | [world/locations.md](world/locations.md), then quest notes, then map `M` |
 | How does a system work (time, energy, farming, fishing, shops…) | [mechanics/INDEX.md](mechanics/INDEX.md) → one mechanic |
 | What is on screen / which key / how to exit a screen | [ui/INDEX.md](ui/INDEX.md) → controls, hud, one screen, glossary |

@@ -2,7 +2,7 @@
 per kind: score each patch by its max cosine to the kind's example patch vectors, z-score the map per frame
 ((score - median) / std), let all stored kinds compete per patch (a patch counts for the kind with the highest z), and
 return peaks above the kind's threshold. No coordinates or calibration; vectors come from the crop PNGs, not from the
-stored `vec` (cached per kind, keyed by the kind's example ids, so add/remove refresh them)."""
+stored `vec` (cached per kind, invalidated by example ids and PNG revisions)."""
 import json
 import math
 import os
@@ -98,7 +98,9 @@ def disabled_kinds(store, region=None):
 def kind_vectors(store, kind):
     """(n, 384) foreground patch vectors of all crops of `kind`; cached until its example set changes."""
     exs = store.examples(kind)
-    key = (os.path.abspath(store.root), kind, tuple(e.id for e in exs))
+    from game.data import image_revision
+    key = (os.path.abspath(store.root), kind, tuple(e.id for e in exs),
+           image_revision(os.path.join(store.root, kind)))
     with _LOCK:
         if key not in _CACHE:
             for k in [k for k in _CACHE if k[:2] == key[:2]]:

@@ -1,0 +1,110 @@
+{
+  "schema": 1,
+  "source_run": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden",
+  "failure": {
+    "task_id": "ec38380aa35a4b97b5875b801d3aa766",
+    "goal": "garden",
+    "params": {
+      "_garden_reduced": "8eb433418fc176c2",
+      "_started_late": false,
+      "chores": [
+        "plant",
+        "replant",
+        "harvest",
+        "water"
+      ],
+      "crops": "Tulip",
+      "flowers": [
+        "Anemone Flower",
+        "Crocus",
+        "Marigold",
+        "Moly Flower",
+        "Primrose",
+        "Snowdrop",
+        "Sunflower",
+        "Tiger Lily",
+        "Tulip",
+        "Turtlehead Flower"
+      ],
+      "region": "GardenSouth",
+      "seed": null
+    },
+    "targets": [
+      "GardenBed#10.1,-59.4",
+      "GardenBed#10.1,-63.1",
+      "GardenBed#10.1,-66.9",
+      "GardenBed#13.9,-59.4",
+      "GardenBed#13.9,-63.1",
+      "GardenBed#13.9,-66.9",
+      "GardenBed#2.6,-59.4",
+      "GardenBed#2.6,-63.1",
+      "GardenBed#2.6,-66.9",
+      "GardenBed#6.4,-59.4",
+      "GardenBed#6.4,-63.1",
+      "GardenBed#6.4,-66.9"
+    ],
+    "covered": [
+      "GardenBed#6.4,-63.1"
+    ],
+    "unresolved": [
+      {
+        "crop": "Tulip",
+        "evidence_refs": [
+          "650e42170a9375b7",
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-61d36438f85244c19f38203834df36f4.jpg"
+        ],
+        "experience": "650e42170a9375b7",
+        "node": "GardenBed#2.6,-66.9",
+        "phase": "plant",
+        "reason": "Seeds picker is empty; buying is not authorized",
+        "transaction_id": "ec38380aa35a4b97b5875b801d3aa766:1"
+      },
+      {
+        "crop": "Tulip",
+        "evidence_refs": [
+          "2fd2bb5130bf6f58",
+          "650e42170a9375b7",
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-61d36438f85244c19f38203834df36f4.jpg"
+        ],
+        "experience": "2fd2bb5130bf6f58",
+        "node": "GardenBed#10.1,-63.1",
+        "phase": "plant",
+        "reason": "Seed inventory was proven empty earlier in this same run and no seed acquisition occurred; buying is not authorized",
+        "transaction_id": "ec38380aa35a4b97b5875b801d3aa766:17"
+      }
+    ],
+    "active": {
+      "actual_node": "GardenBed#6.4,-63.1",
+      "completed_actions": [],
+      "crop": "Tulip",
+      "evidence_ids": [
+        "50c49d287465c6a0",
+        "041cbbb5315fd708",
+        "9da0d85553a63861",
+        "8c6e983d00a610cf",
+        "9fbf453f9b995e0b",
+        "811d7ee4cf7903c3",
+        "8eb433418fc176c2"
+      ],
+      "pending_intent": null,
+      "phase": "inspect",
+      "provisional": {
+        "cell": null,
+        "facts": {},
+        "frame": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-8ebaa6cf1a064ff5baa7fb7b760e7e8a.jpg",
+        "point": [
+          840,
+          548
+        ],
+        "projected_node": null,
+        "target_selected": true
+      },
+      "transaction_id": "ec38380aa35a4b97b5875b801d3aa766:35"
+    }
+  },
+  "success": {
+    "status": "incomplete",
+    "missing": "Fresh-run durable parent/subgoal IDs, verified acquisitions, GardenSouth return and actual plant/water proofs for reopened beds not captured yet.",
+    "turns": []
+  }
+}

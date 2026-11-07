@@ -70,6 +70,23 @@ class GraphTest(unittest.TestCase):
         self.assertIsNone(self.g.node('Nope'))
         self.assertEqual(self.g.children('Nope'), [])
 
+    def test_load_normalizes_legacy_navigation_edge_walkability(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'graph.json')
+            with open(p, 'w') as stream:
+                json.dump({'nodes': [], 'edges': [{'a': 'A', 'b': 'B', 'rel': 'nav'}]}, stream)
+            graph = G.Graph()
+            graph.load(p)
+        self.assertTrue(graph.edges(rel='nav')[0]['walkable'])
+
+    def test_load_rejects_non_walkable_navigation_edge(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'graph.json')
+            with open(p, 'w') as stream:
+                json.dump({'nodes': [], 'edges': [{'a': 'A', 'b': 'B', 'rel': 'nav', 'walkable': False}]}, stream)
+            with self.assertRaises(ValueError):
+                G.Graph().load(p)
+
 
 class Directions(unittest.TestCase):
     def setUp(self):

@@ -1,9 +1,16 @@
 """Pure modal recognition and universal primitive guards; no automatic modal-recovery workflows."""
 import unittest
+from PIL import Image, ImageDraw
 from game import primitives, screen
 
 
 class Screens(unittest.TestCase):
+    def test_map_panel_accepts_current_thin_vertical_paper_border(self):
+        image = Image.new('RGB', (1920, 1080), '#303030')
+        ImageDraw.Draw(image).rectangle((200, 120, 1720, 900), outline='#e6dcc0', width=5)
+
+        self.assertTrue(screen.map_panel(image))
+
     def test_semantic_controls_override_scenery_and_world_clues(self):
         for mode, texts, visible, wanted in [
             ('overlay', ['NATE'], False, 'unknown'), ('overlay', ['NATE'], True, 'gameplay'),

@@ -122,6 +122,60 @@
     ]
    },
    "source": "user D188: the mine at the farm's north-west corner, a dead end (Tara a few steps west of it at save pos -25.6, 3.0)"
+  },
+  "TownFarmExit": {
+   "region": "Town",
+   "kind": "TownFarmExit",
+   "navigation_only": true,
+   "map": {"scene": "Town", "label": "town-farm-exit", "point": [905, 585]},
+   "source": "verified Town map landmark"
+  },
+  "Farm/LinkTown": {
+   "region": "Farm",
+   "kind": "LinkTown",
+   "navigation_only": true,
+   "map": {"scene": "Farm", "label": "town-farm-exit", "point": [905, 585]},
+   "source": "verified shared Town/Farm map boundary"
+  },
+  "Blacksmith": {
+   "region": "Town",
+   "kind": "Blacksmith",
+   "navigation_only": true,
+   "map": {"scene": "Town", "label": "blacksmith", "point": [907, 624]},
+   "source": "live D213 frame: navigation landmark only; passing it never means entering it"
+  },
+  "TownHall": {
+   "region": "Town",
+   "kind": "TownHall",
+   "navigation_only": true,
+   "map": {"scene": "Town", "label": "town-hall", "point": [1022, 612]},
+   "source": "verified Town map landmark"
+  },
+  "FountainSquare": {
+   "type": "region",
+   "region": "Town",
+   "kind": "FountainSquare",
+   "navigation_only": true,
+   "map": {"scene": "Town", "label": "fountain-square", "point": [1030, 770]},
+   "source": "verified Town map landmark"
+  },
+  "DahlGeneralStore": {
+   "region": "FountainSquare",
+   "kind": "DahlGeneralStore",
+   "enterable": true,
+   "source": "wiki/places/locations.md: west side of FountainSquare"
   }
- }
+ },
+ "_nav_edges": [
+  {"a": "TownFarmExit", "b": "Farm/LinkTown", "compass": "NW", "source": "map_graph"},
+  {"a": "Farm/LinkTown", "b": "TownFarmExit", "compass": "SE", "source": "map_graph"},
+  {"a": "TownFarmExit", "b": "Blacksmith", "compass": "S", "source": "map_graph"},
+  {"a": "Blacksmith", "b": "TownFarmExit", "compass": "N", "source": "map_graph"},
+  {"a": "Blacksmith", "b": "TownHall", "compass": "E", "source": "map_graph"},
+  {"a": "TownHall", "b": "Blacksmith", "compass": "W", "source": "map_graph"},
+  {"a": "TownHall", "b": "FountainSquare", "compass": "S", "source": "map_graph"},
+  {"a": "FountainSquare", "b": "TownHall", "compass": "N", "source": "map_graph"},
+  {"a": "FountainSquare", "b": "DahlGeneralStore", "compass": "W", "source": "verified_location"},
+  {"a": "DahlGeneralStore", "b": "FountainSquare", "compass": "E", "source": "verified_location"}
+ ]
 }

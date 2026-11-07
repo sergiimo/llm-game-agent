@@ -333,19 +333,37 @@ def landmarks(g):
     from objects import graph as OG
     try:
         with open(KINDS) as f:
-            marks = json.load(f).get('_landmarks', {})
+            config = json.load(f)
+            marks = config.get('_landmarks', {})
     except (OSError, ValueError):
-        marks = {}
+        marks, config = {}, {}
     for name, v in marks.items():
         if name.startswith('_') or not isinstance(v, dict):
             continue
-        extra = {k: v[k] for k in ('pos', 'dead_end', 'map', 'source') if k in v}
+        region = v.get('region', 'Farm')
+        if region not in g.nodes:
+            g.nodes[region] = OG.Node(region, 'region', region)
+        extra = {k: v[k] for k in ('pos', 'dead_end', 'map', 'source', 'navigation_only', 'enterable') if k in v}
+        point = (v.get('map') or {}).get('point')
+        scene = (v.get('map') or {}).get('scene')
+        if point and scene:
+            try:
+                import nav as learned_map
+                fit = (learned_map.map_load(learned_map.MAP).get('fits') or {}).get(scene)
+                if fit:
+                    extra['pos'] = [round(fit['a'] * point[0] + fit['b'], 3),
+                                    round(fit['c'] * point[1] + fit['d'], 3)]
+                    extra['position_source'] = 'map_calibration'
+            except (OSError, ValueError, KeyError, TypeError):
+                pass
         if name in g.nodes:
             g.nodes[name].extra.update(extra)
         else:
-            g.nodes[name] = OG.Node(name, 'unique', name, v.get('region', 'Farm'), **extra)
-
-
+            g.nodes[name] = OG.Node(name, v.get('type', 'unique'), v.get('kind', name), region, **extra)
+    for edge in config.get('_nav_edges', ()):
+        if edge.get('a') in g.nodes and edge.get('b') in g.nodes:
+            g.add_edge(edge['a'], edge['b'], 'nav', compass=edge.get('compass'),
+                       source=edge.get('source', 'map_graph'))
 def landmark_at(g, pin):
     """The landmark whose map point is nearest the map pin (within LANDMARK_PX), or None."""
     best = None
@@ -387,6 +405,10 @@ def refresh(graph, save, today_lines, save_time_=None):
     if pp and 'Tara' in g.nodes and (abs(pp.get('x', 0)) + abs(pp.get('z', 0))) > 1e-6:
         g.nodes['Tara'].extra['pos'] = [round(pp['x'], 2), round(pp['z'], 2)]
     scene = save.get('currentScene')
+    if scene and 'Tara' in g.nodes:
+        if scene not in g.nodes:
+            g.nodes[scene] = Node(scene, 'region', scene)
+        g.nodes['Tara'].region = scene
     events, since = [], []
     cutoff, current = when(stamp), None
     for line, source_scene, source_scope in scene_lines(today_lines, scene, since=stamp):

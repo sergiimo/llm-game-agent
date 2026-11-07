@@ -116,10 +116,10 @@
    "id": "Tara",
    "type": "unique",
    "kind": "Tara",
-   "region": "Farm",
+   "region": "Town",
    "pos": [
-    17.02,
-    -22.27
+    1.0,
+    2.0
    ]
   },
   {
@@ -266,8 +266,26 @@
     "game_time": null
    },
    "exps": [
-    "9c3dd4df5f7d3b49",
-    "30034d702d922840"
+    "29681faca56a18ec",
+    "ba3fc964160e3c2c",
+    "da22ec04d22e32e4",
+    "39adc8f544ac92d6",
+    "8271a5e22387ac7f",
+    "d2139f1f4a172af8",
+    "5c7d3e58d6bf3144",
+    "20eab55890dce015",
+    "33a18860b886506e",
+    "596a6f700e66d7e2",
+    "42669625bca51962",
+    "3b1169adace665de",
+    "a859c8d9c3112967",
+    "2e3f3ada97ea588d",
+    "c803ed00c63aa837",
+    "52d5d5f225cdc98c",
+    "1818457208f75234",
+    "97a2ad3a7fba867a",
+    "089b6a8756f85493",
+    "edd893e8b5580839"
    ]
   },
   {
@@ -2600,6 +2618,100 @@
     8.27,
     -63.11
    ]
+  },
+  {
+   "id": "Town",
+   "type": "region",
+   "kind": "Town",
+   "region": null
+  },
+  {
+   "id": "TownFarmExit",
+   "type": "unique",
+   "kind": "TownFarmExit",
+   "region": "Town",
+   "map": {
+    "scene": "Town",
+    "label": "town-farm-exit",
+    "point": [
+     905,
+     585
+    ]
+   },
+   "source": "verified Town map landmark",
+   "navigation_only": true
+  },
+  {
+   "id": "Blacksmith",
+   "type": "unique",
+   "kind": "Blacksmith",
+   "region": "Town",
+   "map": {
+    "scene": "Town",
+    "label": "blacksmith",
+    "point": [
+     907,
+     624
+    ]
+   },
+   "source": "live D213 frame: navigation landmark only; passing it never means entering it",
+   "navigation_only": true
+  },
+  {
+   "id": "TownHall",
+   "type": "unique",
+   "kind": "TownHall",
+   "region": "Town",
+   "map": {
+    "scene": "Town",
+    "label": "town-hall",
+    "point": [
+     1022,
+     612
+    ]
+   },
+   "source": "verified Town map landmark",
+   "navigation_only": true
+  },
+  {
+   "id": "FountainSquare",
+   "type": "region",
+   "kind": "FountainSquare",
+   "region": "Town",
+   "map": {
+    "scene": "Town",
+    "label": "fountain-square",
+    "point": [
+     1030,
+     770
+    ]
+   },
+   "source": "verified Town map landmark",
+   "navigation_only": true
+  },
+  {
+   "id": "DahlGeneralStore",
+   "type": "unique",
+   "kind": "DahlGeneralStore",
+   "region": "FountainSquare",
+   "source": "wiki/places/locations.md: west side of FountainSquare",
+   "enterable": true
+  },
+  {
+   "id": "Farm/LinkTown",
+   "type": "unique",
+   "kind": "LinkTown",
+   "region": "Farm",
+   "map": {
+    "scene": "Farm",
+    "label": "town-farm-exit",
+    "point": [
+     905,
+     585
+    ]
+   },
+   "source": "verified shared Town/Farm map boundary",
+   "navigation_only": true
   }
  ],
  "edges": [
@@ -3942,6 +4054,86 @@
     1.0
    ],
    "source": "cluster"
+  },
+  {
+   "a": "TownFarmExit",
+   "b": "Blacksmith",
+   "rel": "nav",
+   "compass": "S",
+   "source": "map_graph",
+   "walkable": true
+  },
+  {
+   "a": "Blacksmith",
+   "b": "TownFarmExit",
+   "rel": "nav",
+   "compass": "N",
+   "source": "map_graph",
+   "walkable": true
+  },
+  {
+   "a": "Blacksmith",
+   "b": "TownHall",
+   "rel": "nav",
+   "compass": "E",
+   "source": "map_graph",
+   "walkable": true
+  },
+  {
+   "a": "TownHall",
+   "b": "Blacksmith",
+   "rel": "nav",
+   "compass": "W",
+   "source": "map_graph",
+   "walkable": true
+  },
+  {
+   "a": "TownHall",
+   "b": "FountainSquare",
+   "rel": "nav",
+   "compass": "S",
+   "source": "map_graph",
+   "walkable": true
+  },
+  {
+   "a": "FountainSquare",
+   "b": "TownHall",
+   "rel": "nav",
+   "compass": "N",
+   "source": "map_graph",
+   "walkable": true
+  },
+  {
+   "a": "FountainSquare",
+   "b": "DahlGeneralStore",
+   "rel": "nav",
+   "compass": "W",
+   "source": "verified_location",
+   "walkable": true
+  },
+  {
+   "a": "DahlGeneralStore",
+   "b": "FountainSquare",
+   "rel": "nav",
+   "compass": "E",
+   "source": "verified_location",
+   "walkable": true
+  },
+  {
+   "a": "TownFarmExit",
+   "b": "Farm/LinkTown",
+   "rel": "nav",
+   "compass": "NW",
+   "source": "map_graph",
+   "walkable": true
+  },
+  {
+   "a": "Farm/LinkTown",
+   "b": "TownFarmExit",
+   "rel": "nav",
+   "compass": "SE",
+   "source": "map_graph",
+   "walkable": true
   }
  ]
 }

@@ -450,16 +450,18 @@ class TurnLoop:
             rationale = decision.get('rationale')
             lines.append(f'- Decision: {kind}{rendered}' + (f' — {rationale}.' if rationale else '.'))
             navigation = data.get('navigation') or {}
-            route = navigation.get('route') or {}
+            next_edge = navigation.get('next_edge') or {}
             position = navigation.get('position') or {}
             if navigation:
                 pos = position.get('value')
                 here = f' @ ({pos[0]:.2f}, {pos[1]:.2f})' if isinstance(pos, list) and len(pos) == 2 else ''
                 goal = (navigation.get('goal') or {}).get('node') or navigation.get('resolved_as') or 'unresolved'
+                edge_text = (f'{next_edge.get("from")} --{next_edge.get("compass") or "?"}--> '
+                             f'{next_edge.get("to")}' if next_edge.get('from') and next_edge.get('to') else
+                             f'next {next_edge.get("to") or "unresolved"}')
                 lines.append(f'- Graph: {navigation.get("scene") or "unknown"}{here} → {goal}; '
-                             f'required {route.get("compass") or "unknown"}; '
-                             f'next {route.get("next_node") or "unresolved"}; '
-                             f'edge {route.get("edge") or "unknown"}; '
+                             f'required {next_edge.get("compass") or "unknown"}; {edge_text}; '
+                             f'edge {next_edge.get("relation") or "unknown"}; '
                              f'position source {position.get("source") or "unknown"}.')
             waypoint = data.get('waypoint')
             if waypoint:

@@ -53,7 +53,11 @@ class Graph:
         for d in data.pop('nodes', []):
             known = {k: d[k] for k in NODE_KEYS if k in d}
             self.nodes[d['id']] = Node(**known, **{k: v for k, v in d.items() if k not in NODE_KEYS})
-        self._edges = [dict(e) for e in data.pop('edges', [])]
+        self._edges = []
+        for edge in data.pop('edges', []):
+            edge = dict(edge)
+            a, b, rel = edge.pop('a'), edge.pop('b'), edge.pop('rel')
+            self.add_edge(a, b, rel, **edge)
         self.extra = data
 
     def save(self, path):
@@ -90,6 +94,10 @@ class Graph:
         return out[::-1]
 
     def add_edge(self, a, b, rel, **attrs):
+        if rel == 'nav':
+            if attrs.get('walkable') is False:
+                raise ValueError('navigation edges are always walkable')
+            attrs['walkable'] = True
         if rel == 'toward' and attrs.get('dir') and not attrs.get('compass'):   # user D188: ways keep a compass
             attrs['compass'] = compass(attrs['dir'])
         e = {'a': a, 'b': b, 'rel': rel, **attrs}

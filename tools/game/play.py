@@ -76,6 +76,7 @@ def _clues(store, frame_context=None):
             'inventory_complete': isinstance(player.get('inventory', {}).get('items'), list),
             'money': money, 'region': region, 'scene': scene, 'save_scene': save.get('currentScene'),
             'vector_scope': vector_scope,
+            'map_pin': frame_context.get('map_pin') if frame_context.get('screen') == 'map' else None,
             'state_provenance': {'inventory': save_proof, 'money': dict(save_proof, field=money_field),
                                  'position': save_proof, 'save_scene': save_proof,
                                  'region': {'source': 'scene_log'}}}

@@ -163,16 +163,16 @@ class Turns(unittest.TestCase):
             'status': 'resolved', 'requested': 'supermarket', 'scene': 'Town',
             'position': {'value': [0.0, 0.0], 'source': 'save'},
             'goal': {'node': 'Town:fountain-square', 'position': [10.0, -10.0], 'source': 'arrived'},
-            'route': {'next_node': 'Town:fountain-square', 'edge': 'walk', 'compass': 'SE',
-                      'distance': 14.14, 'source': 'arrived'},
+            'next_edge': {'from': 'Blacksmith', 'to': 'TownHall', 'relation': 'nav', 'compass': 'E',
+                          'distance': 14.14, 'source': 'arrived'},
             'calibration': {'available': True, 'H': [[1, 0, 0], [0, -1, 0], [0, 0, 1]],
                             'samples': 6, 'error': 0.05, 'source': 'Town'}})
         loop = turn.TurnLoop(store, port, play.recommend, reducer=play.reduce, guard=play.guard)
 
         context = loop.context()
-        self.assertEqual(context.navigation['route']['compass'], 'SE')
+        self.assertEqual(context.navigation['next_edge']['compass'], 'E')
         next_context = loop.decide(context.turn_id, turn.Decision('act', action={
-            'kind': 'waypoint', 'point': [1460, 40], 'walkable': True, 'expects': {'moved': True}},
+            'kind': 'waypoint', 'point': [460, 40], 'walkable': True, 'expects': {'moved': True}},
             rationale='follow the road northeast'))
 
         self.assertEqual(port.inputs, [])
@@ -180,15 +180,16 @@ class Turns(unittest.TestCase):
         with open(os.path.join(self.tmp.name, 'log.jsonl')) as stream:
             rows = [json.loads(line) for line in stream]
         decision = next(row for row in rows if row['phase'] == 'decision' and row['turn_id'] == context.turn_id)
-        self.assertEqual(decision['navigation']['route']['compass'], 'SE')
-        self.assertEqual(decision['waypoint']['world']['compass'], 'NE')
+        self.assertEqual(decision['navigation']['next_edge']['compass'], 'E')
+        self.assertEqual(decision['waypoint']['world']['compass'], 'NW')
         self.assertEqual(decision['waypoint']['alignment'], 'mismatch')
         with open(os.path.join(self.tmp.name, 'decisions.md')) as stream:
             readable = stream.read()
         self.assertIn('Graph: Town', readable)
         self.assertIn('Town:fountain-square', readable)
-        self.assertIn('required SE', readable)
-        self.assertIn('Waypoint: screen NE; world NE', readable)
+        self.assertIn('required E', readable)
+        self.assertIn('Blacksmith --E--> TownHall', readable)
+        self.assertIn('Waypoint: screen NW; world NW', readable)
         self.assertIn('alignment mismatch', readable)
 
     def test_every_physical_action_preflights_its_persisted_turn_without_full_reobserve(self):
@@ -449,6 +450,28 @@ class Turns(unittest.TestCase):
         self.assertEqual(snapshot['candidates'][0]['id'], 'vector-0')
         self.assertEqual(snapshot['candidates'][0]['kind'], 'HouseExit')
         self.assertEqual(snapshot['candidates'][0]['view_id'], snapshot['view_id'])
+
+    def test_map_observation_exposes_pin_from_exact_captured_frame(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act, screen
+        image = Image.new('RGB', (1920, 1080), '#678967')
+        raw = SimpleNamespace(grab=mock.Mock(return_value=image),
+                              classify=mock.Mock(return_value={'mode': 'gameplay', 'text': []}),
+                              find_bubbles=mock.Mock(return_value=[]),
+                              map_pin=mock.Mock(return_value=(1005, 505)))
+        seen = {}
+        def clues(frame_context):
+            seen['frame'] = frame_context['image']
+            seen['pin'] = frame_context['map_pin']
+            return {}
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name), \
+                mock.patch.object(screen, 'map_panel', return_value=True):
+            snapshot = primitives.GameAdapter(clues).observe()
+        self.assertIs(seen['frame'], image)
+        self.assertEqual(seen['pin'], (1005, 505))
+        self.assertEqual(snapshot['screen']['kind'], 'map')
+        self.assertEqual(snapshot['map_pin'], [1005, 505])
 
     def test_candidate_resolution_is_bound_to_the_observed_view(self):
         adapter = primitives.GameAdapter()

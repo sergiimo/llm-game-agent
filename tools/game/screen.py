@@ -54,11 +54,12 @@ def map_panel(image):
         return False
     rows = paper[:, int(.2 * width):int(.8 * width)].mean(axis=1)
     columns = paper[int(.2 * height):int(.8 * height), :].mean(axis=0)
-    bands = ((rows[int(.08 * height):int(.25 * height)], height),
-             (rows[int(.75 * height):int(.92 * height)], height),
-             (columns[int(.1 * width):int(.25 * width)], width),
-             (columns[int(.75 * width):int(.9 * width)], width))
-    return all(int((band >= .95).sum()) >= max(2, int(.005 * extent)) for band, extent in bands)
+    bands = ((rows[int(.08 * height):int(.25 * height)], height, .005),
+             (rows[int(.75 * height):int(.92 * height)], height, .005),
+             (columns[int(.1 * width):int(.25 * width)], width, .0025),
+             (columns[int(.75 * width):int(.9 * width)], width, .0025))
+    return all(int((band >= .95).sum()) >= max(2, int(ratio * extent))
+               for band, extent, ratio in bands)
 
 
 def classify(mode, texts, *, world_visible=False):

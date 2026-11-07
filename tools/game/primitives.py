@@ -219,11 +219,14 @@ class GameAdapter:
             s = (screen.read(image=image, world_visible=(hud_clock or
                              any(a.kind not in (None, 'unknown') for a in affordances)))
                  if valid else screen.Screen('unknown', []))
-        if (s.kind in ('gameplay', 'unknown') and screen.map_panel(image) and
-                getattr(core.WF, 'map_pin', None) and core.WF.map_pin(image)):
+        map_pin = None
+        pin_reader = getattr(core.WF, 'map_pin', None)
+        if s.kind in ('gameplay', 'unknown') and screen.map_panel(image) and pin_reader:
+            map_pin = pin_reader(image)
+        if map_pin:
             from .screen import Screen
             s = Screen('map', [])
-        frame_context = {'image': image, 'hour': hour,
+        frame_context = {'image': image, 'hour': hour, 'screen': s.kind, 'map_pin': map_pin,
                          'light': getattr(core.WF, 'light_period', lambda value: None)(hour) if hour is not None else None}
         with measure('observe.clues'):
             if self.clue_provider:
@@ -265,6 +268,8 @@ class GameAdapter:
                      vector_detections=[{'kind': d.kind, 'point': list(d.point), 'box': list(d.box),
                                          'score': d.dist, 'raw': d.raw} for d in detections],
                      vector_status=vector_status)
+        if s.kind == 'map' and map_pin:
+            clues['map_pin'] = list(map_pin)
         clues['view_id'] = view_id
         clues['candidates'] = view.candidates(clues)
         clues['controls'] = [dict(row, id=f'control-{i}', view_id=view_id)
@@ -400,7 +405,11 @@ class GameAdapter:
                 else:
                     now = core.WF.grab() if now is None else now
                     changed = observe.view_changed(old, now)
-                if not changed:
+                # World scenes contain localized animation (NPCs, fire, clocks).  A single animated tile does not
+                # invalidate a visible-road decision when the coarse camera view is unchanged.  UI actions remain
+                # strict because even a small newly appeared control/modal can redirect them.
+                world_input = action.get('kind') in ('click', 'target', 'cell', 'bubble', 'waypoint')
+                if not changed and not world_input:
                     from PIL import ImageChops, ImageStat
                     diff = ImageChops.difference(old.convert('RGB'), now.convert('RGB'))
                     width, height = diff.size

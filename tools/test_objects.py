@@ -57,6 +57,13 @@ class StoreTests(unittest.TestCase):
         self.assertIsNotNone(self.s.add('bush', crop(), near(v, 0.8)))
         self.assertEqual(self.s.count('bush'), 2)
 
+    def test_store_revision_changes_only_when_vector_data_changes(self):
+        before = self.s.revision()
+        self.s.add('bush', crop(), unit(1))
+        self.assertNotEqual(self.s.revision(), before)
+        stable = self.s.revision()
+        self.assertEqual(self.s.revision(), stable)
+
     def test_remove(self):
         a = self.s.add('bush', crop(), unit(1))
         b = self.s.add('bush', crop(), unit(2))
@@ -371,6 +378,26 @@ class DetectTests(unittest.TestCase):
             '{"Farm": {"_disabled": ["GardenBed"]}, "Garden": {"_disabled": []}}')
         self.assertEqual(self.D.disabled_kinds(st), {'GardenBed'})
         self.assertEqual(self.D.disabled_kinds(st, 'Garden'), set())
+
+    def test_effective_scope_distinguishes_searched_disabled_and_untrained(self):
+        root = tempfile.mkdtemp()
+        st = S.Store(root)
+        st.add('Gate', crop(), unit(1))
+        st.add('GardenBed', crop(), unit(2))
+        open(os.path.join(root, 'thresholds.json'), 'w').write(
+            '{"Farm": {"_disabled": ["GardenBed"]}}')
+        self.assertEqual(self.D.inspect_scope(st, ['Gate', 'GardenBed', 'Bed'], 'Farm'), {
+            'searched': ['Gate'], 'disabled': ['GardenBed'], 'untrained': ['Bed']})
+        self.assertEqual(self.D.inspect_scope(st, [], 'Farm'), {
+            'searched': [], 'disabled': [], 'untrained': []})
+
+    def test_frame_features_are_reused_for_the_same_view_revision(self):
+        import unittest.mock as mock
+        self.D.clear_frame_cache()
+        with mock.patch.object(self.D.dino, 'frame_features', wraps=self.D.dino.frame_features) as features:
+            self.D.detect(self.imgs['normal-1'], self.store, kinds=['Tara'], cache_key=('view-1', 'model-1'))
+            self.D.detect(self.imgs['normal-1'], self.store, kinds=['Tara'], cache_key=('view-1', 'model-1'))
+        self.assertEqual(features.call_count, 1)
 
     def test_dino_shapes(self):
         from objects import dino

@@ -92,7 +92,13 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     # ownership bookkeeping, preparation, and intent persistence so no alias can evade the invariant.
     if action.get('kind') == 'click':
         action['kind'] = 'target'
-    before = adapter.observe()
+    source_view = task.current_turn
+    leased = hasattr(adapter, 'preflight')
+    before = (adapter.observe() if action.get('kind') == 'read' or source_view is None or not leased
+              else dict(source_view))
+    if source_view is not None and leased:
+        before.update(source_view.get('resources') or {})
+    source_view = source_view or before
     refusal = None
     try:
         # The canonical observation has no input or resource metadata to authorize. Metadata-bearing
@@ -101,7 +107,9 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
             refusal = guard(task.snapshot(_observation=before), freeze(action))
             if refusal:
                 raise ValueError(refusal)
-        prepared = adapter.prepare(dict(action), before)
+        if action.get('kind') not in ('read', 'wait') and leased:
+            adapter.preflight(action, source_view)
+        prepared = adapter.prepare(dict(action), source_view)
     except ValueError as ex:
         prepared, refusal = dict(action), str(ex)
     administrative = (action.get('kind') == 'press' and str(action.get('label', '')).casefold() == 'resume game' or
@@ -178,28 +186,34 @@ class GameAdapter:
     def __init__(self, clue_provider=None):
         self.clue_provider = clue_provider
         self._latest_observation = None
-        self._captured_read = None
+        self._captured_outcome = None
+        self._vector_store = None
 
     def mark(self):
         from . import core
         return core.WF.log_mark()
 
-    def observe(self):
+    def observe(self, image=None):
         from . import act, core, observe, screen
-        with measure('observe.grab'):
-            image = core.WF.grab()
+        if image is None:
+            with measure('observe.grab'):
+                image = core.WF.grab()
         directory = act.frames_dir()
         os.makedirs(directory, exist_ok=True)
         path = os.path.join(directory, f'turn-{uuid.uuid4().hex}.jpg')
         image.convert('RGB').save(path, quality=90)  # full virtual frame; never resize
+        from . import view
+        view_id = view.new_id(path, image)
         # The saved frame, affordances and OCR must describe one capture. A second grab can see a fade/menu
         # while the artifact shows the world (live split-observation guard refusals). Never interpret black as
         # textless gameplay or count its difference from a rendered frame as movement.
         valid = image.convert('L').getextrema()[1] > 20
+        hour = None
         with measure('observe.perception'):
             affordances = observe.scan(image) if valid else []
             try:
-                hud_clock = valid and getattr(core.WF, 'game_hour', lambda frame: None)(image) is not None
+                hour = getattr(core.WF, 'game_hour', lambda frame: None)(image) if valid else None
+                hud_clock = hour is not None
             except Exception:  # noqa: BLE001 (a missing/unreadable clock is simply not positive evidence)
                 hud_clock = False
             s = (screen.read(image=image, world_visible=(hud_clock or
@@ -209,20 +223,40 @@ class GameAdapter:
                 getattr(core.WF, 'map_pin', None) and core.WF.map_pin(image)):
             from .screen import Screen
             s = Screen('map', [])
+        frame_context = {'image': image, 'hour': hour,
+                         'light': getattr(core.WF, 'light_period', lambda value: None)(hour) if hour is not None else None}
         with measure('observe.clues'):
-            clues = dict(self.clue_provider() if self.clue_provider else {})
+            if self.clue_provider:
+                import inspect
+                try:
+                    inspect.signature(self.clue_provider).bind(frame_context)
+                except (TypeError, ValueError):
+                    provided = self.clue_provider()  # legacy/test providers with an explicit no-argument contract
+                else:
+                    provided = self.clue_provider(frame_context)
+                clues = dict(provided)
+            else:
+                clues = {}
         scope = clues.get('vector_scope')
         detections = []
         vector_status = {'status': 'not_requested'}
         if valid and s.kind in ('gameplay', 'unknown') and isinstance(scope, dict):
+            effective = {'searched': [], 'disabled': [], 'untrained': list(scope.get('kinds') or ())}
             try:
+                if self._vector_store is None:
+                    from objects.store import Store
+                    self._vector_store = Store()
+                effective = observe.inspect_vector_scope(
+                    self._vector_store, scope.get('kinds'), scope.get('region'))
                 with measure('observe.vectors'):
-                    detections = observe.detect_frame(image, region=scope.get('region'), kinds=scope.get('kinds'))
-                vector_status = {'status': 'ok', 'region': scope.get('region'),
-                                 'requested_kinds': list(scope.get('kinds') or ()), 'hits': len(detections)}
+                    detections = observe.detect_frame(
+                        image, region=scope.get('region'), kinds=scope.get('kinds'), store=self._vector_store,
+                        cache_key=(view_id, self._vector_store.revision()))
+                vector_status = {'status': 'ok' if detections else 'no_match', 'region': scope.get('region'),
+                                 **effective, 'hits': len(detections)}
             except Exception as error:  # the model must distinguish detector failure from a valid empty frame
                 vector_status = {'status': 'error', 'region': scope.get('region'),
-                                 'requested_kinds': list(scope.get('kinds') or ()),
+                                 **effective,
                                  'error': f'{type(error).__name__}: {error}'}
         clues.update(screen={'kind': s.kind, 'texts': s.texts}, frame_path=path,
                      capture_validity='rendered' if valid else 'black',
@@ -231,6 +265,10 @@ class GameAdapter:
                      vector_detections=[{'kind': d.kind, 'point': list(d.point), 'box': list(d.box),
                                          'score': d.dist, 'raw': d.raw} for d in detections],
                      vector_status=vector_status)
+        clues['view_id'] = view_id
+        clues['candidates'] = view.candidates(clues)
+        clues['controls'] = [dict(row, id=f'control-{i}', view_id=view_id)
+                             for i, row in enumerate(s.controls)]
         clues.setdefault('graph_clues', [])
         clues.setdefault('interrupts', [])
         stamp = getattr(core.WF, 'game_stamp', None)
@@ -239,9 +277,9 @@ class GameAdapter:
         self._latest_observation = clues
         return clues
 
-    def take_read_observation(self, experience_id):
-        """Consume only this in-process read receipt; never reuse a previous turn or persisted before-state."""
-        receipt, self._captured_read = self._captured_read, None
+    def take_outcome_observation(self, experience_id):
+        """Consume this action's in-process settled receipt; never reuse it across outcomes or restarts."""
+        receipt, self._captured_outcome = self._captured_outcome, None
         return receipt[1] if receipt and receipt[0] == experience_id else None
 
     def prepare(self, action, observation):
@@ -249,6 +287,21 @@ class GameAdapter:
         from . import core, observe
         kind = action.get('kind')
         screen = (observation.get('screen') or {}).get('kind', 'unknown')
+        if action.get('view_id') and action['view_id'] != observation.get('view_id'):
+            raise ValueError('stale view: decision does not match the observed frame')
+        if action.get('candidate'):
+            matches = [row for row in observation.get('candidates', ())
+                       if row.get('id') == action['candidate'] and row.get('view_id') == observation.get('view_id')]
+            if len(matches) != 1:
+                raise ValueError('candidate missing or stale for this view')
+            action['point'] = list(matches[0]['point'])
+        if action.get('control'):
+            matches = [row for row in observation.get('controls', ())
+                       if row.get('id') == action['control'] and row.get('view_id') == observation.get('view_id')]
+            if len(matches) != 1:
+                raise ValueError('control missing or stale for this view')
+            action['point'] = list(matches[0]['point'])
+            action.setdefault('label', matches[0].get('label'))
         if kind in ('wait', 'read'):
             return action
         if kind in ('click', 'target', 'cell', 'bubble', 'waypoint'):
@@ -291,7 +344,11 @@ class GameAdapter:
                 raise ValueError('press requires a label')
             if screen == 'pause' and label.lower() != 'resume game':
                 raise ValueError('only Resume Game may be pressed on pause')
-            hits = core.WF.find_text(label, exact=True)
+            hits = [{'cx': row['point'][0], 'cy': row['point'][1]} for row in observation.get('controls', ())
+                    if str(row.get('label', '')).strip().casefold() == label.strip().casefold()]
+            finder = getattr(core.WF, 'find_text', None)
+            if not hits and finder:
+                hits = finder(label, path=observation.get('frame_path'), exact=True)
             if len(hits or ()) != 1:
                 raise ValueError('named control missing or ambiguous')
             action['point'] = [round(hits[0]['cx']), round(hits[0]['cy'])]
@@ -303,7 +360,11 @@ class GameAdapter:
             if action.get('label'):
                 # A named item inspection must resolve that visible text; a supplied point cannot redirect it
                 # onto Buy/Sell. Financial labels still require trade authority at the universal guard.
-                hits = core.WF.find_text(action['label'], exact=True)
+                hits = [{'cx': row['point'][0], 'cy': row['point'][1]} for row in observation.get('controls', ())
+                        if str(row.get('label', '')).strip().casefold() == action['label'].strip().casefold()]
+                finder = getattr(core.WF, 'find_text', None)
+                if not hits and finder:
+                    hits = finder(action['label'], path=observation.get('frame_path'), exact=True)
                 if len(hits or ()) != 1:
                     raise ValueError('named card missing or ambiguous')
                 action['point'] = [round(hits[0]['cx']), round(hits[0]['cy'])]
@@ -319,6 +380,38 @@ class GameAdapter:
             action['command'] = 'key:escape'
         else:
             raise ValueError(f'unknown primitive {kind!r}')
+        return action
+
+    def preflight(self, action, observation, current=None):
+        """Cheap pixel/scene lease check; it performs no OCR, DINO, graph refresh or input."""
+        if action.get('view_id') is not None and action.get('view_id') != observation.get('view_id'):
+            raise ValueError('stale view: decision does not match its source')
+        old_path = observation.get('frame_path')
+        if not old_path:
+            raise ValueError('stale view: source frame is unavailable')
+        from PIL import Image
+        from . import core, observe
+        try:
+            with Image.open(old_path) as old:
+                now = current
+                if isinstance(current, dict) and current.get('frame_path'):
+                    with Image.open(current['frame_path']) as opened:
+                        changed = observe.view_changed(old, opened)
+                else:
+                    now = core.WF.grab() if now is None else now
+                    changed = observe.view_changed(old, now)
+                if not changed:
+                    from PIL import ImageChops, ImageStat
+                    diff = ImageChops.difference(old.convert('RGB'), now.convert('RGB'))
+                    width, height = diff.size
+                    tile = 96
+                    changed = any(max(ImageStat.Stat(diff.crop((x, y, min(x + tile, width),
+                                                                 min(y + tile, height)))).mean) > 12
+                                  for y in range(0, height, tile) for x in range(0, width, tile))
+        except OSError as error:
+            raise ValueError(f'stale view: source frame unavailable: {error}') from None
+        if changed:
+            raise ValueError('stale view: camera or modal changed before input')
         return action
 
     def _release(self):
@@ -347,21 +440,24 @@ class GameAdapter:
         try:
             from . import act, core, observe
             is_read = intent.action.get('kind') == 'read'
-            self._captured_read = None
+            self._captured_outcome = None
             same_read = is_read and self._latest_observation is before
             self._latest_observation = None  # a receipt is valid only inside this execute/capture pair
-            if not same_read:
-                core.WF.wait_settle()
             if expects.get('events'):
                 core.seen(act.EVENT.pattern, intent.log_mark, act.EVENT_WAIT)
-            after = before if same_read else self.observe()
+            settled = None if same_read else core.WF.wait_settle()
+            settle_frame = getattr(settled, 'frame', None)
+            from PIL import Image
+            settle_frame = settle_frame if isinstance(settle_frame, Image.Image) else None
+            after = before if same_read else self.observe(image=settle_frame)
             samples = [after]
             if after['screen']['kind'] == 'unknown':
                 # Pixel stability alone does not establish a readable modal (live Resume had scenery OCR
                 # while the following coherent observation read gameplay). Take one bounded settling read,
                 # preserve both sources, and let the ordinary verifier judge the final observation.
-                core.WF.wait_settle()
-                after = self.observe()
+                settled = core.WF.wait_settle()
+                settle_frame = getattr(settled, 'frame', None)
+                after = self.observe(image=settle_frame if isinstance(settle_frame, Image.Image) else None)
                 samples.append(after)
                 after = dict(after, observation_samples=[{k: sample.get(k) for k in
                     ('frame_path', 'screen', 'capture_validity', 'game_time')} for sample in samples])
@@ -386,8 +482,7 @@ class GameAdapter:
                                   X._t(tuple((k, v) for k, v in after.items()
                                              if k not in ('screen', 'visible_affordances', 'graph_clues'))))
             result = experience(intent, before, expects, evidence, tuple(sample['frame_path'] for sample in samples))
-            if is_read:
-                self._captured_read = (result.id, after)
+            self._captured_outcome = (result.id, after)
             return result
         finally:
             self._release()

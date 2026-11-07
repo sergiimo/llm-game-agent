@@ -26,6 +26,7 @@ JOURNAL_DIR = None     # None = the open run's dir, else act.SHOTS (tests: a tem
 GAP_REPEAT = 2         # the same unresolved check failing this many times = a gap bundle
 CARD_WAIT = 3.0        # s an expected card gets to show after the action (live D189: Collect came late)
 _APPLIED = {}          # journal dir -> set of applied update keys (cache of applied.txt)
+_RECORDED = {}         # journal dir -> immutable experience IDs (loaded once, then O(1) per action)
 _RESOLVED = set()      # experience ids a later rule explained (an info card, another row's card): never a gap
 
 
@@ -60,12 +61,19 @@ def _path(name):
 
 
 def _append(name, line):
-    try:
-        os.makedirs(_dir(), exist_ok=True)
-        with open(_path(name), 'a') as f:
-            f.write(line + '\n')
-    except OSError:
-        pass
+    directory = _dir()
+    created = not os.path.isdir(directory)
+    os.makedirs(directory, exist_ok=True)
+    with open(_path(name), 'a') as f:
+        f.write(line + '\n')
+        f.flush()
+        os.fsync(f.fileno())
+    if created:
+        fd = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
 
 
 def journal(path=None):
@@ -94,14 +102,26 @@ def _applied():
     return _APPLIED[d]
 
 
+def _recorded():
+    d = _dir()
+    if d not in _RECORDED:
+        _RECORDED[d] = {row.id for row in journal()}
+    return _RECORDED[d]
+
+
 def _persist(e):
     keys = _applied()
+    recorded = _recorded()
     k = f'{e.id}:experience'
     if k in keys:
         return False
-    _append('experiences.jsonl', json.dumps(e.to_dict(), default=str))
-    keys.add(k)
+    # If a crash happened after the evidence fsync but before its applied key,
+    # recovery repairs the marker without duplicating the immutable receipt.
+    if e.id not in recorded:
+        _append('experiences.jsonl', json.dumps(e.to_dict(), default=str))
+        recorded.add(e.id)
     _append('applied.txt', k)
+    keys.add(k)
     return True
 
 
@@ -624,8 +644,8 @@ def apply(e, correction=None, img0=None):
             r = None
             out.setdefault('errors', []).append(f'{u.op}: {ex}')
             continue  # failed corrections are retryable; never durably mark them as applied
-        keys.add(k)
         _append('applied.txt', k)
+        keys.add(k)
         out['applied'] += 1
         out[u.op] = r
         if r and u.consumer == 'memory' and out['learned'] is None:
@@ -740,8 +760,8 @@ def relation(a, b, direction, proof, **dist):
     for e in (g.edges(a, 'toward') if g is not None else []):
         if e['b'] == b:
             e.update({k: v for k, v in dist.items() if v is not None})
-    keys.add(k)
     _append('applied.txt', k)
+    keys.add(k)
     try:
         core.WF.run_log('learn', what='way', msg=f'{a} -> {b}: {list(direction)} ({proof})')
     except Exception:   # noqa: BLE001

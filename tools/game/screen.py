@@ -88,6 +88,7 @@ def classify(mode, texts, *, world_visible=False):
 class Screen:
     kind: str
     texts: list = field(default_factory=list)
+    controls: list = field(default_factory=list)
 
 
 def read(*, world_visible=False, image=None):
@@ -95,8 +96,14 @@ def read(*, world_visible=False, image=None):
         s = core.WF.classify(image) if image is not None and hasattr(core.WF, 'classify') else core.WF.state()
     except Exception:   # noqa: BLE001 (legacy fakes / no frame retain compatibility)
         return Screen('unknown' if image is not None else 'gameplay', [])
-    ts = [t.split(') ', 1)[-1] for t in s.get('text', [])]
-    return Screen(classify(s.get('mode', 'gameplay'), ts, world_visible=world_visible), ts)
+    raw = s.get('text', [])
+    ts = [t.split(') ', 1)[-1] for t in raw]
+    controls = []
+    for text in raw:
+        match = re.match(r'^\((\d+),(\d+)\)\s+(.+)$', str(text))
+        if match:
+            controls.append({'label': match[3].strip(), 'point': [int(match[1]), int(match[2])]})
+    return Screen(classify(s.get('mode', 'gameplay'), ts, world_visible=world_visible), ts, controls)
 
 
 def _settle():

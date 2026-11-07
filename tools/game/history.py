@@ -53,7 +53,15 @@ def public_task(task):
     data = thaw(task)
     for key in ('current_turn', 'last_experience', 'last_surprise', 'pending_intent'):
         data.pop(key, None)
-    return data
+    for key in ('_outcomes', '_subgoal_results', '_cancelled_subgoals', '_shop_catalogue_observations'):
+        data.get('params', {}).pop(key, None)
+    def bounded(value):
+        if isinstance(value, dict):
+            return {key: bounded(item) for key, item in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [bounded(item) for item in value[-64:]]
+        return value
+    return bounded(data)
 
 
 def _inline_groups(task):

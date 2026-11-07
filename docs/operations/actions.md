@@ -11,7 +11,9 @@ sequences; Python never does. `./wf play <goal>` and bare gameplay aliases obser
 turn decision executes at most one guarded primitive and returns evidence. The table's arrows, key names and hit
 counts describe model-owned steps, never a batch, retry loop or private Python workflow. Legacy `do`/`py`/`call`/
 `advance`/routes no longer run those recipes. Correct any surprise before another input; preserve nested tasks and
-verify completion. A matching inventory AND money delta is mandatory for purchased seeds.
+verify completion. `NEXT.view` is the exact final full frame from the preceding settle; `result`, `need`, `memory`
+and `resources` are its bounded decision state. Detailed reasoning-cycle rows remain in the run log. A matching
+inventory AND money delta is mandatory for purchased seeds.
 
 **Waiting:** `still[:max_s]` waits until Tara's own action/walk ends (tracker, L52), so it can replace fixed `wait:` after a
 swing (`key:space still`), ❓ not yet measured on swings. `go:` already returns when she stops.

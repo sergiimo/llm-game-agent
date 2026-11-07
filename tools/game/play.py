@@ -1,6 +1,7 @@
 """Universal model-owned entry point. Constructors/clues never choose or execute gameplay inputs."""
 import json
 import os
+import re
 import uuid
 
 from .primitives import GameAdapter
@@ -35,35 +36,42 @@ def _save_money(save):
 
 def _vector_scope(graph, *candidates, learned_kinds=None):
     """Learned appearance kinds visible in the current graph region, including nested landmarks and exits."""
-    if learned_kinds is None:
-        from objects.store import Store
-        learned_kinds = Store().kinds()
-    learned_kinds = set(learned_kinds)
     region = next((candidate for candidate in candidates if candidate in graph.nodes), None)
+    allowed = set(learned_kinds) if learned_kinds is not None else None
     kinds = sorted({node.kind for node in graph.nodes.values()
-                    if node.kind in learned_kinds and region and region in graph.chain(node.id)})
-    return {'region': region, 'kinds': kinds if region else sorted(learned_kinds)}
+                    if region and region in graph.chain(node.id) and
+                    (allowed is None or node.kind in allowed)})
+    return {'region': region, 'kinds': kinds if region else None}
 
 
-def _clues(store):
-    from . import ask, core, engine, garden_policy, observe, world
-    graph = engine._open_graph()
+def _clues(store, frame_context=None):
+    from . import core, engine, garden_policy, learn, observe, snapshot, world
+    frame_context = frame_context or {}
     path, save = core.WF.read_save()
     lines = core.WF.today_log()[0]
-    world.refresh(graph, save, lines)
-    hour, light = observe.clock()
+    world_delta = snapshot.world_for(store.path).refresh(
+        engine._open_graph, save, lines, snapshot.file_revision(learn.graph_path()))
+    graph = world_delta.graph
+    hour, light = frame_context.get('hour'), frame_context.get('light')
+    if not frame_context:  # compatibility for direct read-only callers; production always passes its captured frame
+        hour, light = observe.clock()
     player = save.get('gameState', {}).get('player', {})
     money, money_field = _save_money(save)
     save_proof = {'source': 'save', 'path': path, 'save_count': save.get('saveCount'),
                   'game_time': world.save_time(save)}
-    region = getattr(core.WF, 'current_scene', lambda: None)()
-    scene, _ = world.scene_context(lines, save.get('currentScene'), since=world.save_time(save))
+    scene, region = world.scene_context(lines, save.get('currentScene'), since=world.save_time(save))
     vector_scope = _vector_scope(graph, region, scene, save.get('currentScene'))
     point = save.get('currentPlayerPosition') or {}
-    data = {'graph_clues': ([dict(node=n.id, **n.to_dict()) for n in graph.nodes.values()] +
-                            [{'edge': dict(edge)} for edge in graph.edges()] +
-                            [{'world_conflict': row} for row in graph.extra.get('_refresh_conflicts', ())]),
-            'hour': hour, 'light': light, 'rain': ask.rain(), 'can': graph.state_value('Tara', 'can'),
+    task_state = store.load() if os.path.exists(store.path) else None
+    active_node = task_state.active.actual_node if task_state and task_state.active else None
+    data = {'graph_clues': snapshot.project_graph(
+                graph, region, frame_context.get('candidates', ()), active_node),
+            'memory_revision': world_delta.revision,
+            'hour': hour, 'light': light,
+            'rain': next((forecast for line in reversed(lines)
+                          for forecast in re.findall(r'Forecast is (\w+)', line)
+                          if forecast in ('Raining', 'Rain', 'Storm', 'Thunder')), None),
+            'can': graph.state_value('Tara', 'can'),
             'inventory': world.inventory(save, lines),
             'inventory_complete': isinstance(player.get('inventory', {}).get('items'), list),
             'money': money, 'region': region, 'scene': scene, 'save_scene': save.get('currentScene'),
@@ -73,7 +81,7 @@ def _clues(store):
                                  'region': {'source': 'scene_log'}}}
     if 'x' in point and 'z' in point:
         data['position'] = [point['x'], point['z']]
-    state = _declaration(store.load()) if os.path.exists(store.path) else {
+    state = _declaration(task_state) if task_state else {
         'params': {'_started_late': hour is not None and hour > 19}}
     blocked = garden_policy.interrupt(state, data)
     data['interrupts'] = [blocked] if blocked else []
@@ -515,7 +523,7 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
         raise ValueError('observe a task before supplying a decision')
     if existing and answer is None and existing.params.get('_trade_start_money') is None:
         _repair_start_money(store)
-    adapter = adapter or GameAdapter(clue_provider=lambda: _clues(store))
+    adapter = adapter or GameAdapter(clue_provider=lambda frame_context: _clues(store, frame_context))
     initial_observation = None
     if not existing:
         goal = goal or 'play'

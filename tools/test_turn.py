@@ -81,22 +81,30 @@ class Turns(unittest.TestCase):
             c.recommendation.action['kind'] = 'close'
         self.assertEqual(json.loads(json.dumps(c.to_dict()))['task']['task_id'], 'task-1')
 
-    def test_every_context_prints_the_compact_model_workflow(self):
+    def test_every_context_prints_the_compact_receipt_first_view(self):
         self.port.snapshot['vector_detections'] = [
             {'kind': 'GardenBed', 'point': [700, 500], 'score': 7.1}]
+        self.port.snapshot.update(view_id='view-one', candidates=[
+            {'id': 'vector-0', 'view_id': 'view-one', 'kind': 'GardenBed', 'point': [700, 500]}],
+            memory_revision=4, hour=9.5, rain=None)
         c = self.loop.context()
-        stages = {row['stage']: row for row in c.model_workflow}
-        self.assertEqual(tuple(stages), ('observe', 'decide', 'vision', 'act', 'verify', 'learn', 'repeat'))
-        self.assertEqual(stages['observe']['vectors'], 1)
-        self.assertEqual(stages['decide']['status'], 'awaiting_model')
-        self.assertEqual(stages['act']['status'], 'awaiting_decision')
-        self.assertEqual(stages['repeat']['goal'], 'garden')
-        public = json.dumps(c.to_dict())
-        self.assertNotIn('chain_of_thought', public)
-        self.assertLess(len(json.dumps(c.to_dict()['model_workflow'])), 1600)
+        self.assertEqual(c.view['id'], 'view-one')
+        self.assertEqual(c.view['candidates'][0]['id'], 'vector-0')
+        self.assertEqual(c.memory['revision'], 4)
+        self.assertEqual(c.resources['hour'], 9.5)
+        self.assertIsNone(c.need)
+        self.assertEqual(c.result['status'], 'pending')
+        self.assertEqual(c.model_workflow, ())
         cached = self.loop.context()
         self.assertEqual(cached.observation_freshness, 'cached')
-        self.assertEqual(cached.model_workflow[0]['freshness'], 'cached')
+        self.assertEqual(cached.view, c.view)
+
+    def test_required_vision_blocks_act_and_accept(self):
+        self.port.snapshot['vector_status'] = {'status': 'error', 'error': 'detector offline'}
+        c = self.loop.context()
+        self.assertEqual(c.need['kind'], 'vision')
+        self.assertNotIn('act', c.allowed_decisions)
+        self.assertNotIn('accept', c.allowed_decisions)
 
     def test_one_accept_persists_intent_before_input_and_rejects_stale(self):
         c = self.loop.context()
@@ -123,6 +131,27 @@ class Turns(unittest.TestCase):
         self.assertEqual(checkpoint['coverage'], {'targets': [], 'covered': [], 'unresolved': []})
         self.assertEqual(checkpoint['task_status'], 'active')
         self.assertIsNone(self.store.load().active.pending_intent)
+
+    def test_every_physical_action_preflights_its_persisted_turn_without_full_reobserve(self):
+        observed = mock.Mock(side_effect=self.port.observe)
+        self.port.observe = observed
+        self.port.preflight = mock.Mock()
+        self.port.take_outcome_observation = lambda experience_id: self.port.snapshot
+        c = self.loop.context()
+        self.loop.decide(c.turn_id, turn.Decision('accept'))
+        self.port.preflight.assert_called_once()
+        self.assertEqual(observed.call_count, 1, 'the action uses its receipt plus cheap preflight')
+
+    def test_integration_journal_failure_keeps_the_captured_intent_for_recovery(self):
+        c = self.loop.context()
+        self.port.lines.append('watered')
+        with mock.patch.object(I, 'apply', side_effect=OSError('journal unavailable')):
+            with self.assertRaisesRegex(OSError, 'journal unavailable'):
+                self.loop.decide(c.turn_id, turn.Decision('accept'))
+        restored = self.store.load()
+        self.assertIsNotNone(restored.active.pending_intent)
+        self.assertIsNotNone(restored.active.pending_intent.experience)
+        self.assertEqual(len(self.port.inputs), 1)
 
     def test_restart_reconciles_pending_input_without_repeating_it(self):
         c = self.loop.context()
@@ -317,6 +346,19 @@ class Turns(unittest.TestCase):
         with Image.open(snapshot['frame_path']) as saved:
             self.assertEqual(saved.size, (1920, 1080))
 
+    def test_production_observation_captures_control_coordinates_in_the_view(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act
+        image = Image.new('RGB', (1920, 1080), 'gray')
+        raw = SimpleNamespace(grab=lambda: image,
+                              classify=lambda frame: {'mode': 'overlay', 'text': ['(960,500) Collect']},
+                              find_bubbles=lambda frame: [])
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name):
+            snapshot = primitives.GameAdapter().observe()
+        self.assertEqual(snapshot['controls'], [{
+            'label': 'Collect', 'point': [960, 500], 'id': 'control-0', 'view_id': snapshot['view_id']}])
+
     def test_production_observation_runs_vectors_on_the_exact_saved_grab(self):
         from PIL import Image
         from types import SimpleNamespace
@@ -334,13 +376,76 @@ class Turns(unittest.TestCase):
                 mock.patch.object(observe, 'detect_frame', vectors):
             snapshot = primitives.GameAdapter(clues).observe()
         raw.grab.assert_called_once_with()
-        vectors.assert_called_once_with(image, region='House', kinds=['Bed', 'HouseExit'])
+        self.assertIs(vectors.call_args.args[0], image)
+        self.assertEqual(vectors.call_args.kwargs['region'], 'House')
+        self.assertEqual(vectors.call_args.kwargs['kinds'], ['Bed', 'HouseExit'])
         self.assertEqual(snapshot['vector_detections'], [{
             'kind': 'HouseExit', 'point': [1600, 630], 'box': [1500, 500, 1700, 760],
             'score': 8.2, 'raw': .81,
         }])
         self.assertEqual(snapshot['vector_status'], {'status': 'ok', 'region': 'House',
-                                                     'requested_kinds': ['Bed', 'HouseExit'], 'hits': 1})
+                                                     'searched': ['Bed', 'HouseExit'], 'disabled': [],
+                                                     'untrained': [], 'hits': 1})
+        self.assertTrue(snapshot['view_id'].startswith('view-'))
+        self.assertEqual(snapshot['candidates'][0]['id'], 'vector-0')
+        self.assertEqual(snapshot['candidates'][0]['kind'], 'HouseExit')
+        self.assertEqual(snapshot['candidates'][0]['view_id'], snapshot['view_id'])
+
+    def test_candidate_resolution_is_bound_to_the_observed_view(self):
+        adapter = primitives.GameAdapter()
+        observation = dict(self.port.snapshot, view_id='view-one', candidates=[{
+            'id': 'vector-0', 'view_id': 'view-one', 'kind': 'GardenBed', 'point': [800, 600]}])
+        prepared = adapter.prepare({'kind': 'target', 'view_id': 'view-one', 'candidate': 'vector-0',
+                                    'visible_road': True}, observation)
+        self.assertEqual(prepared['point'], [800, 600])
+        self.assertEqual(prepared['command'], 'click:800:600')
+        with self.assertRaisesRegex(ValueError, 'stale view'):
+            adapter.prepare({'kind': 'target', 'view_id': 'view-old', 'candidate': 'vector-0',
+                             'visible_road': True}, observation)
+
+    def test_preflight_refuses_a_changed_camera_without_ocr_or_input(self):
+        from PIL import Image, ImageDraw
+        from types import SimpleNamespace
+        before = os.path.join(self.tmp.name, 'view.jpg')
+        old = Image.new('RGB', (1920, 1080), 'gray')
+        ImageDraw.Draw(old).rectangle((100, 100, 400, 400), fill='white')
+        old.save(before)
+        changed = Image.new('RGB', (1920, 1080), 'gray')
+        ImageDraw.Draw(changed).rectangle((1200, 600, 1500, 900), fill='white')
+        raw = SimpleNamespace(grab=mock.Mock(return_value=changed),
+                              classify=mock.Mock(side_effect=AssertionError('preflight ran OCR')),
+                              run_action=mock.Mock(side_effect=AssertionError('stale view issued input')))
+        with mock.patch.object(core, 'WF', raw):
+            with self.assertRaisesRegex(ValueError, 'stale view'):
+                primitives.GameAdapter().preflight(
+                    {'kind': 'target', 'view_id': 'view-one', 'candidate': 'vector-0'},
+                    {'view_id': 'view-one', 'frame_path': before, 'screen': {'kind': 'gameplay'}})
+        raw.grab.assert_called_once_with()
+
+    def test_preflight_refuses_a_small_modal_patch(self):
+        from PIL import Image, ImageDraw
+        from types import SimpleNamespace
+        before = os.path.join(self.tmp.name, 'small-modal-source.jpg')
+        old = Image.new('RGB', (1920, 1080), 'gray')
+        old.save(before)
+        changed = old.copy()
+        ImageDraw.Draw(changed).rectangle((900, 450, 1000, 550), fill='white')
+        with mock.patch.object(core, 'WF', SimpleNamespace(grab=lambda: changed)):
+            with self.assertRaisesRegex(ValueError, 'stale view'):
+                primitives.GameAdapter().preflight(
+                    {'kind': 'press', 'view_id': 'view-one'},
+                    {'view_id': 'view-one', 'frame_path': before, 'screen': {'kind': 'gameplay'}})
+
+    def test_named_control_is_resolved_from_the_captured_view_without_find_text(self):
+        adapter = primitives.GameAdapter()
+        observation = dict(self.port.snapshot, view_id='view-one', controls=[{
+            'id': 'control-0', 'view_id': 'view-one', 'label': 'Collect', 'point': [960, 500]}],
+            screen={'kind': 'card', 'texts': ['Collect']})
+        with mock.patch.object(core, 'WF', mock.Mock(find_text=mock.Mock(
+                side_effect=AssertionError('control recaptured')))):
+            prepared = adapter.prepare({'kind': 'press', 'label': 'Collect'}, observation)
+        self.assertEqual(prepared['point'], [960, 500])
+        self.assertEqual(prepared['command'], 'click:960:500')
 
     def test_vector_failure_is_explicit_instead_of_looking_like_no_match(self):
         from PIL import Image
@@ -381,6 +486,41 @@ class Turns(unittest.TestCase):
             self.assertEqual(outcome.verdict.value, 'miss')
         raw.classify.assert_not_called()
         raw.find_bubbles.assert_not_called()
+
+    def test_capture_reuses_the_final_full_settle_frame_without_another_grab(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act
+        before_path = os.path.join(self.tmp.name, 'before-settle.jpg')
+        Image.new('RGB', (1920, 1080), '#334455').save(before_path)
+        final = Image.new('RGB', (1920, 1080), '#668844')
+        settled = SimpleNamespace(seconds=.4, frame=final)
+        raw = SimpleNamespace(wait_settle=mock.Mock(return_value=settled),
+                              grab=mock.Mock(side_effect=AssertionError('receipt performed a second grab')),
+                              classify=lambda image: {'mode': 'gameplay', 'text': ['settled']},
+                              find_bubbles=lambda image: [], log_since=lambda mark: '',
+                              log_mark=lambda: 0, _unhash=lambda value: value)
+        before = dict(self.port.snapshot, frame_path=before_path, capture_validity='rendered')
+        intent = S.Intent(1, {'kind': 'wait'}, 0, 1., before, {})
+        adapter = primitives.GameAdapter()
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name):
+            outcome = adapter.capture(intent, before, {})
+            receipt = adapter.take_outcome_observation(outcome.id)
+        raw.wait_settle.assert_called_once_with()
+        raw.grab.assert_not_called()
+        self.assertEqual(receipt['screen']['texts'], ['settled'])
+        with Image.open(receipt['frame_path']) as saved:
+            self.assertLessEqual(max(abs(a - b) for a, b in zip(
+                saved.getpixel((0, 0)), final.getpixel((0, 0)))), 2)
+
+    def test_settle_returns_its_exact_final_full_frame(self):
+        from PIL import Image
+        import wf
+        frames = [Image.new('RGB', (1920, 1080), color) for color in ('red', 'green', 'green')]
+        with mock.patch.object(wf, '_frame', side_effect=frames):
+            result = wf.wait_settle(timeout=.1, interval=0, min_wait=0, still=100)
+        self.assertIs(result.frame, frames[-1])
+        self.assertEqual(result.frame.size, (1920, 1080))
 
     def test_unrepresentable_appearance_correction_stays_retryable(self):
         e = primitives.experience(S.Intent(1, {'kind': 'wait'}, 0, 1.), self.port.snapshot, {}, X.Evidence())

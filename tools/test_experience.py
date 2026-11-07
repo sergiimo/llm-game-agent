@@ -124,6 +124,35 @@ class Boundary(EngineBase):
         with open(steps.OBSERVED) as records:
             self.assertEqual(records.read(), before)
 
+    def test_journal_write_failure_propagates_and_never_marks_experience_applied(self):
+        e = sample()
+        real_open = open
+        def fail_experience(path, *args, **kwargs):
+            if str(path).endswith('experiences.jsonl'):
+                raise OSError('disk full')
+            return real_open(path, *args, **kwargs)
+        with mock.patch('builtins.open', side_effect=fail_experience):
+            with self.assertRaisesRegex(OSError, 'disk full'):
+                I.apply(e, X.Correction(e.id))
+        self.assertNotIn(f'{e.id}:experience', I._applied())
+        self.assertFalse(os.path.exists(os.path.join(I.JOURNAL_DIR, 'applied.txt')))
+
+    def test_applied_marker_failure_is_retryable_without_duplicate_experience(self):
+        e = sample()
+        real_open = open
+        def fail_marker(path, mode='r', *args, **kwargs):
+            if str(path).endswith('applied.txt') and 'a' in mode:
+                raise OSError('marker unavailable')
+            return real_open(path, mode, *args, **kwargs)
+        with mock.patch('builtins.open', side_effect=fail_marker):
+            with self.assertRaisesRegex(OSError, 'marker unavailable'):
+                I.apply(e, X.Correction(e.id))
+        self.assertNotIn(f'{e.id}:experience', I._applied())
+        self.assertEqual([row.id for row in I.journal()], [e.id])
+        I.apply(e, X.Correction(e.id))
+        self.assertEqual([row.id for row in I.journal()], [e.id])
+        self.assertIn(f'{e.id}:experience', I._applied())
+
     def test_a_press_step_is_its_own_experience(self):
         f = self.harvest_turns()
         kinds = [e.action.kind for e in I.journal()]

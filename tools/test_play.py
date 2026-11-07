@@ -10,7 +10,7 @@ import unittest
 from unittest import mock
 
 import wf
-from game import core, engine, forage, garden, integrate as I, nav, primitives, sleep, task_state as S, turn
+from game import core, engine, forage, garden, history, integrate as I, nav, primitives, sleep, task_state as S, turn
 from test_turn import Port
 from evals import store as eval_store
 
@@ -106,6 +106,38 @@ class PlayCase(unittest.TestCase):
         context = self.play().turn('navigate', {'region': 'Town'}, store=self.store, adapter=self.port)
         self.assertEqual(context.turn_id, 1)
         observed.assert_called_once_with()
+
+    def test_production_clues_project_only_current_region_not_the_full_nested_graph(self):
+        from objects.graph import Graph, Node
+        from types import SimpleNamespace
+        from game import engine
+        graph = Graph()
+        graph.nodes['Farm'] = Node('Farm', 'region')
+        graph.nodes['Garden'] = Node('Garden', 'region', region='Farm')
+        graph.nodes['HouseDoor'] = Node('HouseDoor', 'unique', region='Farm')
+        for n in range(500):
+            graph.nodes[f'bed-{n}'] = Node(f'bed-{n}', 'member', 'GardenBed', region='Garden')
+        save = {'saveCount': 1, 'currentScene': 'Farm', 'gameState': {'player': {'inventory': {'items': []}}}}
+        raw = SimpleNamespace(read_save=lambda: ('source.save', save), today_log=lambda: ([], None))
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(engine, '_open_graph', return_value=graph):
+            clues = self.play()._clues(self.store, {'hour': 10, 'light': 'day'})
+        nodes = [row['node'] for row in clues['graph_clues'] if row.get('node')]
+        self.assertTrue({'Farm', 'Garden', 'HouseDoor'} <= set(nodes))
+        self.assertFalse(any(node.startswith('bed-') for node in nodes))
+        self.assertLess(len(nodes), 10)
+        self.assertLess(len(json.dumps(clues['graph_clues'])), 5000)
+
+    def test_unknown_region_and_large_task_history_stay_bounded(self):
+        from game import snapshot
+        from objects.graph import Graph, Node
+        graph = Graph()
+        for n in range(1000):
+            graph.nodes[f'node-{n}'] = Node(f'node-{n}', 'member', 'GardenBed')
+        projection = snapshot.project_graph(graph, None)
+        self.assertLessEqual(len(projection), snapshot.MAX_GRAPH_CLUES)
+        task = S.TaskState('large-public', 'navigate', evidence_refs=[f'e-{n}' for n in range(1000)])
+        public = history.public_task(task)
+        self.assertLess(len(json.dumps(public)), 10000)
 
 
 class CompactHistory(PlayCase):
@@ -2065,13 +2097,16 @@ class ReadLatency(PlayCase):
         self.assertEqual(dict(e['evidence']['state'])['frame_path'], fresh.frame_path)
         self.assertEqual(fresh.graph_clues[0]['node'], 'current-source')
         self.assertNotEqual(c.frame_path, fresh.frame_path)
-        # A new physical action still takes a new pre-input snapshot; the lease cannot cross decisions.
+        # A physical action uses the persisted receipt plus a cheap preflight grab, not another full observation.
         grabs.reset_mock()
-        self.play().turn(answer={'turn_id': fresh.turn_id, 'kind': 'act', 'action':
-                         {'kind': 'waypoint', 'point': [900, 650], 'walkable': True}},
-                         store=self.store, adapter=adapter)
-        self.assertGreaterEqual(grabs.call_count, 2)
+        after_action = self.play().turn(answer={'turn_id': fresh.turn_id, 'kind': 'act', 'action':
+                                      {'kind': 'waypoint', 'point': [900, 650], 'walkable': True}},
+                                      store=self.store, adapter=adapter)
+        self.assertEqual(grabs.call_count, 2, 'cheap preflight plus fake settle fallback; no pre-action perception')
         self.assertEqual(inputs.call_count, 1)
+        outcome = self.store.load().last_experience
+        self.assertEqual(after_action.frame_path, outcome['artifacts']['frames'][-1])
+        self.assertEqual(dict(outcome['evidence']['state'])['frame_path'], after_action.frame_path)
 
     def test_native_read_preserves_black_guard_and_one_bounded_reobservation(self):
         from PIL import Image
@@ -2227,13 +2262,18 @@ class ReadLatency(PlayCase):
         self.store.create(S.TaskState('latency', 'navigate', params={'region': 'Town', '_started_late': True,
             '_outcomes': [{'historical_evidence': list(range(1000))}]}))
         save = {'saveCount': 1, 'currentScene': 'Town', 'gameState': {'player': {'inventory': {'items': []}}}}
-        raw = SimpleNamespace(read_save=lambda: ('source.save', save), today_log=lambda: ([], None),
-                              current_scene=lambda: 'Town')
+        today_log = mock.Mock(return_value=(['[D9 7:00:00 AM] Forecast is Raining'], 9, []))
+        raw = SimpleNamespace(read_save=lambda: ('source.save', save), today_log=today_log,
+                              current_scene=mock.Mock(side_effect=AssertionError('clues reread scene log')),
+                              grab=mock.Mock(side_effect=AssertionError('clues captured a second frame')))
         with mock.patch.object(core, 'WF', raw), mock.patch.object(engine, '_open_graph', return_value=Graph()), \
-             mock.patch.object(observe, 'clock', return_value=(20, 'day')), mock.patch.object(ask, 'rain', return_value=None), \
+             mock.patch.object(observe, 'clock', side_effect=AssertionError('clues captured clock separately')), \
+             mock.patch.object(ask, 'rain', side_effect=AssertionError('clues reread forecast log')), \
              mock.patch.object(S.TaskState, 'to_dict', side_effect=AssertionError('interrupt check copied full history')):
-            clues = self.play()._clues(self.store)
+            clues = self.play()._clues(self.store, {'hour': 20, 'light': 'night'})
         self.assertIn('SLEEP_REQUIRED', clues['interrupts'][0])
+        self.assertEqual(clues['rain'], 'Raining')
+        today_log.assert_called_once_with()
 
 
 class Play(PlayCase):
@@ -2244,8 +2284,9 @@ class Play(PlayCase):
                 output = self.cli(argv, directory)
                 self.assertIn('NEXT ', output)
                 context = json.loads(output.split('NEXT ', 1)[1])
-                self.assertEqual([row['stage'] for row in context['model_workflow']],
-                                 ['observe', 'decide', 'vision', 'act', 'verify', 'learn', 'repeat'])
+                self.assertIn('view', context)
+                self.assertIn('result', context)
+                self.assertIn('memory', context)
                 self.assertIn('vector_detections', context)
                 self.assertEqual(self.port.inputs, [])
 
@@ -2662,8 +2703,7 @@ class BoundaryValidation(PlayCase):
                 'gameState': {'time': {'day': 210, 'timeOfDay': {'totalSeconds': 32400}},
                               'player': {'state': {'userState': {'entries': [{'name': 'money', 'value': 95}]}},
                                          'inventory': {'items': [{'nameHash': 'TulipSeed', 'count': 2}]}}}}
-        wf_port = SimpleNamespace(read_save=lambda: ('save.json', save), today_log=lambda: ([], None),
-                                  current_scene=lambda: 'House')
+        wf_port = SimpleNamespace(read_save=lambda: ('save.json', save), today_log=lambda: ([], None))
         with mock.patch.object(core, 'WF', wf_port), mock.patch.object(engine, '_open_graph', return_value=Graph()), \
                 mock.patch.object(observe, 'clock', return_value=(9., 'day')):
             data = self.play()._clues(self.store)
@@ -2671,7 +2711,7 @@ class BoundaryValidation(PlayCase):
         self.assertEqual(data['inventory'], {'TulipSeed': 2})
         self.assertTrue(data['inventory_complete'])
         self.assertEqual(data['money'], 95)
-        self.assertEqual(data['region'], 'House')
+        self.assertEqual(data['region'], 'Farm')
         self.assertEqual(data['state_provenance']['inventory']['save_count'], 7)
         self.assertEqual(data['state_provenance']['inventory']['source'], 'save')
 
@@ -2771,6 +2811,7 @@ class ReviewRoundOne(PlayCase):
         adapter = primitives.GameAdapter()
         inputs = []
         mock.patch.object(adapter, 'observe', return_value=snapshot).start()
+        mock.patch.object(adapter, 'preflight', side_effect=lambda action, observation: action).start()
         mock.patch.object(adapter, 'mark', return_value=0).start()
         mock.patch.object(adapter, 'perform', side_effect=lambda action: inputs.append(action['command'])).start()
         mock.patch.object(adapter, 'capture', side_effect=lambda intent, old, expected:

@@ -16,6 +16,54 @@ import wfc
 from game import badges, core, icons, items, plan
 
 
+class RevisionedWorldSnapshot(unittest.TestCase):
+    def test_unchanged_revisions_do_not_reload_or_refresh_the_graph(self):
+        from game import snapshot
+        graph = object()
+        load = mock.Mock(return_value=graph)
+        refresh = mock.Mock()
+        cache = snapshot.WorldSnapshot(refresh_world=refresh)
+        save = {'saveCount': 7, 'currentScene': 'Farm'}
+        first = cache.refresh(load, save, ['line-1'], graph_revision=('graph', 1))
+        second = cache.refresh(load, save, ['line-1'], graph_revision=('graph', 1))
+        self.assertIs(first.graph, graph)
+        self.assertIs(second.graph, graph)
+        load.assert_called_once_with()
+        refresh.assert_called_once_with(graph, save, ['line-1'])
+        self.assertEqual(second.revision, first.revision)
+
+    def test_log_change_refreshes_once_and_graph_revision_reloads_once(self):
+        from game import snapshot
+        graphs = [object(), object()]
+        load = mock.Mock(side_effect=graphs)
+        refresh = mock.Mock()
+        cache = snapshot.WorldSnapshot(refresh_world=refresh)
+        save = {'saveCount': 7}
+        cache.refresh(load, save, ['line-1'], graph_revision=('graph', 1))
+        changed = cache.refresh(load, save, ['line-1', 'line-2'], graph_revision=('graph', 1))
+        reloaded = cache.refresh(load, save, ['line-1', 'line-2'], graph_revision=('graph', 2))
+        self.assertEqual(refresh.call_count, 3)
+        self.assertEqual(load.call_count, 2)
+        self.assertIs(changed.graph, graphs[0])
+        self.assertIs(reloaded.graph, graphs[1])
+
+    def test_replacement_save_and_truncated_log_reload_the_base_graph(self):
+        from game import snapshot
+        graphs = [object(), object(), object()]
+        load = mock.Mock(side_effect=graphs)
+        refresh = mock.Mock()
+        cache = snapshot.WorldSnapshot(refresh_world=refresh)
+        cache.refresh(load, {'saveCount': 7, 'currentScene': 'Farm', 'value': False},
+                      ['old', 'water'], graph_revision=('graph', 1))
+        replaced = cache.refresh(load, {'saveCount': 7, 'currentScene': 'Farm', 'value': True},
+                                 ['old', 'water'], graph_revision=('graph', 1))
+        truncated = cache.refresh(load, {'saveCount': 7, 'currentScene': 'Farm', 'value': True},
+                                  [], graph_revision=('graph', 1))
+        self.assertIs(replaced.graph, graphs[1])
+        self.assertIs(truncated.graph, graphs[2])
+        self.assertEqual(load.call_count, 3)
+
+
 class ClientDelivery(unittest.TestCase):
     def test_timeout_eof_or_invalid_response_after_send_is_not_retried(self):
         for response in ('timeout', 'eof', 'invalid', 'partial_send'):

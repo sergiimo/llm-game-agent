@@ -55,6 +55,58 @@ class Records(unittest.TestCase):
         c = X.Correction(e.id, world=(X.Update('world', 'card_state', {'nid': 'n'}),))
         self.assertEqual(c.updates()[0].key(e.id), f'{e.id}:world:card_state:' + json.dumps({'nid': 'n'}, sort_keys=True))
 
+    def test_pause_obscured_vector_target_is_not_recorded_as_an_appearance_miss(self):
+        candidate = {'id': 'vector-5', 'source': 'vector', 'kind': 'HouseExit',
+                     'point': [1570, 910], 'box': [1390, 830, 1750, 990],
+                     'score': 4.77, 'raw': .40, 'view_id': 'view-house'}
+        e = X.Experience.new(
+            before=X.Observation('gameplay', (), X._t((('candidates', [candidate]),
+                                                       ('game_time', 'D5 3:30:03 PM')))),
+            prediction=X.Prediction(moved=True),
+            action=X.Action('click', 'object', (1570, 910)),
+            evidence=X.Evidence(mode='pause', texts=('Game Paused', 'Resume Game'), moved=None),
+            verdict=X.Verdict('miss', (X.Check('moved', True, None, False),)),
+            artifacts=X.Artifacts(('pause.jpg',), 'house.jpg', None, 7, 1., 2))
+        update = next(u for u in I.propose(e).world if u.op == 'appearance_attempt')
+        self.assertEqual(update.args['node_kind'], 'HouseExit')
+        self.assertEqual(update.args['result'], 'obscured')
+        self.assertEqual(update.args['candidate']['id'], 'vector-5')
+        self.assertEqual(update.args['candidate']['box'], [1390, 830, 1750, 990])
+
+    def test_vector_target_only_counts_as_a_miss_after_a_coherent_stationary_gameplay_result(self):
+        candidate = {'id': 'vector-5', 'source': 'vector', 'kind': 'HouseExit',
+                     'point': [1570, 910], 'box': [1390, 830, 1750, 990]}
+        before = X.Observation('gameplay', (), X._t((('candidates', [candidate]),)))
+        cases = (('gameplay', False, 'miss', 'miss'),
+                 ('gameplay', True, 'unknown', 'hit'),
+                 (None, None, 'miss', 'unverified'))
+        for mode, moved, verdict, expected in cases:
+            with self.subTest(expected=expected):
+                e = X.Experience.new(
+                    before=before, prediction=X.Prediction(moved=True),
+                    action=X.Action('click', 'object', (1570, 910)),
+                    evidence=X.Evidence(mode=mode, moved=moved), verdict=X.Verdict(verdict))
+                update = next(u for u in I.propose(e).world if u.op == 'appearance_attempt')
+                self.assertEqual(update.args['result'], expected)
+
+    def test_applying_vector_attempt_updates_the_unique_graph_node(self):
+        graph = engine._open_graph()
+        candidate = {'id': 'vector-5', 'source': 'vector', 'kind': 'HouseExit',
+                     'point': [1570, 910], 'box': [1390, 830, 1750, 990]}
+        e = X.Experience.new(
+            before=X.Observation('gameplay', (), X._t((('candidates', [candidate]),))),
+            action=X.Action('click', 'object', (1570, 910)),
+            evidence=X.Evidence(mode='pause'), verdict=X.Verdict('miss'),
+            artifacts=X.Artifacts(img0='house.jpg'))
+        update = next(u for u in I.propose(e).world if u.op == 'appearance_attempt')
+        with mock.patch.dict(learn.MEMORY, {'graph': graph}), mock.patch.object(I, '_save_world') as save:
+            self.assertEqual(I._run(update, e, None), 'HouseExit')
+        attempt = graph.nodes['HouseExit'].extra['appearance_attempt']
+        self.assertEqual(attempt['result'], 'obscured')
+        self.assertEqual(attempt['experience'], e.id)
+        self.assertEqual(attempt['frame_path'], 'house.jpg')
+        save.assert_called_once_with(graph, None, e)
+
 
 class SQLiteExperienceStore(unittest.TestCase):
     def setUp(self):

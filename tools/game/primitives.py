@@ -153,6 +153,9 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
                     discrepancy=X.Discrepancy('guard', 'safe input', refusal))
         intent.experience = e.to_dict()
         store.record_capture(task, intent, e.to_dict())
+        release = getattr(adapter, 'discard_preflight', None)
+        if release:
+            release()
         return
     if prepared['kind'] not in ('wait', 'read'):
         adapter.perform(prepared)
@@ -434,11 +437,25 @@ class GameAdapter:
             raise ValueError('stale view: source frame is unavailable')
         from PIL import Image
         from . import core, observe
+        # A background window can retain its last gameplay pixels, then materialize Unity's Pause menu only after
+        # focus returns. Acquire focus before the final lease image so that transition is refused before run_action
+        # (live D5 market trip, outcome ad2dbba00c1b6a97).
+        settled_frame = None
+        focus = getattr(core.WF, 'ensure_front', None)
+        if focus:
+            changed_focus = bool(focus())
+            self._focused = True
+            if changed_focus:
+                settle = getattr(core.WF, 'wait_settle', None)
+                if settle:
+                    settled = settle()
+                    frame = getattr(settled, 'frame', None)
+                    settled_frame = frame if isinstance(frame, Image.Image) else None
         try:
             with Image.open(old_path) as old:
-                now = current
-                if isinstance(current, dict) and current.get('frame_path'):
-                    with Image.open(current['frame_path']) as opened:
+                now = settled_frame if settled_frame is not None else current
+                if isinstance(now, dict) and now.get('frame_path'):
+                    with Image.open(now['frame_path']) as opened:
                         changed = observe.view_changed(old, opened)
                 else:
                     now = core.WF.grab() if now is None else now
@@ -471,10 +488,11 @@ class GameAdapter:
 
     def perform(self, action):
         from . import core
-        focus = getattr(core.WF, 'ensure_front', None)
-        if focus:
-            focus()
-            self._focused = True
+        if not getattr(self, '_focused', False):
+            focus = getattr(core.WF, 'ensure_front', None)
+            if focus:
+                focus()
+                self._focused = True
         try:
             msg = core.WF.run_action(action['command'])  # exactly one actuator invocation, even if it fails
             if msg:
@@ -533,3 +551,7 @@ class GameAdapter:
             return result
         finally:
             self._release()
+
+    def discard_preflight(self):
+        """Release focus acquired by a preflight that safely refused before physical input."""
+        self._release()

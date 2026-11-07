@@ -211,6 +211,9 @@ def propose(e):
     if e.artifacts.turn_id is not None and e.evidence.at and e.evidence.events:
         world.append(X.Update('world', 'event_state'))
     if e.action and e.action.kind == 'click':
+        attempt = _vector_attempt(e)
+        if attempt:
+            world.append(X.Update('world', 'appearance_attempt', attempt))
         if e.evidence.at:
             world.append(X.Update('world', 'card_state'))
         if e.action.what == 'bubble':
@@ -235,6 +238,40 @@ def propose(e):
     for i, ch in enumerate(e.verdict.checks):
         transitions.append(X.Update('transitions', 'observation', {'i': i}))
     return X.Correction(e.id, world=tuple(world), memory=tuple(memory), transitions=tuple(transitions))
+
+
+def _vector_attempt(e):
+    """Describe the outcome of the exact vector candidate that supplied this click.
+
+    A modal or unknown post-click screen obscures the result; it is not evidence that the appearance vector missed.
+    Only a settled gameplay frame with an explicit stationary miss is allowed to count against the vector.
+    """
+    if not e.action or e.action.kind != 'click' or not e.action.pt:
+        return None
+    state = dict(e.before.state)
+    candidates = state.get('candidates') or ()
+    point = [int(e.action.pt[0]), int(e.action.pt[1])]
+    matches = [candidate for candidate in candidates
+               if isinstance(candidate, dict) and candidate.get('source') == 'vector'
+               and list(candidate.get('point') or ()) == point]
+    if len(matches) != 1 or not matches[0].get('kind'):
+        return None
+    candidate = matches[0]
+    mode = e.evidence.mode
+    if mode in ('pause', 'unknown'):
+        result = 'obscured'
+    elif (e.verdict.value == 'hit' or e.evidence.moved is True or e.evidence.events or
+          e.evidence.node or e.evidence.at):
+        result = 'hit'
+    elif mode == 'gameplay' and e.verdict.value == 'miss' and e.evidence.moved is False:
+        result = 'miss'
+    else:
+        result = 'unverified'
+    keep = ('id', 'source', 'kind', 'point', 'box', 'score', 'raw', 'view_id')
+    return {'node_kind': candidate['kind'], 'result': result,
+            'candidate': {key: candidate[key] for key in keep if key in candidate},
+            'point': point, 'screen': mode, 'moved': e.evidence.moved,
+            'verdict': e.verdict.value, 'game_time': state.get('game_time')}
 
 
 _DAYS = re.compile(r'\d+ days? remaining', re.I)
@@ -363,6 +400,20 @@ def _run(u, e, img0, store=None):
         if nid:
             _save_world(g, store, e)
         return nid
+    if u.consumer == 'world' and u.op == 'appearance_attempt':
+        g = LN.MEMORY['graph']
+        if g is None:
+            return None
+        candidates = [node for node in g.nodes.values() if node.kind == u.args['node_kind']]
+        if len(candidates) != 1:
+            return None
+        node = candidates[0]
+        attempt = {key: value for key, value in u.args.items() if key != 'node_kind'}
+        attempt.update(experience=e.id, frame_path=e.artifacts.img0)
+        node.extra['appearance_attempt'] = attempt
+        note(g, node.id, e.id)
+        _save_world(g, store, e)
+        return node.id
     if u.consumer == 'world' and u.op == 'interaction_hint':
         import math
         g = LN.MEMORY['graph']

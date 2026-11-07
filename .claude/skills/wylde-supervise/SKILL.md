@@ -87,7 +87,10 @@ The child should finish the quest from the manifest alone. Before dispatching, c
 3. **Review it**: `./wf run plan` (fields complete) + your check: every step's key action is ✅ verified in
    docs/operations/actions.md / routines (an unverified one becomes its own small scout step: try once on one target, report;
    retro S6), every place documented (else a scout step),
-   feasible now (shop hours, energy, clock), budgets realistic. Write the result in **Review**.
+   feasible now (shop hours, energy, clock), budgets realistic. For a venue with a closing/last-entry time, compute
+   `minutes available = closing time - current game time` and require it to cover **every remaining pre-entry and
+   transaction step budget plus 15 game minutes**. If it does not, issue no route input: sleeping/waiting is a separate
+   decision step unless already pre-approved. Write the arithmetic and result in **Review**.
 4. **Show the plan to the user** (paste plan.md in your reply), then dispatch right away (they see it, no approval
    needed).
 
@@ -137,6 +140,9 @@ Never let a child run the game blind. For every dispatch that touches the game:
    (graph state, a look, a way); one that taught nothing is a gap to fix. Repeated questions = a tool fix.
    Read the click's saved frame (`<run>/clicks/`) yourself and decide (continue / stop / fix). **Two ALERTs of the same
    kind in a row → Read the newest frame at once** (S40: the frame showed her by the river, far from the garden).
+   In `focus-mode front`, do not wait for that 45-second alert when the next game call is not ready: activate Codex
+   (`open -a Codex`) during off-game reasoning so Unity freezes without changing the saved focus mode. The next `./wf`
+   input refocuses the game. Never open the Pause modal merely to buy thinking time.
 3. **Gated steps:** the child makes ONE `./wf achieve` call per dispatch and returns its summary line; you read the
    watcher lines and decide the next instruction (continue via SendMessage). A `NEED_VISION` answer comes back to you
    with the image path before it is used: check the image yourself. **Every vision click (yours too) goes through the

@@ -178,13 +178,15 @@ _PREV_APP = None   # bundle id of the app that was in front before we focused th
 
 
 def ensure_front():
-    """Focus the game, remembering which app to give focus back to."""
+    """Focus the game, remembering which app to give focus back to. True when focus changed."""
     global _PREV_APP
     if not is_frontmost():
         from AppKit import NSWorkspace
         app = NSWorkspace.sharedWorkspace().frontmostApplication()
         _PREV_APP = app.bundleIdentifier() if app is not None else None
         focus()
+        return True
+    return False
 
 
 FRONT_FLAG = os.path.join(SHOT_DIR, 'keep_front')

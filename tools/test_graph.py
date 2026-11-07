@@ -12,6 +12,7 @@ from objects import graph as G  # noqa: E402
 from game.world_store import WorldStore, classify_seed  # noqa: E402
 from game.observations import ObservationStore  # noqa: E402
 from runtime.db import Database  # noqa: E402
+from runtime.experience_store import ExperienceStore  # noqa: E402
 from runtime.run_store import RunStore  # noqa: E402
 from runtime.save_lineage import LogEpoch, SaveCandidate  # noqa: E402
 
@@ -99,6 +100,25 @@ class WorldOverlay(unittest.TestCase):
         isolated = WorldStore(self.db, other.profile_id).load(SEED, other.observation_id)
         self.assertNotIn('Local', isolated.nodes)
         self.assertIsNone(isolated.state_value('Well', 'can'))
+
+    def test_vector_attempt_is_dynamic_profile_scoped_sqlite_node_data(self):
+        run_id, observation = self.profile('appearance-attempt', 1)
+        ExperienceStore(self.db, run_id).record({'id': 'exp-pause', 'before': {}, 'action': {}, 'artifacts': {}})
+        store = WorldStore(self.db, observation.profile_id)
+        graph = store.load(SEED, observation.observation_id)
+        attempt = {'result': 'obscured', 'experience': 'exp-pause', 'point': [1570, 910],
+                   'frame_path': 'runs/task/house.jpg', 'screen': 'pause'}
+        graph.nodes['Bed'].extra['appearance_attempt'] = attempt
+        store.capture_graph(graph, SEED, observation.observation_id, observation.candidate.game_time,
+                            run_id, 2, 'exp-pause')
+        restored = store.load(SEED, observation.observation_id)
+        self.assertEqual(restored.nodes['Bed'].extra['appearance_attempt'], attempt)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT value_json,experience_id FROM world_facts WHERE profile_id=? AND node_id='Bed' "
+                "AND key='$extra:appearance_attempt'", (observation.profile_id,)).fetchone()
+        self.assertEqual(json.loads(row['value_json']), attempt)
+        self.assertEqual(row['experience_id'], 'exp-pause')
 
     def test_local_node_and_edge_updates_preserve_as_of_observation_history(self):
         run_id, first = self.profile('versions', 1)

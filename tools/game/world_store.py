@@ -9,6 +9,7 @@ from objects.graph import Graph, Node
 
 
 DYNAMIC_NODE_FIELDS = {'state', 'vec', 'seen', 'interaction_hint', 'appearance_needed', 'appearance_sample',
+                       'appearance_attempt',
                        'state_provenance', 'placement_provenance', 'exps', 'transient'}
 DYNAMIC_ROOT_FIELDS = {'_refresh_conflicts', 'unnamed'}
 STATIC_ROOT_FIELDS = {'area', 'prefabs', 'nodes', 'edges'}

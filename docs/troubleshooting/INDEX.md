@@ -18,6 +18,10 @@
 - `no_coherent_profile` with a current low-day save beside an old high-day save can mean `Player.log` retained both
   playthroughs under one file identity. A backward jump of more than two game days starts a new log epoch; only the
   latest suffix is midnight-normalized and compared with save slots. A same-day 23:xx → 02:00 wrap is not a reset.
+- A time-bounded shop run is not feasible merely because the shop is currently open. Before input, require the minutes
+  until closing/last entry to cover all remaining navigation and transaction budgets plus 15 game minutes. With
+  `focus-mode front`, activate Codex during off-game reasoning; otherwise an agent round trip can consume most of a
+  shop window. Do not open Pause just for analysis.
 - A full paper map whose pin is not colour-detected is still a map when the labelled paper/cloud header appearance
   vector matches. The header proves the modal; the pink pin only localises Tara. Do not downgrade such a frame to
   gameplay or issue a world click through it.

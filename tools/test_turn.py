@@ -571,6 +571,33 @@ class Turns(unittest.TestCase):
                     {'kind': 'press', 'view_id': 'view-one'},
                     {'view_id': 'view-one', 'frame_path': before, 'screen': {'kind': 'gameplay'}})
 
+    def test_preflight_rechecks_after_focus_materializes_pause_before_world_input(self):
+        from PIL import Image, ImageDraw
+        from types import SimpleNamespace
+        before = os.path.join(self.tmp.name, 'background-gameplay.jpg')
+        gameplay = Image.new('RGB', (1920, 1080), '#526f45')
+        gameplay.save(before)
+        pause = gameplay.copy()
+        ImageDraw.Draw(pause).rectangle((620, 170, 1300, 860), fill='#171717')
+        focused = [False]
+        inputs = mock.Mock(side_effect=AssertionError('focus-created pause received world input'))
+        raw = SimpleNamespace(
+            ensure_front=mock.Mock(side_effect=lambda: focused.__setitem__(0, True) or True),
+            wait_settle=mock.Mock(side_effect=lambda: SimpleNamespace(frame=pause) if focused[0] else None),
+            grab=mock.Mock(side_effect=lambda: pause if focused[0] else gameplay),
+            run_action=inputs,
+            release_focus=mock.Mock(return_value=False),
+        )
+        adapter = primitives.GameAdapter()
+        with mock.patch.object(core, 'WF', raw):
+            with self.assertRaisesRegex(ValueError, 'stale view'):
+                adapter.preflight(
+                    {'kind': 'waypoint', 'view_id': 'view-one', 'point': [1130, 700], 'walkable': True},
+                    {'view_id': 'view-one', 'frame_path': before, 'screen': {'kind': 'gameplay'}})
+        raw.ensure_front.assert_called_once_with()
+        raw.wait_settle.assert_called_once_with()
+        inputs.assert_not_called()
+
     def test_preflight_allows_local_character_animation_for_world_waypoint(self):
         from PIL import Image, ImageDraw
         from types import SimpleNamespace

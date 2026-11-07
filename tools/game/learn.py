@@ -35,7 +35,7 @@ def open_memory():
 
 def close_memory():
     g, MEMORY['graph'] = MEMORY['graph'], None
-    if g is not None:
+    if g is not None and GRAPH is not None:  # the default graph is a version-controlled static seed
         try:
             g.save(graph_path())
         except OSError:
@@ -64,7 +64,7 @@ def learn_toward(a, b, direction):
 
 
 # ---- object kinds (appearance vectors) ----------------------------------------------------------------------------
-def relabel(img, box, kind):
+def relabel(img, box, kind, idempotency_key=None):
     """A detection the game proved to be another object (clicked as a bed, the log said BeeHive): its crop becomes an
     example of `kind` (source 'event'), so the rival kind wins that look from now on. True when stored."""
     if img is None or box is None or not kind:
@@ -73,7 +73,8 @@ def relabel(img, box, kind):
         from objects import detect as D, store as S
         x0, y0, x1, y1 = (int(v) for v in box)
         crop = img.convert('RGB').crop((x0, y0, x1, y1))
-        return S.Store().add(kind, crop, D.dino.mean_vector(crop), source='event', force=True) is not None
+        return S.Store().add(kind, crop, D.dino.mean_vector(crop), source='event', force=True,
+                             example_id=idempotency_key) is not None
     except Exception:   # noqa: BLE001 (learning never breaks play)
         return False
 
@@ -315,7 +316,8 @@ def learn_answer(c, img0, here=None, exp=None):
     x, y = c.pt
     hx, hy = ANSWER_BOX
     box = (max(0, x - hx), max(0, y - hy), x + hx, y + hy)
-    stored = relabel(img0, box, kind) if kind and img0 is not None and not _mostly_black(img0, box) else False
+    stored = (relabel(img0, box, kind, f'exp-{exp}-answer') if exp else relabel(img0, box, kind)) \
+        if kind and img0 is not None and not _mostly_black(img0, box) else False
     reached = None
     g = MEMORY['graph']
     if g is not None and c.at:
@@ -329,11 +331,13 @@ def learn_answer(c, img0, here=None, exp=None):
     try:
         import evals
         evals.record('vision', 'answer', None, {'kind': kind, 'moved': c.moved, 'reached': reached},
-                     bool(kind) or c.moved is True, {'pt': list(c.pt), 'here': here, 'exp': exp})
+                     bool(kind) or c.moved is True, {'pt': list(c.pt), 'here': here, 'exp': exp},
+                     idempotency_key=f'exp-{exp}-answer' if exp else None)
     except Exception:   # noqa: BLE001
         pass
-    log_db('vision_answer', f'@{x},{y}: {kind or "free ground"}{" (look stored)" if stored else ""}'
-                            f'{f", {here} -> {reached}" if reached and here and reached != here else ""}')
+    if exp is None:  # Integrated experiences already have one canonical SQLite event; replay must not duplicate it.
+        log_db('vision_answer', f'@{x},{y}: {kind or "free ground"}{" (look stored)" if stored else ""}'
+                                f'{f", {here} -> {reached}" if reached and here and reached != here else ""}')
     return kind
 
 
@@ -343,7 +347,7 @@ TRUTH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def save_truth(img, pt, proof, **labels):
     """Store the bubble crop at `pt` of the frame before a click with what its result proved (ready/drop/crop);
-    test_affordances.BubbleTruth checks every stored case. The file name or None."""
+    this is a diagnostic calibration corpus, not a fixed-pixel unit-test oracle. The file name or None."""
     import json
     if img is None or pt is None:
         return None

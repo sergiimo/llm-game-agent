@@ -20,12 +20,20 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from runtime.db import Database
+from runtime.run_store import RunStore
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAUSE = ('game paused', 'пауза')
 MISS_STOP = 4   # arrival misses in a row = she is lost (live D188 12:31, S40): stop the agent
 IDLE_S = 45.0   # s without a call, click or step while the game runs (~75 game min at Relaxed): thinking too long
 _STAMP = re.compile(r'D(\d+) (\d+):(\d+):(\d+) (AM|PM)')
 JUNK = re.compile(r'^[A-Za-z][A-Za-z _]{2,}$')   # an item name: Latin letters, spaces or _ (folder names), 3+ chars
+
+
+def _run_store():
+    return RunStore(Database(os.environ.get('WF_DB', os.path.join(ROOT, 'runs', 'wf.sqlite3'))))
 
 
 def _kinds_nodes():
@@ -166,7 +174,7 @@ def trace_lines(rows):
         ts = time.strftime('%H:%M:%S', time.localtime(r.get('t') or 0))
         if t == 'turn':
             # Preserve every phase, rationale/evidence reference and experience link in one timeline.
-            # Raw outcome data remains in log.jsonl and the machine replay journal; keep the watch line readable.
+            # Raw outcome data remains in SQLite; keep the watch line readable.
             data = {k: v for k, v in r.items() if k not in ('t', 'type', 'event', 'task_id', 'turn_id', 'phase')}
             if r.get('phase') == 'clues':
                 tx = data.get('transaction') or {}
@@ -311,24 +319,15 @@ def _game_log_lines():
 
 
 def rows_of(path, start=0):
-    with open(path) as f:
-        f.seek(start)
-        rows, pos = [], start
-        while True:
-            line = f.readline()
-            if not line.endswith('\n'):
-                break  # an in-progress append must be reread from its beginning on the next poll
-            pos = f.tell()
-            try:
-                rows.append(json.loads(line))
-            except ValueError:
-                continue
-    return rows, pos
+    """Read canonical SQLite events after event ID `start`."""
+    rows = _run_store().events(path, after_id=start)
+    return rows, rows[-1]['id'] if rows else start
 
 
 def report(path):
-    """A markdown table per attempt (an attempt starts at `plan_step 1 start`), written next to the log."""
+    """A markdown table per attempt, projected beside the run directory."""
     rows, _ = rows_of(path)
+    rows = [row for row in rows if row.get('type') != 'start']
     attempts, cur = [], None
     for r in rows:
         if r.get('type') == 'plan_step' and str(r.get('n')) == '1' and r.get('state') == 'start' or cur is None:
@@ -358,12 +357,15 @@ def report(path):
             lines += [f'- STOP: {m}' for m in a['stops'][:5]]
             lines += [f'- ALERT: {m}' for m in a['alerts'][:8]]
     gardens = garden_table(rows)
+    game_lines = _game_log_lines() if any(r.get('type') == 'click' and r.get('gt') for r in rows) else ()
     md = ('\n'.join(lines) + ('\n\n## Garden coverage\n' + gardens if gardens else '')
-          + '\n\n## Time\n' + time_table(rows, _game_log_lines()) + '\n\n## Trace (last attempt)\n'
+          + '\n\n## Time\n' + time_table(rows, game_lines) + '\n\n## Trace (last attempt)\n'
           + '\n'.join(trace_lines(rows[max((i for i, r in enumerate(rows) if r.get('type') == 'plan_step'
                                               and r.get('state') == 'start'), default=0):])) + '\n')
+    run = _run_store().resolve(path)
+    directory = run['directory']
     try:
-        with open(os.path.join(os.path.dirname(path), 'watch.md'), 'w') as f:
+        with open(os.path.join(directory, 'watch.md'), 'w') as f:
             f.write(md)
     except OSError:
         pass
@@ -371,10 +373,14 @@ def report(path):
 
 
 def current_run():
-    try:
-        return open(os.path.join(ROOT, '.shots', 'run.current')).read().strip()
-    except OSError:
-        return None
+    run = _run_store().active()
+    return run['id'] if run else None
+
+
+def terminal(path):
+    """Whether a canonical run reached a terminal status."""
+    run = _run_store().resolve(path)
+    return bool(run and run['status'] != 'active')
 
 
 def follow(path, every=1.0, health_every=15.0):
@@ -393,16 +399,16 @@ def follow(path, every=1.0, health_every=15.0):
             last = time.time()
             for lv, msg in w.health():
                 print(f"{time.strftime('%H:%M:%S')} {lv} {msg}", flush=True)
+        if not rows and terminal(path):
+            return
         time.sleep(every)
 
 
 def main(argv):
     args = [a for a in argv if not a.startswith('--')]
     path = args[0] if args else current_run()
-    if path and os.path.isdir(path):
-        path = os.path.join(path, 'log.jsonl')
-    if not path or not os.path.exists(path):
-        sys.exit('no run log (open a run with ./wf run start, or pass the run dir)')
+    if not path or not _run_store().resolve(path):
+        sys.exit('no run (open one with ./wf run start, or pass its ID/directory)')
     if '--report' in argv:
         print(report(path))
     else:

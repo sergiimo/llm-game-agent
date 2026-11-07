@@ -45,6 +45,19 @@ class Store(unittest.TestCase):
         evals.record('click', 'moves her', True, False, False, {'click': [10, 20]})
         self.assertEqual(evals.report()['click']['misses'], 1)
 
+    def test_record_idempotency_key_repairs_partial_write_without_duplicates(self):
+        pid = evals.record('vision', 'answer', None, {'kind': 'Well'}, True,
+                           idempotency_key='experience-e1-answer')
+        with open(store.PATH, 'w') as stream:
+            stream.write('{"id":"%s","component":"vision","what":"answer","value":null,"ctx":{}}\n' % pid)
+        self.assertEqual(evals.record('vision', 'answer', None, {'kind': 'Well'}, True,
+                                      idempotency_key='experience-e1-answer'), pid)
+        self.assertEqual(evals.record('vision', 'answer', None, {'kind': 'Well'}, True,
+                                      idempotency_key='experience-e1-answer'), pid)
+        with open(store.PATH) as stream:
+            rows = [line for line in stream if line.strip()]
+        self.assertEqual(len(rows), 2)
+
     def test_since_filters(self):
         evals.record('click', 'moves her', True, True, True)
         cut = time.time() + 0.01

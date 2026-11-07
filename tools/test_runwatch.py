@@ -3,7 +3,9 @@ import json
 import os
 import sys
 import tempfile
+import threading
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import runwatch as RW  # noqa: E402
@@ -132,6 +134,91 @@ class Rules(unittest.TestCase):
 
 
 class Report(unittest.TestCase):
+    def report_rows(self, rows):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        database = os.path.join(temporary.name, 'wf.sqlite3')
+        run_dir = os.path.join(temporary.name, 'run')
+        os.makedirs(run_dir)
+        store = RunStore(Database(database))
+        run_id = store.start('watch', 'watch rows', run_dir)
+        for index, row in enumerate(rows, 1):
+            payload = {key: value for key, value in row.items()
+                       if key not in ('type', 'turn_id', 'phase', 't')}
+            store.append_event(row['type'], payload, turn_id=row.get('turn_id'), phase=row.get('phase'),
+                               t=row.get('t', index + 1))
+        with mock.patch.dict(os.environ, WF_DB=database):
+            return RW.report(run_id)
+
+    def test_sqlite_polling_reconnects_by_event_id_without_duplicates(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        with tempfile.TemporaryDirectory() as directory:
+            database = os.path.join(directory, 'wf.sqlite3')
+            run_dir = os.path.join(directory, 'run')
+            os.makedirs(run_dir)
+            store = RunStore(Database(database))
+            run_id = store.start('watch', 'watch reconnect', run_dir)
+            first = store.append_event('note', {'text': 'one'})
+            with mock.patch.dict(os.environ, WF_DB=database):
+                rows, cursor = RW.rows_of(run_id)
+                self.assertEqual([row['id'] for row in rows], [rows[0]['id'], first])
+                second = store.append_event('note', {'text': 'two'})
+                later, cursor = RW.rows_of(run_id, cursor)
+                self.assertEqual([row['id'] for row in later], [second])
+                self.assertEqual(RW.rows_of(run_id, cursor), ([], cursor))
+
+    def test_sqlite_polling_sees_an_event_committed_during_an_earlier_read(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        with tempfile.TemporaryDirectory() as directory:
+            database = os.path.join(directory, 'wf.sqlite3')
+            run_dir = os.path.join(directory, 'run')
+            os.makedirs(run_dir)
+            store = RunStore(Database(database))
+            run_id = store.start('watch', 'watch concurrent append', run_dir)
+            with mock.patch.dict(os.environ, WF_DB=database):
+                _, cursor = RW.rows_of(run_id)
+                thread = threading.Thread(target=lambda: store.append_event('note', {'text': 'concurrent'}))
+                thread.start()
+                thread.join()
+                rows, _ = RW.rows_of(run_id, cursor)
+                self.assertEqual([row['text'] for row in rows], ['concurrent'])
+
+    def test_terminal_run_is_detected_after_its_final_event(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        with tempfile.TemporaryDirectory() as directory:
+            database = os.path.join(directory, 'wf.sqlite3')
+            run_dir = os.path.join(directory, 'run')
+            os.makedirs(run_dir)
+            store = RunStore(Database(database))
+            run_id = store.start('watch', 'watch terminal', run_dir)
+            with mock.patch.dict(os.environ, WF_DB=database):
+                self.assertFalse(RW.terminal(run_id))
+                store.end('done', 'finished')
+                self.assertTrue(RW.terminal(run_id))
+
+    def test_report_reads_the_canonical_sqlite_stream_by_run_directory(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        with tempfile.TemporaryDirectory() as directory:
+            database = os.path.join(directory, 'wf.sqlite3')
+            run_dir = os.path.join(directory, 'run')
+            os.makedirs(run_dir)
+            store = RunStore(Database(database))
+            store.start('watch', 'watch sqlite', run_dir)
+            store.append_event('plan_step', {'n': '1', 'state': 'start'}, t=1)
+            payload = click((1, 1))
+            payload.pop('type')
+            store.append_event('click', payload, t=2)
+            with mock.patch.dict(os.environ, WF_DB=database):
+                md = RW.report(run_dir)
+                self.assertEqual(RW.current_run(), store.active()['id'])
+        self.assertIn('| 1 | 1 | 1 | 0 | 0/0 | 0 | 0 |', md)
+
     def test_report_splits_attempts_and_counts(self):
         rows = [{'type': 'plan_step', 'n': '1', 'state': 'start'},
                 click((1, 1), moved=True), click((2, 2), moved=False),
@@ -139,11 +226,7 @@ class Report(unittest.TestCase):
                 {'type': 'engine', 'goal': 'plant', 'done': 0, 'left': 12, 'clicks': 2, 'vision': 1, 'stop': None},
                 {'type': 'plan_step', 'n': '1', 'state': 'start'},
                 click((3, 3), mode='overlay', texts=PAUSED, moved=False)]
-        d = tempfile.mkdtemp()
-        p = os.path.join(d, 'log.jsonl')
-        with open(p, 'w') as f:
-            f.write('\n'.join(json.dumps(r) for r in rows) + '\n')
-        md = RW.report(p)
+        md = self.report_rows(rows)
         self.assertIn('| 1 | 2 | 1 | 1 | 1/0 | 0 | 0 |', md)
         self.assertIn('| 2 | 1 | 0 | 1 | 0/0 | 0 | 1 |', md)
 
@@ -156,12 +239,7 @@ class Report(unittest.TestCase):
             {'type': 'garden_summary', 'region': 'GardenSouth', 'targets': ['bed-a', 'bed-b'],
              'covered': ['bed-a', 'bed-b'], 'unresolved': [], 'stop': 'done: all beds visited'},
         ]
-        d = tempfile.mkdtemp()
-        p = os.path.join(d, 'log.jsonl')
-        with open(p, 'w') as f:
-            f.write('\n'.join(json.dumps(r) for r in rows) + '\n')
-
-        md = RW.report(p)
+        md = self.report_rows(rows)
 
         self.assertIn('## Garden coverage', md)
         self.assertIn('| GardenSouth | 2 | 2 | 0 | - | - | COMPLETE |', md)
@@ -174,12 +252,7 @@ class Report(unittest.TestCase):
             {'type': 'garden_summary', 'region': 'GardenSouth', 'targets': ['bed-a', 'bed-b'],
              'covered': ['bed-a'], 'unresolved': ['bed-b'], 'stop': 'unresolved: 1 of 2 beds'},
         ]
-        d = tempfile.mkdtemp()
-        p = os.path.join(d, 'log.jsonl')
-        with open(p, 'w') as f:
-            f.write('\n'.join(json.dumps(r) for r in rows) + '\n')
-
-        md = RW.report(p)
+        md = self.report_rows(rows)
 
         self.assertIn('bed-b: missing TulipSeed', md)
         self.assertIn('| CONSTRAINED |', md)
@@ -270,19 +343,6 @@ class Trace(unittest.TestCase):
         self.assertIn('| GardenSouth | 2 | 2 | 0 | - | - | COMPLETE |', RW.garden_table(rows))
         rows[-1]['task_status'] = 'active'
         self.assertNotIn('COMPLETE', RW.garden_table(rows))
-
-    def test_follow_retains_partial_row_until_writer_finishes_it(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = os.path.join(directory, 'log.jsonl')
-            with open(path, 'w') as f:
-                f.write('{"type":"turn",')
-            rows, position = RW.rows_of(path)
-            self.assertEqual(rows, [])
-            with open(path, 'a') as f:
-                f.write('"phase":"intent"}\n')
-            rows, _ = RW.rows_of(path, position)
-            self.assertEqual(rows, [{'type': 'turn', 'phase': 'intent'}])
-
 
 if __name__ == '__main__':
     unittest.main()

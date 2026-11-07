@@ -11,6 +11,12 @@ The supervisor owns one current goal and a reviewed run plan; gameplay children 
 Check permissions, exact clock and current save/log before starting. A new task after 19:00 requires pre-approved
 sleep first. Focus mode is front: pause before coding, documentation or long thinking.
 
+**Daemon discipline:** live gameplay uses one persistent `./wf` controller daemon. Never set `WF_NO_DAEMON=1` or
+start parallel diagnostic `wf` helpers while a request is pending; on macOS each helper can independently trigger
+the “access data from other apps” prompt and make the outcome unknown. If a request stalls, inspect the existing
+client/daemon and SQLite receipt, then `./wf stop` once only when a clean controller restart is actually required.
+After restart, route every observation and turn through the one daemon socket.
+
 For **every gameplay domain**, load [actions/INDEX.md](actions/INDEX.md), then the one workflow file it routes to.
 Docs choose sequences; Python never does. `./wf play <goal> [k=v]` and bare domain aliases return `NEXT` without input.
 Continue with the exact `turn_id` and one explicit model decision. Accept an obvious saved recommendation, choose one
@@ -40,9 +46,11 @@ graph/vector/transition data with provenance, revise a decision, mark a constrai
 to the human; never patch runtime code while playing. Purchases require explicit root-task quantity/spend bounds and
 matching inventory/money proof. Do not change settings, sell valuables or choose major story actions without scope.
 
-The canonical chronological timeline is `runs/<run>/log.jsonl`; the same loop boundary appends a timestamped,
-human-readable observation → decision → result → integration/correction projection to `runs/<run>/decisions.md`.
-`experiences.jsonl` is machine replay evidence.
+The canonical chronological timeline, observations, intents and immutable experiences live in `runs/wf.sqlite3`;
+the same loop boundary regenerates timestamped human-readable `decisions.md` and `progress.md` projections. Never
+recover gameplay from retired run-local JSON/JSONL files.
+For lineage, `[SCENE] Restore SceneController` is only an engine lifecycle message—not physical scene identity.
+Only explicit `ChangeScene … to X`, `currentScene=X`, or coherent save/event evidence may constrain the scene.
 After milestones update verified quest steps/status, run `python3 -I tools/gen_quests.py`, and update
 current `runs/<task>/plan.md` and log. Record surprises in `docs/troubleshooting/INDEX.md` and fix their one canonical doc/tool/skill in the same pass.
 Completion is evidence-backed coverage/proof; constrained work is reported as constrained. Filling doc gaps beats winning.

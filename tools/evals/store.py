@@ -2,6 +2,7 @@
 later confirms or refutes it (`outcome`), and `report` gives the hit rate per component. Append-only JSON lines, so
 pending predictions survive a daemon restart."""
 import itertools
+import hashlib
 import json
 import math
 import os
@@ -34,8 +35,20 @@ def outcome(pid, value, hit):
     _append({'t': round(time.time(), 3), 'id': pid, 'outcome': value, 'hit': bool(hit)})
 
 
-def record(component, what, value, outcome_value, hit, ctx=None):
+def record(component, what, value, outcome_value, hit, ctx=None, idempotency_key=None):
     """A prediction checked in the same call: prediction and outcome at once."""
+    if idempotency_key and ENABLED:
+        pid = 'i' + hashlib.sha256(idempotency_key.encode()).hexdigest()[:20]
+        try:
+            rows = [json.loads(line) for line in open(PATH) if line.strip()]
+        except OSError:
+            rows = []
+        if not any(row.get('id') == pid and 'component' in row for row in rows):
+            _append({'t': round(time.time(), 3), 'id': pid, 'component': component, 'what': what, 'value': value,
+                     'ctx': ctx or {}})
+        if not any(row.get('id') == pid and 'outcome' in row for row in rows):
+            _append({'t': round(time.time(), 3), 'id': pid, 'outcome': outcome_value, 'hit': bool(hit)})
+        return pid
     pid = predict(component, what, value, ctx)
     outcome(pid, outcome_value, hit)
     return pid

@@ -47,11 +47,29 @@ def _vector_scope(graph, *candidates, learned_kinds=None):
 def _clues(store, frame_context=None):
     from . import core, engine, garden_policy, learn, observe, snapshot, world
     frame_context = frame_context or {}
-    path, save = core.WF.read_save()
-    lines = core.WF.today_log()[0]
-    world_delta = snapshot.world_for(store.path).refresh(
-        engine._open_graph, save, lines, snapshot.file_revision(learn.graph_path()))
+    coherent = frame_context.get('observation_snapshot')
+    if coherent is not None:
+        path, save = coherent.candidate.path, coherent.candidate.decoded
+        lines = list(coherent.log_epoch.lines)
+    else:  # direct diagnostic/test callers without the production observation boundary
+        path, save = core.WF.read_save()
+        lines = core.WF.today_log()[0]
+    world_store = None
+    graph_loader = engine._open_graph
+    graph_revision = snapshot.file_revision(learn.graph_path())
+    if coherent is not None and coherent.profile_id is not None:
+        from .world_store import WorldStore
+        world_store = WorldStore(store.db, coherent.profile_id)
+        def graph_loader():
+            graph = world_store.load(learn.graph_path(), coherent.observation_id)
+            learn.MEMORY['graph'] = graph
+            return graph
+        graph_revision = (graph_revision, coherent.observation_id, coherent.profile_id)
+    world_delta = snapshot.world_for(store.run_dir).refresh(graph_loader, save, lines, graph_revision)
     graph = world_delta.graph
+    if world_store is not None and world_delta.changed:
+        world_store.capture_graph(graph, learn.graph_path(), coherent.observation_id, coherent.candidate.game_time,
+                                  store.run_id)
     hour, light = frame_context.get('hour'), frame_context.get('light')
     if not frame_context:  # compatibility for direct read-only callers; production always passes its captured frame
         hour, light = observe.clock()
@@ -62,7 +80,7 @@ def _clues(store, frame_context=None):
     scene, region = world.scene_context(lines, save.get('currentScene'), since=world.save_time(save))
     vector_scope = _vector_scope(graph, region, scene, save.get('currentScene'))
     point = save.get('currentPlayerPosition') or {}
-    task_state = store.load() if os.path.exists(store.path) else None
+    task_state = store.load() if store.exists() else None
     active_node = task_state.active.actual_node if task_state and task_state.active else None
     data = {'graph_clues': snapshot.project_graph(
                 graph, region, frame_context.get('candidates', ()), active_node),
@@ -75,6 +93,7 @@ def _clues(store, frame_context=None):
             'inventory': world.inventory(save, lines),
             'inventory_complete': isinstance(player.get('inventory', {}).get('items'), list),
             'money': money, 'region': region, 'scene': scene, 'save_scene': save.get('currentScene'),
+            'observation_id': coherent.observation_id if coherent is not None else None,
             'vector_scope': vector_scope,
             'map_pin': frame_context.get('map_pin') if frame_context.get('screen') == 'map' else None,
             'state_provenance': {'inventory': save_proof, 'money': dict(save_proof, field=money_field),
@@ -84,12 +103,29 @@ def _clues(store, frame_context=None):
         data['position'] = [point['x'], point['z']]
     if task_state and _declaration(task_state)['goal'] == 'navigate':
         from . import navigation
-        data['navigation'] = navigation.receipt(task_state, data)
+        data['navigation'] = navigation.receipt(_declaration(task_state), data)
     state = _declaration(task_state) if task_state else {
         'params': {'_started_late': hour is not None and hour > 19}}
     blocked = garden_policy.interrupt(state, data)
     data['interrupts'] = [blocked] if blocked else []
     return data
+
+
+def _observation_provider(store):
+    """Capture one immutable save/log lineage snapshot before any derived gameplay clue."""
+    from . import core
+    candidates = getattr(core.WF, 'save_candidates', None)
+    epoch = getattr(core.WF, 'log_epoch', None)
+    if not candidates or not epoch:
+        return None  # injected test/diagnostic adapters retain their explicit observation contract
+    from .observations import ObservationStore
+    observations = ObservationStore(store.db)
+
+    def capture(frame_context, validate_only=False):
+        return observations.capture(store.run_id, candidates(), epoch(),
+                                    frame_path=frame_context.get('frame_path'),
+                                    view_id=frame_context.get('view_id'))
+    return capture
 
 
 def _repair_start_money(store):
@@ -123,10 +159,11 @@ def _repair_start_money(store):
             task.current_turn['task']['params'].update(
                 _trade_start_money=money, _trade_start_money_provenance=recovered)
         store.save(task)  # preserve task, turn, transaction, frames and subgoal IDs; repeated reads are a no-op
-        with open(os.path.join(os.path.dirname(store.path), 'log.jsonl'), 'a') as stream:
-            stream.write(json.dumps({'t': time.time(), 'type': 'turn', 'phase': 'migration',
-                'task_id': task.task_id, 'turn_id': task.current_turn['turn_id'] if task.current_turn else task.turn_seq,
-                'kind': 'initial_money_from_root_snapshot', 'money': money, 'provenance': recovered}) + '\n')
+        log = getattr(core.WF, 'run_log', None)
+        if log:
+            log('turn', phase='migration', task_id=task.task_id,
+                turn_id=task.current_turn['turn_id'] if task.current_turn else task.turn_seq,
+                kind='initial_money_from_root_snapshot', money=money, provenance=recovered)
 
 
 def domain(task):
@@ -510,7 +547,7 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
     """Observe/resume a durable task, or consume exactly one explicit versioned model decision.
 
     answer may be {turn_id, kind, action/correction, rationale, evidence_refs}; string decisions use params.turn_id.
-    The original garden-task.json is adopted in place. No migration writes an ignored run merely to observe it.
+    Task state and its WAL are scoped to the active SQLite run.
     """
     from . import ask, core, garden_policy, learn
     from .params import validate
@@ -519,11 +556,14 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
         directory = core.WF.run_dir()
         if not directory:
             raise ValueError('play requires an active run: ./wf run start')
-        old = os.path.join(directory, 'garden-task.json')
-        store = TaskStore(old if os.path.exists(old) else os.path.join(directory, 'task.json'))
-    if os.path.exists(store.path):
-        store.compact()
-    existing = store.load() if os.path.exists(store.path) else None
+        from runtime.db import Database
+        run_id = core.WF.run_path()
+        if run_id:
+            database = Database(os.environ.get('WF_DB', os.path.join(os.path.dirname(directory), 'wf.sqlite3')))
+            store = TaskStore(database, run_id)
+        else:  # offline adapters still use SQLite, keyed by a non-file fixture identity
+            store = TaskStore(os.path.join(directory, '.task-fixture'))
+    existing = store.load() if store.exists() else None
     schema_goal = goal if goal is not None else _declaration(existing)['goal'] if existing else None
     goal, params = _normalize(goal, validate(params, schema_goal))
     turn_id = params.pop('turn_id', None)
@@ -538,7 +578,8 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
         raise ValueError('observe a task before supplying a decision')
     if existing and answer is None and existing.params.get('_trade_start_money') is None:
         _repair_start_money(store)
-    adapter = adapter or GameAdapter(clue_provider=lambda frame_context: _clues(store, frame_context))
+    adapter = adapter or GameAdapter(clue_provider=lambda frame_context: _clues(store, frame_context),
+                                     observation_provider=_observation_provider(store))
     initial_observation = None
     if not existing:
         goal = goal or 'play'

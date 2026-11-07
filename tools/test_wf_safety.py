@@ -4,11 +4,22 @@ import os
 import sys
 import tempfile
 import unittest
+import contextlib
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.argv = ['x']
 import wf  # noqa: E402
+
+
+class ImportedCliIsolation(unittest.TestCase):
+    def test_calling_imported_main_does_not_enable_real_eval_writes(self):
+        from evals import store
+        store.ENABLED = True
+        self.addCleanup(setattr, store, 'ENABLED', False)
+        with self.assertRaises(SystemExit), contextlib.redirect_stdout(__import__('io').StringIO()):
+            wf.main(['--help'])
+        self.assertFalse(store.ENABLED)
 
 
 class NoClickThroughMenus(unittest.TestCase):
@@ -20,15 +31,18 @@ class NoClickThroughMenus(unittest.TestCase):
     def tearDown(self):
         wf.state, wf.click, wf.key, wf.find_text, wf.time.sleep = self._orig
 
-    def test_resume_falls_back_to_escape_when_the_ocr_button_click_does_nothing(self):
+    def test_resume_reports_a_failed_named_click_without_issuing_a_second_input(self):
         paused = [True]
+        keys = []
         wf.state = lambda save=False: ({'mode': 'overlay', 'text': ['0) Game Paused', '1) Resume Game']}
                                        if paused[0] else {'mode': 'gameplay', 'text': []})
         wf.find_text = lambda *a, **k: [{'cx': 960, 'cy': 700}]
-        wf.key = lambda name: paused.__setitem__(0, False) if name == 'escape' else None
+        wf.key = keys.append
         wf.time.sleep = lambda _: None
-        self.assertTrue(wf.set_paused(False).startswith('running:'))
-        self.assertFalse(paused[0])
+        self.assertTrue(wf.set_paused(False).startswith('could not resume:'))
+        self.assertTrue(paused[0])
+        self.assertEqual(self.clicks, [(960, 700)])
+        self.assertEqual(keys, [])
 
     def test_refuses_on_pause_menu(self):
         wf.state = lambda save=False: {'mode': 'overlay', 'text': ['0) Game Paused', '1) Settings']}

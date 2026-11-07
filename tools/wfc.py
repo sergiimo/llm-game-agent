@@ -8,6 +8,8 @@ import sys
 import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # wrapper uses -I; import only this owned tools dir
 from runtime.timing import measure
+from runtime.db import Database
+from runtime.run_store import RunStore
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOCK = os.path.join(os.environ.get('WF_SHOT_DIR', os.path.join(ROOT, '.shots')), 'wf.sock')
@@ -81,14 +83,14 @@ def log_call(argv):
             with open(os.path.join(os.path.dirname(SOCK), 'actions.log'), 'a') as f:
                 f.write(f"{t:.2f}\t{' '.join(argv)}\n")
             return t
-        except OSError:
+        except Exception:  # noqa: BLE001 - call accounting must not replace an already-known delivery result
             pass
     return None
 
 
 def log_end(start, argv, delivery=None):
     """Call end time, so tools/idle.py can split still time into 'command running' vs 'agent thinking';
-    also one `call` event in the open run log (tools/wf.py run_log, L53)."""
+    also one `call` event in the active SQLite run without importing the game or starting its daemon."""
     if start is not None:
         try:
             import time
@@ -96,15 +98,13 @@ def log_end(start, argv, delivery=None):
             shots = os.path.dirname(SOCK)
             with open(os.path.join(shots, 'actions_done.log'), 'a') as f:
                 f.write(f'{start:.2f}\t{end:.2f}\n')
-            with open(os.path.join(shots, 'run.current')) as pointer:
-                run = pointer.read().strip()
-            if run:
-                with open(run, 'a') as f:
-                    row = {'t': end, 'type': 'call', 'start': start, 'end': round(end, 2), 'cmd': ' '.join(argv)}
-                    if delivery:
-                        row['delivery'] = delivery
-                    f.write(json.dumps(row) + '\n')
-        except OSError:
+            row = {'start': start, 'end': round(end, 2), 'cmd': ' '.join(argv)}
+            if delivery:
+                row['delivery'] = delivery
+            path = os.environ.get('WF_DB', os.path.join(ROOT, 'runs', 'wf.sqlite3'))
+            if os.path.exists(path):
+                RunStore(Database(path)).append_event('call', row, t=end)
+        except Exception:  # noqa: BLE001 - accounting must not obscure a command's delivery result
             pass
 
 

@@ -46,12 +46,22 @@ def when(stamp):
 
 
 def save_time(save):
+    epoch = save_epoch_seconds(save)
+    if epoch is None:
+        return None
+    t = save.get('gameState', {}).get('time', {})
+    secs = epoch % 86400
+    h, m = divmod(secs // 60, 60)
+    return f'D{t["day"]} {h % 12 or 12}:{m:02d}:00 {"PM" if h >= 12 else "AM"}'
+
+
+def save_epoch_seconds(save):
+    """Absolute game timestamp; pre-sleep timeOfDay runs past 24h to preserve monotonicity."""
     t = save.get('gameState', {}).get('time', {})
     secs = t.get('timeOfDay', {}).get('totalSeconds')
     if t.get('day') is None or secs is None:
         return None
-    h, m = divmod(int(secs) // 60, 60)
-    return f'D{t["day"]} {h % 12 or 12}:{m:02d}:00 {"PM" if h >= 12 else "AM"}'
+    return int(t['day']) * 86400 + int(secs)
 
 
 def _after(lines, since):

@@ -1,0 +1,9 @@
+{
+  "root": {"profile_key": "root-d4", "game_stamp": "D4 9:00:00 AM", "scene": "Town"},
+  "other": {"profile_key": "other-d219", "game_stamp": "D219 9:00:00 AM", "scene": "Farm", "newer_mtime": true},
+  "expected_initial_profile": "root-d4",
+  "later_required_profile": "other-d219",
+  "expected_later_status": "save_lineage_mismatch",
+  "expected_inputs": 0,
+  "allowed_decisions": ["look", "read", "stop"]
+}

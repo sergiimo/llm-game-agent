@@ -43,8 +43,13 @@ JSON. Reading the map never implies an automatic open/close sequence. A guard re
 no attempt reached the game; it does not prove a missing/unavailable map or focus failure. If a correctly issued
 request fails, inspect and record its outcome before choosing the bounded local fallback.
 
-Map mode requires the large paper-framed map layout plus its pin. A HUD `M` icon or pink-colored world scenery
-alone is not a map. A genuine map still blocks world clicks; preserve uncertainty rather than click through it.
+Map mode requires the large paper-framed layout plus either the labelled paper/cloud-header appearance vector or
+the map pin. The header vector proves that the modal is open; the pink pin localises Tara when its current palette is
+detectable. A HUD `M` icon or pink-coloured world scenery alone is not a map. A genuine map still blocks world
+clicks; preserve uncertainty rather than click through it.
+
+`HouseExit` is a structural appearance vector for the complete unrailed wall opening. A valid candidate point lies
+inside that gap between its boundary posts; individual wall, railing, or porch-board patches do not prove the exit.
 
 For measurable travel, state `destination_position:[x,z]` and compare captured before/after positions; a smaller
 distance is progress. A matching expected event, card or region can also provide relevant observation. No move,

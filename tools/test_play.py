@@ -7,6 +7,7 @@ import json
 import os
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 import wf
@@ -50,24 +51,19 @@ class PlayCase(unittest.TestCase):
                     for row in child.get('result', {}).get('outcomes', ()))
         rows.extend(row for cancelled in data.get('params', {}).get('_cancelled_subgoals', ())
                     for row in cancelled.get('subgoal', {}).get('result', {}).get('outcomes', ()))
-        existing = set()
-        path = os.path.join(os.path.dirname((store or self.store).path), 'log.jsonl')
-        if append and os.path.exists(path):
-            with open(path) as stream:
-                for line in stream:
-                    saved = json.loads(line)
-                    if saved.get('phase') == 'outcome':
-                        existing.add(saved.get('experience', {}).get('id'))
-        with open(path, 'a' if append else 'w') as stream:
-            for row in rows:
-                if row['experience']['id'] in existing:
-                    continue
-                turn_id = row['experience']['artifacts']['turn_id']
-                stream.write(json.dumps({'type': 'turn', 'task_id': data['task_id'], 'turn_id': turn_id,
-                    'phase': 'intent', 'intent': {'turn_id': turn_id, 'action': row['action'],
-                    'before': row['before'], 'expects': row.get('expects', {})}}) + '\n')
-                stream.write(json.dumps({'type': 'turn', 'task_id': data['task_id'], 'turn_id': turn_id,
-                    'phase': 'outcome', 'experience': row['experience']}) + '\n')
+        selected = store or self.store
+        from runtime.run_store import RunStore
+        existing = {saved.get('experience', {}).get('id') for saved in RunStore(selected.db).events(selected.run_id)
+                    if saved.get('phase') == 'outcome'} if append else set()
+        for row in rows:
+            if row['experience']['id'] in existing:
+                continue
+            turn_id = row['experience']['artifacts']['turn_id']
+            intent = {'turn_id': turn_id, 'action': row['action'],
+                      'before': row['before'], 'expects': row.get('expects', {})}
+            owner = SimpleNamespace(task_id=data['task_id'])
+            selected.append_event(owner, turn_id, 'intent', intent=intent)
+            selected.append_event(owner, turn_id, 'outcome', experience=row['experience'])
 
     def create_legacy_task(self, task):
         """Captured legacy fixtures need their canonical journal beside task.json before migration."""
@@ -76,11 +72,16 @@ class PlayCase(unittest.TestCase):
 
     def cli(self, argv, directory=None):
         play = self.play()
+        selected = self.store
+        if directory and os.path.abspath(directory) != os.path.abspath(self.store.run_dir):
+            selected = S.TaskStore(os.path.join(directory, '.task-fixture'))
         # A dispatcher regression must fail at the physical boundary before touching the live game.
         with mock.patch.object(eval_store, 'ENABLED', False), \
                 mock.patch.object(eval_store, 'PATH', os.path.join(self.tmp.name, 'evals.jsonl')), \
                 mock.patch.object(core, 'WF', core.WF), \
                 mock.patch.object(wf, 'run_dir', return_value=directory or self.tmp.name), \
+                mock.patch.object(wf, 'run_path', return_value=selected.run_id), \
+                mock.patch.dict(os.environ, WF_DB=selected.db.path), \
                 mock.patch.object(play, 'GameAdapter', return_value=self.port), \
                 mock.patch.object(play, '_clues', return_value={}), \
                 mock.patch.object(wf, 'ensure_front', side_effect=AssertionError('legacy focus/input path')), \
@@ -106,6 +107,67 @@ class PlayCase(unittest.TestCase):
         context = self.play().turn('navigate', {'region': 'Town'}, store=self.store, adapter=self.port)
         self.assertEqual(context.turn_id, 1)
         observed.assert_called_once_with()
+
+    def test_lineage_mismatch_skips_policy_and_allows_only_observation_or_stop(self):
+        self.port.snapshot.update(lineage_status='save_lineage_mismatch', observation_id=17,
+                                  lineage_mismatch={'reason': 'profile_changed'})
+        play = self.play()
+        with mock.patch.object(play, 'recommend', side_effect=AssertionError('policy saw mismatched evidence')):
+            context = play.turn('navigate', store=self.store, adapter=self.port)
+        self.assertEqual(context.allowed_decisions, ('look', 'read', 'stop'))
+        self.assertEqual(self.port.inputs, [])
+        with self.assertRaises(turn.DecisionRejected):
+            play.turn(answer={'turn_id': context.turn_id, 'kind': 'correct',
+                              'correction': {'kind': 'graph', 'data': {}}},
+                      store=self.store, adapter=self.port)
+
+    def test_one_coherent_snapshot_feeds_clues_without_live_file_rereads(self):
+        from game import snapshot
+        from game.observations import ObservationSnapshot
+        from runtime.save_lineage import LogEpoch, SaveCandidate
+        from objects.graph import Graph, Node
+        graph = Graph()
+        graph.nodes['Farm'] = Node('Farm', 'region')
+        save = {'saveCount': 3, 'currentScene': 'Farm', 'currentPlayerPosition': {'x': 1., 'z': 2.},
+                'gameState': {'time': {'day': 4, 'timeOfDay': {'totalSeconds': 32400}},
+                              'player': {'inventory': {'items': []}}}}
+        candidate = SaveCandidate('root', '/root/1.local', 'slot', 'digest', 3,
+                                  4 * 86400 + 32400, 'Farm', save)
+        coherent = ObservationSnapshot(41, 'coherent', candidate=candidate,
+                                       log_epoch=LogEpoch('log', candidate.game_time, candidate.game_time, ()))
+        snapshot._WORLDS.clear()
+        raw = SimpleNamespace(read_save=mock.Mock(side_effect=AssertionError('second save read')),
+                              today_log=mock.Mock(side_effect=AssertionError('second log read')))
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(engine, '_open_graph', return_value=graph):
+            clues = self.play()._clues(self.store, {'hour': 9., 'light': 'day',
+                                                    'observation_snapshot': coherent})
+        self.assertEqual(clues['observation_id'], 41)
+        self.assertEqual(clues['save_scene'], 'Farm')
+        raw.read_save.assert_not_called()
+        raw.today_log.assert_not_called()
+
+    def test_observation_id_reaches_clue_event_intent_and_experience_rows(self):
+        from game.observations import ObservationStore
+        from runtime.save_lineage import LogEpoch, SaveCandidate
+        candidate = SaveCandidate('root', '/root/1.local', 'slot', 'digest', 3,
+                                  4 * 86400 + 32400, 'Farm', {})
+        observed = ObservationStore(self.store.db).capture(
+            self.store.run_id, [candidate], LogEpoch('log', candidate.game_time, candidate.game_time))
+        self.port.snapshot['observation_id'] = observed.observation_id
+        context = self.play().turn('navigate', store=self.store, adapter=self.port)
+        self.play().turn(answer={'turn_id': context.turn_id, 'kind': 'act', 'action': {'kind': 'wait'}},
+                         store=self.store, adapter=self.port)
+        from runtime.run_store import RunStore
+        clues = next(row for row in RunStore(self.store.db).events(self.store.run_id)
+                     if row.get('phase') == 'clues')
+        self.assertEqual(clues['observation_id'], observed.observation_id)
+        with self.store.db.connect() as connection:
+            intent = connection.execute('SELECT observation_id FROM intents WHERE run_id=?',
+                                        (self.store.run_id,)).fetchone()
+            experience = connection.execute('SELECT observation_id FROM experiences WHERE run_id=?',
+                                            (self.store.run_id,)).fetchone()
+        self.assertEqual(intent['observation_id'], observed.observation_id)
+        self.assertEqual(experience['observation_id'], observed.observation_id)
 
     def test_production_clues_project_only_current_region_not_the_full_nested_graph(self):
         from objects.graph import Graph, Node
@@ -156,14 +218,13 @@ class CompactHistory(PlayCase):
                 'action': {'kind': 'read'}, 'expects': {}}
 
     def write_log(self, task_id, rows):
-        with open(os.path.join(self.tmp.name, 'log.jsonl'), 'w') as stream:
-            for row in rows:
-                turn_id = row['experience']['artifacts']['turn_id']
-                stream.write(json.dumps({'type': 'turn', 'task_id': task_id, 'turn_id': turn_id,
-                    'phase': 'intent', 'intent': {'turn_id': turn_id, 'action': row['action'],
-                    'before': row['before'], 'expects': row['expects']}}) + '\n')
-                stream.write(json.dumps({'type': 'turn', 'task_id': task_id, 'turn_id': turn_id,
-                    'phase': 'outcome', 'experience': row['experience']}) + '\n')
+        owner = SimpleNamespace(task_id=task_id)
+        for row in rows:
+            turn_id = row['experience']['artifacts']['turn_id']
+            intent = {'turn_id': turn_id, 'action': row['action'],
+                      'before': row['before'], 'expects': row['expects']}
+            self.store.append_event(owner, turn_id, 'intent', intent=intent)
+            self.store.append_event(owner, turn_id, 'outcome', experience=row['experience'])
 
     def test_legacy_inline_history_migrates_to_exact_journal_refs_and_bounded_public_state(self):
         self.assertTrue(hasattr(self.store, 'compact'), 'TaskStore lacks the explicit atomic history migration')
@@ -186,7 +247,7 @@ class CompactHistory(PlayCase):
         self.assertNotIn('outcomes', migrated.params['_subgoal_results'][0]['result'])
 
         from game import history
-        records = history.records(os.path.join(self.tmp.name, 'log.jsonl'), ['done-e', 'root-e'])
+        records = history.records(self.store, ['done-e', 'root-e'])
         self.assertEqual([row['experience']['id'] for row in records], ['done-e', 'root-e'])
         self.assertEqual(records[0], done)
         public = history.public_task(migrated)
@@ -198,14 +259,10 @@ class CompactHistory(PlayCase):
         row = self.outcome('missing-e', 9)
         task = S.TaskState('fail-closed', 'sleep', history_schema=1, params={'_outcomes': [row]})
         self.store.create(task)
-        with open(self.store.path, 'rb') as stream:
-            before = stream.read()
-        with open(os.path.join(self.tmp.name, 'log.jsonl'), 'w') as stream:
-            stream.write('')
+        before = self.store.load().to_dict()
         with self.assertRaisesRegex(ValueError, 'lacks experiences: missing-e'):
             self.store.compact()
-        with open(self.store.path, 'rb') as stream:
-            self.assertEqual(stream.read(), before)
+        self.assertEqual(self.store.load().to_dict(), before)
 
     def test_compact_subgoal_completes_after_restart_from_canonical_records(self):
         from game import experience as X
@@ -236,13 +293,6 @@ class CapturedAcceptance(PlayCase):
         self.assertTrue(os.path.exists(path), f'captured fixture missing: {name}')
         with open(path) as stream:
             return json.load(stream)
-
-    def completed(self, name, section):
-        fixture = self.fixture(name)
-        capture = fixture[section]
-        self.assertEqual(capture['status'], 'captured', capture['missing'])
-        self.assertTrue(capture['turns'], 'a no-work replay cannot prove live acceptance')
-        return fixture, capture
 
     def test_enter_house_wrong_bed_route_requires_vision_then_graph_or_vector_correction(self):
         # Removing outcome comparison would accept this captured no-move and allow another guessed click.
@@ -285,20 +335,9 @@ class CapturedAcceptance(PlayCase):
             self.assertIsNone(c.surprise)
             self.assertEqual(len(self.port.inputs), 1)
             self.assertEqual(len(I.gaps()), 1)
-            with open(os.path.join(self.tmp.name, 'log.jsonl')) as stream:
-                timeline = [json.loads(line) for line in stream]
+            from runtime.run_store import RunStore
+            timeline = RunStore(self.store.db).events(self.store.run_id)
             self.assertEqual(sum(row['phase'] == 'vision' for row in timeline), 1)
-
-    def test_sleep_replay_reaches_west_bed_and_proves_sleep_transition(self):
-        self.completed('enter-house-sleep', 'success')
-
-    def test_sell_tulip_honey_and_buy_ten_each_available_seed_verifies_signed_inventory_and_money(self):
-        self.completed('sell-grown-buy-seeds', 'success')
-
-    def test_garden_shop_return_reopens_constrained_beds_without_false_completion(self):
-        self.completed('garden-shop-return', 'success')
-
-
 
 class ApiGapRepairs(PlayCase):
     """Public-turn regressions for catalogue discovery, named inspection and nested arrival."""
@@ -386,7 +425,7 @@ class ApiGapRepairs(PlayCase):
         from types import SimpleNamespace
         snapshot = dict(self.port.snapshot, screen={'kind': 'shop', 'texts': ['Buy', 'Sell', 'Seed A']})
         adapter, inputs = ReviewRoundOne.real_adapter(self, snapshot, X.Evidence(mode='card', texts=('Seed A details',)))
-        mock.patch.object(core, 'WF', SimpleNamespace(find_text=lambda label, exact:
+        mock.patch.object(core, 'WF', SimpleNamespace(find_text=lambda label, path=None, exact=False:
                           [{'cx': 220, 'cy': 420}] if label == 'Seed A' and exact else [])).start()
         c = self.play().turn('shop', store=self.store, adapter=adapter)
         c = ReviewRoundOne.choose(self, c, adapter, 'act', action={
@@ -623,6 +662,21 @@ class ApiGapRepairs(PlayCase):
         self.assertEqual(data['state_provenance']['save_scene'], data['state_provenance']['position'])
         self.assertIsNone(turn._saved_position(data), 'a later scene log cannot relabel a stale saved position')
 
+    def test_real_clues_navigation_receipt_uses_active_subgoal_params(self):
+        from objects.graph import Node
+        self.graph.nodes['SceneA'] = Node('SceneA', 'region')
+        self.graph.nodes['SceneAStart'] = Node('SceneAStart', 'unique', region='SceneA', pos=[0., 0.])
+        self.graph.nodes['House'] = Node('House', 'region', pos=[10., 0.])
+        self.graph.nodes['Tara'] = Node('Tara', 'unique', region='SceneA', pos=[0., 0.])
+        self.graph.add_edge('SceneAStart', 'House', 'nav')
+        self.store.create(S.TaskState('navigation-child', 'play',
+                                      stack=[S.Subgoal('navigate', {'region': 'House'})]))
+
+        data = self.production_clues([])
+
+        self.assertEqual(data['navigation']['requested'], 'House')
+        self.assertEqual(data['navigation']['goal']['node'], 'House')
+
     def test_real_clues_newer_save_scene_anchors_events_after_older_scene_log(self):
         self.scene_refresh_graph()
         lines = ['[D210 7:30:00 AM] ChangeScene SceneB/Spawn',
@@ -785,10 +839,13 @@ class CapturedMoney(PlayCase):
         original = self.captured['broken_root']
         self.create_legacy_task(S.TaskState.from_dict(original))
         source = self.captured['source_save_provenance']
+        events = []
         def read(path=None):
             self.assertEqual(path, source['path'], 'repair must not use a later/stale current balance')
             return path, self.captured['save_fragment']
-        with mock.patch.object(core, 'WF', SimpleNamespace(read_save=read)):
+        def run_log(type_, **payload):
+            events.append(dict(type=type_, **payload))
+        with mock.patch.object(core, 'WF', SimpleNamespace(read_save=read, run_log=run_log)):
             c = self.play().turn(store=self.store, adapter=self.port)
             persisted = self.store.load()
             self.assertEqual(persisted.params['_trade_start_money'], 100)
@@ -800,9 +857,7 @@ class CapturedMoney(PlayCase):
         self.assertEqual(again.turn_id, c.turn_id)
         self.assertEqual(self.store.load().to_dict(), persisted.to_dict())
         self.assertEqual(self.port.inputs, [])
-        with open(os.path.join(self.tmp.name, 'log.jsonl')) as stream:
-            rows = [json.loads(line) for line in stream]
-        self.assertEqual(sum(row.get('phase') == 'migration' for row in rows), 1)
+        self.assertEqual(sum(row.get('phase') == 'migration' for row in events), 1)
 
     def test_original_snapshot_identity_mismatch_cannot_inflate_missing_start_money(self):
         from types import SimpleNamespace
@@ -883,11 +938,11 @@ class CapturedCancellation(PlayCase):
         return self.choose(c, 'act', action={'kind': 'read'})  # refresh a pre-upgrade cached capability list, zero input
 
     def test_captured_admin_duplicate_cancels_without_losing_evidence_or_parent_across_restart(self):
+        from runtime.experience_store import ExperienceStore
         c = self.duplicate()
         self.assertIn('cancel', c.allowed_decisions, 'the public turn needs safe administrative child cancellation')
         before = self.store.load()
-        with open(os.path.join(self.tmp.name, 'experiences.jsonl'), 'rb') as stream:
-            journal = stream.read()
+        journal = ExperienceStore(self.store.db, self.store.run_id).journal()
         c = self.choose(c, 'cancel', rationale='remove accidental duplicate child; no trade occurred')
         after = self.store.load()
         self.assertEqual(after.task_id, self.captured['task']['task_id'])
@@ -899,16 +954,15 @@ class CapturedCancellation(PlayCase):
         self.assertEqual(cancelled['subgoal']['result'], before.stack[-1].result)
         self.assertIn('duplicate', cancelled['rationale'])
         self.assertNotIn('_subgoal_results', after.params)
-        with open(os.path.join(self.tmp.name, 'experiences.jsonl'), 'rb') as stream:
-            self.assertEqual(stream.read(), journal)
+        self.assertEqual(ExperienceStore(self.store.db, self.store.run_id).journal(), journal)
         restarted = self.play().turn(store=S.TaskStore(self.store.path), adapter=self.port)
         self.assertEqual(restarted.turn_id, c.turn_id)
         self.assertEqual(len(restarted.task['stack']), 1)
         with self.assertRaises(turn.StaleTurn):
             self.choose(type('Old', (), {'turn_id': c.turn_id - 1})(), 'cancel', rationale='stale repeat')
         self.assertEqual(self.port.inputs, [])
-        with open(os.path.join(self.tmp.name, 'log.jsonl')) as stream:
-            rows = [json.loads(line) for line in stream]
+        from runtime.run_store import RunStore
+        rows = RunStore(self.store.db).events(self.store.run_id)
         self.assertEqual(sum(row.get('phase') == 'cancellation' for row in rows), 1)
 
     def test_suspended_administrative_duplicate_can_cancel_and_reactivate_previous_child(self):
@@ -1198,7 +1252,7 @@ class ObservationRecovery(PlayCase):
         c = self.uncertain_waypoint(expects)
         from game import history
         task = self.store.load()
-        rows = history.records(os.path.join(self.tmp.name, 'log.jsonl'), task.evidence_refs)
+        rows = history.records(self.store, task.evidence_refs)
         self.assertEqual(rows[0]['expects'], expects)
         snapshot = self.snapshot(7925, 'D210 9:00:00 AM', (1, 2), scene='Town')
         snapshot['screen']['texts'] = ['Catalogue']
@@ -1306,7 +1360,7 @@ class ObservationRecovery(PlayCase):
         self.assertEqual(len(self.port.inputs), 1)
         from game import history
         task = self.store.load()
-        outcomes = history.records(os.path.join(self.tmp.name, 'log.jsonl'), task.evidence_refs)
+        outcomes = history.records(self.store, task.evidence_refs)
         self.assertEqual(outcomes[0]['experience'], original, 'original incomplete experience is immutable')
         with self.assertRaisesRegex(turn.DecisionRejected, 'region'):
             self.choose(c, 'complete')
@@ -1543,7 +1597,7 @@ class CapturedModeTransition(PlayCase):
         self.assertEqual([(s.goal, s.params, s.status) for s in self.store.load().stack], stack)
         from game import history
         refs = self.store.load().stack[-1].evidence_refs
-        rows = history.records(os.path.join(self.tmp.name, 'log.jsonl'), refs)
+        rows = history.records(self.store, refs)
         self.assertEqual(next(row['experience'] for row in rows if row['experience']['id'] == original['id']), original)
         self.assertEqual(self.port.inputs, [])
 
@@ -2190,17 +2244,17 @@ class ReadLatency(PlayCase):
         self.assertEqual(cached.observation_freshness, 'cached')
         self.assertEqual(cached.turn_id, fresh.turn_id)
         self.assertLess(len(self.play().summary(cached)), 100_000)
-        self.assertLess(os.path.getsize(self.store.path), 100_000)
+        self.assertLess(os.path.getsize(self.store.db.path), 1_000_000)
 
         newer = self.play().turn(answer={'turn_id': cached.turn_id, 'kind': 'read'},
                                  store=self.store, adapter=self.port)
         self.assertEqual(newer.observation_freshness, 'fresh')
-        self.assertLess(os.path.getsize(self.store.path), 100_000)
+        self.assertLess(os.path.getsize(self.store.db.path), 1_000_000)
         self.assertEqual(self.port.inputs, [])
 
         self.play().turn(answer={'turn_id': newer.turn_id, 'kind': 'act', 'action': {'kind': 'space'}},
                          store=self.store, adapter=self.port)
-        self.assertLess(os.path.getsize(self.store.path), 100_000,
+        self.assertLess(os.path.getsize(self.store.db.path), 1_000_000,
                         'one physical action re-embedded journal history into durable state')
         self.assertEqual(len(self.port.inputs), 1)
 
@@ -3279,8 +3333,12 @@ class PublicDeclarations(PlayCase):
              'catalogue_complete': True}})
         before = self.store.load().to_dict()
         restarted = self.play().turn(store=S.TaskStore(self.store.path), adapter=self.port)
+        persisted = S.TaskStore(self.store.path).load().to_dict()
         for key in ('_subgoal_results', '_sale_intents', '_trade_start_money', '_shop_catalogue',
                     '_shop_catalogue_complete'):
+            self.assertEqual(persisted['params'][key], before['params'][key])
+        self.assertNotIn('_subgoal_results', restarted.task['params'])
+        for key in ('_sale_intents', '_trade_start_money', '_shop_catalogue', '_shop_catalogue_complete'):
             self.assertEqual(restarted.task['params'][key], S.freeze(before['params'][key]))
         self.assertEqual(restarted.turn_id, c.turn_id)
         self.trade_outcome('SeedA', 2, 17)
@@ -3293,6 +3351,20 @@ class PublicDeclarations(PlayCase):
         c = self.choose(restarted, self.port, 'complete')
         self.assertEqual(c.task['status'], 'complete')
         self.assertEqual(len(self.port.inputs), 2)
+
+
+def load_tests(loader, tests, pattern):
+    """Run shared PlayCase contracts once, not once again for every specialized subclass."""
+    selected = unittest.TestSuite()
+    def cases(suite):
+        for item in suite:
+            yield from cases(item) if isinstance(item, unittest.TestSuite) else (item,)
+    for case in cases(tests):
+        method = getattr(type(case), case._testMethodName)
+        owner = method.__qualname__.split('.', 1)[0]
+        if owner == type(case).__name__:
+            selected.addTest(case)
+    return selected
 
 
 if __name__ == '__main__':

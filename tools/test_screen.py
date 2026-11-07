@@ -1,10 +1,18 @@
 """Pure modal recognition and universal primitive guards; no automatic modal-recovery workflows."""
+import os
 import unittest
 from PIL import Image, ImageDraw
 from game import primitives, screen
 
 
 class Screens(unittest.TestCase):
+    def test_map_header_vector_distinguishes_map_from_gameplay(self):
+        fixtures = os.path.join(os.path.dirname(__file__), 'fixtures', 'play')
+        with Image.open(os.path.join(fixtures, 'historical-map-panel.png')) as map_frame, \
+                Image.open(os.path.join(fixtures, 'resume-gameplay.jpg')) as gameplay_frame:
+            self.assertTrue(screen.map_header_vector(map_frame))
+            self.assertFalse(screen.map_header_vector(gameplay_frame))
+
     def test_map_panel_accepts_current_thin_vertical_paper_border(self):
         image = Image.new('RGB', (1920, 1080), '#303030')
         ImageDraw.Draw(image).rectangle((200, 120, 1720, 900), outline='#e6dcc0', width=5)

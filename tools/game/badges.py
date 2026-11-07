@@ -65,15 +65,26 @@ def read(crop140):
     return label if d <= MAX_DIST else None
 
 
-def add(label, crop140, source):
+def add(label, crop140, source, idempotency_key=None):
     """Store the corner of a 140-px bubble crop as an example of `label` (a click result proved it). The path."""
     if label not in LABELS:
         raise ValueError(f'badge label {label!r} is not one of {LABELS}')
     d = os.path.join(DIR, label)
     os.makedirs(d, exist_ok=True)
-    p = os.path.join(d, f'{time.strftime("%Y%m%d-%H%M%S")}-{len(os.listdir(d))}.png')
-    corner(crop140).save(p)
-    with open(os.path.join(DIR, 'sources.txt'), 'a') as f:
-        f.write(f'{os.path.basename(p)}\t{label}\t{source}\n')
+    name = ((idempotency_key + '.png') if idempotency_key else
+            f'{time.strftime("%Y%m%d-%H%M%S")}-{len(os.listdir(d))}.png')
+    p = os.path.join(d, name)
+    if not os.path.exists(p):
+        corner(crop140).save(p)
+    source_line = f'{os.path.basename(p)}\t{label}\t{source}\n'
+    sources = os.path.join(DIR, 'sources.txt')
+    try:
+        with open(sources) as stream:
+            recorded = source_line in stream.readlines()
+    except OSError:
+        recorded = False
+    if not recorded:
+        with open(sources, 'a') as f:
+            f.write(source_line)
     reset()
     return p

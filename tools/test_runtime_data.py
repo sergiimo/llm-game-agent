@@ -64,6 +64,26 @@ class RevisionedWorldSnapshot(unittest.TestCase):
         self.assertEqual(load.call_count, 3)
 
 
+class LiveLogEpoch(unittest.TestCase):
+    def test_generic_scene_controller_restore_is_not_physical_scene_identity(self):
+        import wf
+        lines = ('[D4 11:00:00 AM] [SCENE] Restore SceneController',
+                 '[D4 11:33:56 AM] [TRIGGER] OnExitBuilding Butcher')
+        with tempfile.NamedTemporaryFile() as log, mock.patch.object(wf, 'GAME_LOG', log.name), \
+                mock.patch.object(wf, 'game_log', return_value=lines):
+            epoch = wf.log_epoch()
+        self.assertIsNone(epoch.scene)
+
+    def test_only_explicit_scene_assignment_supplies_scene_identity(self):
+        import wf
+        lines = ('[D4 11:00:00 AM] [SCENE] Restore SceneController',
+                 '[D4 11:40:00 AM] currentScene = Town')
+        with tempfile.NamedTemporaryFile() as log, mock.patch.object(wf, 'GAME_LOG', log.name), \
+                mock.patch.object(wf, 'game_log', return_value=lines):
+            epoch = wf.log_epoch()
+        self.assertEqual(epoch.scene, 'Town')
+
+
 class ClientDelivery(unittest.TestCase):
     def test_default_deadline_allows_bounded_game_action_response(self):
         response = json.dumps({'out': 'gameplay\n', 'code': 0}).encode() + b'\n'
@@ -298,14 +318,38 @@ class HotData(unittest.TestCase):
             self.assertEqual(plan.rows('Bed'), [{'id': 'learned', 'kind': 'Bed'}])
 
     def test_completed_call_timestamp_keeps_append_timeline_chronological(self):
-        log = self.root / 'log.jsonl'
-        log.write_text('{"t": 150, "type": "turn", "phase": "outcome"}\n')
-        (self.root / 'run.current').write_text(str(log))
-        with mock.patch.object(wfc, 'SOCK', str(self.root / 'wf.sock')), mock.patch('time.time', return_value=200):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        database = self.root / 'wf.sqlite3'
+        store = RunStore(Database(database))
+        run_id = store.start('test', 'call timing', self.root / 'run')
+        store.append_event('turn', {}, phase='outcome', t=150)
+        with mock.patch.object(wfc, 'SOCK', str(self.root / 'wf.sock')), \
+                mock.patch.dict(os.environ, WF_DB=str(database)), mock.patch('time.time', return_value=200):
             wfc.log_end(100, ['garden', 'answer=accept'])
-        rows = [json.loads(line) for line in log.read_text().splitlines()]
+        rows = [row for row in store.events(run_id) if row['type'] in ('turn', 'call')]
         self.assertEqual([r['t'] for r in rows], [150, 200])
         self.assertEqual((rows[-1]['start'], rows[-1]['end']), (100, 200))
+        self.assertFalse((self.root / 'run.current').exists())
+        self.assertFalse((self.root / 'run' / 'log.jsonl').exists())
+
+    def test_completed_command_survives_sqlite_accounting_failure(self):
+        database = self.root / 'wf.sqlite3'
+        database.touch()
+        with mock.patch.object(wfc, 'SOCK', str(self.root / 'wf.sock')), \
+                mock.patch.dict(os.environ, WF_DB=str(database)), \
+                mock.patch.object(wfc.RunStore, 'append_event', side_effect=RuntimeError('bad database')):
+            self.assertIsNone(wfc.log_end(100, ['play'], delivery='delivered'))
+
+    def test_production_runtime_has_no_replaced_structured_file_fallbacks(self):
+        root = Path(__file__).resolve().parent
+        sources = [root / 'wf.py', root / 'wfc.py', root / 'runwatch.py']
+        sources += list((root / 'game').glob('*.py')) + list((root / 'runtime').glob('*.py'))
+        retired = ('task.json', 'garden-task.json', 'log.jsonl', 'experiences.jsonl',
+                   'applied.txt', 'run.current')
+        offenders = [(path.name, name) for path in sources for name in retired
+                     if name in path.read_text()]
+        self.assertEqual(offenders, [])
 
     def test_external_icon_add_replace_remove_is_hot(self):
         path = self.root / 'Tulip' / 'one.png'

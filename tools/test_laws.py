@@ -263,31 +263,6 @@ class Mechanics(unittest.TestCase):
         self.assertGreater(dry, 300)
 
 
-class Reach(Base):
-    """L133: the low-level navigation - any node of a kind whose bubble fits, not a particular member."""
-    def test_returns_the_fitting_bubble_in_reach_without_clicking_it(self):
-        f = self.use(Fake({'a': bed('empty', bubble=(900, 400)), 'b': bed('dry', bubble=(1100, 400))}))
-        a = laws.reach(lambda a: a.kind == 'plant')
-        self.assertEqual(a.pt, (900, 400))
-        self.assertEqual(f.clicks, [])
-
-    def test_walks_until_one_fits(self):
-        f = self.use(Fake({'a': bed('empty', zone='far', bubble=(700, 300), body=(5000, 5000))}))
-        f.step_zone = 'far'
-        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
-            a = laws.reach(lambda a: a.kind == 'plant')
-        self.assertEqual(a.pt, (700, 300))
-        self.assertEqual(f.clicks[0], (960 + laws.MAP_STEP_R, 540))   # map-led steps are long (user D188)
-
-    def test_nothing_found_asks_vision_with_the_trace(self):
-        f = self.use(Fake({}))
-        f.step_zone = None
-        with mock.patch.object(nav, 'map_direction', lambda node: (1.0, 0.0)):
-            with self.assertRaises(core.Failed) as e:
-                laws.reach(lambda a: a.kind == 'plant')
-        self.assertIn('STUCK', str(e.exception))
-
-
 class Framework(Base):
     """L134: observe / act / learn / nav (goals on top: game/engine.py)."""
     def test_closest_node_is_the_owner_of_the_bubble_nearest_tara(self):

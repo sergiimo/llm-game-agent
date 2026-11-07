@@ -1,16 +1,22 @@
-"""Durable task/transaction state. Replacement is atomic; the lock spans each turn."""
+"""Durable task/transaction state in the canonical SQLite runtime store."""
 import dataclasses
-import fcntl
 import json
 import os
-import tempfile
+import threading
+import time
+import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from collections.abc import Mapping
 from runtime.timing import measure
+from runtime.db import Database
 
 _STATE_RECORDS = ()
+
+
+class StaleTask(RuntimeError):
+    pass
 
 def freeze(value):
     kind = type(value)
@@ -152,59 +158,197 @@ _STATE_RECORDS = (Intent, Interaction, Subgoal, TaskState)
 
 
 class TaskStore:
-    def __init__(self, path):
-        self.path = os.path.abspath(path)
+    """One run's task state and write-ahead intents.
+
+    The path-only constructor remains as an in-memory test/legacy-fixture adapter: it maps that identity to a
+    SQLite database beside the requested path but never creates the JSON file.
+    """
+    _locks = {}
+    _locks_guard = threading.Lock()
+
+    def __init__(self, db, run_id=None):
+        if isinstance(db, Database):
+            if not run_id:
+                raise ValueError('run_id is required with Database')
+            self.db, self.run_id = db, run_id
+            with self.db.connect() as connection:
+                row = connection.execute('SELECT directory FROM runs WHERE id = ?', (run_id,)).fetchone()
+            if not row:
+                raise KeyError(f'unknown run: {run_id}')
+            self.run_dir = row['directory']
+            self.path = os.path.join(self.run_dir, '.task-state')  # identity only; never read or written
+        else:
+            self.path = os.path.abspath(os.fspath(db))
+            self.run_dir = os.path.dirname(self.path)
+            self.db = Database(os.path.join(self.run_dir, 'wf.sqlite3'))
+            self.run_id = uuid.uuid5(uuid.NAMESPACE_URL, self.path).hex
+            self._ensure_fixture_run()
+        key = (self.db.path, self.run_id)
+        with self._locks_guard:
+            self._lock = self._locks.setdefault(key, threading.RLock())
+
+    def _ensure_fixture_run(self):
+        now = time.time()
+        with self.db.transaction(immediate=True) as connection:
+            if not connection.execute('SELECT 1 FROM runs WHERE id = ?', (self.run_id,)).fetchone():
+                connection.execute(
+                    'INSERT INTO runs(id, slug, directory, goal, status, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                    (self.run_id, os.path.basename(self.path), self.path + '.runtime', 'fixture', 'active', now))
 
     @contextmanager
     def locked(self):
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        with open(self.path + '.lock', 'a') as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX)
-            try:
-                yield
-            finally:
-                fcntl.flock(lock, fcntl.LOCK_UN)
+        with self._lock:
+            yield
+
+    @staticmethod
+    def _encode(task):
+        with measure('task.serialize'):
+            return json.dumps(task, default=json_record, sort_keys=True, separators=(',', ':'))
+
+    def exists(self):
+        with self.db.connect() as connection:
+            return connection.execute('SELECT 1 FROM task_state WHERE run_id = ?', (self.run_id,)).fetchone() is not None
+
+    def _write_task(self, connection, task, create=False):
+        payload = self._encode(task)
+        row = connection.execute(
+            'SELECT revision, payload_json FROM task_state WHERE run_id = ?', (self.run_id,)).fetchone()
+        if row:
+            current = json.loads(row['payload_json'])
+            if current.get('task_id') != task.task_id:
+                raise ValueError('task identity is immutable for a run')
+            if create:
+                raise FileExistsError(self.path)
+            if task.revision < row['revision']:
+                raise StaleTask(f'task revision {task.revision} is older than {row["revision"]}')
+            connection.execute(
+                'UPDATE task_state SET revision = ?, payload_json = ?, updated_at = ? WHERE run_id = ?',
+                (task.revision, payload, time.time(), self.run_id))
+        else:
+            connection.execute(
+                'INSERT INTO task_state(run_id, revision, payload_json, updated_at) VALUES (?, ?, ?, ?)',
+                (self.run_id, task.revision, payload, time.time()))
 
     def create(self, task):
-        with self.locked():
-            if os.path.exists(self.path):
-                raise FileExistsError(self.path)
-            self.save(task)
+        with self.db.transaction(immediate=True) as connection:
+            self._write_task(connection, task, create=True)
         return task
 
     def load(self):
-        with measure('task.load'), open(self.path) as f:
-            return TaskState.from_dict(json.load(f))
+        with measure('task.load'), self.db.connect() as connection:
+            row = connection.execute('SELECT payload_json FROM task_state WHERE run_id = ?', (self.run_id,)).fetchone()
+        if not row:
+            raise FileNotFoundError(self.path)
+        return TaskState.from_dict(json.loads(row['payload_json']))
 
     def compact(self):
-        """Atomically migrate reconstructible inline history to journal references once."""
         from . import history
         with self.locked():
             task = self.load()
-            changed = history.compact(task, os.path.join(os.path.dirname(self.path), 'log.jsonl'))
+            changed = history.compact(task, self)
             if changed:
                 self.save(task)
             return changed
 
     def save(self, task):
-        """Caller holds locked() when reading/modifying a task. A crash leaves the old or new JSON."""
-        directory = os.path.dirname(self.path)
-        os.makedirs(directory, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(prefix='.task-', suffix='.json', dir=directory)
-        try:
-            with os.fdopen(fd, 'w') as f:
-                with measure('task.serialize'):
-                    # One-shot encoding uses the JSON C encoder. Streaming dump emits a write for nearly
-                    # every historical scalar and makes a large long-running task miss the RPC deadline.
-                    f.write(json.dumps(task, default=json_record, sort_keys=True))
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(tmp, self.path)
-            dfd = os.open(directory, os.O_RDONLY)
-            try:
-                os.fsync(dfd)
-            finally:
-                os.close(dfd)
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+        with self.db.transaction(immediate=True) as connection:
+            self._write_task(connection, task)
+        return task
+
+    def compare_and_swap(self, expected_revision, task):
+        if task.revision <= expected_revision:
+            raise ValueError('new task revision must increase')
+        payload = self._encode(task)
+        with self.db.transaction(immediate=True) as connection:
+            row = connection.execute('SELECT payload_json FROM task_state WHERE run_id = ?', (self.run_id,)).fetchone()
+            if not row:
+                raise FileNotFoundError(self.path)
+            if json.loads(row['payload_json']).get('task_id') != task.task_id:
+                raise ValueError('task identity is immutable for a run')
+            cursor = connection.execute(
+                'UPDATE task_state SET revision = ?, payload_json = ?, updated_at = ? '
+                'WHERE run_id = ? AND revision = ?',
+                (task.revision, payload, time.time(), self.run_id, expected_revision))
+            if cursor.rowcount != 1:
+                raise StaleTask(f'task revision {expected_revision} is stale')
+        return task
+
+    def _insert_event(self, connection, turn_id, phase, payload):
+        encoded = json.dumps(payload, default=json_record, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+        return connection.execute(
+            'INSERT INTO run_events(run_id, turn_id, t, type, phase, payload_json) VALUES (?, ?, ?, ?, ?, ?)',
+            (self.run_id, turn_id, time.time(), 'turn', phase, encoded)).lastrowid
+
+    def append_event(self, task, turn_id, phase, **data):
+        payload = {'task_id': task.task_id, **thaw(data)}
+        with self.db.transaction(immediate=True) as connection:
+            return self._insert_event(connection, turn_id, phase, payload)
+
+    def begin_intent(self, task, intent):
+        """Atomically persist task WAL, prepared intent, and its canonical run event before input."""
+        canonical = thaw(intent)
+        canonical['experience'] = None
+        canonical['journaled'] = False
+        now = time.time()
+        with self.db.transaction(immediate=True) as connection:
+            self._write_task(connection, task)
+            encoded = json.dumps(canonical, sort_keys=True)
+            row = connection.execute(
+                'SELECT id, payload_json FROM intents WHERE run_id = ? AND turn_id = ?',
+                (self.run_id, intent.turn_id)).fetchone()
+            if row:
+                # Recovery never rewrites the original prepared envelope. Legacy task payloads may have lost
+                # provenance fields; the already-canonical intent row remains authoritative.
+                return None
+            connection.execute(
+                'INSERT INTO intents(run_id, turn_id, observation_id, status, payload_json, created_at, updated_at) '
+                "VALUES (?, ?, ?, 'prepared', ?, ?, ?)",
+                (self.run_id, intent.turn_id,
+                 intent.action.get('lineage_observation_id') or intent.before.get('observation_id'),
+                 encoded, now, now))
+            event_id = self._insert_event(connection, intent.turn_id, 'intent',
+                                          {'task_id': task.task_id, 'intent': canonical})
+        return event_id
+
+    def record_capture(self, task, intent, experience):
+        payload = thaw(intent)
+        now = time.time()
+        with self.db.transaction(immediate=True) as connection:
+            self._write_task(connection, task)
+            row = connection.execute(
+                'SELECT status, payload_json FROM intents WHERE run_id = ? AND turn_id = ?',
+                (self.run_id, intent.turn_id)).fetchone()
+            if not row:
+                raise StaleTask('intent is not capturable')
+            if row['status'] in ('captured', 'settled'):
+                saved = json.loads(row['payload_json'])
+                if saved.get('experience') != payload.get('experience'):
+                    raise ValueError('conflicting capture for turn')
+                return None
+            cursor = connection.execute(
+                "UPDATE intents SET status = 'captured', payload_json = ?, updated_at = ? "
+                "WHERE run_id = ? AND turn_id = ? AND status IN ('prepared','performed')",
+                (json.dumps(payload, sort_keys=True), now, self.run_id, intent.turn_id))
+            if cursor.rowcount != 1:
+                raise StaleTask('intent is not capturable')
+            event_id = self._insert_event(connection, intent.turn_id, 'outcome',
+                                          {'task_id': task.task_id, 'experience': thaw(experience)})
+        return event_id
+
+    def settle(self, task, intent, result):
+        now = time.time()
+        with self.db.transaction(immediate=True) as connection:
+            self._write_task(connection, task)
+            row = connection.execute('SELECT status FROM intents WHERE run_id = ? AND turn_id = ?',
+                                     (self.run_id, intent.turn_id)).fetchone()
+            if row and row['status'] == 'settled':
+                return None
+            cursor = connection.execute(
+                "UPDATE intents SET status = 'settled', updated_at = ? "
+                "WHERE run_id = ? AND turn_id = ? AND status IN ('captured','performed','prepared')",
+                (now, self.run_id, intent.turn_id))
+            if cursor.rowcount != 1:
+                raise StaleTask('intent is not settleable')
+            return self._insert_event(connection, intent.turn_id, 'integration',
+                                      {'task_id': task.task_id, 'experience': intent.experience.get('id'),
+                                       'result': thaw(result)})

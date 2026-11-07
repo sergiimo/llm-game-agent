@@ -16,6 +16,7 @@ from PIL import Image
 from . import dino
 
 Z_MIN = 4.5            # default presence threshold (z-score of the peak)
+STRUCTURE_Z_MIN = 3.0  # whole-window search has far fewer candidates than independent patch search
 SUP = 4                # peak suppression radius, patches
 MAX_PEAKS = 24         # per kind (a 3x4 bed grid must be countable)
 THRESHOLDS = 'thresholds.json'
@@ -25,6 +26,7 @@ DISABLED_KEY = '_disabled'  # unsupported kinds for a region; a region list repl
 # (patch-level scoring has no single nearest example). `raw` = the peak's raw cosine (None when not computed).
 Detection = namedtuple('Detection', 'kind box dist example_id point raw', defaults=(None,))
 _CACHE = {}
+_STRUCTURE_CACHE = {}
 _FRAME_CACHE = {}
 _LOCK = threading.RLock()   # kind-vector cache (the daemon may detect from several threads)
 
@@ -109,7 +111,7 @@ def disabled_kinds(store, region=None):
 
 def kind_vectors(store, kind):
     """(n, 384) foreground patch vectors of all crops of `kind`; cached until its example set changes."""
-    exs = store.examples(kind)
+    exs = [e for e in store.examples(kind) if e.state != 'structure']
     from game.data import image_revision
     key = (os.path.abspath(store.root), kind, tuple(e.id for e in exs),
            image_revision(os.path.join(store.root, kind)))
@@ -120,6 +122,76 @@ def kind_vectors(store, kind):
             vs = [dino.crop_vectors(Image.open(store.example_path(kind, e.id)).convert('RGB')) for e in exs]
             _CACHE[key] = np.concatenate(vs) if vs else np.zeros((0, dino.DIM), np.float32)
         return _CACHE[key]
+
+
+def structure_templates(store, kind):
+    """[(rows, cols, mean descriptor)] for crops explicitly labelled as spatial structures."""
+    exs = [e for e in store.examples(kind) if e.state == 'structure']
+    from game.data import image_revision
+    key = (os.path.abspath(store.root), kind, tuple(e.id for e in exs),
+           image_revision(os.path.join(store.root, kind)))
+    with _LOCK:
+        if key not in _STRUCTURE_CACHE:
+            for k in [k for k in _STRUCTURE_CACHE if k[:2] == key[:2]]:
+                del _STRUCTURE_CACHE[k]
+            out = []
+            for e in exs:
+                grid = dino.crop_grid(Image.open(store.example_path(kind, e.id)).convert('RGB'))
+                out.append((grid.shape[0], grid.shape[1], grid.astype(np.float32)))
+            _STRUCTURE_CACHE[key] = out
+        return _STRUCTURE_CACHE[key]
+
+
+def _window_cosine_map(ff, template, rows, cols):
+    """Whole-window similarity at each centre; a grid template preserves relative patch layout."""
+    r, c, d = ff.shape
+    out = np.full((r, c), -np.inf, np.float32)
+    if rows > r or cols > c:
+        return out
+    if template.ndim == 3:
+        windows = np.lib.stride_tricks.sliding_window_view(ff, (rows, cols), axis=(0, 1))
+        windows = windows.transpose(0, 1, 3, 4, 2)
+        values = np.einsum('ijrcd,rcd->ij', windows, template, optimize=True) / (rows * cols)
+    else:
+        integral = np.pad(ff.cumsum(0).cumsum(1), ((1, 0), (1, 0), (0, 0)))
+        sums = (integral[rows:, cols:] - integral[:-rows, cols:] -
+                integral[rows:, :-cols] + integral[:-rows, :-cols])
+        means = sums / np.maximum(np.linalg.norm(sums, axis=2, keepdims=True), 1e-9)
+        values = means @ template
+    cy, cx = rows // 2, cols // 2
+    out[cy:cy + values.shape[0], cx:cx + values.shape[1]] = values
+    return out
+
+
+def _standardize(h):
+    finite = np.isfinite(h)
+    out = np.full(h.shape, -np.inf, np.float32)
+    if finite.any():
+        values = h[finite]
+        out[finite] = (values - np.median(values)) / (float(values.std()) or 1.0)
+    return out
+
+
+def _kind_map(ff, store, kind):
+    """Combined local-patch and explicit whole-window structural maps for one kind."""
+    maps = []
+    vecs = kind_vectors(store, kind)
+    if len(vecs):
+        maps.append(_zmap(ff, vecs))
+    for rows, cols, template in structure_templates(store, kind):
+        raw = _window_cosine_map(ff, template, rows, cols)
+        # Rescale to the common detection threshold; this is equivalent to a
+        # STRUCTURE_Z_MIN threshold without weakening the kind's patch peaks.
+        maps.append((_standardize(raw) * (Z_MIN / STRUCTURE_Z_MIN), raw))
+    if not maps:
+        empty = np.full(ff.shape[:2], -np.inf, np.float32)
+        return empty, empty.copy()
+    z, raw = maps[0]
+    for next_z, next_raw in maps[1:]:
+        take = next_z > z
+        raw = np.where(take, next_raw, raw)
+        z = np.maximum(z, next_z)
+    return z, raw
 
 
 def _zmap(ff, vecs):
@@ -174,7 +246,7 @@ def _maps(img, store, exclude=(), cache_key=None):
                 _FRAME_CACHE[cache_key] = ff
                 while len(_FRAME_CACHE) > 8:
                     _FRAME_CACHE.pop(next(iter(_FRAME_CACHE)))
-    zh = {k: _zmap(ff, kind_vectors(store, k)) for k in all_kinds}   # all kinds compete per patch
+    zh = {k: _kind_map(ff, store, k) for k in all_kinds}   # all kinds compete per patch/window centre
     z = {k: v[0] for k, v in zh.items()}
     best = np.argmax(np.stack([z[k] for k in all_kinds]), axis=0)
     W, H = img.size

@@ -25,9 +25,9 @@ from . import act as A, core, experience as X, observe as O
 JOURNAL_DIR = None     # None = the open run's dir, else act.SHOTS (tests: a temp dir)
 GAP_REPEAT = 2         # the same unresolved check failing this many times = a gap bundle
 CARD_WAIT = 3.0        # s an expected card gets to show after the action (live D189: Collect came late)
-_APPLIED = {}          # journal dir -> set of applied update keys (cache of applied.txt)
-_RECORDED = {}         # journal dir -> immutable experience IDs (loaded once, then O(1) per action)
 _RESOLVED = set()      # experience ids a later rule explained (an info card, another row's card): never a gap
+_CURRENT_STORE = None  # last task store used by the integration boundary (CLI/report convenience)
+_CURRENT_SCOPE = None
 
 
 def reasoning(phase, cycle=None, **fields):
@@ -56,73 +56,26 @@ def _dir():
     return d or A.SHOTS
 
 
-def _path(name):
-    return os.path.join(_dir(), name)
+def _experience_store(store=None):
+    global _CURRENT_STORE, _CURRENT_SCOPE
+    if store is not None:
+        _CURRENT_STORE = store
+        _CURRENT_SCOPE = os.path.abspath(_dir())
+    selected = store or _CURRENT_STORE
+    if store is None and selected is not None and _CURRENT_SCOPE != os.path.abspath(_dir()):
+        selected = None
+    if selected is None:
+        from .task_state import TaskStore
+        selected = TaskStore(os.path.join(_dir(), '.journal-state'))
+    from runtime.experience_store import ExperienceStore
+    return ExperienceStore(selected.db, selected.run_id)
 
 
-def _append(name, line):
-    directory = _dir()
-    created = not os.path.isdir(directory)
-    os.makedirs(directory, exist_ok=True)
-    with open(_path(name), 'a') as f:
-        f.write(line + '\n')
-        f.flush()
-        os.fsync(f.fileno())
-    if created:
-        fd = os.open(directory, os.O_RDONLY)
-        try:
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-
-
-def journal(path=None):
+def journal(path=None, store=None):
     """Every recorded experience (oldest first)."""
-    out = []
-    try:
-        with open(path or _path('experiences.jsonl')) as f:
-            for line in f:
-                try:
-                    out.append(X.Experience.from_dict(json.loads(line)))
-                except (ValueError, TypeError, KeyError):
-                    continue
-    except OSError:
-        pass
-    return out
-
-
-def _applied():
-    d = _dir()
-    if d not in _APPLIED:
-        try:
-            with open(_path('applied.txt')) as f:
-                _APPLIED[d] = {l.rstrip('\n') for l in f}
-        except OSError:
-            _APPLIED[d] = set()
-    return _APPLIED[d]
-
-
-def _recorded():
-    d = _dir()
-    if d not in _RECORDED:
-        _RECORDED[d] = {row.id for row in journal()}
-    return _RECORDED[d]
-
-
-def _persist(e):
-    keys = _applied()
-    recorded = _recorded()
-    k = f'{e.id}:experience'
-    if k in keys:
-        return False
-    # If a crash happened after the evidence fsync but before its applied key,
-    # recovery repairs the marker without duplicating the immutable receipt.
-    if e.id not in recorded:
-        _append('experiences.jsonl', json.dumps(e.to_dict(), default=str))
-        recorded.add(e.id)
-    _append('applied.txt', k)
-    keys.add(k)
-    return True
+    if path is not None:
+        raise TypeError('experience history is SQLite-only; pass store=TaskStore')
+    return [X.Experience.from_dict(row) for row in _experience_store(store).journal()]
 
 
 def _save_img0(img0, frames):
@@ -325,10 +278,24 @@ def _img(e, img0):
     return None
 
 
-def _save_world(g):
-    """Commit graph data before its applied key, so a daemon restart cannot lose a learned fact."""
+def _save_world(g, store=None, experience=None):
+    """Persist production dynamics to the profile overlay; explicit fixture graphs keep file round-trips."""
     import tempfile
     from . import learn
+    if learn.GRAPH is None:
+        if store is not None and experience is not None:
+            with store.db.connect() as connection:
+                run = connection.execute('SELECT pinned_profile_id FROM runs WHERE id=?',
+                                         (store.run_id,)).fetchone()
+            if run and run['pinned_profile_id']:
+                from .world_store import WorldStore
+                before = dict(experience.before.state)
+                context = dict(experience.action.context)
+                observation_id = context.get('lineage_observation_id') or before.get('observation_id')
+                WorldStore(store.db, run['pinned_profile_id']).capture_graph(
+                    g, learn.graph_path(), observation_id, before.get('game_time'), store.run_id,
+                    experience.artifacts.turn_id, experience.id)
+        return
     path = learn.graph_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix='.world-')
@@ -363,11 +330,11 @@ def event_node(e):
     return found
 
 
-def _run(u, e, img0):
+def _run(u, e, img0, store=None):
     """One update by the existing rules. Its result (a learned name, a node id) or None."""
     from . import learn as LN
     if u.consumer == 'gap' and u.op == 'bundle':
-        return gap([e.id], u.args['invariant'], u.args.get('owner', 'turn'), u.args.get('kind', 'capability'))
+        return gap([e.id], u.args['invariant'], u.args.get('owner', 'turn'), u.args.get('kind', 'capability'), store=store)
     if u.consumer == 'world' and u.op == 'event_state':
         from . import world
         g = LN.MEMORY['graph']
@@ -394,7 +361,7 @@ def _run(u, e, img0):
                                   node_id=selected, **context)
                 note(g, nid, e.id)
         if nid:
-            _save_world(g)
+            _save_world(g, store, e)
         return nid
     if u.consumer == 'world' and u.op == 'interaction_hint':
         import math
@@ -422,7 +389,7 @@ def _run(u, e, img0):
         from objects import store as vectors
         node.extra['appearance_needed'] = not bool(vectors.Store().examples(node.kind))
         note(g, candidates[0], e.id)
-        _save_world(g)
+        _save_world(g, store, e)
         return candidates[0]
     if u.consumer == 'world' and u.op == 'model_edge':
         g = LN.MEMORY['graph']
@@ -437,7 +404,7 @@ def _run(u, e, img0):
         if 'dir' in values:
             from objects.graph import compass
             row['compass'] = compass(values['dir'])
-        _save_world(g)
+        _save_world(g, store, e)
         return edge
     if u.consumer == 'world' and u.op == 'model_placement':
         g = LN.MEMORY['graph']
@@ -456,7 +423,7 @@ def _run(u, e, img0):
                 node.extra[key] = value
         node.extra['placement_provenance'] = _provenance(e, u.args)
         note(g, nid, e.id)
-        _save_world(g)
+        _save_world(g, store, e)
         return nid
     if u.consumer == 'world' and u.op == 'model_state':
         from . import plan, world
@@ -495,7 +462,7 @@ def _run(u, e, img0):
         note(g, nid, e.id)
         if u.args.get('frame_path'):
             g.nodes[nid].extra['state_provenance'] = _provenance(e, u.args)
-        _save_world(g)
+        _save_world(g, store, e)
         return nid
     if u.consumer == 'world' and u.op == 'card_state':
         state = dict(e.evidence.state)
@@ -511,24 +478,24 @@ def _run(u, e, img0):
             for n in {nid, hit} - {None}:
                 note(g, n, e.id)
             if nid and e.artifacts.turn_id is not None:
-                _save_world(g)
+                _save_world(g, store, e)
         return nid
     if u.consumer == 'memory' and u.op in ('reembed', 'sample'):
         from objects import store as vectors, dino
         from PIL import Image
-        store = vectors.Store()
+        vector_store = vectors.Store()
         kind = u.args['kind']
         provenance = _provenance(e, u.args)
         if u.op == 'reembed':
-            examples = store.examples(kind)
+            examples = vector_store.examples(kind)
             if not examples:
                 raise ValueError('named kind has no appearance samples to reembed')
             vecs = {}
             for example in examples:
-                with Image.open(store.example_path(kind, example.id)) as crop:
+                with Image.open(vector_store.example_path(kind, example.id)) as crop:
                     vecs[example.id] = dino.mean_vector(crop.convert('RGB'))
                 example.source = provenance
-            return store.set_vecs(kind, vecs)
+            return vector_store.set_vecs(kind, vecs)
         with Image.open(u.args['frame_path']) as captured:
             image = captured.convert('RGB')
         if image is None:
@@ -537,7 +504,8 @@ def _run(u, e, img0):
         if not (0 <= box[0] < box[2] <= image.width and 0 <= box[1] < box[3] <= image.height):
             raise ValueError('appearance box outside captured frame')
         crop = image.convert('RGB').crop(tuple(box))
-        sample = store.add(kind, crop, dino.mean_vector(crop), source=provenance, force=True)
+        sample = vector_store.add(kind, crop, dino.mean_vector(crop), source=provenance, force=True,
+                                  example_id=f'exp-{e.id}-sample')
         if sample is None:
             raise ValueError('appearance sample was not stored')
         g = LN.MEMORY['graph']
@@ -547,7 +515,7 @@ def _run(u, e, img0):
             candidates[0].extra['appearance_sample'] = {'id': sample.id, 'experience': e.id,
                                                         'frame_path': u.args['frame_path']}
             note(g, candidates[0].id, e.id)
-            _save_world(g)
+            _save_world(g, store, e)
         return sample.id
     if u.consumer == 'memory':
         img = _img(e, img0)
@@ -572,16 +540,17 @@ def _run(u, e, img0):
             if img is None or not e.action.pt:
                 return None
             from . import icons
-            badges.add(u.args['label'], icons.bubble140(img, e.action.pt), f'exp {e.id}')
+            badges.add(u.args['label'], icons.bubble140(img, e.action.pt), f'exp {e.id}',
+                       idempotency_key=f'exp-{e.id}-badge')
             return f'badge:{u.args["label"]}'
         if u.op == 'proven_look':   # a box on the frame before the click, named by a later log proof
-            ok = LN.relabel(img, tuple(u.args['box']), u.args['kind'])
+            ok = LN.relabel(img, tuple(u.args['box']), u.args['kind'], f'exp-{e.id}-proven-look')
             if strict and not ok:
                 raise ValueError('appearance correction could not store the labelled crop')
             return f'look:{u.args["kind"]}' if ok else None
         if u.op == 'relabel':
             kind = LN.kind_of(u.args['node'])
-            ok = LN.relabel(img, tuple(u.args['box']), kind)
+            ok = LN.relabel(img, tuple(u.args['box']), kind, f'exp-{e.id}-relabel')
             if strict and not ok:
                 raise ValueError('appearance correction could not store the labelled crop')
             return f'look:{kind}' if ok else None
@@ -589,7 +558,18 @@ def _run(u, e, img0):
             a, b, d = u.args['toward']
             target = u.args.get('target')
             if e.evidence.node == target or O.closest_node(_affs(e.evidence.after)) == target:
+                graph = LN.MEMORY['graph']
+                if graph is None:
+                    return None
+                edge = next((row for row in graph.edges(a) if row['b'] == b), None)
+                if edge and (edge.get('provenance') or {}).get('experience') == e.id:
+                    return f'direction:{a}->{b}'
                 LN.learn_toward(a, b, tuple(d))
+                edge = next((row for row in graph.edges(a) if row['b'] == b), None)
+                if edge is not None:
+                    edge['source'] = 'learned'
+                    edge['provenance'] = {'source': 'event', 'experience': e.id}
+                    _save_world(graph, store, e)
                 return f'direction:{a}->{b}'
             return None
     if u.consumer == 'transitions':
@@ -618,34 +598,42 @@ def _run(u, e, img0):
             return u.args['row']
         ch = e.verdict.checks[u.args['i']]
         try:
-            with open(steps.OBSERVED, 'a') as f:
-                f.write(json.dumps({'t': time.strftime('%Y-%m-%d %H:%M:%S'), 'row': e.goal.row, 'step': e.goal.step,
-                                    'field': ch.field, 'expected': ch.expected, 'got': ch.got,
-                                    'verdict': 'gap' if ch.ok is None else 'ok' if ch.ok else 'surprise',
-                                    'exp': e.id}, default=str) + '\n')
+            try:
+                with open(steps.OBSERVED) as f:
+                    already = any(json.loads(line).get('exp') == e.id for line in f if line.strip())
+            except (OSError, ValueError):
+                already = False
+            if not already:
+                with open(steps.OBSERVED, 'a') as f:
+                    f.write(json.dumps({'t': time.strftime('%Y-%m-%d %H:%M:%S'), 'row': e.goal.row,
+                                        'step': e.goal.step, 'field': ch.field, 'expected': ch.expected,
+                                        'got': ch.got,
+                                        'verdict': 'gap' if ch.ok is None else 'ok' if ch.ok else 'surprise',
+                                        'exp': e.id}, default=str) + '\n')
         except OSError:
             pass
         return None
     raise ValueError(f'unsupported correction {u.consumer}:{u.op}')
 
 
-def apply(e, correction=None, img0=None):
+def apply(e, correction=None, img0=None, store=None):
     """Persist `e`, then its correction's updates in order, each once. {'learned', 'applied': n, op: result}."""
-    _persist(e)
+    backend = _experience_store(store)
+    backend.record(e.to_dict())
     corr = correction or propose(e)
-    keys, out = _applied(), {'applied': 0, 'learned': None}
+    out = {'applied': 0, 'learned': None}
     for u in corr.updates():
-        k = u.key(e.id)
-        if k in keys:
+        claim = backend.claim_update(e.id, u.consumer, u.op, u.args)
+        if claim is None:
             continue
         try:
-            r = _run(u, e, img0)
+            r = _run(u, e, img0, store=store)
         except Exception as ex:   # noqa: BLE001 (learning never breaks play)
             r = None
             out.setdefault('errors', []).append(f'{u.op}: {ex}')
+            backend.finish_update(claim, 'failed', {'error': str(ex)})
             continue  # failed corrections are retryable; never durably mark them as applied
-        _append('applied.txt', k)
-        keys.add(k)
+        backend.finish_update(claim, 'applied', r)
         out['applied'] += 1
         out[u.op] = r
         if r and u.consumer == 'memory' and out['learned'] is None:
@@ -666,7 +654,7 @@ def _validate_provenance(e, data):
         raise ValueError('vision correction needs captured frame, rationale and evidence references')
 
 
-def correct(e, kind, data):
+def correct(e, kind, data, store=None):
     """Model-selected correction on the same immutable experience. Runtime mutates data only, never source."""
     # The model may revise its own choice without attributing a fault to game facts or learned data.
     # TurnLoop records this correction and clears the surprise; no replay/learning or retry input occurs here.
@@ -685,11 +673,11 @@ def correct(e, kind, data):
                 if not isinstance(direction, (tuple, list)) or len(direction) != 2 or not all(
                         isinstance(v, (int, float)) and math.isfinite(v) for v in direction) or not any(direction):
                     raise ValueError('graph direction needs two finite nonzero coordinates')
-            return apply(e, X.Correction(e.id, world=(X.Update('world', 'model_edge', data),)))
+            return apply(e, X.Correction(e.id, world=(X.Update('world', 'model_edge', data),)), store=store)
         if data.get('placement'):
             if not data.get('node') or set(data['placement']) - {'pos', 'region', 'scene'}:
                 raise ValueError('graph placement needs exact node and pos/region/scene')
-            return apply(e, X.Correction(e.id, world=(X.Update('world', 'model_placement', data),)))
+            return apply(e, X.Correction(e.id, world=(X.Update('world', 'model_placement', data),)), store=store)
         kind = 'world'  # backward-compatible node/state validation and current-event precedence below
     if kind == 'world':
         if not isinstance(data.get('state'), dict) or not data.get('node'):
@@ -704,7 +692,7 @@ def correct(e, kind, data):
                 raise ValueError('appearance correction needs one named kind')
             if op == 'sample' and (not isinstance(data.get('box'), (tuple, list)) or len(data['box']) != 4):
                 raise ValueError('appearance sample needs one bounded crop box')
-            return apply(e, X.Correction(e.id, memory=(X.Update('memory', op, data),)))
+            return apply(e, X.Correction(e.id, memory=(X.Update('memory', op, data),)), store=store)
         raise ValueError('unsupported appearance correction; use provenance-bearing sample or reembed')
     elif kind == 'transition':
         if not isinstance(data.get('expect'), dict) or not isinstance(data.get('step'), int) or not data.get('row'):
@@ -716,14 +704,14 @@ def correct(e, kind, data):
         correction = X.Correction(e.id, gap=(X.Update('gap', 'bundle', data),))
     else:
         raise ValueError(f'unknown correction class {kind!r}')
-    return apply(e, correction)
+    return apply(e, correction, store=store)
 
 
-def replay(path=None):
+def replay(path=None, store=None):
     """Re-propose and apply every journal experience; already-applied updates are skipped. The number applied."""
     n = 0
-    for e in journal(path):
-        n += apply(e)['applied']
+    for e in journal(path, store=store):
+        n += apply(e, store=store)['applied']
     return n
 
 
@@ -752,18 +740,18 @@ def relation(a, b, direction, proof, **dist):
     compass point and distance: route_px / map_px / steps), once per proof."""
     from . import learn as LN
     k = f'relation:{a}->{b}:{list(direction)}:{proof}'
-    keys = _applied()
-    if k in keys:
-        return False
+    try:
+        if any(row.get('type') == 'learn' and row.get('key') == k for row in core.WF.run_events()):
+            return False
+    except Exception:  # noqa: BLE001
+        pass
     LN.learn_toward(a, b, tuple(direction))
     g = LN.MEMORY['graph']
     for e in (g.edges(a, 'toward') if g is not None else []):
         if e['b'] == b:
             e.update({k: v for k, v in dist.items() if v is not None})
-    _append('applied.txt', k)
-    keys.add(k)
     try:
-        core.WF.run_log('learn', what='way', msg=f'{a} -> {b}: {list(direction)} ({proof})')
+        core.WF.run_log('learn', key=k, what='way', msg=f'{a} -> {b}: {list(direction)} ({proof})')
     except Exception:   # noqa: BLE001
         pass
     return True
@@ -831,36 +819,21 @@ def _owner(e):
     return 'act'
 
 
-def gaps():
-    out = []
-    d = _path('gaps')
-    if os.path.isdir(d):
-        for f in sorted(os.listdir(d)):
-            if f.endswith('.json'):
-                try:
-                    with open(os.path.join(d, f)) as bundle:
-                        out.append(json.load(bundle))
-                except (OSError, ValueError):
-                    continue
-    return out
+def gaps(store=None):
+    return _experience_store(store).gaps()
 
 
-def gap(exp_ids, invariant, owner, kind='capability'):
+def gap(exp_ids, invariant, owner, kind='capability', store=None):
     """Write one gap bundle (once per invariant + experiences). Its id."""
     exp_ids = sorted(set(i for i in exp_ids if i))
     bid = X._hash({'inv': invariant, 'exps': exp_ids})
-    if any(b['id'] == bid for b in gaps()):
+    if any(b['id'] == bid for b in gaps(store)):
         return bid
     byid = {e.id: e for e in journal()}
     b = {'id': bid, 'kind': kind, 'invariant': invariant, 'owner': owner, 'experiences': exp_ids,
          'evidence': [byid[i].to_dict() for i in exp_ids if i in byid], 'revision': _revision(), 'tables': _tables(),
          't': time.strftime('%Y-%m-%d %H:%M:%S')}
-    try:
-        os.makedirs(_path('gaps'), exist_ok=True)
-        with open(os.path.join(_path('gaps'), f'{bid}.json'), 'w') as f:
-            json.dump(b, f, indent=1, default=str)
-    except OSError:
-        pass
+    _experience_store(store).put_gap(b, exp_ids)
     try:
         core.WF.run_log('gap', id=bid, invariant=invariant, owner=owner, experiences=exp_ids)
     except Exception:   # noqa: BLE001

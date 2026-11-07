@@ -7,6 +7,10 @@
 Both live in the game's sandbox container `~/Library/Containers/com.studiodrydock.mayflower/Data/Library/` (L41).
 Run with the sandbox disabled.
 
+The engine captures each coherent save/log reading in `runs/wf.sqlite3` and pins one save profile for the run. Slot
+rotation within that profile is normal. A contradictory profile or timeline produces `save_lineage_mismatch`, permits
+only `look`, `read`, or `stop`, and issues no input.
+
 ## `./wf log`: live event log (`Logs/Studio Drydock/Wylde Flowers/Player.log`)
 - `./wf log`: new lines since the last read (the read position is in `.shots/gamelog.pos`). `--tail N` = last N lines
   (use at goal start). `--grep REGEX`, `--raw` (no noise filter/decoding).

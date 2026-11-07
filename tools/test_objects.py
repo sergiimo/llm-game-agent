@@ -57,6 +57,14 @@ class StoreTests(unittest.TestCase):
         self.assertIsNotNone(self.s.add('bush', crop(), near(v, 0.8)))
         self.assertEqual(self.s.count('bush'), 2)
 
+    def test_idempotency_key_returns_the_same_example_without_duplicate(self):
+        first = self.s.add('bush', crop(), unit(1), source={'experience': 'e1'}, force=True,
+                           example_id='exp-e1-sample')
+        second = S.Store(self.root).add('bush', crop(), unit(1), source={'experience': 'e1'}, force=True,
+                                        example_id='exp-e1-sample')
+        self.assertEqual(first.id, second.id)
+        self.assertEqual(S.Store(self.root).count('bush'), 1)
+
     def test_store_revision_changes_only_when_vector_data_changes(self):
         before = self.s.revision()
         self.s.add('bush', crop(), unit(1))
@@ -398,6 +406,29 @@ class DetectTests(unittest.TestCase):
             self.D.detect(self.imgs['normal-1'], self.store, kinds=['Tara'], cache_key=('view-1', 'model-1'))
             self.D.detect(self.imgs['normal-1'], self.store, kinds=['Tara'], cache_key=('view-1', 'model-1'))
         self.assertEqual(features.call_count, 1)
+
+    def test_structural_window_scores_the_whole_template_at_its_center(self):
+        ff = np.zeros((6, 8, 3), np.float32)
+        ff[:, :, 1] = 1
+        ff[2:4, 3:6] = (1, 0, 0)
+        template = np.array([1, 0, 0], np.float32)
+        scores = self.D._window_cosine_map(ff, template, 2, 3)
+        self.assertEqual(np.unravel_index(np.nanargmax(scores), scores.shape), (3, 4))
+        self.assertAlmostEqual(float(scores[3, 4]), 1.0, places=6)
+        self.assertTrue(np.isneginf(scores[0, 0]))
+
+    def test_structural_grid_preserves_patch_layout(self):
+        ff = np.zeros((5, 7, 3), np.float32)
+        ff[:, :, 2] = 1
+        template = np.zeros((2, 3, 3), np.float32)
+        template[0, :, 0] = 1
+        template[1, :, 1] = 1
+        ff[1:3, 2:5] = template
+        ff[3:5, 2:5] = template[::-1]
+        scores = self.D._window_cosine_map(ff, template, 2, 3)
+        self.assertEqual(np.unravel_index(np.argmax(scores), scores.shape), (2, 3))
+        self.assertAlmostEqual(float(scores[2, 3]), 1.0, places=6)
+        self.assertLess(float(scores[4, 3]), 0.1)
 
     def test_dino_shapes(self):
         from objects import dino

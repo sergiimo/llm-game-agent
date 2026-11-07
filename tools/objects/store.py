@@ -66,17 +66,27 @@ class Store:
                  meta=json.dumps([e.meta() for e in exs]))
 
     def add(self, kind, crop, vec, state=None, light=None, weather=None, source='model',
-            force=False):
+            force=False, example_id=None):
         """Store an example; None if it is a near duplicate of one already in the kind (force=True: always stored, an
         explicit label; still capped by CAP)."""
         if not isinstance(kind, str) or not KIND_RE.match(kind):
             raise ValueError(f'bad kind name: {kind!r} (letters, digits, _ and - only)')
         v = _unit(vec)
         exs = self._ex.setdefault(kind, [])
+        if example_id is not None:
+            if not isinstance(example_id, str) or not KIND_RE.match(example_id):
+                raise ValueError(f'bad example id: {example_id!r}')
+            existing = next((e for e in exs if e.id == example_id), None)
+            if existing is not None:
+                if (existing.state, existing.light, existing.weather, existing.source) != (
+                        state, light, weather, source):
+                    raise ValueError(f'conflicting example id: {example_id}')
+                return existing
         same = [e.vec for e in exs if e.vec.shape == v.shape]   # a dimension change (re-embedding) is never a duplicate
         if not force and same and 1 - float((np.stack(same) @ v).max()) < DUP:
             return None
-        ex = Example(f'{int(time.time() * 1000)}-{next(_N)}', kind, v, state, light, weather, source)
+        ex = Example(example_id or f'{int(time.time() * 1000)}-{next(_N)}', kind, v,
+                     state, light, weather, source)
         os.makedirs(os.path.join(self.root, kind), exist_ok=True)
         crop.save(os.path.join(self.root, kind, ex.id + '.png'))
         exs.append(ex)

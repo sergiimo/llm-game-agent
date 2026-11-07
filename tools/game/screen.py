@@ -9,6 +9,8 @@ Rules:
 - Escape only on a known card or picker, once, and checked; the pause menu is never escaped into.
 A textless overlay is gameplay unless both the full paper map panel and its pin are proved (the HUD also hides on beds, L144)."""
 import re
+import os
+from functools import lru_cache
 from dataclasses import dataclass, field
 
 from . import core
@@ -20,6 +22,8 @@ BUTTONS = ('select', 'remove', 'cancel', 'confirm', 'buy', 'sell', 'collect', 'y
 DETAIL = re.compile(r'\b\d+ days? remaining\b|\bmakes\s+\d+\b', re.I)
 HINTS = ('fill watering can', 'rusty watering can')  # verified passive watering hints, not arbitrary OCR text
 HINT_WAIT = 4.0   # s a short hint gets to fade (the watering-can hint lasts longer than one settle, D186)
+MAP_HEADER_TEMPLATE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates', 'map-header.png')
+MAP_HEADER_COSINE = .80
 
 
 def passive(s):
@@ -60,6 +64,27 @@ def map_panel(image):
              (columns[int(.75 * width):int(.9 * width)], width, .0025))
     return all(int((band >= .95).sum()) >= max(2, int(ratio * extent))
                for band, extent, ratio in bands)
+
+
+@lru_cache(maxsize=1)
+def _map_header_reference():
+    """The user-labelled paper/cloud map header as an appearance vector and its aspect ratio."""
+    from PIL import Image
+    from objects import dino
+    with Image.open(MAP_HEADER_TEMPLATE) as image:
+        rgb = image.convert('RGB')
+        return rgb.width / rgb.height, dino.mean_vector(rgb)
+
+
+def map_header_vector(image):
+    """Whether the fixed top strip matches the labelled world-map header appearance."""
+    from objects import dino
+    aspect, reference = _map_header_reference()
+    height = round(image.width / aspect)
+    if height <= 0 or height > image.height:
+        return False
+    candidate = dino.mean_vector(image.convert('RGB').crop((0, 0, image.width, height)))
+    return float(reference @ candidate) >= MAP_HEADER_COSINE
 
 
 def classify(mode, texts, *, world_visible=False):

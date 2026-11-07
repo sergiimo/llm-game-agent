@@ -13,8 +13,8 @@
 | Talk, advance a quest, use inventory or craft | Read the relevant `docs/ui/INDEX.md` screen and `docs/operations/actions.md` row; apply the same atomic loop below. |
 
 Start a reviewed run, check exact game time, and observe `./wf play <goal> [k=v ...]`. Bare domain aliases also
-return `NEXT` without input. All aliases share the active run's `task.json` (existing `garden-task.json` is adopted
-in place). `./wf play` resumes it. A different domain does not silently start another task: push a subgoal explicitly.
+return `NEXT` without input. All aliases share the active run's SQLite task row in `runs/wf.sqlite3`; `./wf play`
+resumes it. A different domain does not silently start another task: push a subgoal explicitly.
 Legacy `do`, `py`, `call`, `goto`, `advance`, routes and batching requests are task descriptions; they execute no
 old Python workflow. Continue all tasks through `play` with the exact saved turn ID.
 
@@ -22,7 +22,8 @@ Every fresh gameplay `NEXT` is one coherent receipt. `view` names the exact sett
 its captured candidates, controls, bubbles and vector status. Treat those candidates as the primary current-frame
 appearance/navigation clues. `result` is the preceding immutable outcome, `need` requests vision when required,
 `memory` is the bounded current-region graph projection, and `resources` carries relevant save/log facts. Detailed
-observe, decide, act, verify and learn rows stay in `log.jsonl`; they are not repeated as workflow prose in `NEXT`.
+observe, decide, act, verify and learn rows stay in SQLite and project to `decisions.md`; they are not repeated as
+workflow prose in `NEXT`.
 
 For long-distance navigation, the model first opens the map with canonical guarded
 `{kind:"key",label:"m",expects:{mode:"map"}}`, inspects and learns pin/landmarks/road connections with frame

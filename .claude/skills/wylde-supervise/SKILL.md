@@ -27,6 +27,10 @@ docs, then re-test. Judge runs by gaps found and fixed.
 - **…and check the user isn't playing:** `./wf log --tail 20` + `tail -5 .shots/actions.log`. Game actions in the log
   (`> water`, `> plant`, `grab_item`…) newer than our last command, or a game clock far ahead of where we left it →
   the user is playing: ask before dispatching (loop-live-4 2026-10-31: the agent fought the user's inputs).
+- Keep one persistent controller daemon for the live task. Do not switch preflight or diagnosis to
+  `WF_NO_DAEMON=1`, and do not launch a second `wf` request while the first has unknown delivery; macOS may prompt
+  each helper separately for app-data access. Inspect the SQLite turn first, then restart once with `./wf stop` only
+  when the existing controller is genuinely wedged.
 - Run `./wf run status` to inspect the current task, if one is open, and read its `runs/<task>/plan.md`; use
   `wiki/quests/INDEX.md` → "Active now" for game-wide quest state. There is no global progress file.
 - `./wf save` + `./wf log --tail 20` (sandbox disabled): exact day/time, money, scene, quest goals, inventory, and
@@ -109,7 +113,7 @@ its `run end`: wait for its task notification (retro 2026-10-28: my Escapes foug
 ## 3c. Watch every live run (user D186: "the supervisor was meant to control the execution and see a detailed log")
 For garden tasks, first load `wiki/mechanics/interaction-laws.md`. Dispatch a `gpt-6-luna` low gameplay model with
 that file, the reviewed run plan, clock/authorization/budget and durable task path. It owns one decision per turn;
-this supersedes the older engine-owned garden and `achieve` gating below. Watch the single `log.jsonl`: `type=turn`
+this supersedes the older engine-owned garden and `achieve` gating below. Watch the ordered SQLite run stream: `type=turn`
 joins clues, recommendation, model decision, optional vision, intent, experience, integration and corrections by
 turn ID. Do not duplicate structured Decision rationales in another reasoning log. On surprise: stop/pause safely,
 preserve experience/frame, update the real replay, make the smallest fix, run only the focused regression, then
@@ -209,7 +213,7 @@ Also clean the quest file's attempt log if it has stale/wrong values. Log the ru
 Every ~5 goals, or when costs trend up, run `/retro` over `docs/agent-runs.md`.
 
 ## 6. Keep records (you own these)
-- Per-task records only: `runs/<task>/plan.md`, generated `runs/<task>/progress.md`, `runs/<task>/log.jsonl`, and any task retro. Do not
+- Per-task human records only: `runs/<task>/plan.md`, generated `runs/<task>/progress.md` and `decisions.md`, and any task retro. Structured events live only in `runs/wf.sqlite3`. Do not
   create or maintain a repository-wide progress file or cross-task execution log.
 - After a slow or messy stretch, run `/retro`.
 - The game stays in the background between goals (time frozen, learnings L28).

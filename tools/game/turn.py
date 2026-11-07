@@ -1,5 +1,4 @@
 """One durable model decision. Policy supplies recommendations; only decide can execute input."""
-import json
 import os
 import time
 from dataclasses import dataclass, fields, replace
@@ -39,17 +38,16 @@ def _source_intent(task, source, log_path):
     if expects is None:
         matches = []
         try:
-            with open(log_path) as stream:
-                for line in stream:
-                    row = json.loads(line)
-                    saved = row.get('intent') or {}
-                    if (row.get('type') == 'turn' and row.get('phase') == 'intent' and
-                            row.get('task_id') == task.task_id and
-                            saved.get('turn_id') == original['artifacts'].get('turn_id') and
-                            saved.get('action') == source['action'] and saved.get('before') == source['before'] and
-                            isinstance(saved.get('expects'), dict)):
-                        matches.append(saved['expects'])
-        except (OSError, ValueError, TypeError):
+            from .history import event_rows
+            for row in event_rows(log_path):
+                saved = row.get('intent') or {}
+                if (row.get('type') == 'turn' and row.get('phase') == 'intent' and
+                        row.get('task_id') == task.task_id and
+                        saved.get('turn_id') == original['artifacts'].get('turn_id') and
+                        saved.get('action') == source['action'] and saved.get('before') == source['before'] and
+                        isinstance(saved.get('expects'), dict)):
+                    matches.append(saved['expects'])
+        except Exception:  # noqa: BLE001 - projections must never change the canonical commit result
             return None
         if not matches or any(row != matches[0] for row in matches):
             return None  # a partial Prediction cannot prove that region/node/mode/etc were never expected
@@ -271,6 +269,7 @@ class TurnContext(Snapshot):
     memory: object = None
     resources: object = None
     navigation: object = None
+    observation_id: int = None
 
     @classmethod
     def from_dict(cls, d):
@@ -290,6 +289,7 @@ class TurnContext(Snapshot):
         d.setdefault('memory', None)
         d.setdefault('resources', None)
         d.setdefault('navigation', None)
+        d.setdefault('observation_id', None)
         d['recommendation'] = Recommendation(**d['recommendation'])
         if d.get('surprise'):
             d['surprise'] = Surprise(**d['surprise'])
@@ -411,7 +411,7 @@ class TurnLoop:
     Optional reducer(task, integrated_experience) only folds domain evidence into durable state. It must be
     idempotent, perform no input, and never choose a target or execute a follow-up action.
 
-    The task file lives in the active run directory; its sibling log.jsonl is the turn timeline.
+    Task state, intents, and the turn timeline live in the active run's SQLite rows.
     A persisted context is returned unchanged until consumed, so accept always refers to exact saved data.
     """
     def __init__(self, store, adapter=None, policy=None, reducer=None, guard=None):
@@ -426,96 +426,10 @@ class TurnLoop:
         if phase not in ('clues', 'decision', 'outcome', 'integration', 'correction', 'vision',
                          'catalogue', 'cancellation'):
             return
-        path = os.path.join(os.path.dirname(self.store.path), 'decisions.md')
-        exists = os.path.exists(path)
-        lines = []
-        if phase == 'clues':
-            screen = (data.get('screen') or {}).get('kind', 'unknown')
-            resources = data.get('resources') or {}
-            place = resources.get('region') or resources.get('scene')
-            when = resources.get('game_time')
-            details = '; '.join(str(value) for value in (screen, when, place) if value)
-            frame = data.get('frame_path')
-            if frame:
-                details += f'; frame [{os.path.basename(frame)}](clicks/{os.path.basename(frame)})'
-            need = data.get('need')
-            if need:
-                details += f'; need {need.get("kind")}: {need.get("reason")}'
-            lines.extend((f'## Turn {turn_id}', '', f'- Observe: {details}.'))
-        elif phase == 'decision':
-            decision = data.get('decision') or {}
-            kind = decision.get('kind', 'unknown')
-            payload = decision.get('action') or decision.get('correction')
-            rendered = '' if not payload else f' — `{json.dumps(payload, ensure_ascii=False, sort_keys=True)[:500]}`'
-            rationale = decision.get('rationale')
-            lines.append(f'- Decision: {kind}{rendered}' + (f' — {rationale}.' if rationale else '.'))
-            navigation = data.get('navigation') or {}
-            next_edge = navigation.get('next_edge') or {}
-            position = navigation.get('position') or {}
-            if navigation:
-                pos = position.get('value')
-                here = f' @ ({pos[0]:.2f}, {pos[1]:.2f})' if isinstance(pos, list) and len(pos) == 2 else ''
-                goal = (navigation.get('goal') or {}).get('node') or navigation.get('resolved_as') or 'unresolved'
-                edge_text = (f'{next_edge.get("from")} --{next_edge.get("compass") or "?"}--> '
-                             f'{next_edge.get("to")}' if next_edge.get('from') and next_edge.get('to') else
-                             f'next {next_edge.get("to") or "unresolved"}')
-                lines.append(f'- Graph: {navigation.get("scene") or "unknown"}{here} → {goal}; '
-                             f'required {next_edge.get("compass") or "unknown"}; {edge_text}; '
-                             f'edge {next_edge.get("relation") or "unknown"}; '
-                             f'position source {position.get("source") or "unknown"}.')
-            waypoint = data.get('waypoint')
-            if waypoint:
-                world = waypoint.get('world') or {}
-                delta = world.get('delta')
-                delta_text = (f' Δ({delta[0]:+.2f},{delta[1]:+.2f})'
-                              if isinstance(delta, list) and len(delta) == 2 else '')
-                lines.append(f'- Waypoint: screen {waypoint.get("screen_compass") or "unknown"}; '
-                             f'world {world.get("compass") or "unknown"}{delta_text}; '
-                             f'graph {waypoint.get("graph_compass") or "unknown"}; '
-                             f'alignment {waypoint.get("alignment") or "unknown"}.')
-        elif phase == 'outcome':
-            experience = data.get('experience') or {}
-            verdict = (experience.get('verdict') or {}).get('value', 'unknown')
-            evidence = experience.get('evidence') or {}
-            facts = []
-            if evidence.get('mode'):
-                facts.append(f'mode {evidence["mode"]}')
-            if evidence.get('events'):
-                facts.append('events ' + ', '.join(map(str, evidence['events'])))
-            checks = (experience.get('verdict') or {}).get('checks') or ()
-            failed = [row for row in checks if not row.get('ok')]
-            if failed:
-                facts.append('failed ' + ', '.join(str(row.get('field')) for row in failed))
-            suffix = f' — {"; ".join(facts)}' if facts else ''
-            lines.append(f'- Result: {verdict}. Experience: `{experience.get("id", "?")}`{suffix}.')
-        elif phase == 'integration':
-            result = data.get('result') or {}
-            summary = {key: result[key] for key in ('applied', 'learned', 'errors', 'bundle', 'status')
-                       if key in result and result[key] not in (None, [], {}, '')}
-            lines.append(f'- Integration: `{json.dumps(summary or result, ensure_ascii=False, sort_keys=True)[:500]}`.')
-        elif phase == 'correction':
-            lines.append(f'- Correction: {data.get("kind")} — '
-                         f'`{json.dumps(data.get("data") or {}, ensure_ascii=False, sort_keys=True)[:500]}`.')
-        elif phase == 'vision':
-            frame = data.get('frame_path')
-            lines.append(f'- Vision: inspect '
-                         f'[{os.path.basename(frame)}](clicks/{os.path.basename(frame)}).' if frame else
-                         '- Vision: requested.')
-        else:
-            lines.append(f'- {phase.title()}: '
-                         f'`{json.dumps(data, ensure_ascii=False, sort_keys=True)[:500]}`.')
-        stamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(logged_at))
-        lines = [f'- [{stamp}] {line[2:]}' if line.startswith('- ') else line for line in lines]
-        with open(path, 'a') as stream:
-            if not exists:
-                stream.write('# Model decision log\n\n')
-            stream.write('\n'.join(lines) + '\n')
-            stream.flush()
-            os.fsync(stream.fileno())
+        from runtime.run_reports import render_decisions
+        return render_decisions(self.store.db, self.store.run_id, self.store.run_dir)
 
-    def _log(self, task, turn_id, phase, **data):
-        path = os.path.join(os.path.dirname(self.store.path), 'log.jsonl')
-        created = not os.path.exists(path)
+    def _log(self, task, turn_id, phase, _canonical=True, **data):
         readable = thaw(data)
         if phase == 'decision' and task.current_turn:
             from . import navigation
@@ -527,18 +441,12 @@ class TurnLoop:
                 if action and action.get('kind') == 'waypoint':
                     readable['waypoint'] = navigation.assess(action, nav)
         logged_at = time.time()
-        with open(path, 'a') as f:
-            f.write(json.dumps({'t': logged_at, 'type': 'turn', 'task_id': task.task_id,
-                                'turn_id': turn_id, 'phase': phase, **readable}) + '\n')
-            f.flush()
-            os.fsync(f.fileno())
-        if created:
-            directory = os.open(os.path.dirname(path), os.O_RDONLY)
-            try:
-                os.fsync(directory)
-            finally:
-                os.close(directory)
-        self._human_log(turn_id, phase, readable, logged_at)
+        if _canonical:
+            self.store.append_event(task, turn_id, phase, **readable)
+        try:
+            self._human_log(turn_id, phase, readable, logged_at)
+        except Exception:  # noqa: BLE001 - projections must never change the canonical commit result
+            pass  # Markdown is a best-effort projection; the canonical event is already committed.
 
     def _ensure_intent(self, task, intent, recovered=False):
         """Idempotently make the persisted WAL intent canonical before its outcome can be referenced."""
@@ -547,12 +455,12 @@ class TurnLoop:
         canonical = thaw(intent)
         canonical['experience'] = None  # the original pre-input intent shape, even after outcome capture
         canonical['journaled'] = False
-        self._log(task, intent.turn_id, 'intent', intent=canonical, recovered=recovered)
+        self.store.begin_intent(task, intent)
         intent.journaled = True
 
     def _records(self, evidence_refs):
         from .history import records
-        return records(os.path.join(os.path.dirname(self.store.path), 'log.jsonl'), evidence_refs)
+        return records(self.store, evidence_refs)
 
     def _context(self, task, observation=None):
         if task.current_turn is not None:
@@ -560,7 +468,9 @@ class TurnLoop:
         observation = self.adapter.observe() if observation is None else observation
         task.turn_seq += 1
         task.revision += 1
-        rec = self.policy(task.snapshot(), freeze(observation))
+        lineage_mismatch = observation.get('lineage_status') == 'save_lineage_mismatch'
+        rec = (Recommendation(None, 0., ('save_lineage_mismatch',), {}) if lineage_mismatch else
+               self.policy(task.snapshot(), freeze(observation)))
         surprise = Surprise(**task.last_surprise) if task.last_surprise else None
         allowed = ('look', 'read', 'correct', 'stop') if surprise else ('accept', 'act', 'look', 'read', 'stop')
         if not surprise and task.last_experience:
@@ -579,6 +489,8 @@ class TurnLoop:
         view, result, need, memory, resources = _compact_projection(task, observation, surprise)
         if surprise or need and need.get('reason') == 'vector_error':
             allowed = ('look', 'read', 'stop') + (('correct',) if task.last_experience else ())
+        if lineage_mismatch:
+            allowed = ('look', 'read', 'stop')
         c = TurnContext(task.turn_seq, public_task(task), thaw(task.active),
                         observation.get('screen'), observation.get('frame_path'), 'fresh',
                         observation.get('visible_affordances', ()), observation.get('graph_clues', ()),
@@ -587,7 +499,8 @@ class TurnLoop:
                         observation.get('vector_detections', ()), (), observation.get('vector_status'))
         c = replace(c, view_id=observation.get('view_id'), candidates=observation.get('candidates', ()),
                     controls=observation.get('controls', ()), view=view, result=result, need=need,
-                    memory=memory, resources=resources, navigation=observation.get('navigation'))
+                    memory=memory, resources=resources, navigation=observation.get('navigation'),
+                    observation_id=observation.get('observation_id'))
         task.current_turn = c.to_dict()
         self.store.save(task)
         self._log(task, c.turn_id, 'clues', screen=c.screen, frame_path=c.frame_path,
@@ -596,7 +509,7 @@ class TurnLoop:
                   vector_detections=c.vector_detections, vector_status=c.vector_status,
                   view=c.view, result=c.result, need=c.need, memory=c.memory, resources=c.resources,
                   navigation=c.navigation, region=task.params.get('region'), task_status=task.status,
-                  surprise=c.surprise)
+                  surprise=c.surprise, observation_id=c.observation_id)
         self._log(task, c.turn_id, 'recommendation', recommendation=rec)
         return c
 
@@ -604,6 +517,7 @@ class TurnLoop:
         """Complete or reconcile a write-ahead intent; never invoke perform here."""
         administrative = task.pending_intent is not None
         intent = task.pending_intent if administrative else task.active.pending_intent
+        self._ensure_intent(task, intent, recovered=recovered)
         from .params import expectations
         from . import primitives
         invalid = None
@@ -618,15 +532,15 @@ class TurnLoop:
                  self.adapter.capture(intent, intent.before, expected))
             if intent.action.get('kind') == 'read':
                 e = replace(e, evidence=_reconcile_observation(
-                    task, e.evidence, os.path.join(os.path.dirname(self.store.path), 'log.jsonl')))
+                    task, e.evidence, self.store))
             intent.experience = e.to_dict()
-            self.store.save(task)  # stable experience ID if integration or final save crashes
-        # A process can die after the atomic task WAL save but before primitives.execute appends the intent.
-        # Repair that missing canonical half first; _log fsyncs it before the durable task may clear the WAL.
-        self._ensure_intent(task, intent, recovered=recovered)
-        self._log(task, intent.turn_id, 'outcome', experience=e.to_dict(), recovered=recovered)
-        result = I.apply(e)
-        self._log(task, intent.turn_id, 'integration', experience=e.id, result=result)
+            self.store.record_capture(task, intent, e.to_dict())
+        self.store.record_capture(task, intent, e.to_dict())
+        try:
+            self._human_log(intent.turn_id, 'outcome', {'experience': e.to_dict(), 'recovered': recovered}, time.time())
+        except Exception:  # noqa: BLE001 - projections must never change the canonical commit result
+            pass
+        result = I.apply(e, store=self.store)
         reconciliation = dict(e.evidence.state).get('observation_reconciliation')
         if reconciliation:
             self._log(task, intent.turn_id, 'observation_reconciliation', experience=e.id, **reconciliation)
@@ -635,7 +549,7 @@ class TurnLoop:
         # A projection/name alone cannot own an interaction. Only a positioned event can bind it.
         identity_conflict = None
         if not administrative and e.evidence.at and e.evidence.events:
-            actual = I.event_node(e) or result.get('event_state') or result.get('card_state') or e.evidence.node
+            actual = e.evidence.node or I.event_node(e) or result.get('event_state') or result.get('card_state')
             if actual:
                 previous = task.active.actual_node
                 if previous and previous != actual:
@@ -670,7 +584,11 @@ class TurnLoop:
             task.active.pending_intent = None
         task.current_turn = None
         task.revision += 1
-        self.store.save(task)
+        self.store.settle(task, intent, result)
+        try:
+            self._human_log(intent.turn_id, 'integration', {'experience': e.id, 'result': result}, time.time())
+        except (OSError, ValueError, TypeError):
+            pass
         take_outcome = getattr(self.adapter, 'take_outcome_observation', None)
         return take_outcome(e.id) if take_outcome else None
 
@@ -871,7 +789,7 @@ class TurnLoop:
                     data.setdefault('frame_path', e.artifacts.frames[-1] if e.artifacts.frames else e.artifacts.img0)
                     data.setdefault('rationale', decision.rationale)
                     data.setdefault('evidence_refs', list(decision.evidence_refs) or [e.id, c['frame_path']])
-                result = I.correct(e, kind, data)
+                result = I.correct(e, kind, data, store=self.store)
                 self._log(task, turn_id, 'correction', experience=e.id, kind=kind, data=data, result=result)
                 if result.get('errors'):
                     raise DecisionRejected(f'correction failed: {result["errors"]}')

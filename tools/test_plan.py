@@ -1,10 +1,14 @@
 """Offline tests for tools/plan.py (task plans, L76). Run: .venv/bin/python tools/test_plan.py"""
 import os
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import plan  # noqa: E402
+from runtime.db import Database  # noqa: E402
+from runtime.run_reports import render_progress  # noqa: E402
+from runtime.run_store import RunStore  # noqa: E402
 
 PLAN = '''# Plan: VioletBeehives
 
@@ -30,6 +34,22 @@ PLAN = '''# Plan: VioletBeehives
 
 
 class Plan(unittest.TestCase):
+    def test_progress_projection_cites_canonical_step_event_ids(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = os.path.join(directory, 'run')
+            os.makedirs(run_dir)
+            database = Database(os.path.join(directory, 'wf.sqlite3'))
+            store = RunStore(database)
+            run_id = store.start('VioletBeehives', 'hand honey to Violet', run_dir)
+            event_id = store.append_event('plan_step', {'n': '1', 'state': 'start', 'text': 'watering'}, t=100)
+
+            text = render_progress(database, run_id, PLAN, now=160)
+
+            self.assertIn(f'event #{event_id}', text)
+            self.assertIn('step 1', text)
+            with open(os.path.join(run_dir, 'progress.md')) as stream:
+                self.assertEqual(stream.read(), text)
+
     def test_parse(self):
         head, steps = plan.parse(PLAN)
         self.assertEqual(head['Goal'], 'hand 1 honey to Violet')

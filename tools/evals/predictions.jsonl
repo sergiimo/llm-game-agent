@@ -2341,3 +2341,21 @@
 {"t": 1793993856.31, "id": "p1793993856308-7", "outcome": "NeedVision: NEED_VISION click: Tara (frame centre) must reach Tara's pink bed sleep bubble. The search tried: map: no direction. What blocks it? Give the click point of Tara's pink bed sleep bubble, or of free ground toward it.\n  look: /Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf sleep answer=walk:<cell>   (one grid cell on the target bed itself; or click='none' when none is left)\n  answer: ./wf sleep answer=walk:<cell>", "hit": false}
 {"t": 1793993884.324, "id": "p1793993884323-8", "component": "skills", "what": "sleep.do", "value": "answer='walk:H12'", "ctx": {"action": "sleep.do", "args": "answer='walk:H12'"}}
 {"t": 1793993884.325, "id": "p1793993884323-8", "outcome": "NeedVision: NEED_VISION click: Tara (frame centre) must reach Tara's pink bed sleep bubble. The search tried: map: no direction. What blocks it? Give the click point of Tara's pink bed sleep bubble, or of free ground toward it.\n  look: /Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf sleep answer=walk:<cell>   (one grid cell on the target bed itself; or click='none' when none is left)\n  answer: ./wf sleep answer=walk:<cell>", "hit": false}
+{"t": 1794070270.039, "id": "p1794070270039-10", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1104, 540], "here": null, "exp": "77043c989e1b9a69"}}
+{"t": 1794070270.04, "id": "p1794070270039-10", "outcome": {"kind": "GardenBed", "moved": false, "reached": null}, "hit": true}
+{"t": 1794070310.193, "id": "p1794070310192-10", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1104, 540], "here": null, "exp": "3e2928f39407c993"}}
+{"t": 1794070310.193, "id": "p1794070310192-10", "outcome": {"kind": "GardenBed", "moved": false, "reached": null}, "hit": true}
+{"t": 1794070331.745, "id": "p1794070331744-10", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1104, 540], "here": null, "exp": "f20808c31693f043"}}
+{"t": 1794070331.745, "id": "p1794070331744-10", "outcome": {"kind": "GardenBed", "moved": false, "reached": null}, "hit": true}
+{"t": 1794071063.972, "id": "p1794071063972-0", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1104, 540], "here": null, "exp": "00db24bae652c700"}}
+{"t": 1794071063.973, "id": "p1794071063972-0", "outcome": {"kind": "GardenBed", "moved": false, "reached": null}, "hit": true}
+{"t": 1794071113.173, "id": "p1794071113172-0", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1104, 540], "here": null, "exp": "626daba8f99eb1ef"}}
+{"t": 1794071113.173, "id": "p1794071113172-0", "outcome": {"kind": "GardenBed", "moved": false, "reached": null}, "hit": true}
+{"t": 1794071183.28, "id": "p1794071183279-0", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1104, 540], "here": null, "exp": "135d0d835f3a45e4"}}
+{"t": 1794071183.28, "id": "p1794071183279-0", "outcome": {"kind": "GardenBed", "moved": false, "reached": null}, "hit": true}
+{"t": 1794071355.598, "id": "p1794071355597-0", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1104, 540], "here": null, "exp": "0e74d62f742c5d5a"}}
+{"t": 1794071355.598, "id": "p1794071355597-0", "outcome": {"kind": "GardenBed", "moved": false, "reached": null}, "hit": true}
+{"t": 1794071379.666, "id": "p1794071379666-0", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1104, 540], "here": null, "exp": "407d35cadc51646e"}}
+{"t": 1794071379.667, "id": "p1794071379666-0", "outcome": {"kind": "GardenBed", "moved": false, "reached": null}, "hit": true}
+{"t": 1794071422.659, "id": "p1794071422658-0", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1104, 540], "here": null, "exp": "41d86c3a78f08806"}}
+{"t": 1794071422.659, "id": "p1794071422658-0", "outcome": {"kind": "GardenBed", "moved": false, "reached": null}, "hit": true}

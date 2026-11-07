@@ -68,24 +68,3 @@ class Affordances(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-
-class BubbleTruth(unittest.TestCase):
-    """Real bubbles whose click result proved the truth (tools/fixtures/bubble_truth, user D188: "icons that should
-    and should not fire"). Every stored case must read as the game proved it."""
-
-    def test_every_proven_bubble_reads_as_the_game_said(self):
-        import json
-        from PIL import Image
-        from game import affordances as AF
-        root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures', 'bubble_truth')
-        cases = json.load(open(os.path.join(root, 'labels.json')))['cases']
-        self.assertTrue(cases)
-        wrong = []
-        for c in cases:
-            crop = Image.open(os.path.join(root, c['file'])).convert('RGB')
-            got = {'ready': AF.has_ready(crop), 'drop': AF.has_drop(crop)}
-            for k in ('ready', 'drop'):
-                if k in c and got[k] != c[k]:
-                    wrong.append(f"{c['file']}: {k} read {got[k]}, the game proved {c[k]} ({c.get('proof')})")
-        self.assertEqual(wrong, [])

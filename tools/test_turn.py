@@ -60,11 +60,16 @@ class Turns(unittest.TestCase):
         self.patch.start()
         self.addCleanup(self.patch.stop)
 
+    def events(self, store=None):
+        from runtime.run_store import RunStore
+        selected = store or self.store
+        return RunStore(selected.db).events(selected.run_id)
+
     def test_roundtrip_and_atomic_failure_preserve_previous_state(self):
         before = self.store.load().to_dict()
         changed = self.store.load()
         changed.active.crop = 'Tulip'
-        with mock.patch('os.replace', side_effect=OSError('disk')):
+        with mock.patch.object(self.store, '_write_task', side_effect=OSError('disk')):
             with self.assertRaises(OSError):
                 self.store.save(changed)
         self.assertEqual(self.store.load().to_dict(), before)
@@ -122,8 +127,7 @@ class Turns(unittest.TestCase):
         with self.assertRaises(turn.StaleTurn):
             self.loop.decide(c.turn_id, turn.Decision('accept'))
         self.assertEqual(len(self.port.inputs), 1)
-        with open(os.path.join(self.tmp.name, 'log.jsonl')) as f:
-            rows = [json.loads(l) for l in f]
+        rows = self.events()
         phases = {r['phase'] for r in rows if r['turn_id'] == c.turn_id}
         self.assertTrue({'clues', 'recommendation', 'decision', 'intent', 'outcome', 'integration'} <= phases)
         self.assertTrue(all(r.get('type') == 'turn' for r in rows))
@@ -152,8 +156,20 @@ class Turns(unittest.TestCase):
         self.assertIn('Result: hit', readable)
         self.assertIn('Experience:', readable)
         self.assertIn('Integration:', readable)
+        self.assertRegex(readable, r'Observe:.*event #\d+')
+        self.assertRegex(readable, r'Decision:.*event #\d+')
+        self.assertRegex(readable, r'Intent: event #\d+')
+        self.assertRegex(readable, r'Result: hit.*event #\d+')
+        self.assertRegex(readable, r'Integration:.*event #\d+')
         self.assertRegex(readable, r'- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] Observe: gameplay')
         self.assertRegex(readable, r'- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] Decision: accept')
+
+    def test_projection_failure_does_not_hide_or_roll_back_the_canonical_event(self):
+        with mock.patch.object(self.loop, '_human_log', side_effect=OSError('projection disk full')):
+            context = self.loop.context()
+        clues = [row for row in self.events() if row.get('phase') == 'clues']
+        self.assertEqual(len(clues), 1)
+        self.assertEqual(clues[0]['turn_id'], context.turn_id)
 
     def test_navigate_turn_exposes_graph_compass_and_refuses_mismatching_waypoint_before_input(self):
         store = S.TaskStore(os.path.join(self.tmp.name, 'navigate-task.json'))
@@ -177,8 +193,7 @@ class Turns(unittest.TestCase):
 
         self.assertEqual(port.inputs, [])
         self.assertIsNotNone(next_context.surprise)
-        with open(os.path.join(self.tmp.name, 'log.jsonl')) as stream:
-            rows = [json.loads(line) for line in stream]
+        rows = self.events(store)
         decision = next(row for row in rows if row['phase'] == 'decision' and row['turn_id'] == context.turn_id)
         self.assertEqual(decision['navigation']['next_edge']['compass'], 'E')
         self.assertEqual(decision['waypoint']['world']['compass'], 'NW')
@@ -245,14 +260,14 @@ class Turns(unittest.TestCase):
 
         resumed = turn.TurnLoop(S.TaskStore(self.store.path), self.port, self.policy).context()
         refs = self.store.load().active.evidence_ids
-        records = history.records(os.path.join(self.tmp.name, 'log.jsonl'), refs)
+        records = history.records(self.store, refs)
         self.assertEqual([row['experience']['id'] for row in records], refs)
         self.assertIsNotNone(resumed.surprise)
 
     def test_turn_log_fsyncs_each_canonical_append(self):
-        with mock.patch.object(turn.os, 'fsync') as sync:
-            self.loop._log(self.store.load(), 1, 'intent', intent={'action': {'kind': 'read'}})
-        sync.assert_called()
+        event_id = self.loop._log(self.store.load(), 1, 'intent', intent={'action': {'kind': 'read'}})
+        rows = self.events()
+        self.assertEqual(rows[-1]['phase'], 'intent')
 
     def test_projection_never_binds_identity_but_late_positioned_event_does(self):
         c = self.loop.context()
@@ -451,6 +466,27 @@ class Turns(unittest.TestCase):
         self.assertEqual(snapshot['candidates'][0]['kind'], 'HouseExit')
         self.assertEqual(snapshot['candidates'][0]['view_id'], snapshot['view_id'])
 
+    def test_tara_vector_proves_world_on_control_free_unknown_ocr_frame(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act, observe
+        from objects.detect import Detection
+        image = Image.new('RGB', (1920, 1080), '#678967')
+        raw = SimpleNamespace(grab=mock.Mock(return_value=image),
+                              classify=mock.Mock(return_value={'mode': 'overlay', 'text': ['md ATic']}),
+                              find_bubbles=mock.Mock(return_value=[]),
+                              map_pin=mock.Mock(return_value=None))
+        detected = [Detection('Tara', (920, 440, 1000, 540), 6.2, None, (953, 490), .65)]
+        clues = lambda: {'region': 'Town', 'vector_scope': {'region': 'Town', 'kinds': ['Tara']}}
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name), \
+                mock.patch.object(observe, 'scan', return_value=[]), \
+                mock.patch.object(observe, 'inspect_vector_scope', return_value={
+                    'searched': ['Tara'], 'disabled': [], 'untrained': []}), \
+                mock.patch.object(observe, 'detect_frame', return_value=detected):
+            snapshot = primitives.GameAdapter(clues).observe()
+        self.assertEqual(snapshot['screen']['kind'], 'gameplay')
+        self.assertEqual(snapshot['vector_detections'][0]['kind'], 'Tara')
+
     def test_map_observation_exposes_pin_from_exact_captured_frame(self):
         from PIL import Image
         from types import SimpleNamespace
@@ -472,6 +508,23 @@ class Turns(unittest.TestCase):
         self.assertEqual(seen['pin'], (1005, 505))
         self.assertEqual(snapshot['screen']['kind'], 'map')
         self.assertEqual(snapshot['map_pin'], [1005, 505])
+
+    def test_map_header_vector_proves_map_when_pin_colour_is_unavailable(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act, observe
+        path = os.path.join(os.path.dirname(__file__), 'fixtures', 'play', 'historical-map-panel.png')
+        with Image.open(path) as opened:
+            image = opened.convert('RGB')
+        raw = SimpleNamespace(grab=mock.Mock(return_value=image),
+                              classify=mock.Mock(return_value={'mode': 'overlay', 'text': []}),
+                              find_bubbles=mock.Mock(return_value=[]),
+                              map_pin=mock.Mock(return_value=None))
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name), \
+                mock.patch.object(observe, 'scan', return_value=[]):
+            snapshot = primitives.GameAdapter().observe()
+        self.assertEqual(snapshot['screen']['kind'], 'map')
+        self.assertNotIn('map_pin', snapshot)
 
     def test_candidate_resolution_is_bound_to_the_observed_view(self):
         adapter = primitives.GameAdapter()
@@ -814,6 +867,57 @@ class Turns(unittest.TestCase):
         restored = Graph()
         restored.load(graph_path)
         self.assertEqual(restored.nodes['Bed'].extra['interaction_hint'], hint)
+
+class SQLiteTaskStore(unittest.TestCase):
+    def setUp(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.database = Database(os.path.join(self.tmp.name, 'wf.sqlite3'))
+        self.runs = RunStore(self.database)
+        self.run_dir = os.path.join(self.tmp.name, 'run')
+        os.makedirs(self.run_dir)
+        self.run_id = self.runs.start('task-store', 'durability', self.run_dir)
+
+    def test_create_load_and_compare_and_swap_rejects_a_stale_writer(self):
+        store = S.TaskStore(self.database, self.run_id)
+        store.create(S.TaskState('task-1', 'garden'))
+        first = store.load()
+        changed = S.TaskState.from_dict(first.to_dict())
+        changed.revision = 1
+        changed.status = 'stopped'
+        store.compare_and_swap(0, changed)
+        self.assertEqual(store.load().status, 'stopped')
+        stale = S.TaskState.from_dict(first.to_dict())
+        stale.revision = 1
+        with self.assertRaises(S.StaleTask):
+            store.compare_and_swap(0, stale)
+
+    def test_task_identity_is_immutable_and_profile_pin_is_untouched(self):
+        with self.database.transaction(immediate=True) as connection:
+            profile = connection.execute(
+                'INSERT INTO save_profiles(profile_key, directory, first_seen, last_seen) VALUES (?, ?, 1, 1)',
+                ('profile-a', os.path.join(self.tmp.name, 'profile'))).lastrowid
+            connection.execute('UPDATE runs SET pinned_profile_id = ? WHERE id = ?', (profile, self.run_id))
+        store = S.TaskStore(self.database, self.run_id)
+        store.create(S.TaskState('task-1', 'garden'))
+        with self.assertRaises(ValueError):
+            store.save(S.TaskState('task-2', 'garden'))
+        with self.database.connect() as connection:
+            pinned = connection.execute('SELECT pinned_profile_id FROM runs WHERE id = ?', (self.run_id,)).fetchone()[0]
+        self.assertEqual(pinned, profile)
+
+    def test_task_and_intent_event_roll_back_together(self):
+        store = S.TaskStore(self.database, self.run_id)
+        task = store.create(S.TaskState('task-1', 'garden', active=S.Interaction('tx-1')))
+        intent = S.Intent(1, {'kind': 'space'}, 0, 1.0)
+        task.active.pending_intent = intent
+        with mock.patch.object(store, '_insert_event', side_effect=RuntimeError('event failed')):
+            with self.assertRaisesRegex(RuntimeError, 'event failed'):
+                store.begin_intent(task, intent)
+        self.assertIsNone(store.load().active.pending_intent)
+        self.assertEqual([row for row in self.runs.events(self.run_id) if row.get('phase') == 'intent'], [])
 
 
 if __name__ == '__main__':

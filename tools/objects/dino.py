@@ -72,6 +72,11 @@ def crop_vectors(crop):
     return v
 
 
+def crop_grid(crop):
+    """Spatial patch grid for an explicitly structural crop."""
+    return _patches(_fit14(crop, SCALE))
+
+
 def mean_vector(crop):
     """(384,) normalised mean of the crop's foreground patch vectors: the store's `vec`."""
     m = crop_vectors(crop).mean(0)

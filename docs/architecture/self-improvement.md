@@ -2,7 +2,7 @@
 
 > **Summary:** every iteration follows one traceable loop: **deterministic clues → model decision → optional model
 > vision → final action or code-gap decision → action evidence → integration → repeat**. Every primitive still becomes
-> one immutable experience; every decision phase shares a cycle id in the task's single `log.jsonl`.
+> one immutable experience; every decision phase shares a cycle id in the task's ordered SQLite event stream.
 
 ## The decision and learning loop
 
@@ -20,7 +20,7 @@
 
 Each phase emits a structured `reasoning` row with one `cycle`: `clues`, `final_decision`, `outcome`, and, when needed,
 `gap`. The row stores concise explicit rationale, whether vision was requested, the action, linked experience id,
-verdict, and `code_fix` candidate. `./wf run report` renders these from the same `runs/<task>/log.jsonl`; retros and code
+verdict, and `code_fix` candidate. `./wf run report` renders these from `runs/wf.sqlite3`; retros and code
 review do not need a second reasoning file.
 
 The release gate is deliberately small: `tools/basic_gate.py` checks seven user-visible contracts in under a second,

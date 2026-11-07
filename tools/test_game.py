@@ -52,7 +52,7 @@ class FakeGame:
         return {'mode': 'gameplay' if self.screen == 'gameplay' else 'overlay',
                 'text': [f'{i}) {t}' for i, t in enumerate(texts)]}
 
-    def find_text(self, label, exact=False):
+    def find_text(self, label, path=None, exact=False):
         hits = []
         for i, t in enumerate(self.state()['text']):
             t = t.split(') ', 1)[1]
@@ -172,7 +172,9 @@ class FakeGame:
 class Game(unittest.TestCase):
     def setUp(self):
         self.g = FakeGame()
+        old = core.WF
         game.bind(self.g)
+        self.addCleanup(game.bind, old)
         track.LINES.clear()
         import tempfile
         from game import items

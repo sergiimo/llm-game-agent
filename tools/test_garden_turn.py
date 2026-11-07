@@ -20,7 +20,8 @@ class GardenTurns(unittest.TestCase):
         next_record = event('water')
         next_record['evidence']['lines'] = ['[D209 5:00:00 PM] > water me=Player target=GardenBed(Clone) at (6.39, 0.10, -66.86)']
         store, port, _ = self.session([event(), next_record])
-        store.save(TaskState.from_dict(captured['task']))
+        store = TaskStore(os.path.join(store.run_dir, 'captured-task.json'))
+        store.create(TaskState.from_dict(captured['task']))
         graph = learn.MEMORY['graph']
         graph.nodes.clear()
         for nid in captured['task']['targets']:
@@ -79,8 +80,8 @@ class GardenTurns(unittest.TestCase):
         self.assertEqual(c.task['status'], 'complete')
         self.assertEqual(list(c.coverage['covered']), ['B'])
         self.assertEqual(c.coverage['unresolved'][0]['node'], 'A')
-        with open(os.path.join(os.path.dirname(store.path), 'log.jsonl')) as f:
-            report = runwatch.garden_table([json.loads(line) for line in f])
+        from runtime.run_store import RunStore
+        report = runwatch.garden_table(RunStore(store.db).events(store.run_id))
         self.assertIn('| Garden | 2 | 1 | 1 | - | A: no authorized seed available | CONSTRAINED |', report)
 
     def test_blocked_target_requires_event_owned_identity_and_nonempty_reason(self):
@@ -119,9 +120,10 @@ class GardenTurns(unittest.TestCase):
             captured = json.load(f)
         # Captured blocked state is real; the later harvest is writer-shaped future actuator evidence.
         store, port, call = self.session([event('harvest', 'A')])
+        store = TaskStore(os.path.join(store.run_dir, 'captured-task.json'))
         def call(**kw):
             return engine.garden_turn(region='GardenSouth', store=TaskStore(store.path), adapter=port, **kw)
-        store.save(TaskState.from_dict(captured['task']))
+        store.create(TaskState.from_dict(captured['task']))
         port.snapshot = captured['observation']
         task_before = store.load().to_dict()
         c = call()
@@ -144,8 +146,8 @@ class GardenTurns(unittest.TestCase):
         self.assertEqual(integrate.journal(), [])
         self.assertFalse(os.path.exists(os.path.join(os.path.dirname(store.path), 'gaps')))
         self.assertEqual({n.id: dict(n.state) for n in learn.MEMORY['graph'].nodes.values()}, graph_before)
-        with open(os.path.join(os.path.dirname(store.path), 'log.jsonl')) as f:
-            correction = next(json.loads(line) for line in f if json.loads(line).get('phase') == 'correction')
+        from runtime.run_store import RunStore
+        correction = next(row for row in RunStore(store.db).events(store.run_id) if row.get('phase') == 'correction')
         self.assertEqual(correction['kind'], 'revise_decision')
         self.assertEqual(correction['experience'], '75f4d0fad86a4779')
         self.assertEqual(correction['result']['applied'], 0)
@@ -567,8 +569,8 @@ class GardenTurns(unittest.TestCase):
                 self.assertEqual(len(journal), 7)
                 self.assertEqual(len({e.id for e in journal}), 7)
                 self.assertEqual(len({e.artifacts.turn_id for e in journal}), 7)
-                with open(os.path.join(directory, 'log.jsonl')) as f:
-                    log = [json.loads(l) for l in f]
+                from runtime.run_store import RunStore
+                log = RunStore(store.db).events(store.run_id)
                 self.assertEqual(len([r for r in log if r['phase'] == 'intent']), 7)
                 self.assertEqual(graph.state_value('actual', 'watered'), True)
 

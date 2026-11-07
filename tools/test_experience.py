@@ -6,6 +6,8 @@ import json
 import os
 import re
 import sys
+import tempfile
+import threading
 import unittest
 from unittest import mock
 
@@ -54,6 +56,59 @@ class Records(unittest.TestCase):
         self.assertEqual(c.updates()[0].key(e.id), f'{e.id}:world:card_state:' + json.dumps({'nid': 'n'}, sort_keys=True))
 
 
+class SQLiteExperienceStore(unittest.TestCase):
+    def setUp(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        from runtime.experience_store import ExperienceStore
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.db = Database(os.path.join(self.tmp.name, 'wf.sqlite3'))
+        run_id = RunStore(self.db).start('experiences', 'test', os.path.join(self.tmp.name, 'run'))
+        self.store = ExperienceStore(self.db, run_id)
+
+    def test_immutable_payload_and_gap_foreign_keys(self):
+        e = sample().to_dict()
+        self.assertTrue(self.store.record(e))
+        self.assertFalse(self.store.record(e))
+        with self.assertRaisesRegex(ValueError, 'conflicting immutable'):
+            self.store.record(dict(e, action={'kind': 'different'}))
+        bundle = {'id': 'gap-1', 'kind': 'capability', 'owner': 'turn', 'invariant': 'missing', 'experiences': [e['id']]}
+        self.store.put_gap(bundle, [e['id']])
+        self.assertEqual(self.store.gaps()[0]['id'], 'gap-1')
+        with self.assertRaises(Exception):
+            self.store.put_gap(dict(bundle, id='bad-gap'), ['missing-experience'])
+
+    def test_concurrent_update_claim_has_one_winner(self):
+        e = sample().to_dict()
+        self.store.record(e)
+        barrier = threading.Barrier(8)
+        claims = []
+        def claim():
+            barrier.wait()
+            claims.append(self.store.claim_update(e['id'], 'memory', 'learn', {'kind': 'Bed'}))
+        threads = [threading.Thread(target=claim) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.assertEqual(sum(claim is not None for claim in claims), 1)
+
+    def test_stale_claim_is_recoverable_and_old_owner_cannot_finish_it(self):
+        e = sample().to_dict()
+        self.store.record(e)
+        first = self.store.claim_update(e['id'], 'memory', 'learn', {'kind': 'Bed'})
+        with self.db.transaction(immediate=True) as connection:
+            connection.execute('UPDATE applied_updates SET claimed_at=0 WHERE id=?', (first.id,))
+        recovered = self.store.claim_update(e['id'], 'memory', 'learn', {'kind': 'Bed'})
+        self.assertIsNotNone(recovered)
+        self.assertNotEqual(first.token, recovered.token)
+        with self.assertRaisesRegex(RuntimeError, 'no longer owned'):
+            self.store.finish_update(first, 'applied', 'late')
+        self.store.finish_update(recovered, 'applied', 'done')
+        self.assertIsNone(self.store.claim_update(e['id'], 'memory', 'learn', {'kind': 'Bed'}))
+
+
 class Boundary(EngineBase):
     """The integrator: persist, then world -> evals -> memory -> transitions -> gap, each once per experience."""
 
@@ -74,6 +129,7 @@ class Boundary(EngineBase):
         graph = engine._open_graph()
         world.refresh(graph, f.read_save()[1], f.today_log()[0])
         store = TaskStore(os.path.join(self.tmp.name, 'task.json'))
+        self.task_store = store
         adapter = primitives.GameAdapter()
         raw = f.run_action
         def input_command(command):
@@ -103,8 +159,8 @@ class Boundary(EngineBase):
         with open(steps.OBSERVED) as records:
             obs = [json.loads(line) for line in records]
         self.assertTrue(obs and all(o.get('exp') in {e.id for e in exps} for o in obs), obs)
-        with open(os.path.join(self.tmp.name, 'log.jsonl')) as records:
-            timeline = [json.loads(line) for line in records]
+        from runtime.run_store import RunStore
+        timeline = RunStore(self.task_store.db).events(self.task_store.run_id)
         outcomes = [row['experience']['id'] for row in timeline if row['phase'] == 'outcome']
         integrated = [row['experience'] for row in timeline if row['phase'] == 'integration']
         self.assertEqual(set(outcomes), {e.id for e in exps})
@@ -126,32 +182,37 @@ class Boundary(EngineBase):
 
     def test_journal_write_failure_propagates_and_never_marks_experience_applied(self):
         e = sample()
-        real_open = open
-        def fail_experience(path, *args, **kwargs):
-            if str(path).endswith('experiences.jsonl'):
-                raise OSError('disk full')
-            return real_open(path, *args, **kwargs)
-        with mock.patch('builtins.open', side_effect=fail_experience):
+        with mock.patch('runtime.experience_store.ExperienceStore.record', side_effect=OSError('disk full')):
             with self.assertRaisesRegex(OSError, 'disk full'):
                 I.apply(e, X.Correction(e.id))
-        self.assertNotIn(f'{e.id}:experience', I._applied())
-        self.assertFalse(os.path.exists(os.path.join(I.JOURNAL_DIR, 'applied.txt')))
+        self.assertEqual(I.journal(), [])
 
-    def test_applied_marker_failure_is_retryable_without_duplicate_experience(self):
+    def test_unknown_claim_completion_never_duplicates_the_experience_or_consumer(self):
         e = sample()
-        real_open = open
-        def fail_marker(path, mode='r', *args, **kwargs):
-            if str(path).endswith('applied.txt') and 'a' in mode:
-                raise OSError('marker unavailable')
-            return real_open(path, mode, *args, **kwargs)
-        with mock.patch('builtins.open', side_effect=fail_marker):
-            with self.assertRaisesRegex(OSError, 'marker unavailable'):
-                I.apply(e, X.Correction(e.id))
-        self.assertNotIn(f'{e.id}:experience', I._applied())
+        correction = X.Correction(e.id, gap=(X.Update('gap', 'bundle', {'invariant': 'test claim'}),))
+        with mock.patch('runtime.experience_store.ExperienceStore.finish_update',
+                        side_effect=OSError('claim completion unavailable')):
+            with self.assertRaisesRegex(OSError, 'claim completion unavailable'):
+                I.apply(e, correction)
         self.assertEqual([row.id for row in I.journal()], [e.id])
-        I.apply(e, X.Correction(e.id))
+        self.assertEqual(I.apply(e, correction)['applied'], 0)
         self.assertEqual([row.id for row in I.journal()], [e.id])
-        self.assertIn(f'{e.id}:experience', I._applied())
+
+    def test_stale_claim_replay_does_not_duplicate_completed_external_effect(self):
+        e = sample()
+        correction = X.Correction(e.id, transitions=(X.Update('transitions', 'observation', {'i': 0}),))
+        with mock.patch('runtime.experience_store.ExperienceStore.finish_update',
+                        side_effect=OSError('crash after effect')):
+            with self.assertRaisesRegex(OSError, 'crash after effect'):
+                I.apply(e, correction)
+        with open(steps.OBSERVED) as stream:
+            self.assertEqual(sum(json.loads(line).get('exp') == e.id for line in stream if line.strip()), 1)
+        backend = I._experience_store()
+        with backend.database.transaction(immediate=True) as connection:
+            connection.execute('UPDATE applied_updates SET claimed_at=0 WHERE experience_id=?', (e.id,))
+        self.assertEqual(I.apply(e, correction)['applied'], 1)
+        with open(steps.OBSERVED) as stream:
+            self.assertEqual(sum(json.loads(line).get('exp') == e.id for line in stream if line.strip()), 1)
 
     def test_a_press_step_is_its_own_experience(self):
         f = self.harvest_turns()
@@ -186,7 +247,7 @@ class Boundary(EngineBase):
     def test_a_vision_answer_is_an_experience_and_its_look_is_a_memory_update(self):
         self.game()
         img = __import__('PIL.Image', fromlist=['Image']).new('RGB', (1920, 1080), (90, 140, 60))
-        with mock.patch.object(learn, 'relabel', lambda img, box, kind: True) as _:
+        with mock.patch.object(learn, 'relabel', lambda img, box, kind, idempotency_key=None: True) as _:
             c = act.Click((1104, 540), 'point', 3, lines=['[D188 9:01:00 AM] > water me=Player target=GardenBed(Clone) '
                                                           'at (0.84, 0.10, -25.34)'], events=['water'], moved=False)
             c.img0 = img

@@ -77,7 +77,10 @@ def experience(intent, before, expects, evidence, frames=()):
                                 log=expects.get('log'), moved=expects.get('moved')),
         action=X.Action(kind, what, X._t(intent.action.get('point')),
                         intent.action.get('label') or intent.action.get('name'),
-                        (('turn_id', intent.turn_id), ('primitive', original))),
+                        tuple(row for row in (
+                            ('turn_id', intent.turn_id), ('primitive', original),
+                            ('lineage_observation_id', intent.action.get('lineage_observation_id')))
+                              if row[1] is not None)),
         evidence=evidence, verdict=integrate._verdict(checks),
         artifacts=X.Artifacts(tuple(frames), before.get('frame_path'), None, intent.log_mark, intent.written_at,
                               intent.turn_id))
@@ -138,8 +141,8 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
         for key, ledger in (('purchase', '_purchase_intents'), ('sale', '_sale_intents')):
             if action.get(key):
                 task.params.setdefault(ledger, []).append(dict(action[key], turn_id=turn_id))
-    store.save(task)
-    log('intent', intent=intent)
+    store.begin_intent(task, intent)
+    log('intent', intent=intent, _canonical=False)
     # In-memory fast path for the normal same-process finish. A crash before this assignment leaves the
     # durable WAL unmarked, so recovery safely re-establishes the canonical intent before its outcome.
     intent.journaled = True
@@ -149,7 +152,7 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
         e = replace(e, verdict=X.Verdict('unsafe', (X.Check('guard', 'safe input', refusal, False),)),
                     discrepancy=X.Discrepancy('guard', 'safe input', refusal))
         intent.experience = e.to_dict()
-        store.save(task)
+        store.record_capture(task, intent, e.to_dict())
         return
     if prepared['kind'] not in ('wait', 'read'):
         adapter.perform(prepared)
@@ -183,8 +186,9 @@ def invalid_expectation_outcome(intent, adapter, error):
 
 class GameAdapter:
     """Production I/O adapter. clue_provider may add domain graph clues and interrupts, never inputs."""
-    def __init__(self, clue_provider=None):
+    def __init__(self, clue_provider=None, observation_provider=None):
         self.clue_provider = clue_provider
+        self.observation_provider = observation_provider
         self._latest_observation = None
         self._captured_outcome = None
         self._vector_store = None
@@ -221,15 +225,32 @@ class GameAdapter:
                  if valid else screen.Screen('unknown', []))
         map_pin = None
         pin_reader = getattr(core.WF, 'map_pin', None)
-        if s.kind in ('gameplay', 'unknown') and screen.map_panel(image) and pin_reader:
-            map_pin = pin_reader(image)
-        if map_pin:
+        map_open = False
+        if s.kind in ('gameplay', 'unknown') and screen.map_panel(image):
+            map_pin = pin_reader(image) if pin_reader else None
+            if map_pin:
+                map_open = True
+            else:
+                try:
+                    map_open = screen.map_header_vector(image)
+                except Exception:  # appearance inference failure keeps the modal unproved
+                    map_open = False
+        if map_open:
             from .screen import Screen
             s = Screen('map', [])
-        frame_context = {'image': image, 'hour': hour, 'screen': s.kind, 'map_pin': map_pin,
+        frame_context = {'image': image, 'frame_path': path, 'view_id': view_id,
+                         'hour': hour, 'screen': s.kind, 'map_pin': map_pin,
                          'light': getattr(core.WF, 'light_period', lambda value: None)(hour) if hour is not None else None}
+        coherent = None
+        if self.observation_provider:
+            coherent = self.observation_provider(frame_context)
+            frame_context['observation_snapshot'] = coherent
         with measure('observe.clues'):
-            if self.clue_provider:
+            if coherent is not None and coherent.status == 'save_lineage_mismatch':
+                clues = {'lineage_status': coherent.status, 'observation_id': coherent.observation_id,
+                         'lineage_mismatch': coherent.mismatch, 'graph_clues': [],
+                         'interrupts': ['SAVE_LINEAGE_MISMATCH: ' + str(coherent.mismatch)]}
+            elif self.clue_provider:
                 import inspect
                 try:
                     inspect.signature(self.clue_provider).bind(frame_context)
@@ -240,6 +261,10 @@ class GameAdapter:
                 clues = dict(provided)
             else:
                 clues = {}
+        if coherent is not None and coherent.status == 'coherent':
+            clues.update(lineage_status=coherent.status, observation_id=coherent.observation_id,
+                         profile_id=coherent.profile_id, slot_id=coherent.slot_id,
+                         log_epoch_id=coherent.log_epoch_id)
         scope = clues.get('vector_scope')
         detections = []
         vector_status = {'status': 'not_requested'}
@@ -261,6 +286,12 @@ class GameAdapter:
                 vector_status = {'status': 'error', 'region': scope.get('region'),
                                  **effective,
                                  'error': f'{type(error).__name__}: {error}'}
+        # Semantic modal/card classifiers have already had priority above.  On an
+        # otherwise unclassified frame, a Tara appearance hit is positive proof
+        # that the rendered world is visible even when OCR finds no HUD controls.
+        if s.kind == 'unknown' and any(d.kind == 'Tara' for d in detections):
+            s = screen.Screen('gameplay', s.texts, s.controls)
+            frame_context['screen'] = s.kind
         clues.update(screen={'kind': s.kind, 'texts': s.texts}, frame_path=path,
                      capture_validity='rendered' if valid else 'black',
                      visible_affordances=[{'kind': a.kind, 'point': list(a.pt), 'drop': a.drop, 'ready': a.ready,
@@ -389,6 +420,13 @@ class GameAdapter:
 
     def preflight(self, action, observation, current=None):
         """Cheap pixel/scene lease check; it performs no OCR, DINO, graph refresh or input."""
+        if self.observation_provider and observation.get('observation_id') is not None:
+            fresh = self.observation_provider({
+                'frame_path': observation.get('frame_path'), 'view_id': observation.get('view_id')},
+                validate_only=True)
+            if fresh.status != 'coherent':
+                raise ValueError('save_lineage_mismatch: ' + str(fresh.mismatch))
+            action['lineage_observation_id'] = fresh.observation_id
         if action.get('view_id') is not None and action.get('view_id') != observation.get('view_id'):
             raise ValueError('stale view: decision does not match its source')
         old_path = observation.get('frame_path')

@@ -13,6 +13,7 @@ Requires macOS permissions for the host terminal (System Settings > Privacy & Se
   * Accessibility                    (keyboard / mouse injection)
 """
 import argparse
+import hashlib
 import re
 import json
 import math
@@ -21,6 +22,8 @@ import subprocess
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from runtime.timing import measure
+from runtime.db import Database
+from runtime.run_store import RunStore
 import time
 from dataclasses import dataclass
 
@@ -942,8 +945,7 @@ def learn_report():
     obs = {}
     for f in run_logs():
         cur = None
-        for l in open(f):
-            e = json.loads(l)
+        for e in run_events(f):
             line = e.get('line', '')
             m = re.search(r'Damage (\d+) to (\w+).*\(damage = (\d+)\).*destroying', line)
             if m:
@@ -958,10 +960,9 @@ def learn_report():
     print(f'remembered hops (taught by the model): {len(hops())}')
     asks = {}
     for f in run_logs():
-        for l in open(f):
-            e = json.loads(l)
+        for e in run_events(f):
             if e.get('type') == 'vision' and e.get('what') == 'ask':
-                k = os.path.relpath(f, RUNS_DIR).replace('/log.jsonl', '').replace('.jsonl', '')
+                k = os.path.basename(f)
                 asks[k] = asks.get(k, 0) + 1
     if asks:
         print('model questions per run: ' + ', '.join(f'{f} {n}' for f, n in asks.items()))
@@ -1010,52 +1011,41 @@ def _diff(a, b):
     return ImageStat.Stat(ImageChops.difference(a, b)).mean[0]
 
 
-# ---------------------------------------------------------------- run log (one dir per task, L53, L76)
-# runs/<YYYYMMDD-HHMM>-<task>/: plan.md (the supervisor's step-by-step plan for the agent, tools/plan.py), log.jsonl
-# (one JSON event per line {"t": unix, "type": ...}), progress.md (written by the tool: step timestamps + budget use),
+# ---------------------------------------------------------------- run store (one dir per task, L53, L76)
+# runs/<YYYYMMDD-HHMM>-<task>/: plan.md (the supervisor's step-by-step plan for the agent), progress.md
+# (human projections); canonical lifecycle and event rows live in runs/wf.sqlite3.
 # retro-<n>.md (escalations). The agent writes the meaning (`wf run step/attempt/issue/escalate/end`); tools write
 # timings automatically: every ./wf call (wfc.py), Tara's activity segments (go:/still), key game events.
-# Older runs are flat runs/<…>.jsonl files. `wf run report` = timeline + summary.
+# `wf run report` renders the canonical SQLite timeline and summary.
 RUNS_DIR = os.path.join(ROOT, 'runs')
-RUN_CUR = os.path.join(SHOT_DIR, 'run.current')
 RUN_NOTES = ('attempt', 'issue', 'gap', 'decision', 'note', 'interrupt', 'think')  # interrupt = a user interrupt (bench);
 # think = the agent's reasoning before an answer (user D189: "tracing should be absolute, including agent reasoning")
 RUN_GAME = re.compile(r'\] > \w+ me=Player|totalPlanted|destroying|grab_item|\[QUEST\] (?!Posting)|\[STATS\]|\[REL\]|ChangeScene|OnEnterBuilding|'
                       r'OnExitBuilding|giveloot|out of strength|no strength|Spawning player')
 
 
+def _run_store():
+    return RunStore(Database(os.environ.get('WF_DB', os.path.join(RUNS_DIR, 'wf.sqlite3'))))
+
+
 def run_path():
-    try:
-        return open(RUN_CUR).read().strip() or None
-    except OSError:
-        return None
+    """Compatibility name: the active stable run ID, never a filesystem event log."""
+    row = _run_store().active()
+    return row['id'] if row else None
 
 
 def run_dir():
-    p = run_path()
-    return os.path.dirname(p) if p and os.path.basename(p) == 'log.jsonl' else None
+    row = _run_store().active()
+    return row['directory'] if row else None
 
 
 def run_logs():
-    """Every run log, old (runs/*.jsonl) and new (runs/*/log.jsonl), oldest first."""
-    if not os.path.isdir(RUNS_DIR):
-        return []
-    out = []
-    for f in sorted(os.listdir(RUNS_DIR)):
-        p = os.path.join(RUNS_DIR, f)
-        if f.endswith('.jsonl'):
-            out.append(p)
-        elif os.path.isfile(os.path.join(p, 'log.jsonl')):
-            out.append(os.path.join(p, 'log.jsonl'))
-    return out
+    """Every canonical run directory, oldest first."""
+    return [row['directory'] for row in _run_store().runs()]
 
 
 def run_events(path=None):
-    path = path or run_path()
-    try:
-        return [json.loads(l) for l in open(path) if l.strip()]
-    except (OSError, ValueError, TypeError):
-        return []
+    return _run_store().events(path)
 
 
 def plan_state(d=None, hour_now=None):
@@ -1066,26 +1056,20 @@ def plan_state(d=None, hour_now=None):
         steps = plan.parse(open(os.path.join(d, 'plan.md')).read())[1]
     except (OSError, TypeError):
         return [], []
-    return steps, plan.steps_state(steps, run_events(os.path.join(d, 'log.jsonl')), time.time(), hour_now)
+    return steps, plan.steps_state(steps, run_events(d), time.time(), hour_now)
 
 
 def write_progress(d=None, hour_now=None):
-    """runs/<task>/progress.md from plan.md + log.jsonl: status table and the timestamped step log."""
-    import plan
+    """runs/<task>/progress.md from plan.md + SQLite events: status table and timestamped step log."""
     d = d or run_dir()
     if not d:
         return None
-    steps, states = plan_state(d, hour_now)
-    lines = []
-    for e in run_events(os.path.join(d, 'log.jsonl')):
-        if e.get('type') == 'plan_step':
-            h = e.get('hour')
-            game = f' (game {int(h):02d}:{int(h % 1 * 60):02d})' if h is not None else ''
-            lines.append(f'{time.strftime("%m-%d %H:%M", time.localtime(e["t"]))}{game} step {e["n"]} '
-                         f'{plan.MARK[e["state"]]} {e["state"]}' + (f': {e["text"]}' if e.get('text') else ''))
-    task = os.path.basename(d)
+    from runtime.run_reports import render_progress
+    run = _run_store().resolve(d)
+    if not run:
+        return None
     path = os.path.join(d, 'progress.md')
-    open(path, 'w').write(plan.progress_md(task, steps, states, lines))
+    render_progress(_run_store().database, run['id'], hour_now=hour_now)
     return path
 
 
@@ -1145,31 +1129,30 @@ def step_warning():
 
 
 def run_log(type_, **kw):
-    """Append one event to the current run (no-op when no run is open); nav events also always go to
-    tools/nav/events.jsonl, so a skip is never silent."""
+    """Append one canonical event (no-op without an active run); nav also keeps its legacy diagnostic trace."""
     if type_ == 'nav':
         import nav
         nav.event(**{k: v for k, v in kw.items() if k != 't'})
-    p = run_path()
-    if p:
-        with open(p, 'a') as f:
-            f.write(json.dumps({'t': round(kw.pop('t', time.time()), 2), 'type': type_, **kw}, ensure_ascii=False) + '\n')
+    t = round(kw.pop('t', time.time()), 2)
+    turn_id = kw.pop('turn_id', None)
+    phase = kw.pop('phase', None)
+    _run_store().append_event(type_, kw, turn_id=turn_id, phase=phase, t=t)
 
 
 def run_cmd(sub_, args):
     """wf run start <task> <goal…> | plan | step <n> start|done|fail|skip [note…] | escalate <n> <why…> | status |
-    attempt|issue|gap|decision|note <text…> | end <done|partial|blocked|stopped> [text…] | report [path]"""
+    attempt|issue|gap|decision|note <text…> | end <done|partial|blocked|stopped> [text…] | report [path] |
+    export --jsonl <run>"""
     import plan
     if sub_ == 'start':
         if not args:
             sys.exit('usage: wf run start <task-id> <goal…>')
-        if run_path():
-            run_log('end', result='abandoned', text='a new run started')
-        d = os.path.join(RUNS_DIR, time.strftime('%Y%m%d-%H%M-') + re.sub(r'[^\w-]', '', args[0]))
+        base = os.path.join(RUNS_DIR, time.strftime('%Y%m%d-%H%M-') + re.sub(r'[^\w-]', '', args[0]))
+        d, suffix = base, 2
+        while os.path.exists(d):
+            d, suffix = f'{base}-{suffix}', suffix + 1
         os.makedirs(d, exist_ok=True)
-        path = os.path.join(d, 'log.jsonl')
-        open(RUN_CUR, 'w').write(path)
-        run_log('start', quest=args[0], goal=' '.join(args[1:]))
+        _run_store().start(args[0], ' '.join(args[1:]), d)
         pm = os.path.join(d, 'plan.md')
         if not os.path.exists(pm):
             open(pm, 'w').write(plan.template(args[0], ' '.join(args[1:])))
@@ -1234,16 +1217,27 @@ def run_cmd(sub_, args):
         p = run_path()
         if not p:
             sys.exit('no open run')
-        run_log('end', result=(args or ['done'])[0], text=' '.join(args[1:]))
-        if run_dir():
-            write_progress()
-        os.remove(RUN_CUR)
+        d = run_dir()
+        _run_store().end((args or ['done'])[0], ' '.join(args[1:]))
+        if d:
+            write_progress(d)
         run_report(p)
     elif sub_ == 'report':
-        p = args[0] if args else run_path() or max(run_logs(), key=os.path.getmtime)
-        if os.path.isdir(p):
-            p = os.path.join(p, 'log.jsonl')
+        logs = run_logs()
+        p = args[0] if args else run_path() or (logs[-1] if logs else None)
+        if not p:
+            sys.exit('no runs')
         run_report(p)
+    elif sub_ == 'export':
+        from runtime.run_reports import export_jsonl
+        if '--jsonl' not in args:
+            sys.exit('usage: wf run export --jsonl <run>')
+        refs = [arg for arg in args if arg != '--jsonl']
+        logs = run_logs()
+        selected = refs[0] if refs else run_path() or (logs[-1] if logs else None)
+        if not selected or not _run_store().resolve(selected):
+            sys.exit('unknown run')
+        export_jsonl(_run_store().database, selected, sys.stdout)
     else:
         sys.exit(run_cmd.__doc__)
 
@@ -1306,11 +1300,11 @@ def bench_cmd(args):
         if len(args) > 1:
             d = args[1]
         else:  # the newest bench run (never an ordinary task run, review #3a)
-            benches = [p for p in run_logs() if '-bench-' in p and p.endswith('log.jsonl')]
+            benches = [p for p in run_logs() if '-bench-' in os.path.basename(p)]
             if not benches:
                 return print('no bench runs yet: wf bench start A|B|C')
-            d = os.path.dirname(max(benches, key=os.path.getmtime))
-        ev = run_events(os.path.join(d, 'log.jsonl'))
+            d = benches[-1]
+        ev = run_events(d)
         try:
             import nav
             navev = [json.loads(line) for line in open(nav.EVENTS) if line.strip()]
@@ -1478,17 +1472,34 @@ def game_stamp():
 
 
 def graph_cmd(args):
-    """wf graph show [region] | map-seed <map.png> | map-heatmap <node> <map.png> [out.png]: the object graph
+    """wf graph show [region] | promote <candidate-id>... [--apply] | map-seed <map.png> |
+    map-heatmap <node> <map.png> [out.png]: the object graph
     (tools/objects/graph, Farm.json) and its map representations. No focus change, no input.
     Env: WF_GRAPH=<json>, WF_MAP_DB=<dir>."""
     if os.path.join(ROOT, 'tools') not in sys.path:
         sys.path.insert(0, os.path.join(ROOT, 'tools'))
     from objects import graph as OG, store as OS
+    seed_path = os.environ.get('WF_GRAPH') or os.path.join(OG.DEFAULT_DIR, 'Farm.json')
     g = OG.Graph()
-    g.load(os.environ.get('WF_GRAPH') or os.path.join(OG.DEFAULT_DIR, 'Farm.json'))
-    if not args or args[0] not in ('show', 'map-seed', 'map-heatmap'):
+    g.load(seed_path)
+    if not args or args[0] not in ('show', 'promote', 'map-seed', 'map-heatmap'):
         sys.exit(graph_cmd.__doc__)
     cmd, rest = args[0], args[1:]
+    if cmd == 'promote':
+        write = '--apply' in rest
+        candidates = [value for value in rest if value != '--apply']
+        active = _run_store().active()
+        if not active:
+            sys.exit('graph promotion requires an active run')
+        with _run_store().database.connect() as connection:
+            run = connection.execute('SELECT pinned_profile_id FROM runs WHERE id=?', (active['id'],)).fetchone()
+        if not run or not run['pinned_profile_id']:
+            sys.exit('graph promotion requires a pinned save profile')
+        from game.world_store import WorldStore
+        preview = WorldStore(_run_store().database, run['pinned_profile_id']).promote(
+            candidates, seed_path, write=write)
+        print(preview, end='' if preview.endswith('\n') else '\n')
+        return print('applied reviewed promotion' if write else 'dry run only; repeat with --apply after review')
     if cmd in ('map-seed', 'map-heatmap'):
         from PIL import Image
         from objects import map_vectors as OM
@@ -1659,7 +1670,8 @@ def turn_command(a):
 
 
 def run_report(path):
-    ev = [json.loads(l) for l in open(path) if l.strip()]
+    run = _run_store().resolve(path)
+    ev = run_events(path)
     if not ev:
         return print('(empty run)')
     t0 = ev[0]['t']
@@ -1672,7 +1684,8 @@ def run_report(path):
     active = sum(e['end'] - e['start'] for e in acts if e.get('moved'))
     start = ev[0]
     end = next((e for e in reversed(ev) if e['type'] == 'end'), None)
-    print(f"run {os.path.basename(path)}: {start.get('quest')}: {start.get('goal')}")
+    name = os.path.basename(run['directory']) if run else str(path)
+    print(f"run {name}: {start.get('quest')}: {start.get('goal')}")
     print(f"result: {end['result'] + (' ' + end['text'] if end.get('text') else '') if end else 'OPEN'}")
     dur = lambda s: f'{int(s // 60)}:{int(s % 60):02d}'
     print(f'time {dur(t1 - t0)} · {len(calls)} ./wf calls · in calls {dur(in_call)} · '
@@ -3539,7 +3552,10 @@ def set_paused(want):
             return 'could not resume: Resume Game missing or ambiguous; model must inspect'
         click(hits[0]['cx'], hits[0]['cy'])
     time.sleep(0.7)
-    return f'{"paused" if want else "running"}: {brief(state())}'
+    after = state()
+    if is_paused(after) != want:
+        return f'could not {"pause" if want else "resume"}: {brief(after)}'
+    return f'{"paused" if want else "running"}: {brief(after)}'
 
 
 def run_action(spec):
@@ -3908,9 +3924,8 @@ def latest_save():
     return max(files, key=_mtime) if files else None
 
 
-def read_save(path=None):
-    """Latest save as JSON with hashed ids replaced by names ('#123' when unknown; '##Name' = id reference)."""
-    path = path or latest_save()
+def _decode_save(path):
+    """Decode one explicitly selected slot; gameplay selection happens before this boundary."""
     raw = open(path, 'rb').read()
     try:
         import zstandard
@@ -3929,7 +3944,54 @@ def read_save(path=None):
         if isinstance(o, str) and o.startswith('##') and o[2:].lstrip('-').isdigit():
             return '##' + names.get(int(o[2:]), o[2:])
         return o
-    return path, dec(json.loads(data))
+    return raw, dec(json.loads(data))
+
+
+def read_save(path=None):
+    """Diagnostic save reader. With no explicit path it retains the CLI's latest-slot convenience behavior."""
+    path = path or latest_save()
+    _, decoded = _decode_save(path)
+    return path, decoded
+
+
+def save_candidates():
+    """Decode every current slot without choosing by mtime; the lineage selector chooses against the live log."""
+    from runtime.save_lineage import SaveCandidate
+    out = []
+    files = [os.path.join(d, f) for d, _, fs in os.walk(SAVE_DIR) for f in fs if f.endswith('.local')]
+    for path in sorted(files):
+        try:
+            stat = os.stat(path)
+            raw, decoded = _decode_save(path)
+            from game.world import save_epoch_seconds
+            game_time = save_epoch_seconds(decoded)
+            parent = os.path.realpath(os.path.dirname(path))
+            out.append(SaveCandidate(parent, os.path.realpath(path), f'{stat.st_dev}:{stat.st_ino}',
+                                     hashlib.sha256(raw).hexdigest(), decoded.get('saveCount'), game_time,
+                                     decoded.get('currentScene'), decoded, stat.st_mtime))
+        except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError, subprocess.SubprocessError):
+            continue  # a rotating or half-written slot is not a candidate; selection still fails closed
+    return out
+
+
+def log_epoch():
+    """Current Player.log identity and exact bounded timeline used for profile selection."""
+    from runtime.save_lineage import LogEpoch, monotonic_log_times
+    from game.world import when
+    try:
+        stat = os.stat(GAME_LOG)
+        lines = tuple(game_log(tail=4000))
+    except OSError:
+        return LogEpoch('missing', None, None, ())
+    stamps = monotonic_log_times([value for value in (when(line) for line in lines) if value is not None])
+    scene = None
+    for line in lines:
+        match = (re.search(r'\bChangeScene\b[^\n]*?\bto\s+([A-Za-z][\w-]+)', line, re.I) or
+                 re.search(r'\bcurrentScene\b\s*[:=]\s*([A-Za-z][\w-]+)', line, re.I))
+        if match:
+            scene = match.group(1)
+    return LogEpoch(f'{stat.st_dev}:{stat.st_ino}', stamps[0] if stamps else None,
+                    stamps[-1] if stamps else None, lines, scene=scene)
 
 
 # ---------------------------------------------------------------- routines (L61): daily chores before quests
@@ -4038,7 +4100,7 @@ def save_summary(path=None):
 def main(argv=None):
     try:   # predictions are recorded only by the real tool (CLI / daemon), never by tests importing the code
         from evals import store as _evals_store
-        _evals_store.ENABLED = True
+        _evals_store.ENABLED = __name__ == '__main__'
     except ImportError:
         pass
     ap = argparse.ArgumentParser(prog='wf', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -4121,9 +4183,10 @@ def main(argv=None):
     p.add_argument('--limit', type=int, default=15)
     p = sub.add_parser('run', help='one dir per task (L76): wf run start <task> <goal…> | plan | step <n> start|done|'
                                    'fail|skip [note…] | escalate <n> <why…> | status | waits | attempt|issue|gap|decision|'
-                                   'note <text…> | end <result> [text…] | report [path]')
+                                   'note <text…> | end <result> [text…] | report [path] | export --jsonl <run>')
     p.add_argument('sub')
     p.add_argument('args', nargs='*')
+    p.add_argument('--jsonl', action='store_true', help='with run export, emit diagnostic JSONL to stdout')
     p = sub.add_parser('where', help='Tara on the map (pin) + nearest known place; --learn <name> stores it (L57)')
     p.add_argument('--learn')
     p = sub.add_parser('pos', help='EXACT world position now (checkpoint: game to background -> autosave -> read -> '
@@ -4226,7 +4289,7 @@ def main(argv=None):
     if a.cmd == 'actions':
         return actions(a.tags, a.all)
     if a.cmd == 'run':
-        return run_cmd(a.sub, a.args)
+        return run_cmd(a.sub, a.args + (['--jsonl'] if a.jsonl else []))
     if a.cmd == 'tara-box':  # zoom gauge check (L85): her box on screen, no game input
         tr = Tara()
         for _ in range(4):
@@ -4477,14 +4540,15 @@ def serve():
         0x00FFFFFF | 0xFF00000000, 'wf daemon serving game automation')
     if os.path.exists(SOCK):
         os.remove(SOCK)
-    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    srv.bind(SOCK)
-    srv.listen(4)
-    # warm up the expensive frameworks
+    # Do not publish the socket until warmup is complete. A published socket means requests may be delivered; if OCR
+    # warmup then exceeds the client deadline, the caller must treat an entirely read-only request as outcome-unknown.
     try:
         ocr(screenshot(os.path.join(SHOT_DIR, 'warm.png')))
     except BaseException:
         pass
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    srv.bind(SOCK)
+    srv.listen(4)
     while True:
         conn, _ = srv.accept()
         with conn:

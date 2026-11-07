@@ -5,40 +5,41 @@ import json
 SCHEMA = 2
 
 
-def records(log_path, evidence_refs):
+def event_rows(source):
+    """Canonical rows from a TaskStore."""
+    if not hasattr(source, 'db') or not hasattr(source, 'run_id'):
+        raise TypeError('history requires a SQLite TaskStore')
+    from runtime.run_store import RunStore
+    return RunStore(source.db).events(source.run_id)
+
+
+def records(source, evidence_refs):
     """Return exact intent/outcome envelopes in requested ID order; fail on missing or conflicting evidence."""
     wanted = list(dict.fromkeys(evidence_refs or ()))
     if not wanted:
         return []
     intents, found = {}, {}
     try:
-        with open(log_path) as stream:
-            for line in stream:
-                try:
-                    row = json.loads(line)
-                except (TypeError, ValueError):
+        for row in event_rows(source):
+            if row.get('type') != 'turn':
+                continue
+            key = (row.get('task_id'), row.get('turn_id'))
+            if row.get('phase') == 'intent' and isinstance(row.get('intent'), dict):
+                intents[key] = row['intent']
+            elif row.get('phase') == 'outcome' and isinstance(row.get('experience'), dict):
+                experience = row['experience']
+                experience_id = experience.get('id')
+                if experience_id not in wanted:
                     continue
-                if row.get('type') != 'turn':
-                    continue
-                key = (row.get('task_id'), row.get('turn_id'))
-                if row.get('phase') == 'intent' and isinstance(row.get('intent'), dict):
-                    # A stale/retried request may legitimately reuse a turn ID. The canonical envelope is
-                    # chronological: an outcome belongs to the latest preceding intent for that task/turn.
-                    intents[key] = row['intent']
-                elif row.get('phase') == 'outcome' and isinstance(row.get('experience'), dict):
-                    experience = row['experience']
-                    experience_id = experience.get('id')
-                    if experience_id not in wanted:
-                        continue
-                    intent = intents.get(key)
-                    if intent is None:
-                        raise ValueError(f'outcome {experience_id} lacks its canonical intent record')
-                    envelope = {'experience': experience, 'before': intent.get('before', {}),
-                                'action': intent.get('action', {}), 'expects': intent.get('expects', {})}
-                    old = found.get(experience_id)
-                    if old is not None and old != envelope:
-                        raise ValueError(f'conflicting outcome records for experience {experience_id}')
-                    found[experience_id] = envelope
+                intent = intents.get(key)
+                if intent is None:
+                    raise ValueError(f'outcome {experience_id} lacks its canonical intent record')
+                envelope = {'experience': experience, 'before': intent.get('before', {}),
+                            'action': intent.get('action', {}), 'expects': intent.get('expects', {})}
+                old = found.get(experience_id)
+                if old is not None and old != envelope:
+                    raise ValueError(f'conflicting outcome records for experience {experience_id}')
+                found[experience_id] = envelope
     except OSError as error:
         raise ValueError(f'cannot read canonical turn log: {error}') from error
     missing = [experience_id for experience_id in wanted if experience_id not in found]

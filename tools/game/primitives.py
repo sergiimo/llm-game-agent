@@ -182,6 +182,7 @@ class GameAdapter:
         self.clue_provider = clue_provider
         self._latest_observation = None
         self._captured_outcome = None
+        self._vector_store = None
 
     def mark(self):
         from . import core
@@ -195,6 +196,8 @@ class GameAdapter:
         os.makedirs(directory, exist_ok=True)
         path = os.path.join(directory, f'turn-{uuid.uuid4().hex}.jpg')
         image.convert('RGB').save(path, quality=90)  # full virtual frame; never resize
+        from . import view
+        view_id = view.new_id(path, image)
         # The saved frame, affordances and OCR must describe one capture. A second grab can see a fade/menu
         # while the artifact shows the world (live split-observation guard refusals). Never interpret black as
         # textless gameplay or count its difference from a rendered frame as movement.
@@ -232,14 +235,22 @@ class GameAdapter:
         detections = []
         vector_status = {'status': 'not_requested'}
         if valid and s.kind in ('gameplay', 'unknown') and isinstance(scope, dict):
+            effective = {'searched': [], 'disabled': [], 'untrained': list(scope.get('kinds') or ())}
             try:
+                if self._vector_store is None:
+                    from objects.store import Store
+                    self._vector_store = Store()
+                effective = observe.inspect_vector_scope(
+                    self._vector_store, scope.get('kinds'), scope.get('region'))
                 with measure('observe.vectors'):
-                    detections = observe.detect_frame(image, region=scope.get('region'), kinds=scope.get('kinds'))
-                vector_status = {'status': 'ok', 'region': scope.get('region'),
-                                 'requested_kinds': list(scope.get('kinds') or ()), 'hits': len(detections)}
+                    detections = observe.detect_frame(
+                        image, region=scope.get('region'), kinds=scope.get('kinds'), store=self._vector_store,
+                        cache_key=(view_id, self._vector_store.revision()))
+                vector_status = {'status': 'ok' if detections else 'no_match', 'region': scope.get('region'),
+                                 **effective, 'hits': len(detections)}
             except Exception as error:  # the model must distinguish detector failure from a valid empty frame
                 vector_status = {'status': 'error', 'region': scope.get('region'),
-                                 'requested_kinds': list(scope.get('kinds') or ()),
+                                 **effective,
                                  'error': f'{type(error).__name__}: {error}'}
         clues.update(screen={'kind': s.kind, 'texts': s.texts}, frame_path=path,
                      capture_validity='rendered' if valid else 'black',
@@ -248,8 +259,7 @@ class GameAdapter:
                      vector_detections=[{'kind': d.kind, 'point': list(d.point), 'box': list(d.box),
                                          'score': d.dist, 'raw': d.raw} for d in detections],
                      vector_status=vector_status)
-        from . import view
-        clues['view_id'] = view.new_id(path, image)
+        clues['view_id'] = view_id
         clues['candidates'] = view.candidates(clues)
         clues.setdefault('controls', [])
         clues.setdefault('graph_clues', [])

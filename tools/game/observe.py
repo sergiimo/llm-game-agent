@@ -199,10 +199,15 @@ def see(kind, tried=()):
     return sorted(dets, key=lambda x: d(x.point, CENTRE))
 
 
-def detect_frame(image, region=None, kinds=None):
+def detect_frame(image, region=None, kinds=None, store=None, cache_key=None):
     """Strict learned-vector read for a caller-owned frame; failures remain distinguishable from zero matches."""
     from objects import detect as D, store as S
-    return D.detect(image, S.Store(), kinds=kinds, region=region)
+    return D.detect(image, store or S.Store(), kinds=kinds, region=region, cache_key=cache_key)
+
+
+def inspect_vector_scope(store, kinds, region=None):
+    from objects import detect as D
+    return D.inspect_scope(store, kinds, region)
 
 
 def see_all(region=None, image=None, kinds=None):

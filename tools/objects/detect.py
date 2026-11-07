@@ -25,7 +25,19 @@ DISABLED_KEY = '_disabled'  # unsupported kinds for a region; a region list repl
 # (patch-level scoring has no single nearest example). `raw` = the peak's raw cosine (None when not computed).
 Detection = namedtuple('Detection', 'kind box dist example_id point raw', defaults=(None,))
 _CACHE = {}
+_FRAME_CACHE = {}
 _LOCK = threading.RLock()   # kind-vector cache (the daemon may detect from several threads)
+
+
+def clear_frame_cache():
+    _FRAME_CACHE.clear()
+
+
+def inspect_scope(store, kinds, region=None):
+    requested, trained = set(kinds or store.kinds()), set(store.kinds())
+    disabled = disabled_kinds(store, region) & requested
+    return {'searched': sorted(requested & trained - disabled),
+            'disabled': sorted(disabled), 'untrained': sorted(requested - trained)}
 
 
 def _clean(th, data, path, kinds):
@@ -150,9 +162,18 @@ def _find_peaks(h, thr):
     return seeds
 
 
-def _maps(img, store, exclude=()):
+def _maps(img, store, exclude=(), cache_key=None):
     all_kinds = [k for k in store.kinds() if k not in exclude]
-    ff = dino.frame_features(img)
+    if cache_key is None:
+        ff = dino.frame_features(img)
+    else:
+        with _LOCK:
+            ff = _FRAME_CACHE.get(cache_key)
+            if ff is None:
+                ff = dino.frame_features(img)
+                _FRAME_CACHE[cache_key] = ff
+                while len(_FRAME_CACHE) > 8:
+                    _FRAME_CACHE.pop(next(iter(_FRAME_CACHE)))
     zh = {k: _zmap(ff, kind_vectors(store, k)) for k in all_kinds}   # all kinds compete per patch
     z = {k: v[0] for k, v in zh.items()}
     best = np.argmax(np.stack([z[k] for k in all_kinds]), axis=0)
@@ -185,7 +206,7 @@ def raw_cos_peaks(img, store, floor=0.5, exclude=()):
     return out
 
 
-def detect(img, store, kinds=None, light=None, region=None, exclude=()):
+def detect(img, store, kinds=None, light=None, region=None, exclude=(), cache_key=None):
     """Detections of the store's kinds (only `kinds` if given; unknown kinds are ignored), best z first.
     `light` is accepted for API compatibility and unused. `region` picks that region's thresholds (else the default).
     `exclude`: container kinds (a region's own kind and its ancestors') left out of the per-patch competition, so their
@@ -198,7 +219,7 @@ def detect(img, store, kinds=None, light=None, region=None, exclude=()):
         return []
     th = thresholds(store, region)
     rth = raw_thresholds(store, region)
-    all_kinds, z, best, (sx, sy), raw = _maps(img, store, excluded)
+    all_kinds, z, best, (sx, sy), raw = _maps(img, store, excluded, cache_key=cache_key)
     out = []
     for k in want:
         zk = np.where(best == all_kinds.index(k), z[k], -np.inf)

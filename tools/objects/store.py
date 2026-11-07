@@ -185,5 +185,20 @@ class Store:
     def kinds(self):
         return sorted(k for k, e in self._ex.items() if e)
 
+    def revision(self):
+        """Cheap immutable cache key for learned crops, indices and regional thresholds."""
+        from game.data import image_revision
+        rows = []
+        for root, _, files in os.walk(self.root):
+            for name in sorted(files):
+                if name.endswith('.npz') or name == 'thresholds.json':
+                    path = os.path.join(root, name)
+                    try:
+                        stat = os.stat(path)
+                    except FileNotFoundError:
+                        continue
+                    rows.append((path, stat.st_mtime_ns, stat.st_size, stat.st_ino))
+        return image_revision(self.root), tuple(rows)
+
     def count(self, kind):
         return len(self._ex.get(kind, []))

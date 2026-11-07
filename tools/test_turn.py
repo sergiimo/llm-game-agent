@@ -334,13 +334,16 @@ class Turns(unittest.TestCase):
                 mock.patch.object(observe, 'detect_frame', vectors):
             snapshot = primitives.GameAdapter(clues).observe()
         raw.grab.assert_called_once_with()
-        vectors.assert_called_once_with(image, region='House', kinds=['Bed', 'HouseExit'])
+        self.assertIs(vectors.call_args.args[0], image)
+        self.assertEqual(vectors.call_args.kwargs['region'], 'House')
+        self.assertEqual(vectors.call_args.kwargs['kinds'], ['Bed', 'HouseExit'])
         self.assertEqual(snapshot['vector_detections'], [{
             'kind': 'HouseExit', 'point': [1600, 630], 'box': [1500, 500, 1700, 760],
             'score': 8.2, 'raw': .81,
         }])
         self.assertEqual(snapshot['vector_status'], {'status': 'ok', 'region': 'House',
-                                                     'requested_kinds': ['Bed', 'HouseExit'], 'hits': 1})
+                                                     'searched': ['Bed', 'HouseExit'], 'disabled': [],
+                                                     'untrained': [], 'hits': 1})
         self.assertTrue(snapshot['view_id'].startswith('view-'))
         self.assertEqual(snapshot['candidates'][0]['id'], 'vector-0')
         self.assertEqual(snapshot['candidates'][0]['kind'], 'HouseExit')

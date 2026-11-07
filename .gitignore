@@ -5,3 +5,4 @@ recordings/
 .DS_Store
 tools/game/observed*.jsonl
 runs/
+.superpowers

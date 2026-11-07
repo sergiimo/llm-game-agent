@@ -251,6 +251,14 @@ def propose(e):
             memory.append(X.Update('memory', 'relabel', {'box': list(ctx['det_box']), 'node': e.evidence.node}))
         if ctx.get('toward'):
             memory.append(X.Update('memory', 'direction', {'toward': list(ctx['toward']), 'target': ctx.get('target')}))
+    if e.action and e.action.kind == 'space':
+        highlighted = [a for a in _affs(e.before.affordances) if a.highlighted]
+        target = next((m.group(1) for line in e.evidence.lines
+                       if (m := re.search(r'target=([A-Za-z]+)', line))), None)
+        if len(highlighted) == 1 and target and e.evidence.events:
+            point = [int(highlighted[0].pt[0]), int(highlighted[0].pt[1])]
+            memory.append(X.Update('memory', 'confirmed_bubble', {'point': point}))
+            world.append(X.Update('world', 'interaction_hint', {'target': target, 'point': point}))
     for i, ch in enumerate(e.verdict.checks):
         transitions.append(X.Update('transitions', 'observation', {'i': i}))
     return X.Correction(e.id, world=tuple(world), memory=tuple(memory), transitions=tuple(transitions))
@@ -368,6 +376,34 @@ def _run(u, e, img0):
         if nid:
             _save_world(g)
         return nid
+    if u.consumer == 'world' and u.op == 'interaction_hint':
+        import math
+        g = LN.MEMORY['graph']
+        if g is None:
+            return None
+        target = u.args['target']
+        candidates = ([target] if target in g.nodes else
+                      [node.id for node in g.nodes.values() if node.kind == target])
+        if len(candidates) != 1:
+            return None
+        state = dict(e.evidence.state) or dict(e.before.state)
+        position = state.get('position')
+        if not isinstance(position, (tuple, list)) or len(position) != 2:
+            return None
+        point = u.args['point']
+        dx, dy = float(point[0]) - 960., float(point[1]) - 540.
+        length = math.hypot(dx, dy) or 1.
+        hint = {'position': [float(position[0]), float(position[1])],
+                'screen_point': list(point), 'screen_dir': [dx / length, dy / length],
+                'region': state.get('region'), 'game_time': state.get('game_time'),
+                'source': 'event', 'experience': e.id, 'frame_path': e.artifacts.img0}
+        node = g.nodes[candidates[0]]
+        node.extra['interaction_hint'] = hint
+        from objects import store as vectors
+        node.extra['appearance_needed'] = not bool(vectors.Store().examples(node.kind))
+        note(g, candidates[0], e.id)
+        _save_world(g)
+        return candidates[0]
     if u.consumer == 'world' and u.op == 'model_edge':
         g = LN.MEMORY['graph']
         edge, values = u.args['edge'], u.args['values']
@@ -484,6 +520,14 @@ def _run(u, e, img0):
         sample = store.add(kind, crop, dino.mean_vector(crop), source=provenance, force=True)
         if sample is None:
             raise ValueError('appearance sample was not stored')
+        g = LN.MEMORY['graph']
+        candidates = [node for node in g.nodes.values() if node.kind == kind] if g is not None else []
+        if len(candidates) == 1:
+            candidates[0].extra['appearance_needed'] = False
+            candidates[0].extra['appearance_sample'] = {'id': sample.id, 'experience': e.id,
+                                                        'frame_path': u.args['frame_path']}
+            note(g, candidates[0].id, e.id)
+            _save_world(g)
         return sample.id
     if u.consumer == 'memory':
         img = _img(e, img0)
@@ -492,6 +536,15 @@ def _run(u, e, img0):
             raise ValueError('appearance correction needs the captured frame and clicked target')
         if u.op == 'bubble_label':
             return LN.learn_bubble(_ns(e), img)
+        if u.op == 'confirmed_bubble':
+            W = LN.core.WF
+            point = tuple(u.args['point'])
+            label = W.event_kind(list(e.evidence.lines)) if hasattr(W, 'event_kind') else None
+            before = _affs(e.before.affordances)
+            bubble = next((a for a in before if a.pt == point and a.highlighted), None)
+            if img is None or bubble is None or not label or not hasattr(W, 'learn_bubble'):
+                return None
+            return (f'bubble:{label}' if W.learn_bubble(W.bubble_crop(img, point), label, bubble.kind) else None)
         if u.op == 'answer_look':
             return LN.learn_answer(_ns(e), img, u.args.get('here'), exp=e.id)
         if u.op == 'badge':   # the clicked bubble's 140-px crop -> its corner is an example of the label

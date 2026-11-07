@@ -33,6 +33,18 @@ def _save_money(save):
     return int(value), field
 
 
+def _vector_scope(graph, *candidates, learned_kinds=None):
+    """Learned appearance kinds visible in the current graph region, including nested landmarks and exits."""
+    if learned_kinds is None:
+        from objects.store import Store
+        learned_kinds = Store().kinds()
+    learned_kinds = set(learned_kinds)
+    region = next((candidate for candidate in candidates if candidate in graph.nodes), None)
+    kinds = sorted({node.kind for node in graph.nodes.values()
+                    if node.kind in learned_kinds and region and region in graph.chain(node.id)})
+    return {'region': region, 'kinds': kinds if region else sorted(learned_kinds)}
+
+
 def _clues(store):
     from . import ask, core, engine, garden_policy, observe, world
     graph = engine._open_graph()
@@ -46,6 +58,7 @@ def _clues(store):
                   'game_time': world.save_time(save)}
     region = getattr(core.WF, 'current_scene', lambda: None)()
     scene, _ = world.scene_context(lines, save.get('currentScene'), since=world.save_time(save))
+    vector_scope = _vector_scope(graph, region, scene, save.get('currentScene'))
     point = save.get('currentPlayerPosition') or {}
     data = {'graph_clues': ([dict(node=n.id, **n.to_dict()) for n in graph.nodes.values()] +
                             [{'edge': dict(edge)} for edge in graph.edges()] +
@@ -54,6 +67,7 @@ def _clues(store):
             'inventory': world.inventory(save, lines),
             'inventory_complete': isinstance(player.get('inventory', {}).get('items'), list),
             'money': money, 'region': region, 'scene': scene, 'save_scene': save.get('currentScene'),
+            'vector_scope': vector_scope,
             'state_provenance': {'inventory': save_proof, 'money': dict(save_proof, field=money_field),
                                  'position': save_proof, 'save_scene': save_proof,
                                  'region': {'source': 'scene_log'}}}
@@ -126,9 +140,47 @@ def recommend(task, observation):
     current = domain(task)
     if current['goal'] == 'garden':
         return garden_policy.recommend(current, observation)
-    return Recommendation(reasons=('model chooses one primitive; read actions/INDEX.md for this workflow',
-        'long-distance navigation: inspect and learn the map first; use visible roads for local approach or '
-        'only after captured unavailable/insufficient map evidence'))
+    reasons = ['model chooses one primitive; read actions/INDEX.md for this workflow']
+    latest = task.get('last_experience') or {}
+    verdict = latest.get('verdict') or {}
+    if latest.get('id') and verdict.get('value'):
+        checks = '; '.join(f'{row.get("field")} expected={row.get("expected")} got={row.get("got")} '
+                           f'ok={row.get("ok")}' for row in verdict.get('checks', ())[:3])
+        reasons.append(f'latest outcome {latest["id"]}: verdict={verdict["value"]}' +
+                       (f'; {checks}' if checks else ''))
+    surprise = task.get('last_surprise') or {}
+    actual = surprise.get('actual') or {}
+    guard = next((check for check in surprise.get('checks', ()) if check.get('field') == 'guard'), None)
+    if guard:
+        reasons.append(f'authoritative guard refusal: {guard.get("got")}; zero input was issued, so moved remains '
+                       'unknown and the refused action must not be described as a game miss')
+    if actual:
+        evidence = []
+        if actual.get('mode'):
+            evidence.append(f'mode={actual["mode"]}')
+        if actual.get('events'):
+            evidence.append('events=' + ','.join(map(str, actual['events'])))
+        if actual.get('texts'):
+            evidence.append('texts=' + ' / '.join(map(str, actual['texts']))[:240])
+        if evidence:
+            reasons.append('authoritative latest outcome: ' + '; '.join(evidence) +
+                           '; use this evidence before correcting and do not infer no input from an unchanged frame')
+    missing = [clue for clue in observation.get('graph_clues', ()) if clue.get('appearance_needed')]
+    if missing:
+        names = ', '.join(dict.fromkeys(str(clue.get('kind') or clue.get('node')) for clue in missing))
+        reasons.append(f'confirmed interaction has a missing appearance sample for {names}: use model vision on the '
+                       'proven source frame, then a provenance-bearing appearance correction with its bounded box')
+    if (observation.get('screen') or {}).get('kind') == 'map':
+        reasons.append('recognized map: after inspecting it, use the close primitive, not key:m or key:esc; '
+                       'menu-key guard refusals issue no input')
+    if current['goal'] == 'navigate' and observation.get('region') == 'House':
+        reasons.append('indoor navigation: exit the building through its visible exit, cross the porch/stairs, and '
+                       'move far enough outside that the interior disappears before opening the map')
+    else:
+        reasons.append('long-distance navigation: inspect and learn the map first; use visible roads for local '
+                       'approach or only after captured unavailable/insufficient map evidence; on a long clear road '
+                       'choose the farthest safe visible point whose entire path remains visible')
+    return Recommendation(reasons=tuple(reasons))
 
 
 def reduce(task, experience):
@@ -464,6 +516,7 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
     if existing and answer is None and existing.params.get('_trade_start_money') is None:
         _repair_start_money(store)
     adapter = adapter or GameAdapter(clue_provider=lambda: _clues(store))
+    initial_observation = None
     if not existing:
         goal = goal or 'play'
         if goal == 'garden':
@@ -473,7 +526,7 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
                 raise ValueError('unknown garden chores')
             with open(os.path.join(os.path.dirname(__file__), 'kinds.json')) as f:
                 params['flowers'] = json.load(f).get('_lists', {}).get('flowers', [])
-        obs = adapter.observe()
+        obs = initial_observation = adapter.observe()
         params['_started_late'] = obs.get('hour') is not None and obs['hour'] > 19
         params['_trade_start_money'] = obs.get('money')
         params['_trade_start_money_provenance'] = obs.get('state_provenance', {}).get('money')
@@ -483,7 +536,7 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
         store.create(task)  # root catalogue rows are declarations; only versioned decisions register proof
     loop = TurnLoop(store, adapter, recommend, reducer=reduce, guard=guard)
     if answer is None:
-        return loop.context()
+        return loop.context(observation=initial_observation)
     if isinstance(answer, str) and answer.strip().startswith('{'):
         answer = json.loads(answer)
     if isinstance(answer, dict):

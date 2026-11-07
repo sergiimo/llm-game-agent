@@ -5,6 +5,14 @@
 
 Prerequisites: read the active goal/transaction, exact clock, current modal and full-scale frame. Tara stays at the
 frame centre. Graph edges/detector matches are hypotheses with provenance, never permission to click off-screen.
+Read `NEXT.vector_detections` first: these learned appearance vectors are the primary current-frame landmark/object
+evidence and are computed from the same frame as bubbles/OCR. Use the graph to scope and interpret them. If an
+expected learned kind is absent or contradicts the graph, inspect the frame with model vision and correct the vector,
+graph or decision explicitly; never silently fall back to a stale route.
+
+The map workflow is outdoors only. When `region=House`, first click the visible interior exit/opening, then the porch
+stairs, then one more outside waypoint until the house interior is gone and the exterior is fully rendered. Only
+then open the map. An indoor `m` request is a guard refusal and issues no input.
 
 **User rule:** before a long-distance trip or searching for an off-screen destination, issue one canonical guarded
 `action:{kind:"key",label:"m",expects:{mode:"map"}}` from proved gameplay. Inspect the full-scale result, locate
@@ -14,14 +22,19 @@ timeline); retain the map frame. Correct an existing graph edge/location or appe
 source-frame proof, and consolidate verified route knowledge after milestones. Map pixels are not world coordinates
 without calibration. Python does not select routes, decide when a trip is long, schedule map calls or move for you.
 
-Close a recognized map in its own turn before any world input. Then choose one visible-road step along the
+Close a recognized map in its own turn with `action:{kind:"close",expects:{mode:"gameplay"}}` before any world
+input. The dedicated `close` primitive issues the guarded Escape. Do **not** encode this as `key:m` or `key:esc`:
+`key` is only for opening `j`/`m`/`i` from gameplay, so those map-screen attempts are guard refusals that issue no
+input. Read `verdict.checks` and `artifacts.frames` before interpreting a no-change result. Then choose one visible-road step along the
 model-selected map route and reassess. Reopen/compare the map when localization or the next long segment needs it.
 Visible-road-only navigation is for local approach, or a fallback **after** a correctly issued map request/result
 proves it unavailable or insufficient; record that limitation. Invalid/refused map requests prove neither. Do not
 replace map learning with a long chain of guessed waypoints.
 
-Choose a target click only when both the target and its entire walkable road from the centre are visible. Otherwise
-choose one short visible-ground waypoint, then inspect the returned frame. On a map, close it explicitly before world
+Choose a target click only when both the target and its entire walkable road from the centre are visible. On a long,
+clear road, choose the **farthest safe walkable point** along that road whose entire path remains visible; this avoids
+wasting turns on tiny steps. Use a short visible-ground waypoint only at a bend, threshold, occlusion, or uncertainty,
+then inspect the returned frame. On a map, close it explicitly before world
 input. A menu key uses `label`, for example
 `action:{kind:"key",label:"m",expects:{mode:"map"}}` inside one versioned `act` decision. Do not send
 `{kind:"key",key:"m"}` or `press` the HUD hotkey letter `M`: those are refused before input. `answer=key:m` is

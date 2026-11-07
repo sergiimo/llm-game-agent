@@ -88,6 +88,25 @@ class PlayCase(unittest.TestCase):
             wf.main(argv)
         return out.getvalue()
 
+    def test_house_vector_scope_includes_the_learned_exit_and_bed(self):
+        from objects.graph import Graph, Node
+        graph = Graph()
+        graph.nodes['Farm'] = Node('Farm', 'region')
+        graph.nodes['House'] = Node('House', 'region', region='Farm')
+        graph.nodes['Bed'] = Node('Bed', 'unique', region='House')
+        graph.nodes['HouseExit'] = Node('HouseExit', 'unique', region='House')
+        graph.nodes['Garden'] = Node('Garden', 'region', region='Farm')
+        scope = self.play()._vector_scope(graph, 'House', learned_kinds={'Bed', 'HouseExit'})
+        self.assertEqual(scope['region'], 'House')
+        self.assertEqual(scope['kinds'], ['Bed', 'HouseExit'])
+
+    def test_new_task_reuses_its_vector_observation_in_the_first_next(self):
+        observed = mock.Mock(wraps=self.port.observe)
+        self.port.observe = observed
+        context = self.play().turn('navigate', {'region': 'Town'}, store=self.store, adapter=self.port)
+        self.assertEqual(context.turn_id, 1)
+        observed.assert_called_once_with()
+
 
 class CompactHistory(PlayCase):
     def outcome(self, experience_id, turn_id):
@@ -948,6 +967,21 @@ class CapturedCancellation(PlayCase):
         self.assertIsNone(c.transaction)
         self.assertEqual(len(self.port.inputs), 1)
 
+    def test_proven_no_effect_world_misses_can_cancel_an_obsolete_child(self):
+        from game import experience as X
+        c = self.play().turn('work', store=self.store, adapter=self.port)
+        c = self.choose(c, 'push', action={'goal': 'sleep', 'params': {}})
+        self.port.capture = lambda intent, before, expected: primitives.experience(
+            intent, before, expected, X.Evidence(mode='gameplay', moved=False))
+        c = self.choose(c, 'act', action={'kind': 'waypoint', 'point': [820, 700],
+                                         'walkable': True, 'expects': {'moved': True}})
+        self.assertIsNotNone(c.surprise)
+        c = self.choose(c, 'correct', correction={'kind': 'revise_decision', 'data': {
+            'reason': 'captured no movement, event, card, resource change or mode change'}})
+        c = self.choose(c, 'cancel', rationale='obsolete child contains only proven no-effect world misses')
+        self.assertEqual(c.task['stack'], ())
+        self.assertEqual(len(self.port.inputs), 1)
+
     def test_unnamed_positioned_evidence_cannot_be_discarded_by_cancellation(self):
         from game import experience as X
         self.port.snapshot['position'] = [1., 2.]
@@ -1651,8 +1685,59 @@ class MapModalProof(PlayCase):
 
     def test_generic_model_guidance_requires_learning_map_first_without_selecting_a_route(self):
         c = self.play().turn('navigate', {'region': 'Town'}, store=self.store, adapter=self.port)
-        self.assertIn('map first', ' '.join(c.recommendation.reasons))
+        guidance = ' '.join(c.recommendation.reasons)
+        self.assertIn('map first', guidance)
+        self.assertIn('farthest safe visible point', guidance)
         self.assertIsNone(c.recommendation.action, 'map-first guidance must not schedule a hidden navigation input')
+        self.assertEqual(self.port.inputs, [])
+
+    def test_indoor_navigation_guidance_exits_before_opening_the_map(self):
+        self.port.snapshot = dict(self.port.snapshot, region='House')
+        c = self.play().turn('navigate', {'region': 'Town'}, store=self.store, adapter=self.port)
+        guidance = ' '.join(c.recommendation.reasons)
+        self.assertIn('exit the building', guidance)
+        self.assertNotIn('map first', guidance)
+        self.assertIsNone(c.recommendation.action)
+
+        with self.assertRaisesRegex(ValueError, 'map unavailable indoors'):
+            primitives.GameAdapter().prepare({'kind': 'key', 'label': 'm'}, self.port.snapshot)
+
+    def test_surprise_guidance_surfaces_authoritative_mode_events_and_text(self):
+        task = {'goal': 'sleep', 'params': {}, 'stack': [], 'last_surprise': {'actual': {
+            'mode': 'dialogue', 'events': ['sleep11'], 'texts': ['Tara: Is it time for bed?']}}}
+        recommendation = self.play().recommend(task, {'screen': {'kind': 'dialogue'}, 'region': 'House'})
+        guidance = ' '.join(recommendation.reasons)
+        self.assertIn('mode=dialogue', guidance)
+        self.assertIn('events=sleep11', guidance)
+        self.assertIn('Tara: Is it time for bed?', guidance)
+        self.assertIn('do not infer no input', guidance)
+
+    def test_confirmed_interaction_missing_vector_requests_model_appearance_sample(self):
+        task = {'goal': 'sleep', 'params': {}, 'stack': []}
+        observation = {'screen': {'kind': 'gameplay'}, 'region': 'House', 'graph_clues': [
+            {'node': 'Bed', 'kind': 'Bed', 'appearance_needed': True,
+             'interaction_hint': {'experience': 'exp-sleep', 'frame_path': 'bed.jpg'}}]}
+        guidance = ' '.join(self.play().recommend(task, observation).reasons)
+        self.assertIn('missing appearance sample for Bed', guidance)
+        self.assertIn('model vision', guidance)
+        self.assertIn('appearance correction', guidance)
+
+    def test_guidance_surfaces_latest_authoritative_verdict_and_checks(self):
+        task = {'goal': 'navigate', 'params': {'region': 'Town'}, 'stack': [], 'last_experience': {
+            'id': 'move-proof', 'verdict': {'value': 'hit', 'checks': [
+                {'field': 'moved', 'expected': True, 'got': True, 'ok': True}]},
+            'evidence': {'mode': 'gameplay', 'events': [], 'moved': True}}}
+        guidance = ' '.join(self.play().recommend(task, {'screen': {'kind': 'gameplay'}, 'region': 'Town'}).reasons)
+        self.assertIn('latest outcome move-proof: verdict=hit', guidance)
+        self.assertIn('moved expected=True got=True ok=True', guidance)
+
+    def test_recognized_map_guidance_names_the_close_primitive_not_a_menu_key(self):
+        self.port.snapshot = dict(self.port.snapshot, screen={'kind': 'map', 'texts': []})
+        c = self.play().turn('navigate', {'region': 'Town'}, store=self.store, adapter=self.port)
+        guidance = ' '.join(c.recommendation.reasons)
+        self.assertIn('close primitive', guidance)
+        self.assertIn('not key:m or key:esc', guidance)
+        self.assertIsNone(c.recommendation.action, 'the model still decides after inspecting the map')
         self.assertEqual(self.port.inputs, [])
 
     def test_true_captured_map_panel_remains_map_and_blocks_world_input(self):
@@ -1660,6 +1745,20 @@ class MapModalProof(PlayCase):
         self.assertEqual(observation['screen']['kind'], 'map')
         with self.assertRaisesRegex(ValueError, 'world input blocked by map'):
             primitives.GameAdapter().prepare({'kind': 'waypoint', 'point': [600, 650], 'walkable': True}, observation)
+
+    def test_valid_hud_clock_proves_world_under_stray_ocr_without_affordances(self):
+        from types import SimpleNamespace
+        from game import act, observe
+        image = self.image('town')
+        raw = SimpleNamespace(grab=lambda: image,
+                              classify=lambda frame: {'mode': 'overlay', 'text': ['pre']},
+                              game_hour=wf.game_hour,
+                              map_pin=lambda frame: None,
+                              game_stamp=lambda: 'D212 9:10:00 AM')
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(observe, 'scan', return_value=[]), \
+                mock.patch.object(act, 'frames_dir', return_value=self.tmp.name):
+            observation = primitives.GameAdapter().observe()
+        self.assertEqual(observation['screen']['kind'], 'gameplay')
 
     def test_true_map_with_unrecognized_ocr_still_uses_panel_proof_and_blocks_world_input(self):
         observation = self.observe_image('map', wf.map_pin(self.image('map')), texts=['island'])
@@ -2144,6 +2243,10 @@ class Play(PlayCase):
             with self.subTest(argv=argv), tempfile.TemporaryDirectory() as directory:
                 output = self.cli(argv, directory)
                 self.assertIn('NEXT ', output)
+                context = json.loads(output.split('NEXT ', 1)[1])
+                self.assertEqual([row['stage'] for row in context['model_workflow']],
+                                 ['observe', 'decide', 'vision', 'act', 'verify', 'learn', 'repeat'])
+                self.assertIn('vector_detections', context)
                 self.assertEqual(self.port.inputs, [])
 
     def test_every_registered_command_is_classified(self):

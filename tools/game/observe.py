@@ -199,11 +199,20 @@ def see(kind, tried=()):
     return sorted(dets, key=lambda x: d(x.point, CENTRE))
 
 
-def see_all(region=None):
-    """Every object the detector sees (any kind), under the region's calibrated reliability contract."""
+def detect_frame(image, region=None, kinds=None):
+    """Strict learned-vector read for a caller-owned frame; failures remain distinguishable from zero matches."""
+    from objects import detect as D, store as S
+    return D.detect(image, S.Store(), kinds=kinds, region=region)
+
+
+def see_all(region=None, image=None, kinds=None):
+    """Objects seen by learned appearance vectors in one caller-owned frame.
+
+    ``image`` keeps vectors, bubbles, OCR and the persisted frame coherent.  The
+    legacy no-image form remains for read-only callers that do not own a frame.
+    """
     try:
-        from objects import detect as D, store as S
-        return D.detect(core.WF.grab(), S.Store(), region=region)
+        return detect_frame(image if image is not None else core.WF.grab(), region=region, kinds=kinds)
     except Exception:   # noqa: BLE001
         return []
 

@@ -18,6 +18,11 @@ in place). `./wf play` resumes it. A different domain does not silently start an
 Legacy `do`, `py`, `call`, `goto`, `advance`, routes and batching requests are task descriptions; they execute no
 old Python workflow. Continue all tasks through `play` with the exact saved turn ID.
 
+Every fresh gameplay `NEXT` includes learned `vector_detections` computed from the exact full-scale frame used for
+OCR and bubbles. Treat these as the primary appearance/navigation clues; graph placement and routes provide context,
+not a reason to ignore a current vector match. `model_workflow` prints the current observe, decide, vision, act,
+verify, learn and repeat stages on every turn. It is a compact audit trace, not private chain-of-thought.
+
 For long-distance navigation, the model first opens the map with canonical guarded
 `{kind:"key",label:"m",expects:{mode:"map"}}`, inspects and learns pin/landmarks/road connections with frame
 provenance, then selects the route. Visible-road-only travel is local approach or fallback after captured
@@ -40,6 +45,9 @@ or `press` on a HUD letter. The `key:m` shorthand is one guarded input without a
 On `verdict=unsafe`, read the exact `guard` check first: it issued zero inputs. Empty after-state/after frames in
 that refusal are not a capture failure; `artifacts.img0` is the before frame and the NEXT frame is a later read.
 Record the actual refusal reason before correcting the model decision. An intended mode never proves an attempt ran.
+For every surprise, authoritative `evidence.mode`, `evidence.events`, and `evidence.texts` outrank a visual narrative:
+if they show a dialogue/event, the interaction occurred even when the model expected a different proof shape. Never
+write a correction claiming “did not open” or “no input” while those fields prove the opposite.
 
 Expectation fields are typed before any observation/input: `card` is a nonempty expected text substring, or `"?"`
 to capture/read an unknown card as a gap; it is never `true`/`false`. `mode`, `region`, `node` are text; `moved` is
@@ -72,7 +80,11 @@ physical action takes a new pre-input observation before its guards. This receip
 Optional `WF_TIMING_FILE=/tmp/wf-timing.jsonl` records payload-free client/server, capture, clue and persistence
 durations when inherited by that process (set it for daemon startup as well as the client). It issues no input.
 
-For dialogue, choose one `space` or one named response, expect the next subtitle/modal or quest event, then reassess.
+For a world interaction with a detected bubble, click the bubble first (`bubble` with its fresh point and
+`visible_road:true`). Inspect the resulting prompt. When the affirmative confirmation bubble is already highlighted
+(for example `Yes`), confirm it with one `space`; do not click it or route it through text/card selection. This is the
+general confirmation sequence: **click the interaction bubble, then Space the highlighted confirmation**. For other
+dialogue, choose one `space` or one named response, expect the next subtitle/modal or quest event, then reassess.
 For a journal hint, open `j`, inspect the quest, press visible `Show Hint`, read it, then close in separate turns.
 Inventory use/crafting similarly needs a visible item/control, explicit resource authorization, and its item/event
 change as proof. Do not turn a historical action recipe into a batch of keys.

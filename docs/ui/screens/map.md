@@ -11,6 +11,8 @@ does not prove the modal; its large four-sided paper frame must also be present.
 - Pink pin = Tara. Dotted line = route to the current quest target. Unvisited areas covered by clouds.
 
 ## Actions
+- The map workflow is outdoors only. From inside the farmhouse, exit through the visible opening, cross the porch
+  stairs, and move farther outside until the interior disappears before opening it.
 - Long-distance navigation must use and learn this map first. Inspect the pin, destination/landmark candidates and
   road connections; retain source-frame references and record observations/uncertainties in versioned decision
   rationale. Consolidate verified route knowledge after milestones. Visible-road-only travel is local approach or
@@ -26,4 +28,6 @@ does not prove the modal; its large four-sided paper frame must also be present.
   A refusal performs zero inputs. Map availability remains unproved until a correctly issued action is observed.
 
 ## Exit
-One versioned `close` action only after the map is recognized; then inspect the next frame.
+One versioned `action:{kind:"close",expects:{mode:"gameplay"}}` only after the map is recognized; then inspect the
+next frame. `close` issues Escape. Do not use `key:m` or `key:esc` on the open map: the `key` primitive only opens
+`j`/`m`/`i` from gameplay, and a guard refusal means no key reached the game.

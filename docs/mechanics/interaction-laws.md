@@ -11,8 +11,11 @@ An active `./wf run start <task> <goal>` is required. The supervisor writes and 
 All domains share the active run task file, including existing `garden-task.json`; `./wf play` resumes it.
 Load `.claude/skills/wylde-play/actions/INDEX.md` then the one workflow file. **Docs choose sequences; Python never does.**
 Legacy `do`, `py`, `call`, `sleep`, `goto`, `advance`, and route aliases return turns rather than run private workflows.
-The model reads screen/card, visible affordances, graph clues with their source/time, active transaction, coverage,
-last outcome, surprise, interrupts, recommendation and allowed decisions. Accept obvious recommendations promptly.
+The model reads screen/card, learned `vector_detections`, visible affordances, graph clues with their source/time,
+active transaction, coverage, last outcome, surprise, interrupts, recommendation and allowed decisions. Vectors are
+the primary current-frame navigation evidence; graph/routes contextualize them. Detection, OCR, bubbles and the saved
+frame must come from one capture. Every `NEXT` also prints the compact `model_workflow` stages observe → decide →
+vision → act → verify → learn → repeat so omissions are visible without exposing private chain-of-thought.
 
 **Long-distance navigation (user rule):** first issue canonical guarded
 `{kind:"key",label:"m",expects:{mode:"map"}}`, inspect the full-scale map and learn pin/landmarks/road connections
@@ -42,8 +45,10 @@ transaction. They do not create or mutate the active garden interaction. Resume 
 to gameplay; it needs no world event. Interrupted menu input reconciles from its recorded intent without repetition.
 
 The model selects the next target only when the active transaction has completed. A target click needs the target
-and its full walkable road visible from Tara at the frame centre. Otherwise choose one short visible-ground
-waypoint (`{"kind":"waypoint","cell":"F7","walkable":true}`). Never infer actual node ownership from projection.
+and its full walkable road visible from Tara at the frame centre. On a long clear road, click the farthest safe
+visible-ground point whose entire path remains visible. Use a short waypoint
+(`{"kind":"waypoint","cell":"F7","walkable":true}`) only at bends, thresholds, occlusion, or uncertainty.
+Never infer actual node ownership from projection.
 
 ## Evidence and garden rules
 

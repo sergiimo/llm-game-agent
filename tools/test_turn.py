@@ -81,6 +81,23 @@ class Turns(unittest.TestCase):
             c.recommendation.action['kind'] = 'close'
         self.assertEqual(json.loads(json.dumps(c.to_dict()))['task']['task_id'], 'task-1')
 
+    def test_every_context_prints_the_compact_model_workflow(self):
+        self.port.snapshot['vector_detections'] = [
+            {'kind': 'GardenBed', 'point': [700, 500], 'score': 7.1}]
+        c = self.loop.context()
+        stages = {row['stage']: row for row in c.model_workflow}
+        self.assertEqual(tuple(stages), ('observe', 'decide', 'vision', 'act', 'verify', 'learn', 'repeat'))
+        self.assertEqual(stages['observe']['vectors'], 1)
+        self.assertEqual(stages['decide']['status'], 'awaiting_model')
+        self.assertEqual(stages['act']['status'], 'awaiting_decision')
+        self.assertEqual(stages['repeat']['goal'], 'garden')
+        public = json.dumps(c.to_dict())
+        self.assertNotIn('chain_of_thought', public)
+        self.assertLess(len(json.dumps(c.to_dict()['model_workflow'])), 1600)
+        cached = self.loop.context()
+        self.assertEqual(cached.observation_freshness, 'cached')
+        self.assertEqual(cached.model_workflow[0]['freshness'], 'cached')
+
     def test_one_accept_persists_intent_before_input_and_rejects_stale(self):
         c = self.loop.context()
         original = self.port.perform
@@ -203,6 +220,8 @@ class Turns(unittest.TestCase):
         c = self.loop.decide(self.loop.context().turn_id, turn.Decision('accept'))
         self.assertEqual(c.surprise.reason, 'mismatch')
         self.assertEqual(c.last_outcome['verdict']['value'], 'unsafe')
+        self.assertEqual(c.surprise.checks[0]['field'], 'guard')
+        self.assertEqual(c.surprise.checks[0]['got'], 'menu blocks world input')
         self.assertEqual(self.port.inputs, [])
 
     def test_model_world_correction_is_durable_and_idempotent(self):
@@ -297,6 +316,46 @@ class Turns(unittest.TestCase):
         raw.find_bubbles.assert_called_once_with(image)
         with Image.open(snapshot['frame_path']) as saved:
             self.assertEqual(saved.size, (1920, 1080))
+
+    def test_production_observation_runs_vectors_on_the_exact_saved_grab(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act, observe
+        from objects.detect import Detection
+        image = Image.new('RGB', (1920, 1080), '#678967')
+        raw = SimpleNamespace(grab=mock.Mock(return_value=image),
+                              classify=mock.Mock(return_value={'mode': 'gameplay', 'text': []}),
+                              find_bubbles=mock.Mock(return_value=[]))
+        detected = [Detection('HouseExit', (1500, 500, 1700, 760), 8.2, None, (1600, 630), .81)]
+        vectors = mock.Mock(return_value=detected)
+        clues = lambda: {'region': 'House', 'vector_scope': {
+            'region': 'House', 'kinds': ['Bed', 'HouseExit']}}
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name), \
+                mock.patch.object(observe, 'detect_frame', vectors):
+            snapshot = primitives.GameAdapter(clues).observe()
+        raw.grab.assert_called_once_with()
+        vectors.assert_called_once_with(image, region='House', kinds=['Bed', 'HouseExit'])
+        self.assertEqual(snapshot['vector_detections'], [{
+            'kind': 'HouseExit', 'point': [1600, 630], 'box': [1500, 500, 1700, 760],
+            'score': 8.2, 'raw': .81,
+        }])
+        self.assertEqual(snapshot['vector_status'], {'status': 'ok', 'region': 'House',
+                                                     'requested_kinds': ['Bed', 'HouseExit'], 'hits': 1})
+
+    def test_vector_failure_is_explicit_instead_of_looking_like_no_match(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act, observe
+        raw = SimpleNamespace(grab=lambda: Image.new('RGB', (1920, 1080), '#678967'),
+                              classify=lambda image: {'mode': 'gameplay', 'text': []},
+                              find_bubbles=lambda image: [])
+        clues = lambda: {'region': 'House', 'vector_scope': {'region': 'House', 'kinds': ['HouseExit']}}
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name), \
+                mock.patch.object(observe, 'detect_frame', side_effect=RuntimeError('model unavailable')):
+            snapshot = primitives.GameAdapter(clues).observe()
+        self.assertEqual(snapshot['vector_detections'], [])
+        self.assertEqual(snapshot['vector_status']['status'], 'error')
+        self.assertIn('model unavailable', snapshot['vector_status']['error'])
 
     def test_black_observation_fails_closed_and_never_becomes_visual_movement(self):
         from PIL import Image
@@ -462,6 +521,62 @@ class Turns(unittest.TestCase):
         self.assertIsNone(c.surprise)
         self.assertTrue(os.listdir(os.path.join(bubble_dir, 'inspect')))
         self.assertTrue(os.listdir(os.path.join(badge_dir, 'none')))
+
+    def test_confirmed_space_affordance_learns_bubble_and_graph_interaction_hint(self):
+        from PIL import Image
+
+        class Raw:
+            def __init__(self):
+                self.learned = []
+            @staticmethod
+            def event_kind(lines):
+                return 'sleep' if any('> sleep11 ' in line for line in lines) else None
+            def learn_bubble(self, crop, kind, seen):
+                self.learned.append((kind, seen))
+                return True
+            @staticmethod
+            def bubble_crop(image, point):
+                x, y = point
+                return image.crop((x - 20, y - 20, x + 20, y + 20))
+            @staticmethod
+            def run_log(*args, **kwargs):
+                pass
+
+        frame = os.path.join(self.tmp.name, 'sleep-before.png')
+        Image.new('RGB', (1920, 1080), 'pink').save(frame)
+        graph = Graph()
+        graph.nodes['House'] = Node('House', 'region', 'House')
+        graph.nodes['Bed'] = Node('Bed', 'unique', 'Bed', region='House')
+        raw = Raw()
+        graph_path = os.path.join(self.tmp.name, 'graph.json')
+        vector_store = __import__('objects.store', fromlist=['Store']).Store(os.path.join(self.tmp.name, 'vectors'))
+        experience = X.Experience.new(
+            before=X.Observation('gameplay', (('sleep', 656, 624, False, False, True),),
+                                 (('region', 'House'), ('position', (13.9, -20.8)),
+                                  ('game_time', 'D211 8:29:23 PM'))),
+            action=X.Action('space'),
+            evidence=X.Evidence(lines=('[D211 8:29:48 PM] > sleep11 me=Player target=Bed',),
+                                events=('sleep11',), mode='dialogue',
+                                state=(('region', 'House'), ('position', (13.9, -20.8)),
+                                       ('game_time', 'D211 8:29:48 PM'))),
+            artifacts=X.Artifacts((frame,), frame, None, 0, 1., 234))
+        with mock.patch.object(core, 'WF', raw), mock.patch.dict(learn.MEMORY, graph=graph), \
+                mock.patch.object(learn, 'GRAPH', graph_path), \
+                mock.patch('objects.store.Store', return_value=vector_store):
+            result = I.apply(experience)
+
+        self.assertEqual(raw.learned, [('sleep', 'sleep')])
+        hint = graph.nodes['Bed'].extra['interaction_hint']
+        self.assertEqual(hint['position'], [13.9, -20.8])
+        self.assertEqual(hint['screen_point'], [656, 624])
+        self.assertLess(hint['screen_dir'][0], 0)
+        self.assertEqual(hint['region'], 'House')
+        self.assertEqual(hint['experience'], experience.id)
+        self.assertTrue(graph.nodes['Bed'].extra['appearance_needed'])
+        self.assertIn('bubble:sleep', result['learned'])
+        restored = Graph()
+        restored.load(graph_path)
+        self.assertEqual(restored.nodes['Bed'].extra['interaction_hint'], hint)
 
 
 if __name__ == '__main__':

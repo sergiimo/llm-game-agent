@@ -198,7 +198,12 @@ class GameAdapter:
         valid = image.convert('L').getextrema()[1] > 20
         with measure('observe.perception'):
             affordances = observe.scan(image) if valid else []
-            s = (screen.read(image=image, world_visible=any(a.kind not in (None, 'unknown') for a in affordances))
+            try:
+                hud_clock = valid and getattr(core.WF, 'game_hour', lambda frame: None)(image) is not None
+            except Exception:  # noqa: BLE001 (a missing/unreadable clock is simply not positive evidence)
+                hud_clock = False
+            s = (screen.read(image=image, world_visible=(hud_clock or
+                             any(a.kind not in (None, 'unknown') for a in affordances)))
                  if valid else screen.Screen('unknown', []))
         if (s.kind in ('gameplay', 'unknown') and screen.map_panel(image) and
                 getattr(core.WF, 'map_pin', None) and core.WF.map_pin(image)):
@@ -206,10 +211,26 @@ class GameAdapter:
             s = Screen('map', [])
         with measure('observe.clues'):
             clues = dict(self.clue_provider() if self.clue_provider else {})
+        scope = clues.get('vector_scope')
+        detections = []
+        vector_status = {'status': 'not_requested'}
+        if valid and s.kind in ('gameplay', 'unknown') and isinstance(scope, dict):
+            try:
+                with measure('observe.vectors'):
+                    detections = observe.detect_frame(image, region=scope.get('region'), kinds=scope.get('kinds'))
+                vector_status = {'status': 'ok', 'region': scope.get('region'),
+                                 'requested_kinds': list(scope.get('kinds') or ()), 'hits': len(detections)}
+            except Exception as error:  # the model must distinguish detector failure from a valid empty frame
+                vector_status = {'status': 'error', 'region': scope.get('region'),
+                                 'requested_kinds': list(scope.get('kinds') or ()),
+                                 'error': f'{type(error).__name__}: {error}'}
         clues.update(screen={'kind': s.kind, 'texts': s.texts}, frame_path=path,
                      capture_validity='rendered' if valid else 'black',
                      visible_affordances=[{'kind': a.kind, 'point': list(a.pt), 'drop': a.drop, 'ready': a.ready,
-                                           'highlighted': a.highlighted} for a in affordances])
+                                           'highlighted': a.highlighted} for a in affordances],
+                     vector_detections=[{'kind': d.kind, 'point': list(d.point), 'box': list(d.box),
+                                         'score': d.dist, 'raw': d.raw} for d in detections],
+                     vector_status=vector_status)
         clues.setdefault('graph_clues', [])
         clues.setdefault('interrupts', [])
         stamp = getattr(core.WF, 'game_stamp', None)
@@ -257,6 +278,8 @@ class GameAdapter:
             if 'key' in action:
                 raise ValueError('key action uses label, not key; choose one supported menu key')
             label = str(action.get('label', '')).casefold()
+            if label == 'm' and observation.get('region') == 'House':
+                raise ValueError('map unavailable indoors; exit the house and porch before opening it')
             if screen != 'gameplay' or label not in ('j', 'm', 'i'):
                 raise ValueError('menu key requires gameplay and one of j/m/i; movement keys are forbidden')
             action['command'] = 'key:' + label

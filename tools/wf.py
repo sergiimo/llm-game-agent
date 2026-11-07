@@ -531,7 +531,7 @@ TEMPLATES = os.path.join(ROOT, 'tools', 'templates')
 HUD_TEMPLATES = {'hud_pause': (50, 50, 120, 120), 'hud_journal3': (1605, 55, 110, 110)}
 MONEY_REGION = (1700, 130, 200, 70)
 MONEY_BOX = (1700, 130, 1900, 200)      # same, as a PIL crop box
-CLOCK_REGION = (120, 25, 380, 90)      # day name + time next to the analog clock (top-left); from x 120: "12:50 pm" starts left of 150 (objects-seed)
+CLOCK_REGION = (120, 25, 380, 150)     # day name + time next to the analog clock (top-left); include the time baseline at virtual y≈127–150
 POPUP_WORDS = ('Confirm', 'Hooray', 'Quest Complete', 'Quest complete',  # EN UI (L48; exact EN wording unverified)
                'одтвердить',          # RU "Подтвердить" Confirm (OCR sometimes reads П as Л)
                'Ура!',                # RU completion popup button "Hooray!"

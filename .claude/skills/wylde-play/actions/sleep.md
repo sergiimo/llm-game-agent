@@ -9,10 +9,14 @@ placement and Bed appearance samples against the fresh frame. If both clues are 
 named graph/appearance correction or gap before moving again.
 
 Outside click the visible entrance/porch. After entering the bed is west: Tara's pink bed is in the front-left room;
-the purple bed is not hers. Choose one visible target/waypoint, then the highlighted sleep affordance, inspect the
-bedtime prompt, and press its exact visible affirmative control in another turn. Expected evidence includes the
-bed interaction and then `sleep_transition`; the latter is the completion proof. Morning/spawn/day-change events
-support the next-day observation. Inspect each dialogue/cutscene before explicitly continuing it.
+the purple bed is not hers. Choose one visible target/waypoint. Once the sleep bubble is detected, click that bubble
+with the `bubble` primitive and its fresh point; do not press Space for the initial world interaction. Inspect the
+bedtime prompt. When its affirmative `Yes` bubble is highlighted, confirm with the dedicated `space` primitive in
+the next turn; do not click `Yes`, look it up as text, or use `select_card`. Expected evidence includes the prompt
+event (`sleep5` in the captured D212 interaction) and then `sleep_transition`; the latter is the completion proof.
+`advance_day`, `day_start_intro`, and `complete` are normal accompanying sleep-transition events, not contradictions.
+Morning/spawn/day-change events support the next-day observation. Inspect each dialogue/cutscene before explicitly
+continuing it.
 
 Bubble expectations use text, for example `expects:{card:"<verified prompt substring>"}`, or `card:"?"` to read
 an unknown prompt as a gap. Boolean `card:true` is invalid. Supply `visible_road:true` only for a freshly verified

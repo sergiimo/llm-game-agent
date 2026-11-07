@@ -15,6 +15,9 @@ Docs choose sequences; Python never does. `./wf play <goal> [k=v]` and bare doma
 Continue with the exact `turn_id` and one explicit model decision. Accept an obvious saved recommendation, choose one
 primitive, inspect the full-scale source frame, correct data, push/suspend/complete/resume a subgoal, or stop. Read the
 outcome before deciding again. Never use legacy `py`, `call`, batched commands or routes to run a hidden workflow.
+Every `NEXT` prints `vector_detections` from the same captured frame and a compact `model_workflow` trace:
+observe → decide → optional/required vision → act → verify → learn → repeat. Read it on every turn; it exposes
+evidence/status and never substitutes hidden reasoning.
 
 Game files first: `./wf log` for live events; `./wf save` for exact but potentially stale autosave facts; `./wf state`
 for screen/HUD text. A `look` decision returns the saved 1920×1080 frame without input; read it for uncertainty.

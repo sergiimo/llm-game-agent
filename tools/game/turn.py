@@ -187,6 +187,12 @@ def _cancellable_outcome(row):
         if key in before and key in after and before[key] != after[key]:
             raise DecisionRejected('cancellation refuses resource changes')
     kind = action.get('kind')
+    no_effect_world_miss = (kind in ('target', 'waypoint', 'cell', 'bubble') and
+                            exp.get('verdict', {}).get('value') in ('miss', 'unsafe') and
+                            evidence.get('moved') is False and not evidence.get('texts') and
+                            evidence.get('mode') == (before.get('screen') or {}).get('kind'))
+    if no_effect_world_miss:
+        return
     menu = kind == 'key' and label in ('j', 'm', 'i')
     resumed = (kind == 'press' and label == 'resume game' and
                before.get('screen', {}).get('kind') == 'pause' and evidence.get('mode') == 'gameplay')
@@ -229,10 +235,12 @@ class Surprise(Snapshot):
     actual: object
     artifacts: object
     reason: str = 'mismatch'
+    checks: object = ()
 
     @classmethod
     def of(cls, e, reason='mismatch'):
-        return cls(e.id, thaw(e.before), thaw(e.action), thaw(e.prediction), thaw(e.evidence), thaw(e.artifacts), reason)
+        return cls(e.id, thaw(e.before), thaw(e.action), thaw(e.prediction), thaw(e.evidence), thaw(e.artifacts),
+                   reason, tuple(thaw(check) for check in e.verdict.checks))
 
 
 @dataclass(frozen=True)
@@ -251,15 +259,51 @@ class TurnContext(Snapshot):
     interrupts: tuple
     recommendation: Recommendation
     allowed_decisions: tuple
+    vector_detections: tuple = ()
+    model_workflow: tuple = ()
+    vector_status: object = None
 
     @classmethod
     def from_dict(cls, d):
         d = dict(d)
         d.setdefault('observation_freshness', 'fresh')
+        d.setdefault('vector_detections', ())
+        d.setdefault('model_workflow', ())
+        d.setdefault('vector_status', None)
         d['recommendation'] = Recommendation(**d['recommendation'])
         if d.get('surprise'):
             d['surprise'] = Surprise(**d['surprise'])
         return cls(**d)
+
+
+def _model_workflow(task, observation, recommendation, allowed, surprise):
+    """Compact, inspectable control flow for every NEXT; evidence state, never hidden reasoning."""
+    latest = task.last_experience or {}
+    verdict = latest.get('verdict') or {}
+    current = task.stack[-1] if task.stack else task
+    missing_appearance = any(clue.get('appearance_needed') for clue in observation.get('graph_clues', ()))
+    vector_error = (observation.get('vector_status') or {}).get('status') == 'error'
+    vision_required = bool(surprise or missing_appearance or vector_error)
+    return (
+        {'stage': 'observe', 'status': observation.get('capture_validity', 'captured'),
+         'freshness': 'fresh',
+         'screen': (observation.get('screen') or {}).get('kind'),
+         'vectors': len(observation.get('vector_detections', ())),
+         'vector_status': (observation.get('vector_status') or {}).get('status', 'not_requested'),
+         'affordances': len(observation.get('visible_affordances', ())),
+         'graph_clues': len(observation.get('graph_clues', ()))},
+        {'stage': 'decide', 'status': 'awaiting_model', 'allowed': list(allowed),
+         'suggested_action': bool(recommendation.action), 'confidence': recommendation.confidence},
+        {'stage': 'vision', 'status': 'required' if vision_required else 'optional',
+         'trigger': surprise.reason if surprise else 'missing_appearance' if missing_appearance else
+         'vector_error' if vector_error else None},
+        {'stage': 'act', 'status': 'blocked_for_resolution' if surprise else 'awaiting_decision'},
+        {'stage': 'verify', 'status': verdict.get('value', 'pending'), 'experience': latest.get('id')},
+        {'stage': 'learn', 'status': 'correction_required' if surprise else
+         'integrated' if latest else 'idle'},
+        {'stage': 'repeat', 'status': task.status, 'goal': current.goal,
+         'phase': getattr(task.active, 'phase', None)},
+    )
 
 
 def outcome_surprise(task, intent, e):
@@ -396,16 +440,20 @@ class TurnLoop:
         if task.status != 'active' and not surprise:
             allowed = ('look', 'stop', 'push') if task.status == 'complete' and task.unresolved else ('look', 'stop')
         from .history import public_task
+        workflow = _model_workflow(task, observation, rec, allowed, surprise)
         c = TurnContext(task.turn_seq, public_task(task), thaw(task.active),
                         observation.get('screen'), observation.get('frame_path'), 'fresh',
                         observation.get('visible_affordances', ()), observation.get('graph_clues', ()),
                         {'targets': task.targets, 'covered': task.covered, 'unresolved': task.unresolved},
-                        task.last_experience, surprise, observation.get('interrupts', ()), rec, allowed)
+                        task.last_experience, surprise, observation.get('interrupts', ()), rec, allowed,
+                        observation.get('vector_detections', ()), workflow, observation.get('vector_status'))
         task.current_turn = c.to_dict()
         self.store.save(task)
         self._log(task, c.turn_id, 'clues', screen=c.screen, frame_path=c.frame_path,
                   visible_affordances=c.visible_affordances, graph_clues=c.graph_clues,
                   coverage=c.coverage, transaction=c.transaction, interrupts=c.interrupts,
+                  vector_detections=c.vector_detections, model_workflow=c.model_workflow,
+                  vector_status=c.vector_status,
                   region=task.params.get('region'), task_status=task.status, surprise=c.surprise)
         self._log(task, c.turn_id, 'recommendation', recommendation=rec)
         return c
@@ -484,16 +532,21 @@ class TurnLoop:
         take_read = getattr(self.adapter, 'take_read_observation', None)
         return take_read(e.id) if intent.action.get('kind') == 'read' and take_read else None
 
-    def context(self):
+    def context(self, observation=None):
+        """Return the persisted turn, optionally consuming one already captured coherent observation."""
         with self.store.locked():
             task = self.store.load()
-            observation = None
             cached = task.current_turn is not None
             if task.pending_intent or task.active and task.active.pending_intent:
                 observation = self._finish(task, recovered=True)
                 cached = False
             context = self._context(task, observation)
-            return replace(context, observation_freshness='cached') if cached else context
+            if not cached:
+                return context
+            workflow = list(thaw(context.model_workflow))
+            if workflow and workflow[0].get('stage') == 'observe':
+                workflow[0]['freshness'] = 'cached'
+            return replace(context, observation_freshness='cached', model_workflow=tuple(workflow))
 
     def _subgoal(self, task, decision):
         """Explicit durable model operations; verification folds captured evidence and performs no input."""

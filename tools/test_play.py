@@ -2230,13 +2230,18 @@ class ReadLatency(PlayCase):
         self.store.create(S.TaskState('latency', 'navigate', params={'region': 'Town', '_started_late': True,
             '_outcomes': [{'historical_evidence': list(range(1000))}]}))
         save = {'saveCount': 1, 'currentScene': 'Town', 'gameState': {'player': {'inventory': {'items': []}}}}
-        raw = SimpleNamespace(read_save=lambda: ('source.save', save), today_log=lambda: ([], None),
-                              current_scene=lambda: 'Town')
+        today_log = mock.Mock(return_value=(['[D9 7:00:00 AM] Forecast is Raining'], 9, []))
+        raw = SimpleNamespace(read_save=lambda: ('source.save', save), today_log=today_log,
+                              current_scene=mock.Mock(side_effect=AssertionError('clues reread scene log')),
+                              grab=mock.Mock(side_effect=AssertionError('clues captured a second frame')))
         with mock.patch.object(core, 'WF', raw), mock.patch.object(engine, '_open_graph', return_value=Graph()), \
-             mock.patch.object(observe, 'clock', return_value=(20, 'day')), mock.patch.object(ask, 'rain', return_value=None), \
+             mock.patch.object(observe, 'clock', side_effect=AssertionError('clues captured clock separately')), \
+             mock.patch.object(ask, 'rain', side_effect=AssertionError('clues reread forecast log')), \
              mock.patch.object(S.TaskState, 'to_dict', side_effect=AssertionError('interrupt check copied full history')):
-            clues = self.play()._clues(self.store)
+            clues = self.play()._clues(self.store, {'hour': 20, 'light': 'night'})
         self.assertIn('SLEEP_REQUIRED', clues['interrupts'][0])
+        self.assertEqual(clues['rain'], 'Raining')
+        today_log.assert_called_once_with()
 
 
 class Play(PlayCase):

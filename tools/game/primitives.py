@@ -196,10 +196,12 @@ class GameAdapter:
         # while the artifact shows the world (live split-observation guard refusals). Never interpret black as
         # textless gameplay or count its difference from a rendered frame as movement.
         valid = image.convert('L').getextrema()[1] > 20
+        hour = None
         with measure('observe.perception'):
             affordances = observe.scan(image) if valid else []
             try:
-                hud_clock = valid and getattr(core.WF, 'game_hour', lambda frame: None)(image) is not None
+                hour = getattr(core.WF, 'game_hour', lambda frame: None)(image) if valid else None
+                hud_clock = hour is not None
             except Exception:  # noqa: BLE001 (a missing/unreadable clock is simply not positive evidence)
                 hud_clock = False
             s = (screen.read(image=image, world_visible=(hud_clock or
@@ -209,8 +211,20 @@ class GameAdapter:
                 getattr(core.WF, 'map_pin', None) and core.WF.map_pin(image)):
             from .screen import Screen
             s = Screen('map', [])
+        frame_context = {'image': image, 'hour': hour,
+                         'light': getattr(core.WF, 'light_period', lambda value: None)(hour) if hour is not None else None}
         with measure('observe.clues'):
-            clues = dict(self.clue_provider() if self.clue_provider else {})
+            if self.clue_provider:
+                import inspect
+                try:
+                    inspect.signature(self.clue_provider).bind(frame_context)
+                except (TypeError, ValueError):
+                    provided = self.clue_provider()  # legacy/test providers with an explicit no-argument contract
+                else:
+                    provided = self.clue_provider(frame_context)
+                clues = dict(provided)
+            else:
+                clues = {}
         scope = clues.get('vector_scope')
         detections = []
         vector_status = {'status': 'not_requested'}

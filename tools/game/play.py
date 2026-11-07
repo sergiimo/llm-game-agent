@@ -1,6 +1,7 @@
 """Universal model-owned entry point. Constructors/clues never choose or execute gameplay inputs."""
 import json
 import os
+import re
 import uuid
 
 from .primitives import GameAdapter
@@ -45,25 +46,31 @@ def _vector_scope(graph, *candidates, learned_kinds=None):
     return {'region': region, 'kinds': kinds if region else sorted(learned_kinds)}
 
 
-def _clues(store):
-    from . import ask, core, engine, garden_policy, observe, world
+def _clues(store, frame_context=None):
+    from . import core, engine, garden_policy, observe, world
+    frame_context = frame_context or {}
     graph = engine._open_graph()
     path, save = core.WF.read_save()
     lines = core.WF.today_log()[0]
     world.refresh(graph, save, lines)
-    hour, light = observe.clock()
+    hour, light = frame_context.get('hour'), frame_context.get('light')
+    if not frame_context:  # compatibility for direct read-only callers; production always passes its captured frame
+        hour, light = observe.clock()
     player = save.get('gameState', {}).get('player', {})
     money, money_field = _save_money(save)
     save_proof = {'source': 'save', 'path': path, 'save_count': save.get('saveCount'),
                   'game_time': world.save_time(save)}
-    region = getattr(core.WF, 'current_scene', lambda: None)()
-    scene, _ = world.scene_context(lines, save.get('currentScene'), since=world.save_time(save))
+    scene, region = world.scene_context(lines, save.get('currentScene'), since=world.save_time(save))
     vector_scope = _vector_scope(graph, region, scene, save.get('currentScene'))
     point = save.get('currentPlayerPosition') or {}
     data = {'graph_clues': ([dict(node=n.id, **n.to_dict()) for n in graph.nodes.values()] +
                             [{'edge': dict(edge)} for edge in graph.edges()] +
                             [{'world_conflict': row} for row in graph.extra.get('_refresh_conflicts', ())]),
-            'hour': hour, 'light': light, 'rain': ask.rain(), 'can': graph.state_value('Tara', 'can'),
+            'hour': hour, 'light': light,
+            'rain': next((forecast for line in reversed(lines)
+                          for forecast in re.findall(r'Forecast is (\w+)', line)
+                          if forecast in ('Raining', 'Rain', 'Storm', 'Thunder')), None),
+            'can': graph.state_value('Tara', 'can'),
             'inventory': world.inventory(save, lines),
             'inventory_complete': isinstance(player.get('inventory', {}).get('items'), list),
             'money': money, 'region': region, 'scene': scene, 'save_scene': save.get('currentScene'),
@@ -515,7 +522,7 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
         raise ValueError('observe a task before supplying a decision')
     if existing and answer is None and existing.params.get('_trade_start_money') is None:
         _repair_start_money(store)
-    adapter = adapter or GameAdapter(clue_provider=lambda: _clues(store))
+    adapter = adapter or GameAdapter(clue_provider=lambda frame_context: _clues(store, frame_context))
     initial_observation = None
     if not existing:
         goal = goal or 'play'

@@ -14,13 +14,17 @@ SOCK = os.path.join(os.environ.get('WF_SHOT_DIR', os.path.join(ROOT, '.shots')),
 PY = os.path.join(ROOT, '.venv', 'bin', 'python')
 WF = os.path.join(ROOT, 'tools', 'wf.py')
 LOCAL_ONLY = {'serve', 'wiki', 'wait', 'tips', 'actions', 'learn', 'routines'}  # run: in the daemon (game clock for step stamps, L76)
+LOCAL_AUTOMATION = (
+    ('controller', 'tools/wf.py serve'),
+    ('watcher', r'tools/runwatch\.py .*--follow'),
+)
 
 
 class DeliveryUnknown(RuntimeError):
     """The daemon may have accepted this request. Never automatically resend or execute it locally."""
 
 
-def via_daemon(argv, timeout=25.):
+def via_daemon(argv, timeout=60.):
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     deadline = time.monotonic() + timeout
     delivered = False
@@ -152,6 +156,43 @@ def stale(started, mtimes):
     return bool(mtimes) and max(mtimes) > started
 
 
+def stop_local_automation(run=subprocess.run, unlink=os.unlink, sleep=time.sleep):
+    """Terminate every local process that can drive/watch gameplay and verify that each one is gone."""
+    attempted, errors = [], []
+    quiet = {'stdout': subprocess.DEVNULL, 'stderr': subprocess.DEVNULL}
+    for label, pattern in LOCAL_AUTOMATION:
+        attempted.append(label)
+        try:
+            result = run(['pkill', '-f', pattern], **quiet)
+            if result.returncode not in (0, 1):
+                errors.append(f'{label} stop failed (exit {result.returncode})')
+        except OSError as error:
+            errors.append(f'{label} stop failed: {error}')
+    try:
+        unlink(SOCK)
+    except FileNotFoundError:
+        pass
+    except OSError as error:
+        errors.append(f'socket cleanup failed: {error}')
+    for label, pattern in LOCAL_AUTOMATION:
+        for attempt in range(10):
+            try:
+                result = run(['pgrep', '-f', pattern], **quiet)
+            except OSError as error:
+                errors.append(f'{label} verification failed: {error}')
+                break
+            if result.returncode == 1:
+                break
+            if result.returncode != 0:
+                errors.append(f'{label} verification failed (exit {result.returncode})')
+                break
+            if attempt == 9:
+                errors.append(f'{label} still running')
+                break
+            sleep(0.05)
+    return attempted, errors
+
+
 def main():
     argv = sys.argv[1:]
     msg = chain_refusal(argv, parent_cmdline())
@@ -162,7 +203,11 @@ def main():
     if argv and argv[0] in ('-h', '--help'):
         os.execv(PY, [PY, WF] + argv)
     if argv and argv[0] == 'stop':
-        subprocess.run(['pkill', '-f', 'tools/wf.py serve'])
+        attempted, errors = stop_local_automation()
+        if errors:
+            print(f'STOP FAILED: {"; ".join(errors)}', file=sys.stderr)
+            return 1
+        print(f'stopped: {", ".join(attempted)}')
         return 0
     if argv and argv[0] not in LOCAL_ONLY and not (argv[0] in ('objects', 'graph') and os.environ.get('WF_FRAME')) and os.environ.get('WF_NO_DAEMON') != '1':
         try:

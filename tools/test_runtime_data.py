@@ -65,6 +65,23 @@ class RevisionedWorldSnapshot(unittest.TestCase):
 
 
 class ClientDelivery(unittest.TestCase):
+    def test_default_deadline_allows_bounded_game_action_response(self):
+        response = json.dumps({'out': 'gameplay\n', 'code': 0}).encode() + b'\n'
+        endpoint = mock.MagicMock()
+        endpoint.__enter__.return_value = endpoint
+
+        def receive(_size):
+            allowed = endpoint.settimeout.call_args.args[0]
+            if allowed < 30:
+                raise TimeoutError('legal bounded action still running')
+            return response
+
+        endpoint.recv.side_effect = receive
+        with mock.patch.object(wfc.socket, 'socket', return_value=endpoint), \
+                contextlib.redirect_stdout(io.StringIO()) as result:
+            self.assertEqual(wfc.via_daemon(['do', 'go:350:510']), 0)
+        self.assertEqual(result.getvalue(), 'gameplay\n')
+
     def test_timeout_eof_or_invalid_response_after_send_is_not_retried(self):
         for response in ('timeout', 'eof', 'invalid', 'partial_send'):
             with self.subTest(response=response), tempfile.TemporaryDirectory() as directory:
@@ -129,6 +146,92 @@ class ClientDelivery(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'unknown'):
                 wfc.via_daemon(['play'], timeout=1.)
         self.assertLessEqual(endpoint.recv.call_count, 2)
+
+
+class StopLocalAutomation(unittest.TestCase):
+    @staticmethod
+    def result(code):
+        return mock.Mock(returncode=code)
+
+    def test_watcher_target_is_limited_to_live_follow_processes(self):
+        self.assertEqual(dict(wfc.LOCAL_AUTOMATION)['watcher'], r'tools/runwatch\.py .*--follow')
+
+    def test_stop_attempts_every_owned_process_and_removes_the_socket(self):
+        calls = []
+        def run(argv, **_kwargs):
+            calls.append(argv)
+            return self.result(0 if argv[0] == 'pkill' else 1)
+        unlink = mock.Mock()
+
+        attempted, errors = wfc.stop_local_automation(run=run, unlink=unlink)
+
+        self.assertEqual(attempted, ['controller', 'watcher'])
+        self.assertEqual(errors, [])
+        self.assertEqual([call[:2] for call in calls],
+                         [['pkill', '-f'], ['pkill', '-f'], ['pgrep', '-f'], ['pgrep', '-f']])
+        self.assertEqual([call[-1] for call in calls[:2]], [pattern for _label, pattern in wfc.LOCAL_AUTOMATION])
+        unlink.assert_called_once_with(wfc.SOCK)
+
+    def test_stop_reports_a_survivor_after_attempting_every_target(self):
+        def run(argv, **_kwargs):
+            if argv[0] == 'pgrep' and argv[-1] == dict(wfc.LOCAL_AUTOMATION)['watcher']:
+                return self.result(0)
+            return self.result(0 if argv[0] == 'pkill' else 1)
+
+        attempted, errors = wfc.stop_local_automation(run=run, unlink=mock.Mock())
+
+        self.assertEqual(attempted, ['controller', 'watcher'])
+        self.assertEqual(errors, ['watcher still running'])
+
+    def test_stop_allows_a_signalled_process_a_bounded_exit_window(self):
+        watcher_checks = [0, 1]
+        def run(argv, **_kwargs):
+            if argv[0] == 'pgrep' and argv[-1] == dict(wfc.LOCAL_AUTOMATION)['watcher']:
+                return self.result(watcher_checks.pop(0))
+            return self.result(0 if argv[0] == 'pkill' else 1)
+        sleep = mock.Mock()
+
+        _attempted, errors = wfc.stop_local_automation(run=run, unlink=mock.Mock(), sleep=sleep)
+
+        self.assertEqual(errors, [])
+        sleep.assert_called_once_with(0.05)
+
+    def test_stop_reports_process_query_failure_instead_of_claiming_success(self):
+        calls = []
+        def run(argv, **_kwargs):
+            calls.append(argv)
+            if argv[0] == 'pkill' and argv[-1] == 'tools/wf.py serve':
+                raise OSError('pkill unavailable')
+            return self.result(1)
+
+        attempted, errors = wfc.stop_local_automation(run=run, unlink=mock.Mock())
+
+        self.assertEqual(attempted, ['controller', 'watcher'])
+        self.assertIn('controller stop failed: pkill unavailable', errors)
+        self.assertEqual(sum(call[0] == 'pkill' for call in calls), 2)
+        self.assertEqual(sum(call[0] == 'pgrep' for call in calls), 2)
+
+    def test_stop_cli_uses_local_shutdown_without_starting_the_daemon(self):
+        with mock.patch.object(wfc, 'parent_cmdline', return_value=''), \
+             mock.patch.object(wfc, 'log_call', return_value=None), \
+             mock.patch.object(wfc, 'stop_local_automation', return_value=(['controller', 'watcher'], [])) as stop, \
+             mock.patch.object(wfc.subprocess, 'Popen', side_effect=AssertionError('stop started daemon')), \
+             mock.patch.object(wfc.os, 'execv', side_effect=AssertionError('stop fell through')), \
+             mock.patch.object(sys, 'argv', ['wfc', 'stop']), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(wfc.main(), 0)
+        stop.assert_called_once_with()
+        self.assertEqual(output.getvalue(), 'stopped: controller, watcher\n')
+
+    def test_stop_cli_returns_failure_when_local_automation_survives(self):
+        with mock.patch.object(wfc, 'parent_cmdline', return_value=''), \
+             mock.patch.object(wfc, 'log_call', return_value=None), \
+             mock.patch.object(wfc, 'stop_local_automation',
+                               return_value=(['controller', 'watcher'], ['watcher still running'])), \
+             mock.patch.object(sys, 'argv', ['wfc', 'stop']), \
+             contextlib.redirect_stderr(io.StringIO()) as error:
+            self.assertEqual(wfc.main(), 1)
+        self.assertIn('STOP FAILED: watcher still running', error.getvalue())
 
 
 class HotData(unittest.TestCase):

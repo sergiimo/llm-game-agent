@@ -84,7 +84,10 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
    `runs/<task>/progress.md`). A step over its budget or stuck → `./wf run escalate N` → stuck retro → plan fixed from step N.
    **Stuck = Tara's position changes < 2 units over 3 moves while not at the goal (L75).** Every stuck episode gets a
    **stuck retro**: read `retros/stuck-ledger.md` first (did earlier fixes hold?), add a row, save the retro in
-   `retros/`; a cause that repeats gets a tool fix. Aim: fewer stuck episodes per trip.
+   `retros/`; a cause that repeats gets a tool fix. Every retro must include **System improvement suggestions for the
+   user**: prioritized fixes, why each matters, a concrete implementation direction, an acceptance test, and a
+   recommended implementation order. Return those suggestions in the final user-facing retro summary. Aim: fewer
+   stuck episodes per trip.
 8. **One game command per tool call** (never `wf stop; wf resume; wf goto` in one call): a rejected call may already
    have run its first commands. After any rejection: `tail -3 .shots/actions.log`, then inspect the current task/turn;
    let the game lose focus during diagnosis rather than opening the Pause menu.
@@ -113,3 +116,9 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
    chop|rock|pickup|forage` → one `NEED_VISION click` per target → `answer=<cell>|walk:<cell>|none`;
    `NEED_VISION click|button|name` → call again with `answer=…`; `NEED_INPUT <goal>: <param>?` → ask the user or answer from
    the task text (never default it).
+12. **A user stop stops everything (user, 2026-11-07):** immediately interrupt every live gameplay child/descendant;
+   do not wait for a cooperative stop. Make at most one zero-input durable-task stop and run-close attempt, then run
+   `./wf stop` to terminate and verify the controller/recording thread and every live `runwatch.py` watcher and remove
+   the socket. Unfocus the game. Verify agents with the platform agent list and local automation with `ps`; never use
+   `./wf status` for this check because it starts the daemon. Only after both checks may the supervisor report stopped
+   or begin a retro. See `.claude/skills/wylde-supervise/SKILL.md` §3d.

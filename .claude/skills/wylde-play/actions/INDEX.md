@@ -67,7 +67,7 @@ that explicitly records preparation refusal permits `not_issued`. The adapter us
 command do not prove what the original adapter did. Legacy/missing/incomplete or prepared provenance remains
 `unknown` and requires observation without replay. Do not turn that uncertainty into permission to retry.
 
-The client has a 25-second total RPC delivery deadline. A timeout, partial-send failure, EOF or invalid response
+The client has a 60-second total RPC delivery deadline. A timeout, partial-send failure, EOF or invalid response
 after sending means **outcome unknown**: it prints an explicit error and never automatically resends, restarts to
 resend, or executes that request locally. The daemon may finish and advance the task later. Do not repeat an old
 decision because stdout was empty; inspect the current task/turn after the outstanding request finishes, then use

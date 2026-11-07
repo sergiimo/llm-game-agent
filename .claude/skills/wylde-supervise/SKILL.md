@@ -144,6 +144,26 @@ Never let a child run the game blind. For every dispatch that touches the game:
 4. **After the run:** `.venv/bin/python tools/runwatch.py <run> --report` writes `<run>/watch.md` (a table per attempt:
    clicks, walks, still, predictions hit/miss, alerts, stops); put it in the debrief.
 
+## 3d. User stop is terminal and stops everything
+
+A user `stop`, `stop now`, or equivalent overrides recording preservation, retrospectives, and every active plan step.
+The supervisor owns managed agents; `./wf stop` owns local OS automation. Perform this sequence without starting new
+diagnosis or gameplay work between steps:
+
+1. Interrupt/TaskStop every live gameplay descendant (quest and runner), then list the agent tree and confirm none is
+   running. Do not merely send a stop message and wait for cooperation.
+2. If a durable turn and run are active, make at most one zero-input `answer=stop` call and close the run as `stopped`.
+   If either call fails or does not return, do not retry it; local shutdown takes precedence.
+3. Run `./wf stop`. It terminates and verifies the controller daemon (including its recording thread) and live
+   `runwatch.py --follow` processes, then removes the daemon socket. Any `STOP FAILED` result is still a live-stop
+   incident: inspect only the named survivor and terminate it before continuing.
+4. Let Wylde Flowers lose focus so game time freezes. Verify local state with `ps`, never `./wf status` (which would
+   start the daemon again), and verify managed-agent state with the platform's agent list.
+5. Only after both verifications may the supervisor say the agent stopped, generate reports, or write the retro.
+
+`./wf stop` cannot control managed Codex/Claude agents, and TaskStop cannot terminate the local controller. A complete
+stop always uses and verifies both ownership boundaries.
+
 ## 3a. When the child escalates (`RESULT: escalate step N`)
 1. `./wf run status` (`runs/<task>/progress.md`: generated step timestamps and budget use) + `./wf run report`.
 2. **Stuck retro** (AGENTS.md rule 7): read `retros/stuck-ledger.md` first, score earlier fixes, add the row, write

@@ -1,0 +1,13 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Sunfish
+
+[Fish]
+  itemName: Sunfish
+  description: A fish with a fin that sometimes tricks swimmers into thinking it's a shark.  Found near the mountains.  An epic catch!  Sell it to Bruno or cook with it.
+  location: Mountain
+  shadow: Big Round Fish
+  bait: Worm
+  sellPrice: 20

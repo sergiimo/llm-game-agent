@@ -1,0 +1,14 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Copper Pickaxe
+
+[Tool]
+  description: This upgraded pickaxe is strong enough to break up all rocks and boulders.
+  source: Blacksmith
+  recipe: *Copper Ingot 3
+*Wood 5
+*250 Coin
+
+PAGENAME is a tool used for Mining.

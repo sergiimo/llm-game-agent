@@ -1,0 +1,10 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Iron Ore
+
+[Crafting Ingredient]
+  itemName: Iron Ore
+  source: Mine
+  description: Natalia can smelt iron ore into iron ingots at the blacksmith. Iron ingots can be used to upgrade tools and build structures.

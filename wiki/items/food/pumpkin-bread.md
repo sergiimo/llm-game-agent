@@ -1,0 +1,15 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Pumpkin Bread
+
+[Food]
+  itemName: Pumpkin Bread
+  sellTo: Sophia
+  recipe: 1x Butter; 1x Cinnamon; 1x Egg; 1x Flour; 1x Pumpkin
+  description: Cinnamon-spiced pumpkin bread straight from the oven. Can be sold to Sophia.
+  sellPrice: 20 coins
+  category: Oven
+  personsFavorite: Cameron
+  recipeSource: Mountain dig spot

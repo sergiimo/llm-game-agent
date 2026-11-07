@@ -1,0 +1,15 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Cheese
+
+[Crafting Ingredient]
+  itemName: Cheese
+  source: Fermentation Barrel; Dahl General Store
+  buyPrice: 120 coins
+  sellTo: Dahl General Store
+  sellPrice: 60
+  craftingTime: 1 day
+  description: A delicious dairy product made in the fermentation barrel. Sell it to Lina or cook with it.
+  recipe: 1x Any milk

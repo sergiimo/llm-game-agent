@@ -1,0 +1,12 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Fennel Powder
+
+[Crafting Ingredient]
+  itemName: Fennel Powder
+  description: A magical powder used to bind negative energy.  Make it in the Mortar and Pestle
+  source: Mortar and Pestle
+  recipe: 2x Fennel
+  unlockRequirements: Received from Shelby during Know Witch Way the Wind Blows

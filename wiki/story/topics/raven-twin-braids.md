@@ -1,0 +1,11 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Raven Twin Braids
+
+[Item]
+  itemName: Raven Twin Braids
+  description: A pair of long black plaits dotted with bright, ruby-colored blossoms.
+  source: Coiffed & Crowned by Eury
+  buyPrice: Black Hair Color; 5x Poppy Flower; 125

@@ -1,0 +1,12 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Essence of Copper
+
+[Crafting Ingredient]
+  itemName: Essence of Copper
+  description: A shimmery orange substance made in the distillery. Used as a potion ingredient.
+  source: Distillery
+  recipe: 2x Copper Ore
+  craftingTime: 4 Hours

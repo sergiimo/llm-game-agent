@@ -1,0 +1,13 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Orange Juice
+
+[Food]
+  itemName: Orange Juice
+  description: You can make fresh-squeezed orange juice with a juicer in your tool shed. It can be sold to Damon.
+  sellTo: The Bar
+  sellPrice: 20 coins
+  recipe: 1x Orange
+  personsFavorite: Sebastián

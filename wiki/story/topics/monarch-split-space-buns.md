@@ -1,0 +1,11 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Monarch Split Space Buns
+
+[Item]
+  itemName: Monarch Split Space Buns
+  description: A pair of adorable, zig-zag parted, black and orange double buns with matching bangs.
+  source: Coiffed & Crowned by Eury
+  buyPrice: Black Hair Color; Orange Hair Color; 200

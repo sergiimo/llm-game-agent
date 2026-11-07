@@ -1,0 +1,12 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Thaw Incantation
+
+[Potions Incantations]
+  itemName: Thaw Incantation
+  description: This incantation will melt even the toughest ice.
+  workstation: Desk
+  use: Melt ice
+  recipe: 1x Parchment; 1x Black Ink; 1x Chicken Feather; 1x Sunflower

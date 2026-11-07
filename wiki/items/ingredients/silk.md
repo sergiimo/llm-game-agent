@@ -1,0 +1,14 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Silk
+
+[Crafting Ingredient]
+  itemName: Silk
+  description: A smooth fabric made on the loom from Silk Thread.  Can be sold to Kai.
+  sellTo: Kai
+  source: Loom
+  sellPrice: 165
+  recipe: 1x Silk Thread
+  quests: Oh, Chute

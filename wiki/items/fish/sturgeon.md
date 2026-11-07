@@ -1,0 +1,13 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Sturgeon
+
+[Fish]
+  itemName: Sturgeon
+  description: A long-lived, ocean-dwelling fish with an elongated snout.  An epic catch!  Sell it to Bruno or cook with it.
+  location: Ocean
+  shadow: Big Round Fish
+  bait: Chub
+  sellPrice: 20 coins

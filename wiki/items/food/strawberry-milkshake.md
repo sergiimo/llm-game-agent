@@ -1,0 +1,13 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Strawberry Milkshake
+
+[Food]
+  itemName: Strawberry Milkshake
+  recipe: 1x Milk/Soy Milk; 1x Strawberry
+  description: A perfect summertime drink made from strawberries and milk. Drink it for an energy boost.
+  recipeSource: Recipes for Beverage Buffs
+  category: Drinks
+  personsFavorite: Finn

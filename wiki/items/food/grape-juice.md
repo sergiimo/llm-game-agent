@@ -1,0 +1,13 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Grape Juice
+
+[Food]
+  itemName: Grape Juice
+  description: Fresh squeezed grapes.  Can be made in a juicer in the tool shed. It can be sold to Damon.
+  sellTo: The Bar
+  sellPrice: 20 coins
+  recipe: 5x Grapes
+  category: Crafting - Hobbies

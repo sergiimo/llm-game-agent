@@ -1,0 +1,11 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Powered Topaz
+
+[Item]
+  itemName: Powered Topaz
+  description: A topaz imbued with magic. It powers a Whirligig for 1 day.
+  recipe: 1x Topaz; 1x Bone Meal or Powdered Calcium
+  source: Magical Mechanicals

@@ -1,0 +1,16 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Pomegranate
+
+[Crops]
+  itemName: Pomegranate
+  seedType: Seedling
+  sellTo: Dahl General Store
+  sellPrice: 30 coins
+  buyFrom: Dahl General Store
+  buyPrice: 60 coins
+  growthTime: 9 days
+  season: All
+  description: A burgundy fruit. Pluck it from a pomegranate tree, then sell it or cook with it.

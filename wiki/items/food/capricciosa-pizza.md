@@ -1,0 +1,15 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Capricciosa Pizza
+
+[Food]
+  itemName: Capricciosa Pizza
+  recipe: 1x Cheese; 1x Italian Sausage; 1x Olive; 1x Pizza Dough; 1x Tomato
+  description: A delicious pizza topped with meat and olives.
+  personsFavorite: Gloria
+  recipeSource: Recipes for Pizza Chefs
+  sellTo: Sophia
+  sellPrice: 100 coins
+  category: Oven

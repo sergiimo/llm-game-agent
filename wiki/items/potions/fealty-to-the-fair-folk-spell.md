@@ -1,0 +1,12 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Fealty to the Fair Folk Spell
+
+[Potions Incantations]
+  itemName: Fealty to the Fair Folk Spell
+  description: Recite this incantation to swear fealty to the fair folk, allowing access to their world.
+  recipe: 1x Paper; 1x Black Ink; 3x Amethyst
+  use: Gain access to Ravenwood Hollow
+  workstation: Desk

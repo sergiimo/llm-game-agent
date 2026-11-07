@@ -1,0 +1,14 @@
+> **Summary:** Fan-wiki-derived game reference.
+
+> **Source:** Wylde Flowers Wiki on Fandom, CC BY-SA 3.0.
+
+# Cappuccino
+
+[Food]
+  itemName: Cappuccino
+  recipe: 1x Coffee; 1x Milk/Soy Milk
+  description: Coffee, but fancy. Will give you a nice energy boost.
+  recipeSource: Recipes for Beverage Buffs
+  sellTo: Sophia
+  sellPrice: 20 coins
+  category: Drinks

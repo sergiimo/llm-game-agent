@@ -38,7 +38,7 @@ def _copy_curated(root: Path) -> None:
             target.parent.mkdir(parents=True, exist_ok=True)
             if not target.exists():
                 shutil.copy2(path, target)
-    tips = root / 'wiki/tips/INDEX.md'
+    tips = root / 'docs/tips.md'
     if tips.exists():
         target = root / 'wiki/tips/INDEX.md'
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -64,10 +64,12 @@ def _copy_curated(root: Path) -> None:
                 shutil.copy2(source, target)
 
 
-def _import_text(root: Path, entry: dict) -> str | None:
+def _import_text(root: Path, entry: dict, destination: Path) -> str | None:
     chunks = []
     for rel in entry.get('source_paths') or [entry['source_path']]:
         source = root / rel
+        if source.resolve() == destination.resolve():
+            continue
         if source.exists():
             chunks.append(source.read_text(errors='replace').rstrip())
     return '\n\n---\n\n'.join(chunks) if chunks else None
@@ -92,8 +94,13 @@ def _write_indexes(wiki: Path) -> int:
                 lines = [f'# {title}', '', '> **Summary:** Browse this topic through the grouped links below.', ''] + links
                 index.write_text('\n'.join(lines) + '\n')
             else:
-                missing = [line for line in links if f']({line.rsplit("(", 1)[1]}' not in current]
                 start, end = '<!-- pages:start -->', '<!-- pages:end -->'
+                hand = current
+                if start in hand:
+                    before, rest = hand.split(start, 1)
+                    _, after = rest.split(end, 1)
+                    hand = before + after
+                missing = [line for line in links if f']({line.rsplit("(", 1)[1]}' not in hand]
                 block = start + '\n## Detailed pages\n\n' + '\n'.join(missing) + '\n' + end
                 if start in current:
                     before, rest = current.split(start, 1)
@@ -151,7 +158,7 @@ def materialize(manifest_path: str, root: str, dry_run: bool = True) -> Migratio
         if base not in destination.parents or destination.relative_to(base).parts[0] != 'wiki':
             report.unresolved += 1
             continue
-        imported = _import_text(base, entry)
+        imported = _import_text(base, entry, destination)
         if destination.exists():
             if imported:
                 current = destination.read_text(errors='replace')
@@ -181,7 +188,7 @@ def materialize(manifest_path: str, root: str, dry_run: bool = True) -> Migratio
     for source in (base / 'reference/wiki', base / 'docs/mechanics', base / 'docs/quests', base / 'docs/world'):
         if source.exists():
             shutil.rmtree(source)
-    tips = base / 'wiki/tips/INDEX.md'
+    tips = base / 'docs/tips.md'
     if tips.exists():
         tips.unlink()
     return report

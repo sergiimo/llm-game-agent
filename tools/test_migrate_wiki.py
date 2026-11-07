@@ -11,6 +11,7 @@ class MigrateWiki(unittest.TestCase):
     def fixture(self, root: Path) -> Path:
         (root / 'reference/wiki').mkdir(parents=True)
         (root / 'docs/quests/town').mkdir(parents=True)
+        (root / 'docs/tips.md').write_text('# Tips\n\nKeep tips\n')
         (root / 'reference/wiki/Apple.md').write_text('# Apple\n\n[Food]\n')
         (root / 'reference/wiki/Aryel__Schedule.md').write_text('# Aryel/Schedule\n\nMonday\n')
         (root / 'reference/wiki/Quest.md').write_text('# Quest\n\n[Quest]\nImported facts\n')
@@ -52,10 +53,19 @@ class MigrateWiki(unittest.TestCase):
             self.assertTrue((root / 'wiki/characters/aryel/schedule.md').exists())
             self.assertIn('apple.md', (root / 'wiki/items/food/INDEX.md').read_text())
             self.assertIn('CC BY-SA 3.0', (root / 'wiki/ATTRIBUTION.md').read_text())
+            self.assertIn('Keep tips', (root / 'wiki/tips/INDEX.md').read_text())
             second = materialize(str(manifest), str(root), dry_run=False)
             self.assertEqual(first.unresolved, 0)
             self.assertEqual(second.unresolved, 0)
             self.assertEqual(quest, (root / 'wiki/quests/town/quest.md').read_text())
+            self.assertIn('schedule.md', (root / 'wiki/characters/aryel/INDEX.md').read_text())
+            self.assertIn('Keep tips', (root / 'wiki/tips/INDEX.md').read_text())
+            saved = json.loads(manifest.read_text())
+            saved['pages'][0]['source_paths'] = ['wiki/items/food/apple.md']
+            manifest.write_text(json.dumps(saved))
+            apple = (root / 'wiki/items/food/apple.md').read_text()
+            materialize(str(manifest), str(root), dry_run=False)
+            self.assertEqual(apple, (root / 'wiki/items/food/apple.md').read_text())
 
     def test_reclassifies_a_generic_item_out_of_story(self):
         with tempfile.TemporaryDirectory() as td:

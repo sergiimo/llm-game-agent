@@ -1074,11 +1074,11 @@
       "source_paths": [
         "wiki/story/topics/basement.md"
       ],
-      "canonical_path": "wiki/story/topics/basement.md",
+      "canonical_path": "wiki/places/basement.md",
       "aliases": [
         "Basement"
       ],
-      "kind": "story",
+      "kind": "places",
       "source": "fan-wiki"
     },
     {
@@ -1113,11 +1113,11 @@
       "source_paths": [
         "wiki/story/topics/beach.md"
       ],
-      "canonical_path": "wiki/story/topics/beach.md",
+      "canonical_path": "wiki/places/beach.md",
       "aliases": [
         "Beach"
       ],
-      "kind": "story",
+      "kind": "places",
       "source": "fan-wiki"
     },
     {
@@ -3275,11 +3275,11 @@
       "source_paths": [
         "wiki/story/topics/coiffed-and-crowned-by-eury.md"
       ],
-      "canonical_path": "wiki/story/topics/coiffed-and-crowned-by-eury.md",
+      "canonical_path": "wiki/businesses/coiffed-and-crowned-by-eury.md",
       "aliases": [
         "Coiffed & Crowned by Eury"
       ],
-      "kind": "story",
+      "kind": "businesses",
       "source": "fan-wiki"
     },
     {
@@ -4211,11 +4211,11 @@
       "source_paths": [
         "wiki/story/topics/dr-syeds-general-practice.md"
       ],
-      "canonical_path": "wiki/story/topics/dr-syeds-general-practice.md",
+      "canonical_path": "wiki/businesses/dr-syeds-general-practice.md",
       "aliases": [
         "Dr. Syed's General Practice"
       ],
-      "kind": "story",
+      "kind": "businesses",
       "source": "fan-wiki"
     },
     {
@@ -4614,11 +4614,11 @@
       "source_paths": [
         "wiki/story/topics/fairhaven.md"
       ],
-      "canonical_path": "wiki/story/topics/fairhaven.md",
+      "canonical_path": "wiki/places/fairhaven.md",
       "aliases": [
         "Fairhaven"
       ],
-      "kind": "story",
+      "kind": "places",
       "source": "fan-wiki"
     },
     {
@@ -4692,11 +4692,11 @@
       "source_paths": [
         "wiki/story/topics/farm.md"
       ],
-      "canonical_path": "wiki/story/topics/farm.md",
+      "canonical_path": "wiki/places/farm.md",
       "aliases": [
         "Farm"
       ],
-      "kind": "story",
+      "kind": "places",
       "source": "fan-wiki"
     },
     {
@@ -5305,11 +5305,11 @@
       "source_paths": [
         "wiki/story/topics/garden.md"
       ],
-      "canonical_path": "wiki/story/topics/garden.md",
+      "canonical_path": "wiki/places/garden.md",
       "aliases": [
         "Garden"
       ],
-      "kind": "story",
+      "kind": "places",
       "source": "fan-wiki"
     },
     {
@@ -5591,11 +5591,11 @@
       "source_paths": [
         "wiki/story/topics/gloaming.md"
       ],
-      "canonical_path": "wiki/story/topics/gloaming.md",
+      "canonical_path": "wiki/places/gloaming.md",
       "aliases": [
         "Gloaming"
       ],
-      "kind": "story",
+      "kind": "places",
       "source": "fan-wiki"
     },
     {
@@ -6930,11 +6930,11 @@
       "source_paths": [
         "wiki/story/topics/kims-local-butcher-and-deli.md"
       ],
-      "canonical_path": "wiki/story/topics/kims-local-butcher-and-deli.md",
+      "canonical_path": "wiki/businesses/kims-local-butcher-and-deli.md",
       "aliases": [
         "Kim's Local Butcher and Deli"
       ],
-      "kind": "story",
+      "kind": "businesses",
       "source": "fan-wiki"
     },
     {
@@ -8113,11 +8113,11 @@
       "source_paths": [
         "wiki/story/topics/mountain.md"
       ],
-      "canonical_path": "wiki/story/topics/mountain.md",
+      "canonical_path": "wiki/places/mountain.md",
       "aliases": [
         "Mountain"
       ],
-      "kind": "story",
+      "kind": "places",
       "source": "fan-wiki"
     },
     {
@@ -8659,11 +8659,11 @@
       "source_paths": [
         "wiki/story/topics/ocean.md"
       ],
-      "canonical_path": "wiki/story/topics/ocean.md",
+      "canonical_path": "wiki/places/ocean.md",
       "aliases": [
         "Ocean"
       ],
-      "kind": "story",
+      "kind": "places",
       "source": "fan-wiki"
     },
     {
@@ -9543,11 +9543,11 @@
       "source_paths": [
         "wiki/story/topics/peris-apothecary.md"
       ],
-      "canonical_path": "wiki/story/topics/peris-apothecary.md",
+      "canonical_path": "wiki/businesses/peris-apothecary.md",
       "aliases": [
         "Peri's Apothecary"
       ],
-      "kind": "story",
+      "kind": "businesses",
       "source": "fan-wiki"
     },
     {
@@ -10739,11 +10739,11 @@
       "source_paths": [
         "wiki/story/topics/ravenwood-hollow.md"
       ],
-      "canonical_path": "wiki/story/topics/ravenwood-hollow.md",
+      "canonical_path": "wiki/places/ravenwood-hollow.md",
       "aliases": [
         "Ravenwood Hollow"
       ],
-      "kind": "story",
+      "kind": "places",
       "source": "fan-wiki"
     },
     {
@@ -11740,11 +11740,11 @@
       "source_paths": [
         "wiki/story/topics/setons-bakery.md"
       ],
-      "canonical_path": "wiki/story/topics/setons-bakery.md",
+      "canonical_path": "wiki/businesses/setons-bakery.md",
       "aliases": [
         "Seton's Bakery"
       ],
-      "kind": "story",
+      "kind": "businesses",
       "source": "fan-wiki"
     },
     {
@@ -11844,11 +11844,11 @@
       "source_paths": [
         "wiki/story/topics/shelbys-scraps-and-sundries.md"
       ],
-      "canonical_path": "wiki/story/topics/shelbys-scraps-and-sundries.md",
+      "canonical_path": "wiki/businesses/shelbys-scraps-and-sundries.md",
       "aliases": [
         "Shelby's Scraps and Sundries"
       ],
-      "kind": "story",
+      "kind": "businesses",
       "source": "fan-wiki"
     },
     {
@@ -13718,11 +13718,11 @@
       "source_paths": [
         "wiki/story/topics/the-gloaming.md"
       ],
-      "canonical_path": "wiki/story/topics/the-gloaming.md",
+      "canonical_path": "wiki/places/the-gloaming.md",
       "aliases": [
         "The Gloaming"
       ],
-      "kind": "story",
+      "kind": "places",
       "source": "fan-wiki"
     },
     {
@@ -14134,11 +14134,11 @@
       "source_paths": [
         "wiki/story/topics/town-center.md"
       ],
-      "canonical_path": "wiki/story/topics/town-center.md",
+      "canonical_path": "wiki/places/town-center.md",
       "aliases": [
         "Town Center"
       ],
-      "kind": "story",
+      "kind": "places",
       "source": "fan-wiki"
     },
     {
@@ -14602,11 +14602,11 @@
       "source_paths": [
         "wiki/story/topics/violets-boutique.md"
       ],
-      "canonical_path": "wiki/story/topics/violets-boutique.md",
+      "canonical_path": "wiki/businesses/violets-boutique.md",
       "aliases": [
         "Violet's Boutique"
       ],
-      "kind": "story",
+      "kind": "businesses",
       "source": "fan-wiki"
     },
     {
@@ -15124,11 +15124,11 @@
       "source_paths": [
         "wiki/story/topics/woods.md"
       ],
-      "canonical_path": "wiki/story/topics/woods.md",
+      "canonical_path": "wiki/places/woods.md",
       "aliases": [
         "Woods"
       ],
-      "kind": "story",
+      "kind": "places",
       "source": "fan-wiki"
     },
     {

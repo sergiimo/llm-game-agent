@@ -26,11 +26,14 @@ class WikiLayout(unittest.TestCase):
             'Dahl General Store': ('', 'businesses/dahl-general-store.md'),
             'Fishing': ('', 'mechanics/fishing.md'),
             'Achievements': ('', 'story/achievements.md'),
-            'Odd Lore': ('', 'story/topics/odd-lore.md'),
         }
         for title, (body, expected) in cases.items():
             with self.subTest(title=title):
                 self.assertEqual(classify_page(title, body), expected)
+
+    def test_unknown_page_requires_explicit_classification(self):
+        with self.assertRaisesRegex(ValueError, 'unclassified'):
+            classify_page('Odd Lore', '')
 
     def test_normalization_folds_unicode_punctuation(self):
         self.assertEqual(normalized_title("Kai’s Treasures"), normalized_title("Kai's Treasures"))
@@ -53,12 +56,20 @@ class WikiLayout(unittest.TestCase):
     def test_manifest_merges_normalized_alias_titles(self):
         with tempfile.TemporaryDirectory() as td:
             os.makedirs(os.path.join(td, 'wiki'))
-            Path(td, 'wiki', 'A!.md').write_text('# A!\n')
-            Path(td, 'wiki', 'A.md').write_text('# A\n')
+            Path(td, 'wiki', 'A!.md').write_text('# A!\n\n[Item]\n')
+            Path(td, 'wiki', 'A.md').write_text('# A\n\n[Item]\n')
             manifest = build_manifest(os.path.join(td, 'wiki'), [])
             self.assertEqual(len(manifest['pages']), 1)
             self.assertEqual(manifest['pages'][0]['aliases'], ['A', 'A!'])
             self.assertEqual(len(manifest['pages'][0]['source_paths']), 2)
+
+    def test_manifest_groups_titles_by_normalized_subject_not_slug(self):
+        with tempfile.TemporaryDirectory() as td:
+            Path(td, 'A-B.md').write_text('# A-B\n\n[Item]\n')
+            Path(td, 'AB.md').write_text('# AB\n\n[Item]\n')
+            manifest = build_manifest(td, [])
+            self.assertEqual(len(manifest['pages']), 1)
+            self.assertEqual(manifest['pages'][0]['aliases'], ['A-B', 'AB'])
 
 
 if __name__ == '__main__':

@@ -3728,13 +3728,11 @@ def wiki(query, limit=15, show=False):
     wdir = os.path.join(ROOT, 'wiki')
     files = sorted(os.path.relpath(os.path.join(d, f), wdir) for d, _, fs in os.walk(wdir)
                    for f in fs if f.endswith('.md'))
-    q = query.lower()
     manifest = json.load(open(os.path.join(wdir, 'manifest.json')))
-    alias_hits = [p['canonical_path'][5:] for p in manifest['pages']
-                  if any(a.lower() == q for a in p['aliases'])]
-    partial_alias_hits = [p['canonical_path'][5:] for p in manifest['pages']
-                          if any(q in a.lower() for a in p['aliases']) and p['canonical_path'][5:] not in alias_hits]
-    titles = alias_hits + partial_alias_hits
+    from pathlib import Path
+    from wiki_layout import search_catalog
+    titles = search_catalog(Path(wdir), manifest, query)
+    q = query.lower()
     if show and titles:
         print(open(os.path.join(wdir, titles[0])).read())
         return

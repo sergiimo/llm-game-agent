@@ -1,10 +1,12 @@
 """Generate aggregate indexes from the manifest-backed unified Wiki."""
 import json
 import os
+from pathlib import Path
 import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 WIKI = os.path.join(ROOT, 'wiki')
 OUT = WIKI
 MANIFEST = json.load(open(os.path.join(WIKI, 'manifest.json')))
@@ -148,4 +150,6 @@ if __name__ == '__main__':
     characters()
     businesses()
     items()
+    from migrate_wiki import _write_indexes
+    _write_indexes(Path(WIKI))
     print('ok', file=sys.stderr)

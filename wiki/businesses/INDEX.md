@@ -22,3 +22,26 @@ Inventory, unlock levels and prices: `./wf wiki "<Business>"`. Selling items to 
 | Peri's Apothecary | Peri | Mon-Tues Closed; Wed-Sun 9am-5pm | Magic ingredients/potions/Gloaming seeds (Ravenwood Hollow) |
 | Coiffed & Crowned by Eury | Eury | Mon-Tue 9am-5pm; Wed-Fri Closed; Sat-Sun 9am-5pm | Hairstyles; buys hair products |
 | Violet's Boutique | Violet | Mon Closed; Tue-Sat 9am-5pm; Sun Closed | Sewing patterns (later rename of Violet's Violets) |
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Blacksmith](blacksmith.md)
+- [Cafe Moretti](cafe-moretti.md)
+- [Coiffed And Crowned By Eury](coiffed-and-crowned-by-eury.md)
+- [Dahl General Store](dahl-general-store.md)
+- [Dr Syeds General Practice](dr-syeds-general-practice.md)
+- [Kais Treasures](kais-treasures.md)
+- [Kims Local Butcher And Deli](kims-local-butcher-and-deli.md)
+- [Lightfoot Farm](lightfoot-farm.md)
+- [Nailed It](nailed-it.md)
+- [Peris Apothecary](peris-apothecary.md)
+- [Setons Bakery](setons-bakery.md)
+- [Shelbys Scraps And Sundries](shelbys-scraps-and-sundries.md)
+- [Soft And Sons Fish And Tackle](soft-and-sons-fish-and-tackle.md)
+- [The Bar](the-bar.md)
+- [The Hayseed Homestead](the-hayseed-homestead.md)
+- [The Jewelry Box](the-jewelry-box.md)
+- [Violets Boutique](violets-boutique.md)
+- [Violets Violets](violets-violets.md)
+<!-- pages:end -->

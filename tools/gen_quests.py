@@ -87,17 +87,19 @@ def summary(body):
 
 
 def read_front(path):
-    meta, rest = {}, ''
+    meta, rest, front = {}, '', ''
     if os.path.exists(path):
-        txt = open(path).read()
+        with open(path) as source:
+            txt = source.read()
         m = re.match(r'---\n(.*?)\n---\n(.*)', txt, re.S)
         if m:
+            front = f'---\n{m.group(1)}\n---\n'
             for l in m.group(1).split('\n'):
                 if ':' in l:
                     k, v = l.split(':', 1)
                     meta[k.strip()] = v.split('#')[0].strip()
             rest = m.group(2)
-    return meta, rest
+    return meta, rest, front
 
 
 def main():
@@ -107,7 +109,7 @@ def main():
         d = os.path.join(OUT, slug(q['line']))
         os.makedirs(d, exist_ok=True)
         path = os.path.join(d, slug(q['name']) + '.md')
-        meta, rest = read_front(path)
+        meta, rest, front = read_front(path)
         meta.setdefault('status', SEED.get(q['name'], 'todo'))
         if not meta.get('id'):
             meta['id'] = IDS.get(q['name'], '')
@@ -122,8 +124,9 @@ def main():
                     f'## Wiki requirements\n{gen}\n\n'
                     f'## Verified steps\n_Not played yet. Record AS YOU GO under `### Attempt N (<day/time>)`: ✅ worked '
                     f'(exact `./wf` commands → what appears, on-screen text) · ❌ dead end (why) · ❓ open question/gap._\n')
-        front = (f'---\nquest: {q["name"]}\nid: {meta["id"]}   # internal id in ./wf log / save\nline: {q["line"]}\nseason: {q["season"]}\n'
-                 f'status: {meta["status"]}   # todo | active | done\n---\n')
+        if not front:
+            front = (f'---\nquest: {q["name"]}\nid: {meta["id"]}   # internal id in ./wf log / save\nline: {q["line"]}\nseason: {q["season"]}\n'
+                     f'status: {meta["status"]}   # todo | active | done\n---\n')
         open(path, 'w').write(front + rest)
         index.setdefault(q['line'], []).append((q, meta, os.path.relpath(path, OUT)))
 

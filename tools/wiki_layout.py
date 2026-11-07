@@ -36,6 +36,23 @@ def normalized_title(title: str) -> str:
     return re.sub(r'[^a-z0-9]+', '', text)
 
 
+def search_catalog(wiki_dir: Path, manifest: dict, query: str) -> list[str]:
+    """Return canonical relative paths, exact normalized titles before partials."""
+    q = normalized_title(query)
+    titles: dict[str, set[str]] = {}
+    for page in manifest.get('pages', []):
+        rel = page['canonical_path'].removeprefix('wiki/')
+        titles.setdefault(rel, set()).update(page.get('aliases', []))
+    for path in wiki_dir.rglob('*.md'):
+        rel = path.relative_to(wiki_dir).as_posix()
+        heading = re.search(r'^#\s+(.+?)\s*$', path.read_text(errors='replace'), re.M)
+        titles.setdefault(rel, set()).add(heading.group(1) if heading else path.stem)
+    exact = sorted(rel for rel, names in titles.items() if any(normalized_title(n) == q for n in names))
+    partial = sorted(rel for rel, names in titles.items()
+                     if rel not in exact and any(q in normalized_title(n) for n in names))
+    return exact + partial
+
+
 def slug(title: str) -> str:
     text = unicodedata.normalize('NFKD', title).encode('ascii', 'ignore').decode().lower()
     text = text.replace('&', ' and ').replace("'", '')
@@ -59,11 +76,15 @@ def classify_page(title: str, text: str) -> str:
     overrides = _overrides()
     if title in overrides['businesses']:
         return f'businesses/{slug(title)}.md'
+    if title in overrides.get('places', []):
+        return f'places/{slug(title)}.md'
     if title in overrides['mechanics']:
         return f'mechanics/{slug(title)}.md'
     if title in overrides['story']:
         return f'story/{slug(title)}.md'
-    return f'story/topics/{slug(title)}.md'
+    if title in overrides.get('accepted_topics', []):
+        return f'story/topics/{slug(title)}.md'
+    raise ValueError(f'unclassified wiki page: {title}')
 
 
 def _front_title(path: Path) -> str:
@@ -104,6 +125,7 @@ def build_manifest(imported_dir: str, curated_roots: list[str]) -> dict:
     curated = _curated_map(curated_roots)
     pages = []
     seen_paths: dict[str, dict] = {}
+    seen_subjects: dict[str, dict] = {}
     for path in sorted(base.rglob('*.md')):
         title = path.relative_to(base).with_suffix('').as_posix().replace('/', '__')
         text = path.read_text(errors='replace')
@@ -116,7 +138,7 @@ def build_manifest(imported_dir: str, curated_roots: list[str]) -> dict:
             rel_source = path.resolve().relative_to(ROOT).as_posix()
         except ValueError:
             pass
-        prior = seen_paths.get(canonical.lower())
+        prior = seen_subjects.get(key) or seen_paths.get(canonical.lower())
         if prior:
             if normalized_title(prior['title']) != key:
                 raise ValueError(f"unresolved canonical collision: {prior['title']!r} and {title!r} -> {canonical}")
@@ -135,6 +157,7 @@ def build_manifest(imported_dir: str, curated_roots: list[str]) -> dict:
         }
         pages.append(entry)
         seen_paths[canonical.lower()] = entry
+        seen_subjects[key] = entry
     return {'version': 1, 'source_count': sum(len(p['source_paths']) for p in pages), 'pages': pages}
 
 
@@ -145,7 +168,7 @@ def main() -> None:
     p.add_argument('imported_dir')
     p.add_argument('output')
     args = parser.parse_args()
-    roots = [ROOT / 'docs' / name for name in ('mechanics', 'quests', 'world')]
+    roots = [ROOT / 'wiki' / name for name in ('mechanics', 'quests')]
     manifest = build_manifest(args.imported_dir, [str(p) for p in roots])
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

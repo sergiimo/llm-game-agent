@@ -30,3 +30,34 @@ Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `./wf wiki 
 | Sewing Machine | Tool Shed |  |
 | Silkworm Box | Tool Shed | Oh, Chute Quest given by Giva in Y1 |
 | Tanning Station | Tool Shed |  |
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Bee Hive](bee-hive.md)
+- [Bouquet Table](bouquet-table.md)
+- [Butter Churn](butter-churn.md)
+- [Candlemaker](candlemaker.md)
+- [Candy Puller](candy-puller.md)
+- [Cauldron](cauldron.md)
+- [Compost Bin](compost-bin.md)
+- [Crystal Ball](crystal-ball.md)
+- [Desk](desk.md)
+- [Distillery](distillery.md)
+- [Dyeing Bath](dyeing-bath.md)
+- [Feed Mill](feed-mill.md)
+- [Fermentation Barrel](fermentation-barrel.md)
+- [Garden Bed](garden-bed.md)
+- [Gem Finder](gem-finder.md)
+- [Glass Kiln](glass-kiln.md)
+- [Hummingbird Feeder](hummingbird-feeder.md)
+- [Juice Press](juice-press.md)
+- [Loom](loom.md)
+- [Metalworking Table](metalworking-table.md)
+- [Mortar And Pestle](mortar-and-pestle.md)
+- [Paper Press](paper-press.md)
+- [Scrying Bowl](scrying-bowl.md)
+- [Sewing Machine](sewing-machine.md)
+- [Silkworm Box](silkworm-box.md)
+- [Tanning Station](tanning-station.md)
+<!-- pages:end -->

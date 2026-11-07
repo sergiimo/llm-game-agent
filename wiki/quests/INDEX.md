@@ -240,3 +240,29 @@ To change a status or add the internal id (seen in `./wf log`), edit the quest f
 | | Quest | Id | Season | Summary |
 |---|---|---|---|---|
 | · | [It's a Spring Fling Thing](post-epilogue/its-a-spring-fling-thing.md) |  | Spring Fling Quests | The Festival starts in 12 days. (from Gloria Miranda; 3 step(s)) |
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Brewing](brewing/INDEX.md)
+- [Building](building/INDEX.md)
+- [Conversation](conversation/INDEX.md)
+- [Coven](coven/INDEX.md)
+- [Election](election/INDEX.md)
+- [Epilogue](epilogue/INDEX.md)
+- [Gardening Foraging And Plants](gardening-foraging-and-plants/INDEX.md)
+- [Gloaming First Keystone](gloaming-first-keystone/INDEX.md)
+- [Gloaming Second Keystone](gloaming-second-keystone/INDEX.md)
+- [Gloaming Third Keystone](gloaming-third-keystone/INDEX.md)
+- [Medicine](medicine/INDEX.md)
+- [Other](other/INDEX.md)
+- [Post Epilogue](post-epilogue/INDEX.md)
+- [Ravenwood Hollow](ravenwood-hollow/INDEX.md)
+- [Romance](romance/INDEX.md)
+- [Summer Festival](summer-festival/INDEX.md)
+- [Technology](technology/INDEX.md)
+- [Town](town/INDEX.md)
+- [Wedding](wedding/INDEX.md)
+- [Winter Feast](winter-feast/INDEX.md)
+- [Wraith](wraith/INDEX.md)
+<!-- pages:end -->

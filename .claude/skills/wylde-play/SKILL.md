@@ -26,6 +26,13 @@ for screen/HUD text. A `look` decision returns the saved 1920×1080 frame withou
 Tara is at frame centre. A target needs its entire visible walkable road; otherwise choose one short visible-ground
 waypoint. Move only by clicking. Current modal and guard rules apply to each primitive; no blind key loops.
 
+For a navigation turn, read `navigation` before interpreting the frame. It resolves the requested destination to the
+current graph, names the next node/edge and required world compass, and projects a proposed screen waypoint through
+the scene calibration. Inspect the turn's own full-scale `view.path` and choose a clear-road waypoint directly when
+its projected compass agrees with the graph (within one compass sector). State both compasses in the rationale.
+Do not ask the supervisor to choose ordinary waypoint coordinates. Escalate only an unresolved destination/route, a
+real visual ambiguity, or a repeated compass-guard refusal after one fresh-frame correction.
+
 A surprise blocks gameplay until `look`, `correct` or `stop` resolves it. Preserve the active crop/phase/node and
 parent interaction. Pending input reconciles from recorded evidence without repetition. The settle boundary's final
 full frame is the next view; do not capture again merely to decide. Corrections update named
@@ -33,7 +40,9 @@ graph/vector/transition data with provenance, revise a decision, mark a constrai
 to the human; never patch runtime code while playing. Purchases require explicit root-task quantity/spend bounds and
 matching inventory/money proof. Do not change settings, sell valuables or choose major story actions without scope.
 
-The canonical chronological timeline is `runs/<run>/log.jsonl`; `experiences.jsonl` is machine replay evidence.
+The canonical chronological timeline is `runs/<run>/log.jsonl`; the same loop boundary appends a timestamped,
+human-readable observation → decision → result → integration/correction projection to `runs/<run>/decisions.md`.
+`experiences.jsonl` is machine replay evidence.
 After milestones update verified quest steps/status, run `python3 -I tools/gen_quests.py`, and update
 current `runs/<task>/plan.md` and log. Record surprises in `docs/troubleshooting/INDEX.md` and fix their one canonical doc/tool/skill in the same pass.
 Completion is evidence-backed coverage/proof; constrained work is reported as constrained. Filling doc gaps beats winning.

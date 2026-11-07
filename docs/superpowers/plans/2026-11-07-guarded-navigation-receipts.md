@@ -40,11 +40,11 @@ proved moves into the estimate, and renders the same evidence into the human dec
 - Produces: `receipt(task, observation) -> dict`, `assess(action, receipt) -> dict`, and
   `advance(task, experience) -> None`.
 
-- [ ] Write tests for resolved/unresolved destinations, calibrated compass, mismatch threshold, missing calibration,
+- [x] Write tests for resolved/unresolved destinations, calibrated compass, mismatch threshold, missing calibration,
       estimate advancement, and scene replacement.
-- [ ] Run the focused tests and verify RED.
-- [ ] Implement the minimum pure receipt/assessment/advance behavior.
-- [ ] Run the focused tests and verify GREEN.
+- [x] Run the focused tests and verify RED.
+- [x] Implement the minimum pure receipt/assessment/advance behavior.
+- [x] Run the focused tests and verify GREEN.
 
 ### Task 2: Universal turn integration and readable evidence
 
@@ -58,11 +58,11 @@ proved moves into the estimate, and renders the same evidence into the human dec
 - Produces: `TurnContext.navigation`, pre-input navigate guard, canonical decision receipt, and timestamped readable
   Graph/Waypoint lines.
 
-- [ ] Write tests proving the model sees graph compass, contradictory input is not performed, and `decisions.md`
+- [x] Write tests proving the model sees graph compass, contradictory input is not performed, and `decisions.md`
       contains graph and waypoint compass/alignment.
-- [ ] Run the focused tests and verify RED.
-- [ ] Integrate the receipt into context, guard, reducer, and decision logging.
-- [ ] Run focused and full turn/navigation tests and verify GREEN.
+- [x] Run the focused tests and verify RED.
+- [x] Integrate the receipt into context, guard, reducer, and decision logging.
+- [x] Run focused and full turn/navigation tests and verify GREEN.
 
 ### Task 3: Remove ordinary per-hop supervisor handoff
 
@@ -74,7 +74,7 @@ proved moves into the estimate, and renders the same evidence into the human dec
 - Consumes: the model-visible navigation receipt and guard refusal.
 - Produces: local child ownership of frame inspection and clear-road waypoint continuation.
 
-- [ ] Update the gameplay instructions so the child reads its own full-scale frame and continues ordinary hops.
-- [ ] Reserve escalation for unresolved route evidence, repeated guard refusal, or a real surprise.
-- [ ] Run relevant skill/static checks and the project test suite.
+- [x] Update the gameplay instructions so the child reads its own full-scale frame and continues ordinary hops.
+- [x] Reserve escalation for unresolved route evidence, repeated guard refusal, or a real surprise.
+- [x] Run relevant skill/static checks and the project test suite.
 

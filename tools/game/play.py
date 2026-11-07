@@ -81,7 +81,7 @@ def _clues(store, frame_context=None):
                                  'region': {'source': 'scene_log'}}}
     if 'x' in point and 'z' in point:
         data['position'] = [point['x'], point['z']]
-    if task_state and domain(task_state.to_dict())['goal'] == 'navigate':
+    if task_state and _declaration(task_state)['goal'] == 'navigate':
         from . import navigation
         data['navigation'] = navigation.receipt(task_state, data)
     state = _declaration(task_state) if task_state else {

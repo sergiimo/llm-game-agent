@@ -115,6 +115,12 @@ paste the runner's rules into its prompt) with:
 
 **Move only with `go:` (L54):** no keyboard walking (disabled in the tool). `NO MOVE` → a nearer ground point.
 For a known far target, try its direct map command (`./wf goto <place>`) once before any local visual route analysis.
+On model-owned navigation turns, use the returned `navigation` receipt instead: resolve the destination and read its
+next graph node/edge and required world compass, inspect the full-scale `view.path` yourself, and choose the clearest
+visible-road waypoint whose calibrated compass agrees within one sector. Put `graph <compass>; waypoint <compass>`
+in the decision rationale. The runtime refuses a contradictory waypoint before input. Do not hand an ordinary frame
+to the supervisor for coordinates; return `need-help` only when the destination/route is unresolved, the scene is
+genuinely ambiguous, or a fresh corrected waypoint is refused again.
 **Use `./wf do <actions> --look` (act + settle + state + full-scale screenshot in ONE call)**, not `walk` followed by
 `state`/`look` (run #6 spent ~8 of 25 calls on separate look/state pairs; plain `walk` doesn't settle, so `state`
 can read mid-motion garbage). Short goals (≲15 calls) you may run yourself (L31). Images are full-scale 1920×1080.

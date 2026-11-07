@@ -1,5 +1,6 @@
 """Bounded graph/compass receipts for model-owned waypoint decisions."""
 import math
+import re
 
 
 COMPASS = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')
@@ -75,6 +76,10 @@ def assess(action, navigation):
     import nav as learned
 
     point = action.get('point') or ()
+    if not point and action.get('cell'):
+        match = re.fullmatch(r'([A-Xa-x])(1[0-6]|[1-9])', action['cell'])
+        if match:
+            point = ((ord(match[1].upper()) - 65 + .5) * 80, (int(match[2]) - .5) * 67.5)
     if len(point) != 2:
         return {'allowed': False, 'alignment': 'invalid', 'reason': 'waypoint needs a two-coordinate point'}
     sx, sy = point

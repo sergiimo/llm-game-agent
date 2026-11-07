@@ -189,7 +189,7 @@ existing daemon/run logging.
 - Modify: `.claude/skills/wylde-play/actions/sleep.md`
 - Modify: `.claude/skills/wylde-play/actions/shop.md`
 - Modify: `.claude/skills/wylde-play/actions/garden.md`
-- Modify: `docs/progress.md`
+- Modify: the current `runs/<task>/plan.md` / generated `progress.md`
 - Modify: `docs/learnings.md`
 - Modify: `retros/stuck-ledger.md`
 - Modify: current run report/retro artifacts

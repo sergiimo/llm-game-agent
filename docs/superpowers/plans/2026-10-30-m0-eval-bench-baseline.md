@@ -154,7 +154,7 @@ the run log, the nav events and the eval store. The baseline is recorded by the 
 **Files:**
 - Create: the run directories `runs/<ts>-bench-A/`, `runs/<ts>-bench-B/` (by the tool)
 - Modify: `docs/superpowers/specs/2026-10-30-agent-system-refactor-design.md` §7.2 (baseline numbers + targets),
-  `docs/progress.md` (session row)
+  `runs/<task>/progress.md` (generated task execution status)
 
 **Interfaces:**
 - Consumes: Task 3 CLI, Task 2 `./wf eval`, the supervisor flow (wylde-supervise §3/3a).

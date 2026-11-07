@@ -45,7 +45,7 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
   (~0.2 s), then return focus; a `do` ≈ 2.3 s.
 
 ## Playing = supervisor → quest agent → action agent
-Always have **one current goal** in the active run plan. The main conversation supervises (`wylde-supervise`):
+Always have **one current goal** in the current task's `runs/<task>/plan.md`. The main conversation supervises (`wylde-supervise`):
 choose the goal, dispatch `wylde-quest`, review, ask the user for decisions. The quest agent loads only the relevant
 docs and drives steps through `wylde-runner`.
 **User model preference (2026-11-01): every spawned gameplay agent uses the cheapest available model** unless the user
@@ -75,13 +75,13 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
 3. **Don't change the user's settings** (language, game speed) or spend/sell/sleep through big decisions without
    asking, unless the user said so ("pass quest X" = sleeping as many nights as it needs is approved).
 4. After each milestone, write the **verified steps** into that quest's file (`wiki/quests/<line>/<quest>.md`), set its
-   front-matter `status`/`ru`, re-run `python3 -I tools/gen_quests.py`, and update the active run plan.
+   front-matter `status`/`ru`, re-run `python3 -I tools/gen_quests.py`, and update the current run plan.
 5. When something differs from expectations, **log it in `docs/troubleshooting/INDEX.md`** and fix the affected doc/tool/skill
    in the same pass.
 6. Prefer the hint button in the journal (**Show Hint**) for the actionable next step (L12).
 7. **Every task runs from a plan (L76):** `./wf run start` → `runs/<YYYYMMDD-HHMM>-<task>/plan.md`, written and reviewed
    by the supervisor, shown to the user, followed by the agent step by step (`./wf run step N start|done`, timestamps in
-   `progress.md`). A step over its budget or stuck → `./wf run escalate N` → stuck retro → plan fixed from step N.
+   `runs/<task>/progress.md`). A step over its budget or stuck → `./wf run escalate N` → stuck retro → plan fixed from step N.
    **Stuck = Tara's position changes < 2 units over 3 moves while not at the goal (L75).** Every stuck episode gets a
    **stuck retro**: read `retros/stuck-ledger.md` first (did earlier fixes hold?), add a row, save the retro in
    `retros/`; a cause that repeats gets a tool fix. Aim: fewer stuck episodes per trip.

@@ -5,7 +5,8 @@ description: Play Wylde Flowers through the universal model-owned one-turn bound
 
 # Playing Wylde Flowers
 
-Session start: read `AGENTS.md`, `docs/INDEX.md`, `active run plan`; then load only the relevant index/detail.
+Session start: read `AGENTS.md`, the relevant Wiki/Docs router, and `./wf run status`; if a task is open, read its
+`runs/<task>/plan.md`. Then load only the relevant index/detail.
 The supervisor owns one current goal and a reviewed run plan; gameplay children use the user's cheapest-model rule.
 Check permissions, exact clock and current save/log before starting. A new task after 19:00 requires pre-approved
 sleep first. Focus mode is front: pause before coding, documentation or long thinking.
@@ -34,5 +35,5 @@ matching inventory/money proof. Do not change settings, sell valuables or choose
 
 The canonical chronological timeline is `runs/<run>/log.jsonl`; `experiences.jsonl` is machine replay evidence.
 After milestones update verified quest steps/status, run `python3 -I tools/gen_quests.py`, and update
-`active run plan`. Record surprises in `docs/troubleshooting/INDEX.md` and fix their one canonical doc/tool/skill in the same pass.
+current `runs/<task>/plan.md` and log. Record surprises in `docs/troubleshooting/INDEX.md` and fix their one canonical doc/tool/skill in the same pass.
 Completion is evidence-backed coverage/proof; constrained work is reported as constrained. Filling doc gaps beats winning.

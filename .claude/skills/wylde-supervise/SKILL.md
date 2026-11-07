@@ -1,6 +1,6 @@
 ---
 name: wylde-supervise
-description: Supervise playing Wylde Flowers — keep a current goal, pick the next quest/goal, dispatch one wylde-quest agent per goal (which uses wylde-runner for steps), review results, handle decisions with the user, and keep active run plan current. Use when asked to play, continue the game, or progress quests.
+description: Supervise playing Wylde Flowers — keep one task-local goal, pick the next quest/goal, dispatch one wylde-quest agent per goal (which uses wylde-runner for steps), review results, handle decisions with the user, and keep the current run plan accurate. Use when asked to play, continue the game, or progress quests.
 ---
 
 # Supervisor loop
@@ -27,10 +27,12 @@ docs, then re-test. Judge runs by gaps found and fixed.
 - **…and check the user isn't playing:** `./wf log --tail 20` + `tail -5 .shots/actions.log`. Game actions in the log
   (`> water`, `> plant`, `grab_item`…) newer than our last command, or a game clock far ahead of where we left it →
   the user is playing: ask before dispatching (loop-live-4 2026-10-31: the agent fought the user's inputs).
-- Read `active run plan` (state + **Current goal** + goal queue) and `wiki/quests/INDEX.md` → "Active now".
+- Run `./wf run status` to inspect the current task, if one is open, and read its `runs/<task>/plan.md`; use
+  `wiki/quests/INDEX.md` → "Active now" for game-wide quest state. There is no global progress file.
 - `./wf save` + `./wf log --tail 20` (sandbox disabled): exact day/time, money, scene, quest goals, inventory, and
   recent events (`docs/ui/game-files.md`). Then `./wf state`; add one `./wf look` only if the exact spot matters.
-  Fix progress.md first if reality differs, and put the observed location in the brief.
+  If reality differs from the open task, record `./wf run issue <what differs>` and revise that run's `plan.md`;
+  `runs/<task>/progress.md` is generated from the run log and must not be hand-edited. Put the observed location in the brief.
 
 ## 1b. Every morning: routines first
 `./wf routines` (docs/operations/routines.md): DUE routines (watering, harvest) are dispatched before any quest goal; wilted
@@ -48,7 +50,8 @@ basic-actions, an unknown place, a new screen) (time of day, weekday shop hours 
 1. Time-critical dailies (e.g. watering planted crops).
 2. Main-story active quests whose next step is doable now.
 3. Cheap side progress on the way (foraging, meeting villagers).
-Write it to `active run plan` → **Current goal** (goal, quest file, done-signal, constraints) before dispatching.
+Carry the chosen goal into the new task's `./wf run start` command and `runs/<task>/plan.md` (goal, quest file,
+done-signal, constraints) before dispatching.
 
 ## 3. Dispatch: give the child EVERYTHING it needs (the manifest)
 **Model rule (user, 2026-11-01): always use the cheapest available model for every spawned gameplay agent**, both
@@ -142,7 +145,7 @@ Never let a child run the game blind. For every dispatch that touches the game:
    clicks, walks, still, predictions hit/miss, alerts, stops); put it in the debrief.
 
 ## 3a. When the child escalates (`RESULT: escalate step N`)
-1. `./wf run status` (progress.md: step timestamps, budget use) + `./wf run report`.
+1. `./wf run status` (`runs/<task>/progress.md`: generated step timestamps and budget use) + `./wf run report`.
 2. **Stuck retro** (AGENTS.md rule 7): read `retros/stuck-ledger.md` first, score earlier fixes, add the row, write
    `runs/<task>/retro-<k>.md`, apply the fix (tool/doc).
 3. Fix `plan.md` from step N (rewrite the steps, keep the done ones), `./wf run plan`, show the user the changed
@@ -161,7 +164,7 @@ Never let a child run the game blind. For every dispatch that touches the game:
 - `./wf run status` (progress per step) and `./wf run report [runs/<task>/]`: timeline (attempts, issues, walks, game events) + time split (in calls / agent
   thinking / Tara active). Retros start from run logs, not from video.
 - Read the report; verify with `./wf state`. Spot-check that the quest file's Verified steps were written.
-- RESULT=done → mark the goal done in progress.md and pick the next one.
+- RESULT=done → close the task with `./wf run end done`, update the quest's Wiki status/verified steps, then pick the next task.
 - partial/blocked → decide: re-brief with a narrower goal, fix a tool/doc (log in learnings), or ask the user.
 - decision-needed → **ask the user** (purchases, choices, sleeping/ending the day, romance), then re-dispatch.
   Exception (user, 2026-10-30): **"pass quest X" pre-approves sleeping** as many nights as the quest needs (waiting for
@@ -186,6 +189,7 @@ Also clean the quest file's attempt log if it has stale/wrong values. Log the ru
 Every ~5 goals, or when costs trend up, run `/retro` over `docs/agent-runs.md`.
 
 ## 6. Keep records (you own these)
-- `active run plan`: state summary, Current goal, Goal queue, one session-log row per finished goal.
+- Per-task records only: `runs/<task>/plan.md`, generated `runs/<task>/progress.md`, `runs/<task>/log.jsonl`, and any task retro. Do not
+  create or maintain a repository-wide progress file or cross-task execution log.
 - After a slow or messy stretch, run `/retro`.
 - The game stays in the background between goals (time frozen, learnings L28).

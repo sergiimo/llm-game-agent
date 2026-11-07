@@ -9,7 +9,8 @@ description: Onboard an AI agent onto a desktop video game running on this Mac. 
 the *test* of those docs: while onboarding, **finding and filling a gap beats winning the quest**.
 
 **Deliverable:** a project folder that lets any agent play one specific game on this Mac:
-`docs/` (router + progress + quests + mechanics + UI + world, loaded progressively) · `tools/` + `./<ctl>` CLI · `AGENTS.md` (+ `CLAUDE.md`
+`docs/` (router + operations/UI docs, loaded progressively) · `wiki/` (quests, mechanics, tips, world knowledge) ·
+`runs/<task>/` (task-local execution records) · `tools/` + `./<ctl>` CLI · `AGENTS.md` (+ `CLAUDE.md`
 symlink) · project skills, all **verified against the real running game**.
 
 This skill holds the **method**: how to find things out. It holds no answers. Every game, build, OS version and
@@ -26,8 +27,8 @@ These are the owner's intents. They outrank defaults below.
    (c) **test (a) and (b) in the real game running on this computer**.
 2. **Get control with minimal friction:** explain exactly which OS permission is needed and for which app; offer the
    options (terminal vs a scoped helper app), let the user pick, and keep working while they grant it.
-3. **Save progress as you go:** each achieved step becomes a note with *what to expect along the action* (now: the
-   quest file's Verified steps + `progress.md`).
+3. **Save task execution as you go:** each achieved step becomes a verified Wiki note plus an event in the current
+   task's `runs/<task>/log.jsonl`; the tool derives `runs/<task>/progress.md`. Never create a global progress file.
 4. **Learn from surprises:** anything unexpected → a learnings entry **and** an update of the relevant docs/skills.
 5. **Be fast and cheap:** optimise screen checks and navigation (lower resolution, text-first state, fewer calls,
    warm processes); use a **faster model** for mechanical loops.
@@ -91,7 +92,7 @@ An agent should never need to read everything. Every area has a small **INDEX.md
 summary), and every detail file starts with `> **Summary:** …` so its first lines are often enough.
 ```
 docs/INDEX.md                      router: need → which index (the only doc always loaded)
-active run plan                   current save state + session log (read at start, update at end)
+runs/<timestamp>-<task>/          task-local plan.md + log.jsonl + generated progress.md
 wiki/quests/INDEX.md               every quest by questline with status (▶️ active / ✅ done / · todo) + localized name
 wiki/quests/<line>/<quest>.md      front matter (status, localized name) · ## Quest brief (supervisor-maintained) ·
                                    wiki requirements (generated, between markers)
@@ -116,7 +117,8 @@ docs/troubleshooting/INDEX.md                  surprises log (expected → actua
   and everything outside the `<!-- wiki:start/end -->` markers, so verified steps survive regeneration); world tables
   from infoboxes.
 - Discoveries go to the file of their kind: a quest step → that quest file; a screen → `ui/screens/`; a rule →
-  `mechanics/<topic>` "Verified in-game"; a surprise → `learnings.md`; the save state → `progress.md`.
+  `mechanics/<topic>` "Verified in-game"; a surprise → its canonical Wiki/operations page; task state and evidence →
+  the current `runs/<task>/` directory.
 
 ## Phase 2: Discovery probes (run in order; each answer shapes the tools)
 
@@ -191,18 +193,20 @@ dialogue/popup/cutscene modes), `route`, `wiki`.
   locations / ui / mechanics and are linked, not copied.
 - Play the opening quests in small observed steps, using `do` + `state`. Every milestone → that quest file's
   `## Verified steps` (start state · exact commands + what appears, quoted + translated · gotchas · done-signal · next),
-  update its front matter (status, localized name), regenerate the index, and update `active run plan`.
+  update its front matter (status, localized name), regenerate the index, and update the current task's run plan/log.
 - Every new screen → `docs/ui/screens/<screen>.md` + a row in `ui/INDEX.md`; every confirmed rule → the mechanic's
   "Verified in-game" section.
 - Every surprise → a learnings row + a fix. Every walk that worked → `routes/<from>-to-<to>.txt` (first line = exact start).
 
 ## Phase 4: AGENTS.md, skills, delegation
-- `AGENTS.md`: progressive-loading layout table (start at `docs/INDEX.md` + `active run plan`), setup facts (from
+- `AGENTS.md`: progressive-loading layout table (start at `wiki/INDEX.md` or `docs/INDEX.md`; task execution starts
+  at the active `runs/<task>/plan.md`), setup facts (from
   probes A/B/C), rules of play (standing rules adapted with the probe results).
 - Skills: `<game>-supervise` (goal loop), `<game>-play` (preflight → observe/decide/act/verify → guardrails → recording), `<game>-navigate`,
   `<game>-lookup`.
 - **Play through a hierarchy with one current goal at a time** (subagents may nest up to 3 levels):
-  - **supervisor** = main conversation (skill `<game>-supervise`): owns `progress.md` (current goal, goal queue, log),
+  - **supervisor** = main conversation (skill `<game>-supervise`): opens one `runs/<task>/` directory per goal and
+    owns its plan/log/generated progress,
     picks the next small verifiable goal (time/shop-hours/energy aware), dispatches, reviews, asks the user for decisions;
   - **quest agent** (`.claude/agents/<game>-quest.md`, light model e.g. `sonnet`): one goal; loads docs progressively
     (progress → quest file → only needed ui/mechanics/world files); plans steps with done-signals; records verified steps;

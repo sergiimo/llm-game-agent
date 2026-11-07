@@ -16,7 +16,7 @@
 - One canonical page per subject, with curated/verified content winning collisions.
 - `docs/` contains app operations, UI recognition, architecture, troubleshooting, testing, and historical engineering records only.
 - Preserve Fandom/CC BY-SA attribution on imported content.
-- Do not restore, overwrite, or otherwise disturb unrelated pre-existing worktree changes, including the deleted `docs/progress.md`, retros, routes, and media.
+- Do not restore, overwrite, or otherwise disturb unrelated pre-existing worktree changes, including the removed global progress file, retros, routes, and media.
 - Do not rewrite historical `docs/superpowers/` narratives solely to change legacy paths.
 - Delete `docs/learnings.md` only after every learning ID is dispositioned and all live consumers pass validation.
 - Use `apply_patch` for hand edits; migration scripts may perform reviewed bulk mechanical moves and rewrites.

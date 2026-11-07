@@ -1,6 +1,6 @@
 """Task plans (L76): every task runs from runs/<YYYYMMDD-HHMM>-<task>/. plan.md is a markdown document for the agent,
 written and reviewed by the supervisor and shown to the user; the agent follows it step by step and stamps each step
-(`wf run step N start|done|fail`); the tool writes the timestamps and budget use to progress.md. A step over its budget
+(`wf run step N start|done|fail`); the tool writes timestamps and budget use to `runs/<task>/progress.md`. A step over its budget
 is escalated (`wf run escalate N`) and gets a stuck retro. Pure functions; wf.py does the I/O.
 
 plan.md:
@@ -120,7 +120,7 @@ def steps_state(steps, events, now, hour_now=None):
 
 
 def progress_md(task, steps, states, lines):
-    """progress.md: status table (budget use per step) + the timestamped step log."""
+    """Content for `runs/<task>/progress.md`: budget status table plus timestamped step log."""
     out = [f'# Progress: {task}', '', '| # | Step | Status | Calls | Real min | Game min | Budget | Over |',
            '|---|---|---|---|---|---|---|---|']
     for s, st in zip(steps, states):

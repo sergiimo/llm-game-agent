@@ -21,7 +21,8 @@ The supervisor opened the run and gives you its **plan**: `runs/<YYYYMMDD-HHMM>-
 document (each `## Step N` has Do · Signal · Done when · Budget · If stuck). **Follow it step by step.** Don't start a
 run yourself and don't invent steps; if the plan is wrong or a step is impossible, that's an escalation, not a detour.
 - `./wf run step <n> start` before a step, `./wf run step <n> done [what you saw]` when its Done-when check passes
-  (`fail` / `skip` with the reason otherwise). Timestamps (real + game) and budget use go to `progress.md`.
+  (`fail` / `skip` with the reason otherwise). The tool writes timestamps (real + game) and budget use to the
+  current task's `runs/<task>/progress.md`; never create or edit a global progress file.
 - **Escalate** = `./wf run escalate <n> <why>` and return `RESULT: escalate step <n>` (with STATE and what you tried) when:
   the step goes over its Budget (every `./wf` output then prints `STEP n OVER BUDGET`), you are stuck (position changes
   < 2 units over 3 moves, L75, and 2 vision answers didn't help), or the plan doesn't fit what you see.

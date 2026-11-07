@@ -265,21 +265,74 @@ class TurnContext(Snapshot):
     view_id: str = None
     candidates: tuple = ()
     controls: tuple = ()
+    view: object = None
+    result: object = None
+    need: object = None
+    memory: object = None
+    resources: object = None
 
     @classmethod
     def from_dict(cls, d):
         d = dict(d)
         d.setdefault('observation_freshness', 'fresh')
         d.setdefault('vector_detections', ())
-        d.setdefault('model_workflow', ())
+        # Workflow prose was a repeated rendering of the state below.  Old
+        # persisted turns are upgraded on read instead of leaking it forever.
+        d['model_workflow'] = ()
         d.setdefault('vector_status', None)
         d.setdefault('view_id', None)
         d.setdefault('candidates', ())
         d.setdefault('controls', ())
+        d.setdefault('view', None)
+        d.setdefault('result', None)
+        d.setdefault('need', None)
+        d.setdefault('memory', None)
+        d.setdefault('resources', None)
         d['recommendation'] = Recommendation(**d['recommendation'])
         if d.get('surprise'):
             d['surprise'] = Surprise(**d['surprise'])
         return cls(**d)
+
+
+def _compact_projection(task, observation, surprise):
+    """One bounded model view; journals retain the verbose evidence and trace."""
+    screen = observation.get('screen') or {}
+    view = {
+        'id': observation.get('view_id'),
+        'path': observation.get('frame_path'),
+        'mode': screen.get('kind'),
+        'clock': observation.get('hour'),
+        'scene': observation.get('region') or observation.get('scene'),
+        'controls': observation.get('controls', ()),
+        'bubbles': observation.get('visible_affordances', ()),
+        'vectors': observation.get('vector_status'),
+        'candidates': observation.get('candidates', ()),
+    }
+    latest = task.last_experience or {}
+    evidence = latest.get('evidence') or {}
+    verdict = latest.get('verdict') or {}
+    result = {
+        'experience': latest.get('id'),
+        'status': verdict.get('value', 'pending'),
+        'events': evidence.get('events', ()),
+    }
+    missing = any(clue.get('appearance_needed') for clue in observation.get('graph_clues', ())
+                  if isinstance(clue, dict))
+    vector_error = (observation.get('vector_status') or {}).get('status') == 'error'
+    need = None
+    if surprise:
+        need = {'kind': 'vision', 'reason': surprise.reason,
+                'experience': surprise.experience_id, 'frame': view['path']}
+    elif missing or vector_error:
+        need = {'kind': 'vision', 'reason': 'missing_appearance' if missing else 'vector_error',
+                'frame': view['path']}
+    memory = {'revision': observation.get('memory_revision'),
+              'clues': observation.get('graph_clues', ())}
+    resource_keys = ('hour', 'light', 'rain', 'can', 'money', 'inventory', 'inventory_complete')
+    resources = {key: observation.get(key) for key in resource_keys if key in observation}
+    provenance = observation.get('state_provenance') or {}
+    resources['provenance'] = {key: provenance[key] for key in resources if key in provenance}
+    return view, result, need, memory, resources
 
 
 def _model_workflow(task, observation, recommendation, allowed, surprise):
@@ -446,22 +499,23 @@ class TurnLoop:
         if task.status != 'active' and not surprise:
             allowed = ('look', 'stop', 'push') if task.status == 'complete' and task.unresolved else ('look', 'stop')
         from .history import public_task
-        workflow = _model_workflow(task, observation, rec, allowed, surprise)
+        view, result, need, memory, resources = _compact_projection(task, observation, surprise)
         c = TurnContext(task.turn_seq, public_task(task), thaw(task.active),
                         observation.get('screen'), observation.get('frame_path'), 'fresh',
                         observation.get('visible_affordances', ()), observation.get('graph_clues', ()),
                         {'targets': task.targets, 'covered': task.covered, 'unresolved': task.unresolved},
                         task.last_experience, surprise, observation.get('interrupts', ()), rec, allowed,
-                        observation.get('vector_detections', ()), workflow, observation.get('vector_status'))
+                        observation.get('vector_detections', ()), (), observation.get('vector_status'))
         c = replace(c, view_id=observation.get('view_id'), candidates=observation.get('candidates', ()),
-                    controls=observation.get('controls', ()))
+                    controls=observation.get('controls', ()), view=view, result=result, need=need,
+                    memory=memory, resources=resources)
         task.current_turn = c.to_dict()
         self.store.save(task)
         self._log(task, c.turn_id, 'clues', screen=c.screen, frame_path=c.frame_path,
                   visible_affordances=c.visible_affordances, graph_clues=c.graph_clues,
                   coverage=c.coverage, transaction=c.transaction, interrupts=c.interrupts,
-                  vector_detections=c.vector_detections, model_workflow=c.model_workflow,
-                  vector_status=c.vector_status,
+                  vector_detections=c.vector_detections, vector_status=c.vector_status,
+                  view=c.view, result=c.result, need=c.need, memory=c.memory, resources=c.resources,
                   region=task.params.get('region'), task_status=task.status, surprise=c.surprise)
         self._log(task, c.turn_id, 'recommendation', recommendation=rec)
         return c
@@ -551,10 +605,7 @@ class TurnLoop:
             context = self._context(task, observation)
             if not cached:
                 return context
-            workflow = list(thaw(context.model_workflow))
-            if workflow and workflow[0].get('stage') == 'observe':
-                workflow[0]['freshness'] = 'cached'
-            return replace(context, observation_freshness='cached', model_workflow=tuple(workflow))
+            return replace(context, observation_freshness='cached')
 
     def _subgoal(self, task, decision):
         """Explicit durable model operations; verification folds captured evidence and performs no input."""

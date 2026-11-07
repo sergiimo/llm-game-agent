@@ -14,7 +14,7 @@ from test_runwatch import Trace
 TESTS = (
     (Turns, 'test_production_observation_runs_vectors_on_the_exact_saved_grab'),
     (Turns, 'test_vector_failure_is_explicit_instead_of_looking_like_no_match'),
-    (Turns, 'test_every_context_prints_the_compact_model_workflow'),
+    (Turns, 'test_every_context_prints_the_compact_receipt_first_view'),
     (PlayCase, 'test_new_task_reuses_its_vector_observation_in_the_first_next'),
     (Play, 'test_every_public_gameplay_alias_returns_before_input'),
     (Play, 'test_one_decision_performs_at_most_one_input'),

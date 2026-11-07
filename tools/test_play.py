@@ -107,6 +107,26 @@ class PlayCase(unittest.TestCase):
         self.assertEqual(context.turn_id, 1)
         observed.assert_called_once_with()
 
+    def test_production_clues_project_only_current_region_not_the_full_nested_graph(self):
+        from objects.graph import Graph, Node
+        from types import SimpleNamespace
+        from game import engine
+        graph = Graph()
+        graph.nodes['Farm'] = Node('Farm', 'region')
+        graph.nodes['Garden'] = Node('Garden', 'region', region='Farm')
+        graph.nodes['HouseDoor'] = Node('HouseDoor', 'unique', region='Farm')
+        for n in range(500):
+            graph.nodes[f'bed-{n}'] = Node(f'bed-{n}', 'member', 'GardenBed', region='Garden')
+        save = {'saveCount': 1, 'currentScene': 'Farm', 'gameState': {'player': {'inventory': {'items': []}}}}
+        raw = SimpleNamespace(read_save=lambda: ('source.save', save), today_log=lambda: ([], None))
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(engine, '_open_graph', return_value=graph):
+            clues = self.play()._clues(self.store, {'hour': 10, 'light': 'day'})
+        nodes = [row['node'] for row in clues['graph_clues'] if row.get('node')]
+        self.assertTrue({'Farm', 'Garden', 'HouseDoor'} <= set(nodes))
+        self.assertFalse(any(node.startswith('bed-') for node in nodes))
+        self.assertLess(len(nodes), 10)
+        self.assertLess(len(json.dumps(clues['graph_clues'])), 5000)
+
 
 class CompactHistory(PlayCase):
     def outcome(self, experience_id, turn_id):
@@ -2252,8 +2272,9 @@ class Play(PlayCase):
                 output = self.cli(argv, directory)
                 self.assertIn('NEXT ', output)
                 context = json.loads(output.split('NEXT ', 1)[1])
-                self.assertEqual([row['stage'] for row in context['model_workflow']],
-                                 ['observe', 'decide', 'vision', 'act', 'verify', 'learn', 'repeat'])
+                self.assertIn('view', context)
+                self.assertIn('result', context)
+                self.assertIn('memory', context)
                 self.assertIn('vector_detections', context)
                 self.assertEqual(self.port.inputs, [])
 

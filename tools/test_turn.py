@@ -81,22 +81,23 @@ class Turns(unittest.TestCase):
             c.recommendation.action['kind'] = 'close'
         self.assertEqual(json.loads(json.dumps(c.to_dict()))['task']['task_id'], 'task-1')
 
-    def test_every_context_prints_the_compact_model_workflow(self):
+    def test_every_context_prints_the_compact_receipt_first_view(self):
         self.port.snapshot['vector_detections'] = [
             {'kind': 'GardenBed', 'point': [700, 500], 'score': 7.1}]
+        self.port.snapshot.update(view_id='view-one', candidates=[
+            {'id': 'vector-0', 'view_id': 'view-one', 'kind': 'GardenBed', 'point': [700, 500]}],
+            memory_revision=4, hour=9.5, rain=None)
         c = self.loop.context()
-        stages = {row['stage']: row for row in c.model_workflow}
-        self.assertEqual(tuple(stages), ('observe', 'decide', 'vision', 'act', 'verify', 'learn', 'repeat'))
-        self.assertEqual(stages['observe']['vectors'], 1)
-        self.assertEqual(stages['decide']['status'], 'awaiting_model')
-        self.assertEqual(stages['act']['status'], 'awaiting_decision')
-        self.assertEqual(stages['repeat']['goal'], 'garden')
-        public = json.dumps(c.to_dict())
-        self.assertNotIn('chain_of_thought', public)
-        self.assertLess(len(json.dumps(c.to_dict()['model_workflow'])), 1600)
+        self.assertEqual(c.view['id'], 'view-one')
+        self.assertEqual(c.view['candidates'][0]['id'], 'vector-0')
+        self.assertEqual(c.memory['revision'], 4)
+        self.assertEqual(c.resources['hour'], 9.5)
+        self.assertIsNone(c.need)
+        self.assertEqual(c.result['status'], 'pending')
+        self.assertEqual(c.model_workflow, ())
         cached = self.loop.context()
         self.assertEqual(cached.observation_freshness, 'cached')
-        self.assertEqual(cached.model_workflow[0]['freshness'], 'cached')
+        self.assertEqual(cached.view, c.view)
 
     def test_one_accept_persists_intent_before_input_and_rejects_stale(self):
         c = self.loop.context()

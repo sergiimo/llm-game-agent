@@ -47,12 +47,13 @@ def _vector_scope(graph, *candidates, learned_kinds=None):
 
 
 def _clues(store, frame_context=None):
-    from . import core, engine, garden_policy, observe, world
+    from . import core, engine, garden_policy, learn, observe, snapshot, world
     frame_context = frame_context or {}
-    graph = engine._open_graph()
     path, save = core.WF.read_save()
     lines = core.WF.today_log()[0]
-    world.refresh(graph, save, lines)
+    world_delta = snapshot.world_for(store.path).refresh(
+        engine._open_graph, save, lines, snapshot.file_revision(learn.graph_path()))
+    graph = world_delta.graph
     hour, light = frame_context.get('hour'), frame_context.get('light')
     if not frame_context:  # compatibility for direct read-only callers; production always passes its captured frame
         hour, light = observe.clock()
@@ -63,9 +64,11 @@ def _clues(store, frame_context=None):
     scene, region = world.scene_context(lines, save.get('currentScene'), since=world.save_time(save))
     vector_scope = _vector_scope(graph, region, scene, save.get('currentScene'))
     point = save.get('currentPlayerPosition') or {}
-    data = {'graph_clues': ([dict(node=n.id, **n.to_dict()) for n in graph.nodes.values()] +
-                            [{'edge': dict(edge)} for edge in graph.edges()] +
-                            [{'world_conflict': row} for row in graph.extra.get('_refresh_conflicts', ())]),
+    task_state = store.load() if os.path.exists(store.path) else None
+    active_node = task_state.active.actual_node if task_state and task_state.active else None
+    data = {'graph_clues': snapshot.project_graph(
+                graph, region, frame_context.get('candidates', ()), active_node),
+            'memory_revision': world_delta.revision,
             'hour': hour, 'light': light,
             'rain': next((forecast for line in reversed(lines)
                           for forecast in re.findall(r'Forecast is (\w+)', line)
@@ -80,7 +83,7 @@ def _clues(store, frame_context=None):
                                  'region': {'source': 'scene_log'}}}
     if 'x' in point and 'z' in point:
         data['position'] = [point['x'], point['z']]
-    state = _declaration(store.load()) if os.path.exists(store.path) else {
+    state = _declaration(task_state) if task_state else {
         'params': {'_started_late': hour is not None and hour > 19}}
     blocked = garden_policy.interrupt(state, data)
     data['interrupts'] = [blocked] if blocked else []

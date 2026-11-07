@@ -341,6 +341,41 @@ class Turns(unittest.TestCase):
         }])
         self.assertEqual(snapshot['vector_status'], {'status': 'ok', 'region': 'House',
                                                      'requested_kinds': ['Bed', 'HouseExit'], 'hits': 1})
+        self.assertTrue(snapshot['view_id'].startswith('view-'))
+        self.assertEqual(snapshot['candidates'][0]['id'], 'vector-0')
+        self.assertEqual(snapshot['candidates'][0]['kind'], 'HouseExit')
+        self.assertEqual(snapshot['candidates'][0]['view_id'], snapshot['view_id'])
+
+    def test_candidate_resolution_is_bound_to_the_observed_view(self):
+        adapter = primitives.GameAdapter()
+        observation = dict(self.port.snapshot, view_id='view-one', candidates=[{
+            'id': 'vector-0', 'view_id': 'view-one', 'kind': 'GardenBed', 'point': [800, 600]}])
+        prepared = adapter.prepare({'kind': 'target', 'view_id': 'view-one', 'candidate': 'vector-0',
+                                    'visible_road': True}, observation)
+        self.assertEqual(prepared['point'], [800, 600])
+        self.assertEqual(prepared['command'], 'click:800:600')
+        with self.assertRaisesRegex(ValueError, 'stale view'):
+            adapter.prepare({'kind': 'target', 'view_id': 'view-old', 'candidate': 'vector-0',
+                             'visible_road': True}, observation)
+
+    def test_preflight_refuses_a_changed_camera_without_ocr_or_input(self):
+        from PIL import Image, ImageDraw
+        from types import SimpleNamespace
+        before = os.path.join(self.tmp.name, 'view.jpg')
+        old = Image.new('RGB', (1920, 1080), 'gray')
+        ImageDraw.Draw(old).rectangle((100, 100, 400, 400), fill='white')
+        old.save(before)
+        changed = Image.new('RGB', (1920, 1080), 'gray')
+        ImageDraw.Draw(changed).rectangle((1200, 600, 1500, 900), fill='white')
+        raw = SimpleNamespace(grab=mock.Mock(return_value=changed),
+                              classify=mock.Mock(side_effect=AssertionError('preflight ran OCR')),
+                              run_action=mock.Mock(side_effect=AssertionError('stale view issued input')))
+        with mock.patch.object(core, 'WF', raw):
+            with self.assertRaisesRegex(ValueError, 'stale view'):
+                primitives.GameAdapter().preflight(
+                    {'kind': 'target', 'view_id': 'view-one', 'candidate': 'vector-0'},
+                    {'view_id': 'view-one', 'frame_path': before, 'screen': {'kind': 'gameplay'}})
+        raw.grab.assert_called_once_with()
 
     def test_vector_failure_is_explicit_instead_of_looking_like_no_match(self):
         from PIL import Image

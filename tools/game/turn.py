@@ -262,6 +262,9 @@ class TurnContext(Snapshot):
     vector_detections: tuple = ()
     model_workflow: tuple = ()
     vector_status: object = None
+    view_id: str = None
+    candidates: tuple = ()
+    controls: tuple = ()
 
     @classmethod
     def from_dict(cls, d):
@@ -270,6 +273,9 @@ class TurnContext(Snapshot):
         d.setdefault('vector_detections', ())
         d.setdefault('model_workflow', ())
         d.setdefault('vector_status', None)
+        d.setdefault('view_id', None)
+        d.setdefault('candidates', ())
+        d.setdefault('controls', ())
         d['recommendation'] = Recommendation(**d['recommendation'])
         if d.get('surprise'):
             d['surprise'] = Surprise(**d['surprise'])
@@ -447,6 +453,8 @@ class TurnLoop:
                         {'targets': task.targets, 'covered': task.covered, 'unresolved': task.unresolved},
                         task.last_experience, surprise, observation.get('interrupts', ()), rec, allowed,
                         observation.get('vector_detections', ()), workflow, observation.get('vector_status'))
+        c = replace(c, view_id=observation.get('view_id'), candidates=observation.get('candidates', ()),
+                    controls=observation.get('controls', ()))
         task.current_turn = c.to_dict()
         self.store.save(task)
         self._log(task, c.turn_id, 'clues', screen=c.screen, frame_path=c.frame_path,

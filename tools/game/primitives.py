@@ -93,6 +93,7 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     if action.get('kind') == 'click':
         action['kind'] = 'target'
     before = adapter.observe()
+    source_view = task.current_turn if action.get('view_id') and task.current_turn else before
     refusal = None
     try:
         # The canonical observation has no input or resource metadata to authorize. Metadata-bearing
@@ -101,7 +102,9 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
             refusal = guard(task.snapshot(_observation=before), freeze(action))
             if refusal:
                 raise ValueError(refusal)
-        prepared = adapter.prepare(dict(action), before)
+        if action.get('view_id'):
+            adapter.preflight(action, source_view, current=before)
+        prepared = adapter.prepare(dict(action), source_view)
     except ValueError as ex:
         prepared, refusal = dict(action), str(ex)
     administrative = (action.get('kind') == 'press' and str(action.get('label', '')).casefold() == 'resume game' or
@@ -245,6 +248,10 @@ class GameAdapter:
                      vector_detections=[{'kind': d.kind, 'point': list(d.point), 'box': list(d.box),
                                          'score': d.dist, 'raw': d.raw} for d in detections],
                      vector_status=vector_status)
+        from . import view
+        clues['view_id'] = view.new_id(path, image)
+        clues['candidates'] = view.candidates(clues)
+        clues.setdefault('controls', [])
         clues.setdefault('graph_clues', [])
         clues.setdefault('interrupts', [])
         stamp = getattr(core.WF, 'game_stamp', None)
@@ -263,6 +270,21 @@ class GameAdapter:
         from . import core, observe
         kind = action.get('kind')
         screen = (observation.get('screen') or {}).get('kind', 'unknown')
+        if action.get('view_id') and action['view_id'] != observation.get('view_id'):
+            raise ValueError('stale view: decision does not match the observed frame')
+        if action.get('candidate'):
+            matches = [row for row in observation.get('candidates', ())
+                       if row.get('id') == action['candidate'] and row.get('view_id') == observation.get('view_id')]
+            if len(matches) != 1:
+                raise ValueError('candidate missing or stale for this view')
+            action['point'] = list(matches[0]['point'])
+        if action.get('control'):
+            matches = [row for row in observation.get('controls', ())
+                       if row.get('id') == action['control'] and row.get('view_id') == observation.get('view_id')]
+            if len(matches) != 1:
+                raise ValueError('control missing or stale for this view')
+            action['point'] = list(matches[0]['point'])
+            action.setdefault('label', matches[0].get('label'))
         if kind in ('wait', 'read'):
             return action
         if kind in ('click', 'target', 'cell', 'bubble', 'waypoint'):
@@ -333,6 +355,27 @@ class GameAdapter:
             action['command'] = 'key:escape'
         else:
             raise ValueError(f'unknown primitive {kind!r}')
+        return action
+
+    def preflight(self, action, observation, current=None):
+        """Cheap pixel/scene lease check; it performs no OCR, DINO, graph refresh or input."""
+        if action.get('view_id') != observation.get('view_id'):
+            raise ValueError('stale view: decision does not match its source')
+        old_path = observation.get('frame_path')
+        if not old_path:
+            raise ValueError('stale view: source frame is unavailable')
+        from PIL import Image
+        from . import core, observe
+        with Image.open(old_path) as old:
+            now = current
+            if isinstance(current, dict) and current.get('frame_path'):
+                with Image.open(current['frame_path']) as opened:
+                    changed = observe.view_changed(old, opened)
+            else:
+                now = core.WF.grab() if now is None else now
+                changed = observe.view_changed(old, now)
+        if changed:
+            raise ValueError('stale view: camera or modal changed before input')
         return action
 
     def _release(self):

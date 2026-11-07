@@ -26,3 +26,8 @@ planting them. Blocked/covered accounting can finish as constrained, which must 
 Wrong identity/card/modal, no progress, unexpected event, stale clue or missing proof requires look/correction before
 another input. Rain/darkness/new-task-after-19:00 requires sleep; empty can requires refill. Completion accounts for
 every bed/hive as covered or explicitly unresolved; successful completion has no remaining constraints.
+
+For a garden task that will sell/buy during shortages, declare its exact sale bounds and category purchase bounds
+at root creation; a later shop child cannot expand them. Preserve the root garden task while pushing each bounded
+item trade. After all shops, compare the root trade results with the complete combined catalogue separately from
+garden coverage: covered beds alone do not prove every requested trade happened.

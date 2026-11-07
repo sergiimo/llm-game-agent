@@ -6,7 +6,8 @@
 > (`./wf save`) is the truth.
 
 ## Current goal (supervisor-owned; one at a time)
-- ▶️ **Garden maintenance: replant 8 wilted flower beds** under supervised run
+- ▶️ Universal model-owned acceptance (2026-11-06): sleep after correcting the Bed clue; sell observed grown Tulips/honey; inspect Violet and Lina’s complete seed catalogues and buy ten total per unique available seed type within verified funds; return to GardenSouth and finish reopened/remaining beds. Game remains paused during offline fixture preparation. Fresh live preflight and acceptance run are pending; the D183 autosave summary below is historical.
+- Historical scope: **Garden maintenance: replant 8 wilted flower beds** under supervised run
   `runs/20261101-1815-replant-wilted-flowers/`. Start: D183 ~10:50, 8 wilted beds, only 4 TulipSeed in the last save.
   Replant only as many as existing seeds cover; buying more or substituting vegetables requires the user's decision.
 - ✅ D183: All Cooped Up (MartyChickens).

@@ -1,0 +1,5020 @@
+{
+  "source_run": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2305-universal-sleep-shop-garden-acceptance",
+  "source_save_provenance": {
+    "game_time": "D210 8:20:00 AM",
+    "path": "/Users/serg/Library/Containers/com.studiodrydock.mayflower/Data/Library/Application Support/com.studiodrydock.mayflower/save/AoUVi2WfCZ4zyXZ4HpZgKb/1579.local",
+    "save_count": 7920,
+    "source": "save"
+  },
+  "source_save_sha256": "2ec47687453413906e7125c3c666553cb0da6e1f2ec6ee1a11b749031b900236",
+  "capture_scope": "Save fragment copies only money/time/scene/count fields. Inventory omitted (not declared empty). Player has no state; actual player keys retained separately.",
+  "player_keys": [
+    "inventory",
+    "letters",
+    "recipes",
+    "wellspringSlots"
+  ],
+  "save_fragment": {
+    "saveCount": 7920,
+    "currentScene": "Farm",
+    "gameState": {
+      "time": {
+        "day": 210,
+        "timeOfDay": {
+          "totalSeconds": 30000
+        }
+      },
+      "player": {},
+      "characters": [
+        {
+          "name": "Player",
+          "state": {
+            "userState": {
+              "entries": [
+                {
+                  "name": "money",
+                  "value": "100"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "broken_root": {
+    "active": null,
+    "covered": [],
+    "current_turn": {
+      "allowed_decisions": [
+        "accept",
+        "act",
+        "look",
+        "stop",
+        "push",
+        "suspend",
+        "complete",
+        "catalogue"
+      ],
+      "coverage": {
+        "covered": [],
+        "targets": [
+          "GardenBed#10.1,-59.4",
+          "GardenBed#10.1,-63.1",
+          "GardenBed#10.1,-66.9",
+          "GardenBed#13.9,-59.4",
+          "GardenBed#13.9,-63.1",
+          "GardenBed#13.9,-66.9",
+          "GardenBed#2.6,-59.4",
+          "GardenBed#2.6,-63.1",
+          "GardenBed#2.6,-66.9",
+          "GardenBed#6.4,-59.4",
+          "GardenBed#6.4,-63.1",
+          "GardenBed#6.4,-66.9"
+        ],
+        "unresolved": []
+      },
+      "frame_path": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2305-universal-sleep-shop-garden-acceptance/clicks/turn-6379de3b7ca34b8c8fbf5b0a0f1c37e2.jpg",
+      "graph_clues": [
+        {
+          "id": "Farm",
+          "kind": "Farm",
+          "node": "Farm",
+          "region": null,
+          "signal": "scene",
+          "type": "region"
+        },
+        {
+          "exit": "HouseExit",
+          "id": "House",
+          "kind": "House",
+          "map": {
+            "kind": "MapHouse",
+            "label": "farmhouse"
+          },
+          "node": "House",
+          "region": "Farm",
+          "signal": "scene",
+          "type": "region"
+        },
+        {
+          "area": true,
+          "id": "Garden",
+          "kind": "Garden",
+          "map": {
+            "kind": "MapGarden",
+            "label": "farm-garden"
+          },
+          "node": "Garden",
+          "pos": [
+            2.09,
+            -26.59
+          ],
+          "region": "Farm",
+          "signal": "view",
+          "type": "region"
+        },
+        {
+          "id": "Well",
+          "kind": "Well",
+          "node": "Well",
+          "region": "Garden",
+          "state": {
+            "can": {
+              "game_time": "D156 12:18:36 PM",
+              "source": "log",
+              "value": "full"
+            }
+          },
+          "type": "unique"
+        },
+        {
+          "id": "HouseDoor",
+          "kind": "HouseDoor",
+          "node": "HouseDoor",
+          "region": "Farm",
+          "type": "unique"
+        },
+        {
+          "id": "Mailbox",
+          "kind": "Mailbox",
+          "node": "Mailbox",
+          "region": "Farm",
+          "type": "unique"
+        },
+        {
+          "id": "Bed",
+          "kind": "Bed",
+          "node": "Bed",
+          "region": "House",
+          "type": "unique"
+        },
+        {
+          "id": "Stove",
+          "kind": "Stove",
+          "node": "Stove",
+          "region": "House",
+          "type": "unique"
+        },
+        {
+          "id": "HouseExit",
+          "kind": "HouseExit",
+          "node": "HouseExit",
+          "region": "House",
+          "type": "unique"
+        },
+        {
+          "cover": false,
+          "id": "GardenBed@Garden",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden",
+          "pattern": {
+            "cols": 4,
+            "order": "north row first, west to east",
+            "rows": 3
+          },
+          "region": "Garden",
+          "type": "group"
+        },
+        {
+          "cover": false,
+          "id": "GardenBed@FarGarden",
+          "kind": "GardenBed",
+          "node": "GardenBed@FarGarden",
+          "pattern": null,
+          "region": "Farm",
+          "type": "group"
+        },
+        {
+          "id": "GardenBed@Garden#r1c1",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden#r1c1",
+          "region": "GardenBed@Garden",
+          "state": {
+            "crop": {
+              "game_time": "D149 10:46:17 AM",
+              "source": "log",
+              "value": "planted"
+            },
+            "watered": {
+              "game_time": "D155 7:51:30 AM",
+              "source": "log",
+              "value": 155
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed@Garden#r1c2",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden#r1c2",
+          "region": "GardenBed@Garden",
+          "state": {
+            "crop": {
+              "game_time": "D150 3:23:05 PM",
+              "source": "log",
+              "value": "planted"
+            },
+            "watered": {
+              "game_time": "D155 7:57:47 AM",
+              "source": "log",
+              "value": 155
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed@Garden#r1c3",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden#r1c3",
+          "region": "GardenBed@Garden",
+          "state": {
+            "crop": {
+              "game_time": "D150 3:24:57 PM",
+              "source": "log",
+              "value": "planted"
+            },
+            "watered": {
+              "game_time": "D155 7:54:27 AM",
+              "source": "log",
+              "value": 155
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed@Garden#r1c4",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden#r1c4",
+          "region": "GardenBed@Garden",
+          "state": {
+            "crop": {
+              "game_time": "D149 11:51:47 AM",
+              "source": "log",
+              "value": "planted"
+            },
+            "watered": {
+              "game_time": "D155 8:01:10 AM",
+              "source": "log",
+              "value": 155
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed@Garden#r2c1",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden#r2c1",
+          "region": "GardenBed@Garden",
+          "state": {
+            "crop": {
+              "game_time": "D149 12:11:49 PM",
+              "source": "log",
+              "value": "planted"
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed@Garden#r2c2",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden#r2c2",
+          "region": "GardenBed@Garden",
+          "state": {
+            "crop": {
+              "game_time": "D148 8:53:38 PM",
+              "source": "log",
+              "value": "planted"
+            },
+            "watered": {
+              "game_time": "D148 9:01:04 PM",
+              "source": "log",
+              "value": 148
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed@Garden#r2c3",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden#r2c3",
+          "region": "GardenBed@Garden",
+          "state": {
+            "crop": {
+              "game_time": "D148 9:14:58 PM",
+              "source": "log",
+              "value": "planted"
+            },
+            "watered": {
+              "game_time": "D149 11:22:18 AM",
+              "source": "log",
+              "value": 149
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed@Garden#r2c4",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden#r2c4",
+          "region": "GardenBed@Garden",
+          "state": {
+            "crop": {
+              "game_time": "D148 9:25:10 PM",
+              "source": "log",
+              "value": "planted"
+            },
+            "watered": {
+              "game_time": "D156 7:19:50 AM",
+              "source": "log",
+              "value": 156
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed@Garden#r3c1",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden#r3c1",
+          "region": "GardenBed@Garden",
+          "state": {
+            "crop": {
+              "game_time": "D150 3:19:45 PM",
+              "source": "log",
+              "value": "planted"
+            },
+            "watered": {
+              "game_time": "D156 7:11:27 AM",
+              "source": "log",
+              "value": 156
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed@Garden#r3c2",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden#r3c2",
+          "region": "GardenBed@Garden",
+          "state": {
+            "crop": {
+              "game_time": "D150 3:17:53 PM",
+              "source": "log",
+              "value": "planted"
+            },
+            "watered": {
+              "game_time": "D156 7:09:03 AM",
+              "source": "log",
+              "value": 156
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed@Garden#r3c3",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden#r3c3",
+          "region": "GardenBed@Garden",
+          "state": {
+            "crop": {
+              "game_time": "D148 10:34:40 PM",
+              "source": "log",
+              "value": "planted"
+            },
+            "watered": {
+              "game_time": "D156 7:13:49 AM",
+              "source": "log",
+              "value": 156
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed@Garden#r3c4",
+          "kind": "GardenBed",
+          "node": "GardenBed@Garden#r3c4",
+          "region": "GardenBed@Garden",
+          "state": {
+            "crop": {
+              "game_time": "D148 9:36:36 PM",
+              "source": "log",
+              "value": "planted"
+            },
+            "watered": {
+              "game_time": "D156 7:16:30 AM",
+              "source": "log",
+              "value": 156
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "BeeHive",
+          "kind": "BeeHive",
+          "node": "BeeHive",
+          "pattern": {
+            "cols": 8,
+            "order": "west to east",
+            "rows": 1
+          },
+          "region": "Garden",
+          "type": "group"
+        },
+        {
+          "id": "BeeHive#1",
+          "index": 1,
+          "kind": "BeeHive",
+          "node": "BeeHive#1",
+          "region": "BeeHive",
+          "type": "member"
+        },
+        {
+          "id": "BeeHive#2",
+          "index": 2,
+          "kind": "BeeHive",
+          "node": "BeeHive#2",
+          "region": "BeeHive",
+          "type": "member"
+        },
+        {
+          "id": "BeeHive#3",
+          "index": 3,
+          "kind": "BeeHive",
+          "node": "BeeHive#3",
+          "region": "BeeHive",
+          "type": "member"
+        },
+        {
+          "id": "BeeHive#4",
+          "index": 4,
+          "kind": "BeeHive",
+          "node": "BeeHive#4",
+          "region": "BeeHive",
+          "type": "member"
+        },
+        {
+          "id": "BeeHive#5",
+          "index": 5,
+          "kind": "BeeHive",
+          "node": "BeeHive#5",
+          "region": "BeeHive",
+          "type": "member"
+        },
+        {
+          "id": "BeeHive#6",
+          "index": 6,
+          "kind": "BeeHive",
+          "node": "BeeHive#6",
+          "region": "BeeHive",
+          "type": "member"
+        },
+        {
+          "id": "BeeHive#7",
+          "index": 7,
+          "kind": "BeeHive",
+          "node": "BeeHive#7",
+          "region": "BeeHive",
+          "type": "member"
+        },
+        {
+          "id": "BeeHive#8",
+          "index": 8,
+          "kind": "BeeHive",
+          "node": "BeeHive#8",
+          "region": "BeeHive",
+          "type": "member"
+        },
+        {
+          "id": "Tara",
+          "kind": "Tara",
+          "near": null,
+          "node": "Tara",
+          "pin": [
+            655,
+            614
+          ],
+          "pos": [
+            5.22,
+            -23.46
+          ],
+          "region": "Farm",
+          "state": {
+            "can": {
+              "conf": 1.0,
+              "game_time": "D208 5:22:27 PM",
+              "source": "event",
+              "value": "full"
+            }
+          },
+          "t": 1793993880.5,
+          "type": "unique"
+        },
+        {
+          "dead_end": true,
+          "id": "Mine",
+          "kind": "Mine",
+          "map": {
+            "kind": "MapMine",
+            "label": "farm-mine",
+            "point": [
+              562,
+              450
+            ]
+          },
+          "node": "Mine",
+          "pos": [
+            -22.0,
+            3.0
+          ],
+          "region": "Farm",
+          "source": "user D188: the mine at the farm's north-west corner, a dead end (Tara a few steps west of it at save pos -25.6, 3.0)",
+          "type": "unique"
+        },
+        {
+          "exps": [
+            "5f30801bc1641f0f"
+          ],
+          "id": "GardenBed#-1.7,-25.3",
+          "kind": "GardenBed",
+          "node": "GardenBed#-1.7,-25.3",
+          "pos": [
+            -1.66,
+            -25.34
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "12:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "exps": [
+            "99b95e71d34a5674"
+          ],
+          "id": "GardenBed#-1.7,-29.1",
+          "kind": "GardenBed",
+          "node": "GardenBed#-1.7,-29.1",
+          "pos": [
+            -1.66,
+            -29.09
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "crop": {
+              "conf": 1.0,
+              "game_time": "D191 2:25:10 PM",
+              "source": "bubble",
+              "value": "Carrot"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "8:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "exps": [
+            "77b614151e46c22b",
+            "db878e1def07b2d5",
+            "c97a21dc53333624",
+            "d73c1543a3d02cfa",
+            "7b937b281dfe6d0d",
+            "d8b0104e5d3746a5",
+            "0f74cff6ba4cd991",
+            "93e3c6d16984d137",
+            "f846d23c610ef349"
+          ],
+          "id": "GardenBed#5.8,-29.1",
+          "kind": "GardenBed",
+          "node": "GardenBed#5.8,-29.1",
+          "pos": [
+            5.84,
+            -29.09
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "crop": {
+              "conf": 1.0,
+              "game_time": "D207 7:31:05 PM",
+              "source": "card",
+              "value": "Carrot"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "true"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "7:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##growing"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "growing"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": true
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed#10.1,-66.9",
+          "kind": "GardenBed",
+          "node": "GardenBed#10.1,-66.9",
+          "pos": [
+            10.14,
+            -66.86
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "GardenSouth",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "7:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "exps": [
+            "889f8bbea91df888",
+            "bd1e0a83d1801dd3",
+            "9ffa0b32e4a2846d",
+            "8870394c2dc3006f",
+            "7b6ec13a4b4b48d5",
+            "0a1783956f1c88a5",
+            "f20eabaf0d2c748b",
+            "acef747ae862502b",
+            "6b6b45e0c7364b1e"
+          ],
+          "id": "GardenBed#0.8,-29.1",
+          "kind": "GardenBed",
+          "node": "GardenBed#0.8,-29.1",
+          "pos": [
+            0.84,
+            -29.09
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "crop": {
+              "conf": 1.0,
+              "game_time": "D190 2:55:59 PM",
+              "source": "bubble",
+              "value": "Tulip"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "12:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed#6.4,-66.9",
+          "kind": "GardenBed",
+          "node": "GardenBed#6.4,-66.9",
+          "pos": [
+            6.39,
+            -66.86
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "GardenSouth",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "7:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "BeeHive#0.2,-23.5",
+          "kind": "BeeHive",
+          "node": "BeeHive#0.2,-23.5",
+          "pos": [
+            0.22,
+            -23.46
+          ],
+          "prefab": "kTfIWIHs8P9kTfIWIHs8P9",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "pollen": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            }
+          },
+          "type": "member"
+        },
+        {
+          "exps": [
+            "d3812041a94e28b0",
+            "650e42170a9375b7"
+          ],
+          "id": "GardenBed#2.6,-66.9",
+          "kind": "GardenBed",
+          "node": "GardenBed#2.6,-66.9",
+          "pos": [
+            2.64,
+            -66.86
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "GardenSouth",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "11:20:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "BeeHive#1.5,-23.5",
+          "kind": "BeeHive",
+          "node": "BeeHive#1.5,-23.5",
+          "pos": [
+            1.47,
+            -23.46
+          ],
+          "prefab": "kTfIWIHs8P9kTfIWIHs8P9",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "pollen": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            }
+          },
+          "type": "member"
+        },
+        {
+          "exps": [
+            "cc75a3d219d2f913",
+            "747037850b9821c5",
+            "83a052e52377ec7c",
+            "d4b2a8306059f5d6",
+            "5ba65ec009fd2293",
+            "a7105e034e898fd2",
+            "9d7ee76e6db0994f",
+            "041cbbb5315fd708",
+            "8c6e983d00a610cf",
+            "811d7ee4cf7903c3"
+          ],
+          "id": "GardenBed#6.4,-63.1",
+          "kind": "GardenBed",
+          "node": "GardenBed#6.4,-63.1",
+          "pos": [
+            6.39,
+            -63.11
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "GardenSouth",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "crop": {
+              "conf": 1.0,
+              "game_time": "D209 6:03:56 PM",
+              "source": "card",
+              "value": "Tulip"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "days_left": {
+              "conf": 1.0,
+              "game_time": "D209 6:03:56 PM",
+              "source": "card",
+              "value": 4
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "true"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "11:20:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##growing"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "growing"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": true
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed#3.3,-29.1",
+          "kind": "GardenBed",
+          "node": "GardenBed#3.3,-29.1",
+          "pos": [
+            3.34,
+            -29.09
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "crop": {
+              "conf": 1.0,
+              "game_time": "D207 7:09:51 PM",
+              "source": "bubble",
+              "value": "Green Bean"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "12:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "exps": [
+            "29d7e5b2d22ae84e",
+            "c4b8ed3cea3e64ab",
+            "bdd21f5d2e5e2749",
+            "486f20502112f943",
+            "160b939619d35c8f",
+            "e75529642349617c",
+            "b3008fbad0433973"
+          ],
+          "id": "GardenBed#2.6,-59.4",
+          "kind": "GardenBed",
+          "node": "GardenBed#2.6,-59.4",
+          "pos": [
+            2.64,
+            -59.36
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "GardenSouth",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "crop": {
+              "conf": 1.0,
+              "game_time": "D209 8:57:27 AM",
+              "source": "card",
+              "value": "Tulip"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "days_left": {
+              "conf": 1.0,
+              "game_time": "D209 8:57:27 AM",
+              "source": "card",
+              "value": 4
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "true"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "11:20:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##growing"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "growing"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": true
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "exps": [
+            "99e8e1a6215bfa84",
+            "4dd795d2ea31795b",
+            "7ffb52afc9f2271e",
+            "26efcf53881de2e3",
+            "98053855c56e0bc3",
+            "c1dc874a66466041",
+            "37eddf855935b0e4",
+            "d1f013364ee5fa91",
+            "b4f2d362291887aa",
+            "1ec7ede8f97e6247",
+            "3a77d9fe2960eac1",
+            "632770c852ca9085",
+            "96c188cb7e13cb0f",
+            "9bb596ec8c881261",
+            "ad363bdbcd724a1f",
+            "c60d02463378831b",
+            "1825776bcf0bb164",
+            "4ae11aeae460d823"
+          ],
+          "id": "GardenBed#6.4,-59.4",
+          "kind": "GardenBed",
+          "node": "GardenBed#6.4,-59.4",
+          "pos": [
+            6.39,
+            -59.36
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "GardenSouth",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "crop": {
+              "conf": 1.0,
+              "game_time": "D209 12:01:50 PM",
+              "source": "card",
+              "value": "Tulip"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "days_left": {
+              "conf": 1.0,
+              "game_time": "D209 12:01:50 PM",
+              "source": "card",
+              "value": 3
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "true"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "12:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##growing"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "growing"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": true
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "BeeHive#6.5,-23.5",
+          "kind": "BeeHive",
+          "node": "BeeHive#6.5,-23.5",
+          "pos": [
+            6.47,
+            -23.46
+          ],
+          "prefab": "kTfIWIHs8P9kTfIWIHs8P9",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "pollen": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed#3.3,-25.3",
+          "kind": "GardenBed",
+          "node": "GardenBed#3.3,-25.3",
+          "pos": [
+            3.34,
+            -25.34
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "crop": {
+              "conf": 1.0,
+              "game_time": "D191 2:25:10 PM",
+              "source": "bubble",
+              "value": "Tulip"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "7:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "exps": [
+            "a3b4e3ffbe2fe99c"
+          ],
+          "id": "BeeHive#-2.3,-23.5",
+          "kind": "BeeHive",
+          "node": "BeeHive#-2.3,-23.5",
+          "pos": [
+            -2.28,
+            -23.46
+          ],
+          "prefab": "kTfIWIHs8P9kTfIWIHs8P9",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "pollen": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            }
+          },
+          "type": "member"
+        },
+        {
+          "event_provenance": {
+            "game_time": "D210 8:22:41 AM",
+            "line": "[D210 8:22:41 AM] > beehive_produced me=Player target=BeeHive(Clone) at (3.97, 0.10, -23.46)",
+            "scene": "Farm",
+            "scope": "Farm"
+          },
+          "id": "BeeHive#4.0,-23.5",
+          "kind": "BeeHive",
+          "node": "BeeHive#4.0,-23.5",
+          "pos": [
+            3.97,
+            -23.46
+          ],
+          "prefab": "kTfIWIHs8P9kTfIWIHs8P9",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "pollen": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            }
+          },
+          "type": "member"
+        },
+        {
+          "exps": [
+            "33ba5c7b44a6e76e",
+            "67174d0a9a107ea3"
+          ],
+          "id": "GardenBed#5.8,-25.3",
+          "kind": "GardenBed",
+          "node": "GardenBed#5.8,-25.3",
+          "pos": [
+            5.84,
+            -25.34
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "crop": {
+              "conf": 1.0,
+              "game_time": "D189 5:21:22 PM",
+              "source": "vision",
+              "value": "Tulip"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "7:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "exps": [
+            "2142e79572f54a33",
+            "9a595e5734e4a78a"
+          ],
+          "id": "GardenBed#10.1,-59.4",
+          "kind": "GardenBed",
+          "node": "GardenBed#10.1,-59.4",
+          "pos": [
+            10.14,
+            -59.36
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "GardenSouth",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "crop": {
+              "conf": 1.0,
+              "game_time": "D209 9:54:09 AM",
+              "source": "bubble",
+              "value": "Tulip"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "true"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "11:20:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##growing"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "growing"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": true
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed#0.8,-25.3",
+          "kind": "GardenBed",
+          "node": "GardenBed#0.8,-25.3",
+          "pos": [
+            0.84,
+            -25.34
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "7:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "event_provenance": {
+            "game_time": "D210 8:22:05 AM",
+            "line": "[D210 8:22:05 AM] > beehive_produced me=Player target=BeeHive(Clone) at (2.72, 0.10, -23.46)",
+            "scene": "Farm",
+            "scope": "Farm"
+          },
+          "id": "BeeHive#2.7,-23.5",
+          "kind": "BeeHive",
+          "node": "BeeHive#2.7,-23.5",
+          "pos": [
+            2.72,
+            -23.46
+          ],
+          "prefab": "kTfIWIHs8P9kTfIWIHs8P9",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "pollen": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "BeeHive#-1.0,-23.5",
+          "kind": "BeeHive",
+          "node": "BeeHive#-1.0,-23.5",
+          "pos": [
+            -1.03,
+            -23.46
+          ],
+          "prefab": "kTfIWIHs8P9kTfIWIHs8P9",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "pollen": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed#13.9,-59.4",
+          "kind": "GardenBed",
+          "node": "GardenBed#13.9,-59.4",
+          "pos": [
+            13.89,
+            -59.36
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "GardenSouth",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "7:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed#2.6,-63.1",
+          "kind": "GardenBed",
+          "node": "GardenBed#2.6,-63.1",
+          "pos": [
+            2.64,
+            -63.11
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "GardenSouth",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "7:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed#13.9,-63.1",
+          "kind": "GardenBed",
+          "node": "GardenBed#13.9,-63.1",
+          "pos": [
+            13.89,
+            -63.11
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "GardenSouth",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "7:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed#-1.7,-31.6",
+          "kind": "GardenBed",
+          "node": "GardenBed#-1.7,-31.6",
+          "pos": [
+            -1.66,
+            -31.59
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "12:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "exps": [
+            "2d4faa7a6b029bd4"
+          ],
+          "id": "GardenBed#10.1,-63.1",
+          "kind": "GardenBed",
+          "node": "GardenBed#10.1,-63.1",
+          "pos": [
+            10.14,
+            -63.11
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "GardenSouth",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "11:20:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed#0.8,-31.6",
+          "kind": "GardenBed",
+          "node": "GardenBed#0.8,-31.6",
+          "pos": [
+            0.84,
+            -31.59
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "crop": {
+              "conf": 1.0,
+              "game_time": "D207 7:32:00 PM",
+              "source": "bubble",
+              "value": "Green Bean"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "12:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed#13.9,-66.9",
+          "kind": "GardenBed",
+          "node": "GardenBed#13.9,-66.9",
+          "pos": [
+            13.89,
+            -66.86
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "GardenSouth",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "7:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "event_provenance": {
+            "game_time": "D210 8:24:07 AM",
+            "line": "[D210 8:24:07 AM] > beehive_produced me=Player target=BeeHive(Clone) at (5.22, 0.10, -23.46)",
+            "scene": "Farm",
+            "scope": "Farm"
+          },
+          "id": "BeeHive#5.2,-23.5",
+          "kind": "BeeHive",
+          "node": "BeeHive#5.2,-23.5",
+          "pos": [
+            5.22,
+            -23.46
+          ],
+          "prefab": "kTfIWIHs8P9kTfIWIHs8P9",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "pollen": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            }
+          },
+          "type": "member"
+        },
+        {
+          "exps": [
+            "666e0ab7ce245a88",
+            "ca36d53384928aa1",
+            "d92be1f364629615",
+            "c8d74491cbb94884",
+            "98872a582501a6a5",
+            "373e2b383d8c3aaa",
+            "27ec3a9d995f3cf9"
+          ],
+          "id": "GardenBed#5.8,-31.6",
+          "kind": "GardenBed",
+          "node": "GardenBed#5.8,-31.6",
+          "pos": [
+            5.84,
+            -31.59
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "crop": {
+              "conf": 1.0,
+              "game_time": "D207 6:29:23 PM",
+              "source": "card",
+              "value": "Carrot"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "2"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "12:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##0"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "empty"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "id": "GardenBed#3.3,-31.6",
+          "kind": "GardenBed",
+          "node": "GardenBed#3.3,-31.6",
+          "pos": [
+            3.34,
+            -31.59
+          ],
+          "prefab": "AicVG6O2ke7AicVG6O2ke7",
+          "region": "Garden",
+          "scene": "Farm",
+          "source": "save",
+          "state": {
+            "bonusProducePerHarvest": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysInState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "daysNotWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "1"
+            },
+            "harvestCount": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "0"
+            },
+            "isWatered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "true"
+            },
+            "isWilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "false"
+            },
+            "lastDayRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "210"
+            },
+            "lastTimeRefreshed": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "7:00:00 PM"
+            },
+            "plantState": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "##growing"
+            },
+            "ready": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            },
+            "stage": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": "growing"
+            },
+            "watered": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": true
+            },
+            "wilted": {
+              "conf": 1.0,
+              "game_time": "D210 8:20:00 AM",
+              "source": "save",
+              "value": false
+            }
+          },
+          "type": "member"
+        },
+        {
+          "area": true,
+          "id": "GardenSouth",
+          "kind": "Garden",
+          "node": "GardenSouth",
+          "pos": [
+            8.27,
+            -63.11
+          ],
+          "region": "Farm",
+          "source": "cluster",
+          "type": "region"
+        },
+        {
+          "edge": {
+            "a": "HouseDoor",
+            "b": "House",
+            "rel": "leads_to"
+          }
+        },
+        {
+          "edge": {
+            "a": "Well",
+            "b": "fill_can",
+            "rel": "offers"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed",
+            "b": "plant",
+            "rel": "offers"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed",
+            "b": "water",
+            "rel": "offers"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed",
+            "b": "harvest",
+            "rel": "offers"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed",
+            "b": "unplant",
+            "rel": "offers"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive",
+            "b": "honey",
+            "rel": "offers"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive",
+            "b": "beehive_progress",
+            "rel": "offers"
+          }
+        },
+        {
+          "edge": {
+            "a": "Bed",
+            "b": "sleep",
+            "rel": "offers"
+          }
+        },
+        {
+          "edge": {
+            "a": "Stove",
+            "b": "cook",
+            "rel": "offers"
+          }
+        },
+        {
+          "edge": {
+            "a": "HouseExit",
+            "b": "Farm",
+            "rel": "leads_to"
+          }
+        },
+        {
+          "edge": {
+            "a": "HouseExit",
+            "b": "exit",
+            "rel": "offers"
+          }
+        },
+        {
+          "edge": {
+            "a": "Tara",
+            "b": "Garden",
+            "compass": "E",
+            "distance": "inside",
+            "game_time": "D207 7:53:54 PM",
+            "rel": "relative_to",
+            "source": "vision"
+          }
+        },
+        {
+          "edge": {
+            "a": "Tara",
+            "b": "Well",
+            "map_px": 115.6,
+            "rel": "distance",
+            "route_px": 154.0,
+            "source": "map",
+            "t": 1793971571.4,
+            "tier": "map-far"
+          }
+        },
+        {
+          "edge": {
+            "a": "Tara",
+            "b": "GardenSouth",
+            "compass": "N",
+            "distance": "inside",
+            "game_time": "D209 2:28:57 PM",
+            "rel": "relative_to",
+            "source": "vision"
+          }
+        },
+        {
+          "edge": {
+            "a": "Tara",
+            "b": "Bed",
+            "rel": "distance",
+            "source": "graph",
+            "t": 1793993880.5,
+            "tier": "unknown"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#-1.7,-25.3",
+            "b": "BeeHive#0.2,-23.5",
+            "dir": [
+              0.7071067811865478,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#-1.7,-25.3",
+            "b": "BeeHive#-2.3,-23.5",
+            "dir": [
+              -0.3131952305259637,
+              -0.9496887635303413
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#-1.7,-25.3",
+            "b": "GardenBed#0.8,-25.3",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#-1.7,-25.3",
+            "b": "BeeHive#-1.0,-23.5",
+            "dir": [
+              0.3177404134118966,
+              -0.9481777416101039
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#-1.7,-29.1",
+            "b": "GardenBed#-1.7,-25.3",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#-1.7,-29.1",
+            "b": "GardenBed#0.8,-29.1",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#-1.7,-29.1",
+            "b": "GardenBed#-1.7,-31.6",
+            "dir": [
+              0.0,
+              1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#-1.7,-29.1",
+            "b": "GardenBed#0.8,-31.6",
+            "dir": [
+              0.7071067811865475,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#5.8,-29.1",
+            "b": "GardenBed#3.3,-29.1",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#5.8,-29.1",
+            "b": "GardenBed#5.8,-25.3",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#5.8,-29.1",
+            "b": "GardenBed#5.8,-31.6",
+            "dir": [
+              0.0,
+              1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#5.8,-29.1",
+            "b": "GardenBed#3.3,-31.6",
+            "dir": [
+              -0.7071067811865475,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-29.1",
+            "b": "GardenBed#-1.7,-29.1",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-29.1",
+            "b": "GardenBed#3.3,-29.1",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-29.1",
+            "b": "GardenBed#0.8,-25.3",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-29.1",
+            "b": "GardenBed#-1.7,-31.6",
+            "dir": [
+              -0.7071067811865475,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-29.1",
+            "b": "GardenBed#0.8,-31.6",
+            "dir": [
+              0.0,
+              1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-29.1",
+            "b": "GardenBed#3.3,-31.6",
+            "dir": [
+              0.7071067811865475,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#0.2,-23.5",
+            "b": "BeeHive#1.5,-23.5",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#0.2,-23.5",
+            "b": "BeeHive#-1.0,-23.5",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#1.5,-23.5",
+            "b": "BeeHive#0.2,-23.5",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#1.5,-23.5",
+            "b": "BeeHive#2.7,-23.5",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-29.1",
+            "b": "GardenBed#5.8,-29.1",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-29.1",
+            "b": "GardenBed#0.8,-29.1",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-29.1",
+            "b": "GardenBed#3.3,-25.3",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-29.1",
+            "b": "GardenBed#0.8,-31.6",
+            "dir": [
+              -0.7071067811865475,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-29.1",
+            "b": "GardenBed#5.8,-31.6",
+            "dir": [
+              0.7071067811865475,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-29.1",
+            "b": "GardenBed#3.3,-31.6",
+            "dir": [
+              0.0,
+              1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#6.5,-23.5",
+            "b": "BeeHive#5.2,-23.5",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-25.3",
+            "b": "BeeHive#1.5,-23.5",
+            "dir": [
+              -0.7052186556637322,
+              -0.708989878421292
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-25.3",
+            "b": "BeeHive#4.0,-23.5",
+            "dir": [
+              0.31774041341189685,
+              -0.9481777416101038
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-25.3",
+            "b": "GardenBed#5.8,-25.3",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-25.3",
+            "b": "GardenBed#0.8,-25.3",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-25.3",
+            "b": "BeeHive#2.7,-23.5",
+            "dir": [
+              -0.3131952305259636,
+              -0.9496887635303414
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-25.3",
+            "b": "BeeHive#5.2,-23.5",
+            "dir": [
+              0.7071067811865478,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#-2.3,-23.5",
+            "b": "BeeHive#-1.0,-23.5",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#4.0,-23.5",
+            "b": "BeeHive#2.7,-23.5",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#4.0,-23.5",
+            "b": "BeeHive#5.2,-23.5",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#5.8,-25.3",
+            "b": "BeeHive#6.5,-23.5",
+            "dir": [
+              0.3177404134118966,
+              -0.9481777416101039
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#5.8,-25.3",
+            "b": "GardenBed#3.3,-25.3",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#5.8,-25.3",
+            "b": "BeeHive#4.0,-23.5",
+            "dir": [
+              -0.7052186556637322,
+              -0.708989878421292
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#5.8,-25.3",
+            "b": "BeeHive#5.2,-23.5",
+            "dir": [
+              -0.3131952305259638,
+              -0.9496887635303413
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-25.3",
+            "b": "GardenBed#-1.7,-25.3",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-25.3",
+            "b": "BeeHive#0.2,-23.5",
+            "dir": [
+              -0.31319523052596376,
+              -0.9496887635303413
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-25.3",
+            "b": "BeeHive#1.5,-23.5",
+            "dir": [
+              0.3177404134118967,
+              -0.9481777416101039
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-25.3",
+            "b": "GardenBed#3.3,-25.3",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-25.3",
+            "b": "BeeHive#2.7,-23.5",
+            "dir": [
+              0.7071067811865478,
+              -0.7071067811865472
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-25.3",
+            "b": "BeeHive#-1.0,-23.5",
+            "dir": [
+              -0.7052186556637322,
+              -0.7089898784212919
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#2.7,-23.5",
+            "b": "BeeHive#1.5,-23.5",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#2.7,-23.5",
+            "b": "BeeHive#4.0,-23.5",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#-1.0,-23.5",
+            "b": "BeeHive#0.2,-23.5",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#-1.0,-23.5",
+            "b": "BeeHive#-2.3,-23.5",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#-1.7,-31.6",
+            "b": "GardenBed#-1.7,-29.1",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#-1.7,-31.6",
+            "b": "GardenBed#0.8,-29.1",
+            "dir": [
+              0.7071067811865475,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#-1.7,-31.6",
+            "b": "GardenBed#0.8,-31.6",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-31.6",
+            "b": "GardenBed#-1.7,-29.1",
+            "dir": [
+              -0.7071067811865475,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-31.6",
+            "b": "GardenBed#0.8,-29.1",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-31.6",
+            "b": "GardenBed#3.3,-29.1",
+            "dir": [
+              0.7071067811865475,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-31.6",
+            "b": "GardenBed#-1.7,-31.6",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#0.8,-31.6",
+            "b": "GardenBed#3.3,-31.6",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#5.2,-23.5",
+            "b": "BeeHive#6.5,-23.5",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "BeeHive#5.2,-23.5",
+            "b": "BeeHive#4.0,-23.5",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#5.8,-31.6",
+            "b": "GardenBed#5.8,-29.1",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#5.8,-31.6",
+            "b": "GardenBed#3.3,-29.1",
+            "dir": [
+              -0.7071067811865475,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#5.8,-31.6",
+            "b": "GardenBed#3.3,-31.6",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-31.6",
+            "b": "GardenBed#5.8,-29.1",
+            "dir": [
+              0.7071067811865475,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-31.6",
+            "b": "GardenBed#0.8,-29.1",
+            "dir": [
+              -0.7071067811865475,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-31.6",
+            "b": "GardenBed#3.3,-29.1",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-31.6",
+            "b": "GardenBed#0.8,-31.6",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#3.3,-31.6",
+            "b": "GardenBed#5.8,-31.6",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-66.9",
+            "b": "GardenBed#6.4,-66.9",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-66.9",
+            "b": "GardenBed#6.4,-63.1",
+            "dir": [
+              -0.7071067811865477,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-66.9",
+            "b": "GardenBed#13.9,-63.1",
+            "dir": [
+              0.7071067811865475,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-66.9",
+            "b": "GardenBed#10.1,-63.1",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-66.9",
+            "b": "GardenBed#13.9,-66.9",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-66.9",
+            "b": "GardenBed#10.1,-66.9",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-66.9",
+            "b": "GardenBed#2.6,-66.9",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-66.9",
+            "b": "GardenBed#6.4,-63.1",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-66.9",
+            "b": "GardenBed#2.6,-63.1",
+            "dir": [
+              -0.7071067811865476,
+              -0.7071067811865476
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-66.9",
+            "b": "GardenBed#10.1,-63.1",
+            "dir": [
+              0.7071067811865477,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#2.6,-66.9",
+            "b": "GardenBed#6.4,-66.9",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#2.6,-66.9",
+            "b": "GardenBed#6.4,-63.1",
+            "dir": [
+              0.7071067811865476,
+              -0.7071067811865476
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#2.6,-66.9",
+            "b": "GardenBed#2.6,-63.1",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-63.1",
+            "b": "GardenBed#10.1,-66.9",
+            "dir": [
+              0.7071067811865477,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-63.1",
+            "b": "GardenBed#6.4,-66.9",
+            "dir": [
+              0.0,
+              1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-63.1",
+            "b": "GardenBed#2.6,-66.9",
+            "dir": [
+              -0.7071067811865476,
+              0.7071067811865476
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-63.1",
+            "b": "GardenBed#2.6,-59.4",
+            "dir": [
+              -0.7071067811865476,
+              -0.7071067811865476
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-63.1",
+            "b": "GardenBed#6.4,-59.4",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-63.1",
+            "b": "GardenBed#10.1,-59.4",
+            "dir": [
+              0.7071067811865477,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-63.1",
+            "b": "GardenBed#2.6,-63.1",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-63.1",
+            "b": "GardenBed#10.1,-63.1",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#2.6,-59.4",
+            "b": "GardenBed#6.4,-63.1",
+            "dir": [
+              0.7071067811865476,
+              0.7071067811865476
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#2.6,-59.4",
+            "b": "GardenBed#6.4,-59.4",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#2.6,-59.4",
+            "b": "GardenBed#2.6,-63.1",
+            "dir": [
+              0.0,
+              1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-59.4",
+            "b": "GardenBed#6.4,-63.1",
+            "dir": [
+              0.0,
+              1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-59.4",
+            "b": "GardenBed#2.6,-59.4",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-59.4",
+            "b": "GardenBed#10.1,-59.4",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-59.4",
+            "b": "GardenBed#2.6,-63.1",
+            "dir": [
+              -0.7071067811865476,
+              0.7071067811865476
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#6.4,-59.4",
+            "b": "GardenBed#10.1,-63.1",
+            "dir": [
+              0.7071067811865477,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-59.4",
+            "b": "GardenBed#6.4,-63.1",
+            "dir": [
+              -0.7071067811865477,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-59.4",
+            "b": "GardenBed#6.4,-59.4",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-59.4",
+            "b": "GardenBed#13.9,-59.4",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-59.4",
+            "b": "GardenBed#13.9,-63.1",
+            "dir": [
+              0.7071067811865475,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-59.4",
+            "b": "GardenBed#10.1,-63.1",
+            "dir": [
+              0.0,
+              1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#13.9,-59.4",
+            "b": "GardenBed#10.1,-59.4",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#13.9,-59.4",
+            "b": "GardenBed#13.9,-63.1",
+            "dir": [
+              0.0,
+              1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#13.9,-59.4",
+            "b": "GardenBed#10.1,-63.1",
+            "dir": [
+              -0.7071067811865475,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#2.6,-63.1",
+            "b": "GardenBed#6.4,-66.9",
+            "dir": [
+              0.7071067811865476,
+              0.7071067811865476
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#2.6,-63.1",
+            "b": "GardenBed#2.6,-66.9",
+            "dir": [
+              0.0,
+              1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#2.6,-63.1",
+            "b": "GardenBed#6.4,-63.1",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#2.6,-63.1",
+            "b": "GardenBed#2.6,-59.4",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#2.6,-63.1",
+            "b": "GardenBed#6.4,-59.4",
+            "dir": [
+              0.7071067811865476,
+              -0.7071067811865476
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#13.9,-63.1",
+            "b": "GardenBed#10.1,-66.9",
+            "dir": [
+              -0.7071067811865475,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#13.9,-63.1",
+            "b": "GardenBed#10.1,-59.4",
+            "dir": [
+              -0.7071067811865475,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#13.9,-63.1",
+            "b": "GardenBed#13.9,-59.4",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#13.9,-63.1",
+            "b": "GardenBed#10.1,-63.1",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#13.9,-63.1",
+            "b": "GardenBed#13.9,-66.9",
+            "dir": [
+              0.0,
+              1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-63.1",
+            "b": "GardenBed#10.1,-66.9",
+            "dir": [
+              0.0,
+              1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-63.1",
+            "b": "GardenBed#6.4,-66.9",
+            "dir": [
+              -0.7071067811865477,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-63.1",
+            "b": "GardenBed#6.4,-63.1",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-63.1",
+            "b": "GardenBed#6.4,-59.4",
+            "dir": [
+              -0.7071067811865477,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-63.1",
+            "b": "GardenBed#10.1,-59.4",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-63.1",
+            "b": "GardenBed#13.9,-59.4",
+            "dir": [
+              0.7071067811865475,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-63.1",
+            "b": "GardenBed#13.9,-63.1",
+            "dir": [
+              1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#10.1,-63.1",
+            "b": "GardenBed#13.9,-66.9",
+            "dir": [
+              0.7071067811865475,
+              0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#13.9,-66.9",
+            "b": "GardenBed#10.1,-66.9",
+            "dir": [
+              -1.0,
+              -0.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#13.9,-66.9",
+            "b": "GardenBed#13.9,-63.1",
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        },
+        {
+          "edge": {
+            "a": "GardenBed#13.9,-66.9",
+            "b": "GardenBed#10.1,-63.1",
+            "dir": [
+              -0.7071067811865475,
+              -0.7071067811865475
+            ],
+            "rel": "next_to",
+            "source": "cluster"
+          }
+        }
+      ],
+      "interrupts": [],
+      "last_outcome": null,
+      "recommendation": {
+        "action": null,
+        "confidence": 0.0,
+        "expects": {},
+        "reasons": [
+          "model selects a visible uncovered target with its full road, or a short walkable waypoint"
+        ]
+      },
+      "screen": {
+        "kind": "gameplay",
+        "texts": []
+      },
+      "surprise": null,
+      "task": {
+        "active": null,
+        "covered": [],
+        "current_turn": null,
+        "global_interrupt": null,
+        "goal": "garden",
+        "last_experience": null,
+        "last_surprise": null,
+        "params": {
+          "_started_late": false,
+          "_trade_start_money": null,
+          "_trade_start_money_provenance": {
+            "game_time": "D210 8:20:00 AM",
+            "path": "/Users/serg/Library/Containers/com.studiodrydock.mayflower/Data/Library/Application Support/com.studiodrydock.mayflower/save/AoUVi2WfCZ4zyXZ4HpZgKb/1579.local",
+            "save_count": 7920,
+            "source": "save"
+          },
+          "authorization": {
+            "purchases": [
+              {
+                "category": "Seed",
+                "max_spend": "available_money",
+                "quantity_per_type": 10
+              }
+            ],
+            "sales": [
+              {
+                "item": "Tulip",
+                "quantity": 64
+              },
+              {
+                "item": "Honey",
+                "quantity": 12
+              }
+            ]
+          },
+          "chores": [
+            "plant",
+            "replant",
+            "harvest",
+            "water"
+          ],
+          "crops": "Tulip",
+          "flowers": [
+            "Anemone Flower",
+            "Crocus",
+            "Marigold",
+            "Moly Flower",
+            "Primrose",
+            "Snowdrop",
+            "Sunflower",
+            "Tiger Lily",
+            "Tulip",
+            "Turtlehead Flower"
+          ],
+          "region": "GardenSouth"
+        },
+        "pending_intent": null,
+        "revision": 1,
+        "stack": [],
+        "status": "active",
+        "targets": [
+          "GardenBed#10.1,-59.4",
+          "GardenBed#10.1,-63.1",
+          "GardenBed#10.1,-66.9",
+          "GardenBed#13.9,-59.4",
+          "GardenBed#13.9,-63.1",
+          "GardenBed#13.9,-66.9",
+          "GardenBed#2.6,-59.4",
+          "GardenBed#2.6,-63.1",
+          "GardenBed#2.6,-66.9",
+          "GardenBed#6.4,-59.4",
+          "GardenBed#6.4,-63.1",
+          "GardenBed#6.4,-66.9"
+        ],
+        "task_id": "fd5e7489a4f348ffb8818b77cca16ebc",
+        "turn_seq": 1,
+        "unresolved": []
+      },
+      "transaction": null,
+      "turn_id": 1,
+      "visible_affordances": []
+    },
+    "global_interrupt": null,
+    "goal": "garden",
+    "last_experience": null,
+    "last_surprise": null,
+    "params": {
+      "_started_late": false,
+      "_trade_start_money": null,
+      "_trade_start_money_provenance": {
+        "game_time": "D210 8:20:00 AM",
+        "path": "/Users/serg/Library/Containers/com.studiodrydock.mayflower/Data/Library/Application Support/com.studiodrydock.mayflower/save/AoUVi2WfCZ4zyXZ4HpZgKb/1579.local",
+        "save_count": 7920,
+        "source": "save"
+      },
+      "authorization": {
+        "purchases": [
+          {
+            "category": "Seed",
+            "max_spend": "available_money",
+            "quantity_per_type": 10
+          }
+        ],
+        "sales": [
+          {
+            "item": "Tulip",
+            "quantity": 64
+          },
+          {
+            "item": "Honey",
+            "quantity": 12
+          }
+        ]
+      },
+      "chores": [
+        "plant",
+        "replant",
+        "harvest",
+        "water"
+      ],
+      "crops": "Tulip",
+      "flowers": [
+        "Anemone Flower",
+        "Crocus",
+        "Marigold",
+        "Moly Flower",
+        "Primrose",
+        "Snowdrop",
+        "Sunflower",
+        "Tiger Lily",
+        "Tulip",
+        "Turtlehead Flower"
+      ],
+      "region": "GardenSouth"
+    },
+    "pending_intent": null,
+    "revision": 1,
+    "stack": [],
+    "status": "active",
+    "targets": [
+      "GardenBed#10.1,-59.4",
+      "GardenBed#10.1,-63.1",
+      "GardenBed#10.1,-66.9",
+      "GardenBed#13.9,-59.4",
+      "GardenBed#13.9,-63.1",
+      "GardenBed#13.9,-66.9",
+      "GardenBed#2.6,-59.4",
+      "GardenBed#2.6,-63.1",
+      "GardenBed#2.6,-66.9",
+      "GardenBed#6.4,-59.4",
+      "GardenBed#6.4,-63.1",
+      "GardenBed#6.4,-66.9"
+    ],
+    "task_id": "fd5e7489a4f348ffb8818b77cca16ebc",
+    "turn_seq": 1,
+    "unresolved": []
+  }
+}

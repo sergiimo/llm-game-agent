@@ -112,6 +112,7 @@ TaskState
   task_id, revision, goal, params, status
   targets, covered, unresolved
   active: Interaction | null
+  evidence_refs: [experience_id, ...]
   last_experience, last_surprise, global_interrupt
 
 Interaction
@@ -127,6 +128,11 @@ State is written atomically before and after every input. If a process dies with
 reconciles the game log and current screen; it never blindly repeats the input. `actual_node` may be rebound only by
 stronger event-position evidence. Target selection occurs only when `active` is null or verified complete.
 
+`task.json` stores current state, compact verified subgoal results, and experience IDs; it never embeds the complete
+intent/outcome history. `log.jsonl` is the canonical intent/outcome envelope and `experiences.jsonl` owns immutable raw
+experiences. Completion, cancellation, and recovery reconstruct exact records from those journals only when needed.
+Legacy inline history is removed atomically only after every row is proved reconstructible; missing evidence fails closed.
+
 ## Turn contract
 
 `./wf play <goal> ...` is the universal entry point. Domain aliases such as `./wf garden`, `./wf sleep`, and shop or
@@ -137,6 +143,7 @@ contract is:
 ```text
 TurnContext
   turn_id, task, transaction, screen, frame_path
+  observation_freshness: fresh | cached
   visible_affordances, graph_clues, coverage
   last_outcome, surprise, interrupts
   recommendation: {action, confidence, reasons, expects}
@@ -149,6 +156,10 @@ Decision
 `look` is intentionally not an input. It exposes/reads the already captured full-scale frame and returns to the same
 turn. The model—not an engine helper—decides whether image reasoning is necessary. `accept` executes the exact
 versioned recommendation for that `turn_id`; stale turn IDs are rejected without input.
+
+Bare `./wf play` returns the exact persisted turn and labels its observation `cached`; it does not claim the old frame
+is the current screen. A versioned `read` captures one coherent current observation and returns `fresh`. Both surfaces
+return compact current state plus evidence references, never the full replay journal.
 
 Subgoals do not escape the loop. For example, garden → no seeds → sleep → shop → buy seeds → return to garden is one
 durable task stack. The active parent interaction and every subgoal phase survive calls and restarts. A subgoal may be

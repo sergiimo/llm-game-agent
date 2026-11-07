@@ -321,12 +321,17 @@ def event_node(e):
     g = learn.MEMORY['graph']
     if g is None:
         return None
+    state = dict(e.evidence.state)
     found = None
     for line in e.evidence.lines:
         at = A.position_of(line)
         target = re.search(r'target=([A-Za-z]+)', line)
         if at and target and A.events_of([line]):
-            found = world.find(g, target[1], at)
+            source = world.event_source(state, line)
+            scene = (source.get('scope') or source.get('scene')) if source else None
+            physical = source.get('scene') if source and not source.get('legacy') else None
+            found = (world.scoped_event_node(g, target[1], at, scene, physical) if scene else
+                     None if source is not None else world.find(g, target[1], at))
     return found
 
 
@@ -341,12 +346,24 @@ def _run(u, e, img0):
         if g is None:
             return None
         nid = None
+        state = dict(e.evidence.state)
         for line in e.evidence.lines:
             at = A.position_of(line)
             target = re.search(r'target=([A-Za-z]+)', line)
             events = A.events_of([line])
             if at and target and events:
-                nid = world.place(g, target[1], at, events, stamp=LN.stamp(), lines=[line])
+                source = world.event_source(state, line)
+                scene = (source.get('scope') or source.get('scene')) if source else None
+                if source and not scene:
+                    raise ValueError('positioned event source scene is unknown')
+                physical = source.get('scene') if source and not source.get('legacy') else None
+                selected = (world.scoped_event_node(g, target[1], at, scene, physical) if scene else
+                            world.find(g, target[1], at))
+                if scene and selected is None:
+                    raise ValueError('positioned event identity unavailable or ambiguous in captured scene')
+                context = {'scene': source['scene'], 'source': source} if source else {}
+                nid = world.place(g, target[1], at, events, stamp=world._stamp_of(line) or LN.stamp(), lines=[line],
+                                  node_id=selected, **context)
                 note(g, nid, e.id)
         if nid:
             _save_world(g)
@@ -425,11 +442,16 @@ def _run(u, e, img0):
         _save_world(g)
         return nid
     if u.consumer == 'world' and u.op == 'card_state':
-        nid = LN.observe_card(_ns(e))
+        state = dict(e.evidence.state)
+        scoped = bool(state.get('region') or state.get('event_sources'))
+        selected = event_node(e) if scoped else None
+        if scoped and selected is None:
+            return None  # no unscoped card/trace attribution after an ambiguous positioned event
+        nid = LN.observe_card(_ns(e), node_id=selected) if scoped else LN.observe_card(_ns(e))
         g = LN.MEMORY['graph']
         if g is not None and e.evidence.at:
             from . import world
-            hit = world.find(g, None, tuple(e.evidence.at)) if hasattr(world, 'find') else None
+            hit = selected if scoped else world.find(g, None, tuple(e.evidence.at))
             for n in {nid, hit} - {None}:
                 note(g, n, e.id)
             if nid and e.artifacts.turn_id is not None:

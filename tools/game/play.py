@@ -4,8 +4,33 @@ import os
 import uuid
 
 from .primitives import GameAdapter
-from .task_state import TaskState, TaskStore
+from .task_state import TaskState, TaskStore, json_record
 from .turn import Decision, Recommendation, TurnLoop
+
+
+def _save_money(save):
+    """Player character state is authoritative; direct player state is a legacy save/adapter format."""
+    import math
+    game = save.get('gameState', {})
+    characters = [row for row in game.get('characters', ()) if row.get('name') == 'Player']
+    if len(characters) > 1:
+        return None, None
+    owner = characters[0] if characters else game.get('player', {})
+    field = ('gameState.characters[name=Player]' if characters else 'gameState.player') + \
+            '.state.userState.entries[name=money]'
+    values = [row.get('value') for row in owner.get('state', {}).get('userState', {}).get('entries', ())
+              if row.get('name') == 'money']
+    if len(values) != 1:
+        return None, field
+    value = values[0]
+    if isinstance(value, str):
+        try:
+            value = int(value.strip())
+        except ValueError:
+            return None, field
+    if type(value) not in (int, float) or not math.isfinite(value) or value < 0 or int(value) != value:
+        return None, field
+    return int(value), field
 
 
 def _clues(store):
@@ -16,29 +41,66 @@ def _clues(store):
     world.refresh(graph, save, lines)
     hour, light = observe.clock()
     player = save.get('gameState', {}).get('player', {})
-    values = {row['name']: row['value'] for row in player.get('state', {}).get('userState', {}).get('entries', [])}
-    money = values.get('money')
-    if money is not None:
-        money = int(money)
+    money, money_field = _save_money(save)
     save_proof = {'source': 'save', 'path': path, 'save_count': save.get('saveCount'),
                   'game_time': world.save_time(save)}
     region = getattr(core.WF, 'current_scene', lambda: None)()
+    scene, _ = world.scene_context(lines, save.get('currentScene'), since=world.save_time(save))
     point = save.get('currentPlayerPosition') or {}
     data = {'graph_clues': ([dict(node=n.id, **n.to_dict()) for n in graph.nodes.values()] +
-                            [{'edge': dict(edge)} for edge in graph.edges()]),
+                            [{'edge': dict(edge)} for edge in graph.edges()] +
+                            [{'world_conflict': row} for row in graph.extra.get('_refresh_conflicts', ())]),
             'hour': hour, 'light': light, 'rain': ask.rain(), 'can': graph.state_value('Tara', 'can'),
             'inventory': world.inventory(save, lines),
             'inventory_complete': isinstance(player.get('inventory', {}).get('items'), list),
-            'money': money, 'region': region,
-            'state_provenance': {'inventory': save_proof, 'money': save_proof,
-                                 'position': save_proof, 'region': {'source': 'scene_log'}}}
+            'money': money, 'region': region, 'scene': scene, 'save_scene': save.get('currentScene'),
+            'state_provenance': {'inventory': save_proof, 'money': dict(save_proof, field=money_field),
+                                 'position': save_proof, 'save_scene': save_proof,
+                                 'region': {'source': 'scene_log'}}}
     if 'x' in point and 'z' in point:
         data['position'] = [point['x'], point['z']]
-    state = store.load().to_dict() if os.path.exists(store.path) else {
+    state = _declaration(store.load()) if os.path.exists(store.path) else {
         'params': {'_started_late': hour is not None and hour > 19}}
-    blocked = garden_policy.interrupt(domain(state), data)
+    blocked = garden_policy.interrupt(state, data)
     data['interrupts'] = [blocked] if blocked else []
     return data
+
+
+def _repair_start_money(store):
+    """Recover only missing initial funds from the already-persisted exact root snapshot; no public value input."""
+    import time
+    from . import core, world
+    read = getattr(core.WF, 'read_save', None)
+    if read is None:
+        return
+    with store.locked():
+        task = store.load()
+        if task.params.get('_trade_start_money') is not None:
+            return
+        proof = task.params.get('_trade_start_money_provenance') or {}
+        if (proof.get('source') != 'save' or not isinstance(proof.get('path'), str) or not proof['path'] or
+                type(proof.get('save_count')) is not int or not proof.get('game_time')):
+            return
+        try:
+            path, save = read(proof['path'])
+        except (OSError, ValueError, TypeError):
+            return  # no replacement from a later/current balance when the original snapshot is unavailable
+        if (os.path.abspath(path) != os.path.abspath(proof['path']) or save.get('saveCount') != proof['save_count'] or
+                world.save_time(save) != proof['game_time']):
+            return
+        money, field = _save_money(save)
+        if money is None:
+            return
+        recovered = dict(proof, field=field, recovered_from_root_snapshot=True)
+        task.params.update(_trade_start_money=money, _trade_start_money_provenance=recovered)
+        if task.current_turn:
+            task.current_turn['task']['params'].update(
+                _trade_start_money=money, _trade_start_money_provenance=recovered)
+        store.save(task)  # preserve task, turn, transaction, frames and subgoal IDs; repeated reads are a no-op
+        with open(os.path.join(os.path.dirname(store.path), 'log.jsonl'), 'a') as stream:
+            stream.write(json.dumps({'t': time.time(), 'type': 'turn', 'phase': 'migration',
+                'task_id': task.task_id, 'turn_id': task.current_turn['turn_id'] if task.current_turn else task.turn_seq,
+                'kind': 'initial_money_from_root_snapshot', 'money': money, 'provenance': recovered}) + '\n')
 
 
 def domain(task):
@@ -50,12 +112,23 @@ def domain(task):
     return task
 
 
+def _declaration(task):
+    """Only current goal/params for validation and interrupts; never copy historical evidence to read metadata."""
+    if task.stack:
+        current = task.stack[-1]
+        return {'goal': current.goal,
+                'params': dict(current.params, _started_late=task.params.get('_started_late', False))}
+    return {'goal': task.goal, 'params': task.params}
+
+
 def recommend(task, observation):
     from . import garden_policy
     current = domain(task)
     if current['goal'] == 'garden':
         return garden_policy.recommend(current, observation)
-    return Recommendation(reasons=('model chooses one primitive; read actions/INDEX.md for this workflow',))
+    return Recommendation(reasons=('model chooses one primitive; read actions/INDEX.md for this workflow',
+        'long-distance navigation: inspect and learn the map first; use visible roads for local approach or '
+        'only after captured unavailable/insufficient map evidence'))
 
 
 def reduce(task, experience):
@@ -99,8 +172,10 @@ def trade_guard(task, current, action, observation):
     directions = {('sell' if match[1].casefold() == 'sell' else 'buy') for text in texts
                   if (match := re.match(r'^\s*(buy|purchase|sell)\b', str(text), re.I))}
     surface = bool(directions) or observation.get('screen', {}).get('kind') == 'shop'
+    named_inspection = action.get('kind') == 'select_card' and bool(label) and control is None and label != 'confirm'
     financial = (direction is not None or label == 'confirm' and (surface or current['goal'] == 'shop') or
-                 action.get('kind') in ('select_card', 'space', 'target', 'click', 'cell', 'bubble', 'waypoint') and surface)
+                 action.get('kind') in ('select_card', 'space', 'target', 'click', 'cell', 'bubble', 'waypoint')
+                 and surface and not named_inspection)
     if financial and not supplied:
         return 'observed trade surface/control requires explicit authorized purchase or sale metadata'
     if not supplied:
@@ -176,9 +251,11 @@ def register_catalogue(task, params, frames):
         return
     if not isinstance(rows, (list, tuple)) or not rows:
         raise DecisionRejected('catalogue needs a nonempty list of model-observed item entries')
-    known = {row['item']: dict(row) for row in task.params.get('_shop_catalogue', ())}
-    allowed = set(frames) | {row['frame_path'] for row in known.values()}
-    added = False
+    observations = [dict(row) for row in task.params.get('_shop_catalogue_observations',
+                                                       task.params.get('_shop_catalogue', ()))]
+    categories = {row['item']: row['category'] for row in observations}
+    allowed = set(frames) | {row['frame_path'] for row in observations}
+    changed = False
     for row in rows:
         if (not isinstance(row, dict) or not isinstance(row.get('item'), str) or not row['item'] or
                 not isinstance(row.get('category'), str) or not row['category'] or
@@ -186,15 +263,58 @@ def register_catalogue(task, params, frames):
                 not isinstance(row.get('evidence_refs'), (list, tuple)) or
                 row.get('frame_path') not in row['evidence_refs']):
             raise DecisionRejected('catalogue entry needs item/category/availability and captured frame references')
-        if row['item'] in known and known[row['item']]['category'] != row['category']:
+        if (('source' in row) != ('page' in row) or
+                any(not isinstance(row[key], str) or not row[key].strip() for key in ('source', 'page') if key in row)):
+            raise DecisionRejected('catalogue source and page must be nonempty text supplied together')
+        if row['item'] in categories and categories[row['item']] != row['category']:
             raise DecisionRejected('catalogue category conflicts with the previously observed item')
-        added = added or row['item'] not in known
-        known[row['item']] = dict(row)
+        categories[row['item']] = row['category']
+        if row not in observations:
+            observations.append(dict(row))
+            changed = True
+    # Preserve raw provenance. Latest observation per named source/page (or legacy frame) feeds the item union.
+    latest = {}
+    for row in observations:
+        source = ('named', row['source'], row['page']) if 'source' in row else ('frame', row['frame_path'])
+        latest[(row['item'], source)] = row
+    known = {}
+    for row in latest.values():
+        if row['item'] not in known or row['available'] or not known[row['item']]['available']:
+            known[row['item']] = dict(row)
+    task.params['_shop_catalogue_observations'] = observations
     task.params['_shop_catalogue'] = list(known.values())
     if 'catalogue_complete' in params:
         task.params['_shop_catalogue_complete'] = params['catalogue_complete'] is True
-    elif added:
+    elif changed:
         task.params['_shop_catalogue_complete'] = False
+
+
+def available_money(params):
+    """Captured root funds plus completed/resumed receipts minus every reserved purchase; no fresh balance guess."""
+    import math
+    start = params.get('_trade_start_money')
+    if type(start) not in (int, float) or not math.isfinite(start) or start < 0:
+        return None
+    earned = sum(row['result'].get('earned', 0) for row in params.get('_subgoal_results', ()) if row['goal'] == 'shop')
+    spent = sum(row['price'] for row in params.get('_purchase_intents', ()))
+    return max(0, start + earned - spent)
+
+
+def bind_shop(task, params):
+    """Bind evidence and a numeric spend ceiling to the model's chosen item; never select or trade an item."""
+    from .turn import DecisionRejected
+    item = params.get('item')
+    if not item or params.get('trade', 'buy') != 'buy':
+        return
+    entry = next((row for row in task.params.get('_shop_catalogue', ()) if row['item'] == item), None)
+    if entry:
+        params['catalogue'] = [dict(entry)]
+    funds = available_money(task.params)
+    if funds is None:
+        if 'max_spend' not in params:
+            raise DecisionRejected('automatic shop spend bound needs captured starting money and verified receipts')
+    else:
+        params['max_spend'] = min(params.get('max_spend', funds), funds)
 
 
 def trade_receipt(before, after, trade, operation):
@@ -245,10 +365,18 @@ def inventory_count(observation, item):
     return count if type(count) is int and count >= 0 else None
 
 
-def verify_completion(task, current):
+def region_matches(state, wanted):
+    """Scene/building evidence or captured positioned-object graph ancestry can prove a named region."""
+    if state.get('region') == wanted:
+        return True
+    proof = state.get('region_provenance') or {}
+    return (proof.get('source') == 'positioned_event' and wanted in state.get('regions', ()) and
+            list(proof.get('regions', ())) == list(state.get('regions', ())))
+
+
+def verify_completion(task, current, outcomes):
     """Evidence-only completion proof. Model supplied results cannot manufacture successful gameplay."""
     from .turn import DecisionRejected
-    outcomes = current.result.get('outcomes', []) if hasattr(current, 'result') else task.params.get('_outcomes', [])
     if not outcomes and current is task and task.last_experience:
         outcomes = [{'experience': task.last_experience}]
     outcomes = [row for row in outcomes if row['experience']['verdict']['value'] != 'unsafe']
@@ -287,7 +415,7 @@ def verify_completion(task, current):
     if current.goal in ('navigate', 'enter', 'exit'):
         after = dict(outcomes[-1]['experience']['evidence'].get('state', ())) if outcomes else {}
         region = params.get('region')
-        if not region or after.get('region') != region:
+        if not region or not region_matches(after, region):
             raise DecisionRejected('region completion needs captured matching region evidence')
         return {'region': region}
     if current.goal == 'garden' and task.active is None and set(task.targets) <= set(task.covered):
@@ -318,12 +446,14 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
             raise ValueError('play requires an active run: ./wf run start')
         old = os.path.join(directory, 'garden-task.json')
         store = TaskStore(old if os.path.exists(old) else os.path.join(directory, 'task.json'))
+    if os.path.exists(store.path):
+        store.compact()
     existing = store.load() if os.path.exists(store.path) else None
-    schema_goal = goal if goal is not None else domain(existing.to_dict())['goal'] if existing else None
+    schema_goal = goal if goal is not None else _declaration(existing)['goal'] if existing else None
     goal, params = _normalize(goal, validate(params, schema_goal))
     turn_id = params.pop('turn_id', None)
     if existing:
-        current = domain(existing.to_dict())
+        current = _declaration(existing)
         if goal is not None and goal != existing.goal and goal != current['goal']:
             raise ValueError('active task differs; use an explicit push decision for a subgoal')
         for key, value in params.items():
@@ -331,6 +461,8 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
                 raise ValueError(f'active task parameter {key} differs; start a new run')
     elif answer is not None:
         raise ValueError('observe a task before supplying a decision')
+    if existing and answer is None and existing.params.get('_trade_start_money') is None:
+        _repair_start_money(store)
     adapter = adapter or GameAdapter(clue_provider=lambda: _clues(store))
     if not existing:
         goal = goal or 'play'
@@ -369,7 +501,7 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
 
 
 def summary(context):
-    return 'NEXT ' + json.dumps(context.to_dict(), sort_keys=True)
+    return 'NEXT ' + json.dumps(context, default=json_record, sort_keys=True)
 
 
 def cli(goal, args):

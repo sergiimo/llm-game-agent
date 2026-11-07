@@ -1,0 +1,1031 @@
+{
+  "schema": 1,
+  "source_run": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden",
+  "source_note": "Failure-only legacy trace. Four later offline bookkeeping rows excluded. No successful sleep is asserted.",
+  "failure": {
+    "status": "captured",
+    "graph_source": {
+      "path": "tools/objects/graph/Farm.json",
+      "commit": "0e1d48f"
+    },
+    "graph": {
+      "area": "Farm",
+      "nodes": [
+        {
+          "id": "House",
+          "type": "region",
+          "kind": "House",
+          "region": "Farm",
+          "signal": "scene",
+          "exit": "HouseExit",
+          "map": {
+            "label": "farmhouse",
+            "kind": "MapHouse"
+          }
+        },
+        {
+          "id": "Bed",
+          "type": "unique",
+          "kind": "Bed",
+          "region": "House"
+        },
+        {
+          "id": "Tara",
+          "type": "unique",
+          "kind": "Tara",
+          "region": "Farm",
+          "state": {
+            "can": {
+              "value": "full",
+              "game_time": "D208 5:22:27 PM",
+              "source": "event",
+              "conf": 1.0
+            }
+          },
+          "pos": [
+            6.39,
+            -63.11
+          ],
+          "near": null,
+          "t": 1793993880.5,
+          "pin": [
+            655,
+            614
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "a": "Bed",
+          "b": "sleep",
+          "rel": "offers"
+        },
+        {
+          "a": "Tara",
+          "b": "Bed",
+          "rel": "distance",
+          "tier": "unknown",
+          "t": 1793993880.5,
+          "source": "graph"
+        }
+      ]
+    },
+    "bed_vector_samples": 0,
+    "bed_vector_provenance": "tools/objects/db/Bed absent at Task 2 preflight; not evidence of prior historical absence",
+    "timeline": [
+      {
+        "source_line": 347,
+        "t": 1793993597.19,
+        "type": "seek",
+        "what": "map",
+        "pin": [
+          643,
+          615
+        ],
+        "goal": [
+          690,
+          490
+        ],
+        "score": 3.36,
+        "ahead": [
+          706,
+          606
+        ]
+      },
+      {
+        "source_line": 348,
+        "t": 1793993605.04,
+        "type": "click",
+        "exp": "adad710fdf720991",
+        "gt": "D209 6:16:53 PM",
+        "node": null,
+        "learned": null,
+        "pt": [
+          1415,
+          474
+        ],
+        "what": "step",
+        "events": [],
+        "mode": "overlay",
+        "texts": [],
+        "before": [
+          "plant @1068,540",
+          "plant_growing* @852,540"
+        ],
+        "after": [],
+        "moved": true,
+        "frames": [
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213323-1415-474-0.jpg",
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213323-1415-474-1.jpg",
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213323-1415-474-2.jpg"
+        ],
+        "burst_texts": []
+      },
+      {
+        "source_line": 349,
+        "t": 1793993605.04,
+        "type": "seek",
+        "what": "trace",
+        "msg": "map 1/3 @1415,474: walked"
+      },
+      {
+        "source_line": 350,
+        "t": 1793993612.8,
+        "type": "click",
+        "exp": "bcefb7b5bd3035dd",
+        "gt": "D209 6:16:53 PM",
+        "node": null,
+        "learned": null,
+        "pt": [
+          1415,
+          474
+        ],
+        "what": "step",
+        "events": [],
+        "mode": "overlay",
+        "texts": [],
+        "before": [],
+        "after": [],
+        "moved": true,
+        "frames": [
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213331-1415-474-0.jpg",
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213331-1415-474-1.jpg",
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213331-1415-474-2.jpg"
+        ],
+        "burst_texts": []
+      },
+      {
+        "source_line": 351,
+        "t": 1793993612.8,
+        "type": "seek",
+        "what": "trace",
+        "msg": "map 2/3 @1415,474: walked"
+      },
+      {
+        "source_line": 352,
+        "t": 1793993627.66,
+        "type": "action",
+        "name": "sleep.do",
+        "args": "",
+        "start": 1793993591.84,
+        "end": 1793993627.66,
+        "depth": 0,
+        "ok": false,
+        "why": "LawsStuck: SCREEN PAUSE: Game Paused / Game progress is saved automatically while / you play. / Resume Game / Settings / Return to Menu / Exit Ga stays open; no world click is safe. Stop and report.",
+        "before": "?",
+        "after": "overlay: Game Paused / Game progress is saved automatically while / you play."
+      },
+      {
+        "source_line": 353,
+        "t": 1793993628.054781,
+        "type": "call",
+        "start": 1793993591.32,
+        "end": 1793993628.05,
+        "cmd": "sleep"
+      },
+      {
+        "source_line": 354,
+        "t": 1793993628.1711218,
+        "type": "call",
+        "start": 1793993604.79,
+        "end": 1793993628.17,
+        "cmd": "state"
+      },
+      {
+        "source_line": 355,
+        "t": 1793993645.3349178,
+        "type": "call",
+        "start": 1793993640.31,
+        "end": 1793993645.33,
+        "cmd": "resume"
+      },
+      {
+        "source_line": 356,
+        "t": 1793993648.188711,
+        "type": "call",
+        "start": 1793993648.12,
+        "end": 1793993648.19,
+        "cmd": "shot"
+      },
+      {
+        "source_line": 357,
+        "t": 1793993649.187405,
+        "type": "call",
+        "start": 1793993649.02,
+        "end": 1793993649.19,
+        "cmd": "state"
+      },
+      {
+        "source_line": 358,
+        "t": 1793993653.274291,
+        "type": "call",
+        "start": 1793993653.23,
+        "end": 1793993653.27,
+        "cmd": "look"
+      },
+      {
+        "source_line": 359,
+        "t": 1793993670.66,
+        "type": "action",
+        "name": "sleep.do",
+        "args": "",
+        "start": 1793993656.32,
+        "end": 1793993670.66,
+        "depth": 0,
+        "ok": false,
+        "why": "LawsStuck: SCREEN PAUSE: Game Paused / Game progress is saved automatically while / you play. / Resume Game / Settings / Return to Menu / Exit Ga stays open; no world click is safe. Stop and report.",
+        "before": "overlay: Game Paused / Game progress is saved automatically while / you play.",
+        "after": "overlay: Game Paused / Game progress is saved automatically while / you play."
+      },
+      {
+        "source_line": 360,
+        "t": 1793993670.980204,
+        "type": "call",
+        "start": 1793993655.79,
+        "end": 1793993670.98,
+        "cmd": "sleep"
+      },
+      {
+        "source_line": 361,
+        "t": 1793993671.038752,
+        "type": "call",
+        "start": 1793993670.55,
+        "end": 1793993671.04,
+        "cmd": "look"
+      },
+      {
+        "source_line": 362,
+        "t": 1793993682.287081,
+        "type": "call",
+        "start": 1793993679.4,
+        "end": 1793993682.29,
+        "cmd": "click-text Resume Game"
+      },
+      {
+        "source_line": 363,
+        "t": 1793993685.707146,
+        "type": "call",
+        "start": 1793993685.66,
+        "end": 1793993685.71,
+        "cmd": "look"
+      },
+      {
+        "source_line": 364,
+        "t": 1793993700.55,
+        "type": "activity",
+        "what": "go",
+        "target": "go:520:319",
+        "start": 1793993695.669652,
+        "end": 1793993700.5499341,
+        "moved": true
+      },
+      {
+        "source_line": 365,
+        "t": 1793993704.1,
+        "type": "nav",
+        "what": "pos",
+        "scene": "Farm",
+        "x": 16.92,
+        "z": -24.23,
+        "fresh": true,
+        "secs": 1.5
+      },
+      {
+        "source_line": 366,
+        "t": 1793993706.29,
+        "type": "game",
+        "line": "[D209 6:38:02 PM] [TRIGGER] OnEnterBuilding House"
+      },
+      {
+        "source_line": 367,
+        "t": 1793993706.3034759,
+        "type": "call",
+        "start": 1793993693.09,
+        "end": 1793993706.3,
+        "cmd": "do go:520:319"
+      },
+      {
+        "source_line": 368,
+        "t": 1793993706.586997,
+        "type": "call",
+        "start": 1793993706.55,
+        "end": 1793993706.59,
+        "cmd": "look"
+      },
+      {
+        "source_line": 369,
+        "t": 1793993716.53,
+        "type": "activity",
+        "what": "go",
+        "target": "go:1260:400",
+        "start": 1793993715.816291,
+        "end": 1793993716.528942,
+        "moved": true
+      },
+      {
+        "source_line": 370,
+        "t": 1793993718.786433,
+        "type": "call",
+        "start": 1793993712.9,
+        "end": 1793993718.79,
+        "cmd": "do go:1260:400"
+      },
+      {
+        "source_line": 371,
+        "t": 1793993721.89361,
+        "type": "call",
+        "start": 1793993721.84,
+        "end": 1793993721.89,
+        "cmd": "look"
+      },
+      {
+        "source_line": 372,
+        "t": 1793993735.14,
+        "type": "activity",
+        "what": "go",
+        "target": "go:1110:460",
+        "start": 1793993732.872364,
+        "end": 1793993735.138817,
+        "moved": true
+      },
+      {
+        "source_line": 373,
+        "t": 1793993737.472654,
+        "type": "call",
+        "start": 1793993730.54,
+        "end": 1793993737.47,
+        "cmd": "do go:1110:460"
+      },
+      {
+        "source_line": 374,
+        "t": 1793993740.597423,
+        "type": "call",
+        "start": 1793993740.55,
+        "end": 1793993740.6,
+        "cmd": "look"
+      },
+      {
+        "source_line": 375,
+        "t": 1793993750.5082319,
+        "type": "call",
+        "start": 1793993747.76,
+        "end": 1793993750.51,
+        "cmd": "do space"
+      },
+      {
+        "source_line": 376,
+        "t": 1793993775.54,
+        "type": "seek",
+        "what": "trace",
+        "msg": "map: no direction"
+      },
+      {
+        "source_line": 377,
+        "t": 1793993775.54,
+        "type": "seek",
+        "what": "tara",
+        "tier": "unknown",
+        "near": null,
+        "pin": [
+          655,
+          614
+        ],
+        "target": "Bed"
+      },
+      {
+        "source_line": 378,
+        "t": 1793993775.79,
+        "type": "vision",
+        "what": "ask",
+        "kind": "click",
+        "question": "Tara (frame centre) must reach Tara's pink bed sleep bubble. The search tried: map: no direction. What blocks it? Give the click point of Tara's pink bed sleep bubble, or of free ground toward it."
+      },
+      {
+        "source_line": 379,
+        "t": 1793993779.34,
+        "type": "action",
+        "name": "sleep.do",
+        "args": "",
+        "start": 1793993764.3,
+        "end": 1793993779.34,
+        "depth": 0,
+        "ok": false,
+        "why": "NeedVision: NEED_VISION click: Tara (frame centre) must reach Tara's pink bed sleep bubble. The search tried: map: no direction. What blocks it? Give the click point of Tara's pink bed sleep bubble, or of free ground toward it.\n  look: /Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf sleep answer=walk:<cell>   (one grid cell on the target bed itself; or click='none' when none is left)\n  answer: ./wf sleep answer=walk:<cell>",
+        "before": "overlay: Game Paused / Game progress is saved automatically while / you play.",
+        "after": "overlay"
+      },
+      {
+        "source_line": 380,
+        "t": 1793993779.5265431,
+        "type": "call",
+        "start": 1793993763.76,
+        "end": 1793993779.53,
+        "cmd": "sleep"
+      },
+      {
+        "source_line": 381,
+        "t": 1793993782.623887,
+        "type": "call",
+        "start": 1793993782.59,
+        "end": 1793993782.62,
+        "cmd": "look"
+      },
+      {
+        "source_line": 382,
+        "t": 1793993790.4633331,
+        "type": "call",
+        "start": 1793993790.45,
+        "end": 1793993790.46,
+        "cmd": "sleep --help"
+      },
+      {
+        "source_line": 383,
+        "t": 1793993819.64,
+        "type": "click",
+        "exp": "2b4017951449f613",
+        "gt": "D209 6:52:34 PM",
+        "node": null,
+        "learned": null,
+        "pt": [
+          360,
+          574
+        ],
+        "what": "vision",
+        "events": [],
+        "mode": "overlay",
+        "texts": [],
+        "before": [],
+        "after": [],
+        "moved": false,
+        "frames": [
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213659-360-574-0.jpg",
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213659-360-574-1.jpg",
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213659-360-574-2.jpg"
+        ],
+        "burst_texts": []
+      },
+      {
+        "source_line": 384,
+        "t": 1793993824.75,
+        "type": "seek",
+        "what": "trace",
+        "msg": "map: no direction"
+      },
+      {
+        "source_line": 385,
+        "t": 1793993824.75,
+        "type": "seek",
+        "what": "tara",
+        "tier": "unknown",
+        "near": null,
+        "pin": [
+          655,
+          614
+        ],
+        "target": "Bed"
+      },
+      {
+        "source_line": 386,
+        "t": 1793993824.98,
+        "type": "vision",
+        "what": "ask",
+        "kind": "click",
+        "question": "Tara (frame centre) must reach Tara's pink bed sleep bubble. The search tried: map: no direction. What blocks it? Give the click point of Tara's pink bed sleep bubble, or of free ground toward it."
+      },
+      {
+        "source_line": 387,
+        "t": 1793993828.49,
+        "type": "action",
+        "name": "sleep.do",
+        "args": "answer='walk:E9'",
+        "start": 1793993814.25,
+        "end": 1793993828.49,
+        "depth": 0,
+        "ok": false,
+        "why": "NeedVision: NEED_VISION click: Tara (frame centre) must reach Tara's pink bed sleep bubble. The search tried: map: no direction. What blocks it? Give the click point of Tara's pink bed sleep bubble, or of free ground toward it.\n  look: /Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf sleep answer=walk:<cell>   (one grid cell on the target bed itself; or click='none' when none is left)\n  answer: ./wf sleep answer=walk:<cell>",
+        "before": "overlay",
+        "after": "overlay"
+      },
+      {
+        "source_line": 388,
+        "t": 1793993828.6893702,
+        "type": "call",
+        "start": 1793993813.71,
+        "end": 1793993828.69,
+        "cmd": "sleep answer=walk:E9"
+      },
+      {
+        "source_line": 389,
+        "t": 1793993847.4,
+        "type": "click",
+        "exp": "32102e7e0769acc3",
+        "gt": "D209 6:53:23 PM",
+        "node": null,
+        "learned": null,
+        "pt": [
+          120,
+          979
+        ],
+        "what": "vision",
+        "events": [],
+        "mode": "overlay",
+        "texts": [],
+        "before": [],
+        "after": [],
+        "moved": false,
+        "frames": [
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213727-120-979-0.jpg",
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213727-120-979-1.jpg",
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213727-120-979-2.jpg"
+        ],
+        "burst_texts": []
+      },
+      {
+        "source_line": 390,
+        "t": 1793993852.55,
+        "type": "seek",
+        "what": "trace",
+        "msg": "map: no direction"
+      },
+      {
+        "source_line": 391,
+        "t": 1793993852.55,
+        "type": "seek",
+        "what": "tara",
+        "tier": "unknown",
+        "near": null,
+        "pin": [
+          655,
+          614
+        ],
+        "target": "Bed"
+      },
+      {
+        "source_line": 392,
+        "t": 1793993852.77,
+        "type": "vision",
+        "what": "ask",
+        "kind": "click",
+        "question": "Tara (frame centre) must reach Tara's pink bed sleep bubble. The search tried: map: no direction. What blocks it? Give the click point of Tara's pink bed sleep bubble, or of free ground toward it."
+      },
+      {
+        "source_line": 393,
+        "t": 1793993856.31,
+        "type": "action",
+        "name": "sleep.do",
+        "args": "answer='walk:B15'",
+        "start": 1793993842.77,
+        "end": 1793993856.31,
+        "depth": 0,
+        "ok": false,
+        "why": "NeedVision: NEED_VISION click: Tara (frame centre) must reach Tara's pink bed sleep bubble. The search tried: map: no direction. What blocks it? Give the click point of Tara's pink bed sleep bubble, or of free ground toward it.\n  look: /Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf sleep answer=walk:<cell>   (one grid cell on the target bed itself; or click='none' when none is left)\n  answer: ./wf sleep answer=walk:<cell>",
+        "before": "overlay",
+        "after": "overlay"
+      },
+      {
+        "source_line": 394,
+        "t": 1793993856.501694,
+        "type": "call",
+        "start": 1793993842.22,
+        "end": 1793993856.5,
+        "cmd": "sleep answer=walk:B15"
+      },
+      {
+        "source_line": 395,
+        "t": 1793993875.31,
+        "type": "click",
+        "exp": "4bec782e34c97312",
+        "gt": "D209 6:56:30 PM",
+        "node": null,
+        "learned": null,
+        "pt": [
+          600,
+          776
+        ],
+        "what": "vision",
+        "events": [],
+        "mode": "overlay",
+        "texts": [],
+        "before": [],
+        "after": [],
+        "moved": false,
+        "frames": [
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213755-600-776-0.jpg",
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213755-600-776-1.jpg",
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213755-600-776-2.jpg"
+        ],
+        "burst_texts": []
+      },
+      {
+        "source_line": 396,
+        "t": 1793993880.49,
+        "type": "seek",
+        "what": "trace",
+        "msg": "map: no direction"
+      },
+      {
+        "source_line": 397,
+        "t": 1793993880.49,
+        "type": "seek",
+        "what": "tara",
+        "tier": "unknown",
+        "near": null,
+        "pin": [
+          655,
+          614
+        ],
+        "target": "Bed"
+      },
+      {
+        "source_line": 398,
+        "t": 1793993880.76,
+        "type": "vision",
+        "what": "ask",
+        "kind": "click",
+        "question": "Tara (frame centre) must reach Tara's pink bed sleep bubble. The search tried: map: no direction. What blocks it? Give the click point of Tara's pink bed sleep bubble, or of free ground toward it."
+      },
+      {
+        "source_line": 399,
+        "t": 1793993884.32,
+        "type": "action",
+        "name": "sleep.do",
+        "args": "answer='walk:H12'",
+        "start": 1793993868.99,
+        "end": 1793993884.32,
+        "depth": 0,
+        "ok": false,
+        "why": "NeedVision: NEED_VISION click: Tara (frame centre) must reach Tara's pink bed sleep bubble. The search tried: map: no direction. What blocks it? Give the click point of Tara's pink bed sleep bubble, or of free ground toward it.\n  look: /Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/.shots/ask_frame.png (full size 1920x1080, grid columns A-X x rows 1-16, magenta circle = Tara)\n  answer: ./wf sleep answer=walk:<cell>   (one grid cell on the target bed itself; or click='none' when none is left)\n  answer: ./wf sleep answer=walk:<cell>",
+        "before": "overlay",
+        "after": "overlay"
+      },
+      {
+        "source_line": 400,
+        "t": 1793993884.5171,
+        "type": "call",
+        "start": 1793993868.45,
+        "end": 1793993884.52,
+        "cmd": "sleep answer=walk:H12"
+      },
+      {
+        "source_line": 401,
+        "t": 1793993899.510941,
+        "type": "call",
+        "start": 1793993894.98,
+        "end": 1793993899.51,
+        "cmd": "pause"
+      }
+    ],
+    "card_experience": {
+      "id": "811d7ee4cf7903c3",
+      "goal": {
+        "name": null,
+        "params": [],
+        "target": null,
+        "row": null,
+        "step": null
+      },
+      "before": {
+        "screen": "gameplay",
+        "affordances": [
+          [
+            "plant",
+            1068,
+            540,
+            false,
+            false,
+            false
+          ],
+          [
+            "plant_growing",
+            852,
+            540,
+            false,
+            false,
+            true
+          ]
+        ],
+        "state": [
+          [
+            "game_time",
+            "D209 6:13:24 PM"
+          ],
+          [
+            "kind",
+            "gameplay"
+          ],
+          [
+            "texts",
+            []
+          ]
+        ]
+      },
+      "prediction": {
+        "events": [],
+        "card": null,
+        "log": null,
+        "moved": null,
+        "arrive": null,
+        "delta": []
+      },
+      "action": {
+        "kind": "space",
+        "what": null,
+        "pt": null,
+        "arg": null,
+        "context": [
+          [
+            "turn_id",
+            43
+          ],
+          [
+            "primitive",
+            "space"
+          ]
+        ]
+      },
+      "evidence": {
+        "lines": [
+          "[D209 6:14:20 PM] > plant_growing me=Player target=GardenBed(Clone) at (6.39, 0.10, -63.11)"
+        ],
+        "events": [
+          "plant_growing"
+        ],
+        "at": [
+          6.39,
+          -63.11
+        ],
+        "node": null,
+        "mode": "card",
+        "texts": [
+          "Tulip",
+          "A cup-shaped flower that",
+          "grows in Spring. Use it as a",
+          "crafting ingredient or sell it",
+          "to Violet.",
+          "4 days remaining",
+          "Makes 4"
+        ],
+        "burst_texts": [],
+        "after": [],
+        "moved": true
+      },
+      "verdict": {
+        "value": "unknown",
+        "checks": []
+      },
+      "discrepancy": null,
+      "artifacts": {
+        "frames": [
+          "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-7b43c13d0ab04dec98a18fbac763fc47.jpg"
+        ],
+        "img0": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/turn-bc9605dbc03944469077971fa10cd5b1.jpg",
+        "run_dir": null,
+        "log_mark": 759506,
+        "t": 1793993552.568555,
+        "turn_id": 43
+      }
+    },
+    "wrong_bed_experiences": [
+      {
+        "id": "2b4017951449f613",
+        "goal": {
+          "name": null,
+          "params": [],
+          "target": null,
+          "row": null,
+          "step": null
+        },
+        "before": {
+          "screen": null,
+          "affordances": [],
+          "state": []
+        },
+        "prediction": {
+          "events": [],
+          "card": null,
+          "log": null,
+          "moved": null,
+          "arrive": null,
+          "delta": []
+        },
+        "action": {
+          "kind": "click",
+          "what": "vision",
+          "pt": [
+            360,
+            574
+          ],
+          "arg": null,
+          "context": [
+            [
+              "answer",
+              "walk:E9"
+            ],
+            [
+              "goal",
+              "sleep"
+            ]
+          ]
+        },
+        "evidence": {
+          "lines": [
+            "[D209 6:52:34 PM] [SHELL] OnApplicationFocus False",
+            "[D209 6:52:34 PM] [SHELL] OnApplicationPaused True"
+          ],
+          "events": [],
+          "at": null,
+          "node": null,
+          "mode": "overlay",
+          "texts": [],
+          "burst_texts": [],
+          "after": [],
+          "moved": false
+        },
+        "verdict": {
+          "value": "unknown",
+          "checks": []
+        },
+        "discrepancy": null,
+        "artifacts": {
+          "frames": [
+            "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213659-360-574-0.jpg",
+            "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213659-360-574-1.jpg",
+            "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213659-360-574-2.jpg"
+          ],
+          "img0": null,
+          "run_dir": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden",
+          "log_mark": 770106,
+          "t": 1793993819.642,
+          "turn_id": null
+        }
+      },
+      {
+        "id": "32102e7e0769acc3",
+        "goal": {
+          "name": null,
+          "params": [],
+          "target": null,
+          "row": null,
+          "step": null
+        },
+        "before": {
+          "screen": null,
+          "affordances": [],
+          "state": []
+        },
+        "prediction": {
+          "events": [],
+          "card": null,
+          "log": null,
+          "moved": null,
+          "arrive": null,
+          "delta": []
+        },
+        "action": {
+          "kind": "click",
+          "what": "vision",
+          "pt": [
+            120,
+            979
+          ],
+          "arg": null,
+          "context": [
+            [
+              "answer",
+              "walk:B15"
+            ],
+            [
+              "goal",
+              "sleep"
+            ]
+          ]
+        },
+        "evidence": {
+          "lines": [
+            "[D209 6:53:23 PM] [SHELL] OnApplicationPaused True"
+          ],
+          "events": [],
+          "at": null,
+          "node": null,
+          "mode": "overlay",
+          "texts": [],
+          "burst_texts": [],
+          "after": [],
+          "moved": false
+        },
+        "verdict": {
+          "value": "unknown",
+          "checks": []
+        },
+        "discrepancy": null,
+        "artifacts": {
+          "frames": [
+            "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213727-120-979-0.jpg",
+            "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213727-120-979-1.jpg",
+            "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213727-120-979-2.jpg"
+          ],
+          "img0": null,
+          "run_dir": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden",
+          "log_mark": 770459,
+          "t": 1793993847.398,
+          "turn_id": null
+        }
+      },
+      {
+        "id": "4bec782e34c97312",
+        "goal": {
+          "name": null,
+          "params": [],
+          "target": null,
+          "row": null,
+          "step": null
+        },
+        "before": {
+          "screen": null,
+          "affordances": [],
+          "state": []
+        },
+        "prediction": {
+          "events": [],
+          "card": null,
+          "log": null,
+          "moved": null,
+          "arrive": null,
+          "delta": []
+        },
+        "action": {
+          "kind": "click",
+          "what": "vision",
+          "pt": [
+            600,
+            776
+          ],
+          "arg": null,
+          "context": [
+            [
+              "answer",
+              "walk:H12"
+            ],
+            [
+              "goal",
+              "sleep"
+            ]
+          ]
+        },
+        "evidence": {
+          "lines": [
+            "[D209 6:56:29 PM] [SHELL] OnApplicationFocus False",
+            "[D209 6:56:29 PM] [SAVE] SaveBackgroundAsync beginning"
+          ],
+          "events": [],
+          "at": null,
+          "node": null,
+          "mode": "overlay",
+          "texts": [],
+          "burst_texts": [],
+          "after": [],
+          "moved": false
+        },
+        "verdict": {
+          "value": "unknown",
+          "checks": []
+        },
+        "discrepancy": null,
+        "artifacts": {
+          "frames": [
+            "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213755-600-776-0.jpg",
+            "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213755-600-776-1.jpg",
+            "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213755-600-776-2.jpg"
+          ],
+          "img0": null,
+          "run_dir": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden",
+          "log_mark": 770710,
+          "t": 1793993875.309,
+          "turn_id": null
+        }
+      }
+    ],
+    "historical_surprise": "No universal surprise row accompanied these legacy sleep clicks; preserve failure, do not repair source log.",
+    "preserved_frame": {
+      "path": "tools/fixtures/play/legacy-bed-last-ask.png",
+      "source": "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/.shots/ask_frame.png",
+      "scope": "Last surviving sleep ask frame; HUD 18:50. Exact association with each earlier click unavailable. Full-scale model vision shows Tara beside purple bed; pink west bed off-frame."
+    },
+    "missing_frame_paths": [
+      "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213659-360-574-0.jpg",
+      "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213659-360-574-1.jpg",
+      "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213659-360-574-2.jpg",
+      "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213727-120-979-0.jpg",
+      "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213727-120-979-1.jpg",
+      "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213727-120-979-2.jpg",
+      "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213755-600-776-0.jpg",
+      "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213755-600-776-1.jpg",
+      "/Users/serg/w/.worktrees/llm-game-agent-model-owned-loop/runs/20261106-2027-model-owned-south-garden/clicks/213755-600-776-2.jpg"
+    ]
+  },
+  "success": {
+    "status": "incomplete",
+    "missing": "Live west-bed graph/vector correction with source frame, sleep interaction/confirmation and sleep_transition not captured yet.",
+    "turns": []
+  }
+}

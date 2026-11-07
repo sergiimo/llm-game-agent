@@ -185,8 +185,8 @@ def burst_texts(imgs):
 
 
 # ---- objects -------------------------------------------------------------------------------------------------
-def scan():
-    return affordances.scan()
+def scan(image=None):
+    return affordances.scan() if image is None else affordances.scan(image)
 
 
 def see(kind, tried=()):

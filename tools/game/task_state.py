@@ -8,9 +8,20 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from collections.abc import Mapping
+from runtime.timing import measure
 
+_STATE_RECORDS = ()
 
 def freeze(value):
+    kind = type(value)
+    if kind in (str, int, float, bool, type(None)):
+        return value
+    if kind is dict or kind is MappingProxyType:
+        return MappingProxyType({k: freeze(v) for k, v in value.items()})
+    if kind is list or kind is tuple:
+        return tuple(freeze(v) for v in value)
+    if isinstance(value, _STATE_RECORDS):
+        return MappingProxyType({f.name: freeze(getattr(value, f.name)) for f in dataclasses.fields(value)})
     if isinstance(value, Mapping):
         return MappingProxyType({k: freeze(v) for k, v in value.items()})
     if isinstance(value, (list, tuple)):
@@ -19,6 +30,13 @@ def freeze(value):
 
 
 def thaw(value):
+    kind = type(value)
+    if kind in (str, int, float, bool, type(None)):
+        return value
+    if kind is dict or kind is MappingProxyType:
+        return {k: thaw(v) for k, v in value.items()}
+    if kind is list or kind is tuple:
+        return [thaw(v) for v in value]
     if dataclasses.is_dataclass(value):
         return {f.name: thaw(getattr(value, f.name)) for f in dataclasses.fields(value)}
     if isinstance(value, Mapping):
@@ -26,6 +44,15 @@ def thaw(value):
     if isinstance(value, (list, tuple)):
         return [thaw(v) for v in value]
     return value
+
+
+def json_record(value):
+    """Expose only record/container edges; the JSON C encoder traverses ordinary evidence scalars."""
+    if dataclasses.is_dataclass(value):
+        return {f.name: getattr(value, f.name) for f in dataclasses.fields(value)}
+    if isinstance(value, Mapping):
+        return dict(value)
+    raise TypeError(f'Object of type {type(value).__name__} is not JSON serializable')
 
 
 @dataclass
@@ -37,6 +64,8 @@ class Intent:
     before: dict = field(default_factory=dict)
     expects: dict = field(default_factory=dict)
     experience: dict = None  # write-ahead outcome: replay integration without recapturing
+    provenance: dict = field(default_factory=dict)  # originating boundary/adapter/preparation; legacy missing = unknown
+    journaled: bool = False  # canonical intent append completed; false is safe and repaired on recovery
 
 
 @dataclass
@@ -60,6 +89,7 @@ class Subgoal:
     parent_interaction: Interaction = None
     evidence_refs: list = field(default_factory=list)
     result: dict = field(default_factory=dict)
+    started_turn: int = None  # root-relative version boundary; older saved children have unknown attribution
 
 
 def interaction(data):
@@ -89,9 +119,15 @@ class TaskState:
     current_turn: dict = None
     pending_intent: Intent = None  # administrative input, independent of an object interaction
     stack: list[Subgoal] = field(default_factory=list)
+    evidence_refs: list = field(default_factory=list)
+    history_schema: int = 2
 
     def to_dict(self):
         return thaw(self)
+
+    def snapshot(self, **overrides):
+        """Complete immutable guard/policy view in one traversal, without an intermediate mutable copy."""
+        return freeze({f.name: getattr(self, f.name) for f in dataclasses.fields(self)} | overrides)
 
     def finish_if_accounted(self):
         """Complete accounting, not successful work: blocked targets remain explicitly unresolved."""
@@ -103,12 +139,16 @@ class TaskState:
     @classmethod
     def from_dict(cls, data):
         data = dict(data)
+        data.setdefault('history_schema', 1)  # pre-compact persisted tasks embedded complete outcome bodies
         if data.get('pending_intent'):
             data['pending_intent'] = Intent(**data['pending_intent'])
         data['active'] = interaction(data.get('active'))
         data['stack'] = [Subgoal(**dict(row, parent_interaction=interaction(row.get('parent_interaction'))))
                          for row in data.get('stack', [])]
         return cls(**data)
+
+
+_STATE_RECORDS = (Intent, Interaction, Subgoal, TaskState)
 
 
 class TaskStore:
@@ -133,8 +173,18 @@ class TaskStore:
         return task
 
     def load(self):
-        with open(self.path) as f:
+        with measure('task.load'), open(self.path) as f:
             return TaskState.from_dict(json.load(f))
+
+    def compact(self):
+        """Atomically migrate reconstructible inline history to journal references once."""
+        from . import history
+        with self.locked():
+            task = self.load()
+            changed = history.compact(task, os.path.join(os.path.dirname(self.path), 'log.jsonl'))
+            if changed:
+                self.save(task)
+            return changed
 
     def save(self, task):
         """Caller holds locked() when reading/modifying a task. A crash leaves the old or new JSON."""
@@ -143,7 +193,10 @@ class TaskStore:
         fd, tmp = tempfile.mkstemp(prefix='.task-', suffix='.json', dir=directory)
         try:
             with os.fdopen(fd, 'w') as f:
-                json.dump(task.to_dict(), f, sort_keys=True)
+                with measure('task.serialize'):
+                    # One-shot encoding uses the JSON C encoder. Streaming dump emits a write for nearly
+                    # every historical scalar and makes a large long-running task miss the RPC deadline.
+                    f.write(json.dumps(task, default=json_record, sort_keys=True))
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp, self.path)

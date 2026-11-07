@@ -14,6 +14,14 @@ Legacy `do`, `py`, `call`, `sleep`, `goto`, `advance`, and route aliases return 
 The model reads screen/card, visible affordances, graph clues with their source/time, active transaction, coverage,
 last outcome, surprise, interrupts, recommendation and allowed decisions. Accept obvious recommendations promptly.
 
+**Long-distance navigation (user rule):** first issue canonical guarded
+`{kind:"key",label:"m",expects:{mode:"map"}}`, inspect the full-scale map and learn pin/landmarks/road connections
+with source-frame rationale/evidence references before selecting a route. Close it explicitly before world input.
+Visible-road-only travel is local approach or fallback after a correctly issued request/result proves the map
+unavailable/insufficient; record why. A refusal is not unavailability. The model decides routes and each map action;
+Python does not infer a distance threshold or schedule navigation. See the navigation action doc for learning and
+provenance. A HUD map icon or pin-colored scenery alone cannot establish the full paper-map modal.
+
 Continue with the exact returned turn ID; each command is its own tool call:
 
 ```sh

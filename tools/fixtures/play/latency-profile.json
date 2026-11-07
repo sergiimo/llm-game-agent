@@ -1,0 +1,1018 @@
+{
+  "status": "final native timing deferred at parent instruction; final offline replay verified",
+  "root_cause": [
+    "full history copied for metadata-only routing and interrupts",
+    "multiple thaw/freeze traversals of complete evidence",
+    "streaming task JSON scalar write amplification",
+    "quadratic client response concatenation",
+    "post-send failures previously retried uncertain requests"
+  ],
+  "cached_response": {
+    "bytes": 11263117,
+    "sha256": "20fae4ec944bd1a18d66cdca25b056af9a25bcd904d6d3edad1d2a334e15ecad",
+    "after_identical": true
+  },
+  "offline_final": {
+    "source_turn": 190,
+    "next_turn": 191,
+    "source_bytes": 11263117,
+    "output_bytes": 11339634,
+    "cached_seconds": 0.846,
+    "metadata_read_seconds": 2.988,
+    "summary_seconds": 0.11,
+    "input_count": 0
+  },
+  "timings": {
+    "cached_before": [
+      {
+        "t": 1794015517.7240472,
+        "pid": 45156,
+        "phase": "client.connect",
+        "seconds": 0.000147,
+        "status": "error",
+        "command": "play"
+      },
+      {
+        "t": 1794015518.0845,
+        "pid": 45156,
+        "phase": "client.connect",
+        "seconds": 7.6e-05,
+        "status": "error",
+        "command": "play"
+      },
+      {
+        "t": 1794015518.435078,
+        "pid": 45156,
+        "phase": "client.connect",
+        "seconds": 5.5e-05,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794015518.435513,
+        "pid": 45156,
+        "phase": "client.send",
+        "seconds": 5.5e-05,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794015521.9487271,
+        "pid": 45164,
+        "phase": "task.load",
+        "seconds": 0.740028,
+        "status": "ok"
+      },
+      {
+        "t": 1794015528.121274,
+        "pid": 45164,
+        "phase": "task.load",
+        "seconds": 0.569585,
+        "status": "ok"
+      },
+      {
+        "t": 1794015528.751329,
+        "pid": 45164,
+        "phase": "task.load",
+        "seconds": 0.56909,
+        "status": "ok"
+      },
+      {
+        "t": 1794015533.847637,
+        "pid": 45164,
+        "phase": "server.dispatch",
+        "seconds": 13.3593,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794015535.14451,
+        "pid": 45164,
+        "phase": "server.encode",
+        "seconds": 0.10781,
+        "status": "ok",
+        "bytes": 11263117
+      },
+      {
+        "t": 1794015540.699908,
+        "pid": 45164,
+        "phase": "server.send",
+        "seconds": 5.541625,
+        "status": "ok",
+        "bytes": 12948753
+      },
+      {
+        "t": 1794015540.718007,
+        "pid": 45156,
+        "phase": "client.receive",
+        "seconds": 22.281973,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794015540.845957,
+        "pid": 45156,
+        "phase": "client.decode",
+        "seconds": 0.127282,
+        "status": "ok",
+        "bytes": 12948753
+      },
+      {
+        "t": 1794015540.8616168,
+        "pid": 45156,
+        "phase": "client.output",
+        "seconds": 0.014718,
+        "status": "ok",
+        "bytes": 11263117
+      }
+    ],
+    "cached_initial_fix": [
+      {
+        "t": 1794015749.810797,
+        "pid": 45924,
+        "phase": "client.connect",
+        "seconds": 0.000294,
+        "status": "error",
+        "command": "play"
+      },
+      {
+        "t": 1794015750.168131,
+        "pid": 45924,
+        "phase": "client.connect",
+        "seconds": 9.4e-05,
+        "status": "error",
+        "command": "play"
+      },
+      {
+        "t": 1794015750.518433,
+        "pid": 45924,
+        "phase": "client.connect",
+        "seconds": 6.4e-05,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794015750.51894,
+        "pid": 45924,
+        "phase": "client.send",
+        "seconds": 5.8e-05,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794015753.21957,
+        "pid": 45931,
+        "phase": "task.load",
+        "seconds": 0.748603,
+        "status": "ok"
+      },
+      {
+        "t": 1794015753.9383218,
+        "pid": 45931,
+        "phase": "task.load",
+        "seconds": 0.717263,
+        "status": "ok"
+      },
+      {
+        "t": 1794015756.779109,
+        "pid": 45931,
+        "phase": "server.dispatch",
+        "seconds": 4.726201,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794015758.182312,
+        "pid": 45931,
+        "phase": "server.encode",
+        "seconds": 0.075964,
+        "status": "ok",
+        "bytes": 11263117
+      },
+      {
+        "t": 1794015758.2674718,
+        "pid": 45931,
+        "phase": "server.send",
+        "seconds": 0.084762,
+        "status": "ok",
+        "bytes": 12948753
+      },
+      {
+        "t": 1794015758.267584,
+        "pid": 45924,
+        "phase": "client.receive",
+        "seconds": 7.748384,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794015758.381044,
+        "pid": 45924,
+        "phase": "client.decode",
+        "seconds": 0.106796,
+        "status": "ok",
+        "bytes": 12948753
+      },
+      {
+        "t": 1794015758.3959942,
+        "pid": 45924,
+        "phase": "client.output",
+        "seconds": 0.014224,
+        "status": "ok",
+        "bytes": 11263117
+      }
+    ],
+    "read190_intermediate": [
+      {
+        "t": 1794015797.984171,
+        "pid": 46071,
+        "phase": "client.connect",
+        "seconds": 0.000107,
+        "status": "error",
+        "command": "status"
+      },
+      {
+        "t": 1794015798.350167,
+        "pid": 46071,
+        "phase": "client.connect",
+        "seconds": 0.000127,
+        "status": "error",
+        "command": "status"
+      },
+      {
+        "t": 1794015798.682812,
+        "pid": 46071,
+        "phase": "client.connect",
+        "seconds": 6.7e-05,
+        "status": "ok",
+        "command": "status"
+      },
+      {
+        "t": 1794015798.683233,
+        "pid": 46071,
+        "phase": "client.send",
+        "seconds": 6.6e-05,
+        "status": "ok",
+        "command": "status"
+      },
+      {
+        "t": 1794015800.487759,
+        "pid": 46086,
+        "phase": "server.dispatch",
+        "seconds": 0.259579,
+        "status": "ok",
+        "command": "status"
+      },
+      {
+        "t": 1794015800.488564,
+        "pid": 46086,
+        "phase": "server.encode",
+        "seconds": 2.3e-05,
+        "status": "ok",
+        "bytes": 232
+      },
+      {
+        "t": 1794015800.489345,
+        "pid": 46086,
+        "phase": "server.send",
+        "seconds": 0.000101,
+        "status": "ok",
+        "bytes": 298
+      },
+      {
+        "t": 1794015800.489451,
+        "pid": 46071,
+        "phase": "client.receive",
+        "seconds": 1.805816,
+        "status": "ok",
+        "command": "status"
+      },
+      {
+        "t": 1794015800.490093,
+        "pid": 46071,
+        "phase": "client.decode",
+        "seconds": 0.000145,
+        "status": "ok",
+        "bytes": 298
+      },
+      {
+        "t": 1794015800.49037,
+        "pid": 46071,
+        "phase": "client.output",
+        "seconds": 2.2e-05,
+        "status": "ok",
+        "bytes": 232
+      },
+      {
+        "t": 1794015850.194114,
+        "pid": 46237,
+        "phase": "client.connect",
+        "seconds": 5.3e-05,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794015850.19521,
+        "pid": 46237,
+        "phase": "client.send",
+        "seconds": 8e-05,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794015851.2538922,
+        "pid": 46086,
+        "phase": "task.load",
+        "seconds": 0.639872,
+        "status": "ok"
+      },
+      {
+        "t": 1794015851.9440799,
+        "pid": 46086,
+        "phase": "task.load",
+        "seconds": 0.687321,
+        "status": "ok"
+      },
+      {
+        "t": 1794015854.300854,
+        "pid": 46086,
+        "phase": "observe.grab",
+        "seconds": 0.187728,
+        "status": "ok"
+      },
+      {
+        "t": 1794015855.781184,
+        "pid": 46086,
+        "phase": "observe.perception",
+        "seconds": 1.446861,
+        "status": "ok"
+      },
+      {
+        "t": 1794015860.081878,
+        "pid": 46086,
+        "phase": "task.load",
+        "seconds": 0.62565,
+        "status": "ok"
+      },
+      {
+        "t": 1794015860.145857,
+        "pid": 46086,
+        "phase": "observe.clues",
+        "seconds": 4.364073,
+        "status": "ok"
+      },
+      {
+        "t": 1794015872.579272,
+        "pid": 46086,
+        "phase": "task.serialize",
+        "seconds": 6.757037,
+        "status": "ok"
+      },
+      {
+        "t": 1794015873.582876,
+        "pid": 46086,
+        "phase": "observe.grab",
+        "seconds": 0.086879,
+        "status": "ok"
+      },
+      {
+        "t": 1794015874.048119,
+        "pid": 46086,
+        "phase": "observe.perception",
+        "seconds": 0.444241,
+        "status": "ok"
+      },
+      {
+        "t": 1794015874.950848,
+        "pid": 46086,
+        "phase": "task.load",
+        "seconds": 0.652232,
+        "status": "ok"
+      },
+      {
+        "t": 1794015875.032518,
+        "pid": 46086,
+        "phase": "observe.clues",
+        "seconds": 0.983698,
+        "status": "ok"
+      },
+      {
+        "t": 1794015875.1959429,
+        "pid": 46237,
+        "phase": "client.receive",
+        "seconds": 25.000392,
+        "status": "error",
+        "command": "play"
+      },
+      {
+        "t": 1794015881.5184808,
+        "pid": 46086,
+        "phase": "task.serialize",
+        "seconds": 6.481924,
+        "status": "ok"
+      },
+      {
+        "t": 1794015884.156656,
+        "pid": 46086,
+        "phase": "task.serialize",
+        "seconds": 2.60739,
+        "status": "ok"
+      },
+      {
+        "t": 1794015884.2518148,
+        "pid": 46086,
+        "phase": "observe.grab",
+        "seconds": 0.088568,
+        "status": "ok"
+      },
+      {
+        "t": 1794015885.148042,
+        "pid": 46086,
+        "phase": "observe.perception",
+        "seconds": 0.869885,
+        "status": "ok"
+      },
+      {
+        "t": 1794015886.567227,
+        "pid": 46086,
+        "phase": "task.load",
+        "seconds": 1.082092,
+        "status": "ok"
+      },
+      {
+        "t": 1794015886.605986,
+        "pid": 46086,
+        "phase": "observe.clues",
+        "seconds": 1.45725,
+        "status": "ok"
+      },
+      {
+        "t": 1794015901.5564768,
+        "pid": 46086,
+        "phase": "task.serialize",
+        "seconds": 7.952168,
+        "status": "ok"
+      },
+      {
+        "t": 1794015903.438355,
+        "pid": 46086,
+        "phase": "server.dispatch",
+        "seconds": 53.242621,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794015904.80283,
+        "pid": 46086,
+        "phase": "server.encode",
+        "seconds": 0.095455,
+        "status": "ok",
+        "bytes": 11339128
+      },
+      {
+        "t": 1794015904.803725,
+        "pid": 46086,
+        "phase": "server.send",
+        "seconds": 6.4e-05,
+        "status": "error",
+        "bytes": 13036172
+      }
+    ],
+    "read191_one_shot": [
+      {
+        "t": 1794016059.233942,
+        "pid": 46912,
+        "phase": "client.connect",
+        "seconds": 0.000181,
+        "status": "error",
+        "command": "status"
+      },
+      {
+        "t": 1794016059.554861,
+        "pid": 46912,
+        "phase": "client.connect",
+        "seconds": 0.000152,
+        "status": "error",
+        "command": "status"
+      },
+      {
+        "t": 1794016059.8833332,
+        "pid": 46912,
+        "phase": "client.connect",
+        "seconds": 0.000138,
+        "status": "ok",
+        "command": "status"
+      },
+      {
+        "t": 1794016059.8840609,
+        "pid": 46912,
+        "phase": "client.send",
+        "seconds": 6.6e-05,
+        "status": "ok",
+        "command": "status"
+      },
+      {
+        "t": 1794016061.93407,
+        "pid": 46919,
+        "phase": "server.dispatch",
+        "seconds": 0.217628,
+        "status": "ok",
+        "command": "status"
+      },
+      {
+        "t": 1794016061.934658,
+        "pid": 46919,
+        "phase": "server.encode",
+        "seconds": 2.1e-05,
+        "status": "ok",
+        "bytes": 232
+      },
+      {
+        "t": 1794016061.935046,
+        "pid": 46919,
+        "phase": "server.send",
+        "seconds": 3.8e-05,
+        "status": "ok",
+        "bytes": 298
+      },
+      {
+        "t": 1794016061.935137,
+        "pid": 46912,
+        "phase": "client.receive",
+        "seconds": 2.050835,
+        "status": "ok",
+        "command": "status"
+      },
+      {
+        "t": 1794016061.935734,
+        "pid": 46912,
+        "phase": "client.decode",
+        "seconds": 0.000109,
+        "status": "ok",
+        "bytes": 298
+      },
+      {
+        "t": 1794016061.93605,
+        "pid": 46912,
+        "phase": "client.output",
+        "seconds": 1.3e-05,
+        "status": "ok",
+        "bytes": 232
+      },
+      {
+        "t": 1794016077.423444,
+        "pid": 46975,
+        "phase": "client.connect",
+        "seconds": 0.000142,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794016077.4242182,
+        "pid": 46975,
+        "phase": "client.send",
+        "seconds": 7.5e-05,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794016078.528426,
+        "pid": 46919,
+        "phase": "task.load",
+        "seconds": 0.665841,
+        "status": "ok"
+      },
+      {
+        "t": 1794016079.110392,
+        "pid": 46919,
+        "phase": "task.load",
+        "seconds": 0.579955,
+        "status": "ok"
+      },
+      {
+        "t": 1794016081.314982,
+        "pid": 46919,
+        "phase": "observe.grab",
+        "seconds": 0.143718,
+        "status": "ok"
+      },
+      {
+        "t": 1794016083.0102332,
+        "pid": 46919,
+        "phase": "observe.perception",
+        "seconds": 1.604252,
+        "status": "ok"
+      },
+      {
+        "t": 1794016087.256237,
+        "pid": 46919,
+        "phase": "task.load",
+        "seconds": 0.647653,
+        "status": "ok"
+      },
+      {
+        "t": 1794016087.363287,
+        "pid": 46919,
+        "phase": "observe.clues",
+        "seconds": 4.351981,
+        "status": "ok"
+      },
+      {
+        "t": 1794016095.102019,
+        "pid": 46919,
+        "phase": "task.serialize",
+        "seconds": 3.548419,
+        "status": "ok"
+      },
+      {
+        "t": 1794016096.130805,
+        "pid": 46919,
+        "phase": "observe.grab",
+        "seconds": 0.065381,
+        "status": "ok"
+      },
+      {
+        "t": 1794016096.598996,
+        "pid": 46919,
+        "phase": "observe.perception",
+        "seconds": 0.435078,
+        "status": "ok"
+      },
+      {
+        "t": 1794016097.535127,
+        "pid": 46919,
+        "phase": "task.load",
+        "seconds": 0.654304,
+        "status": "ok"
+      },
+      {
+        "t": 1794016097.655801,
+        "pid": 46919,
+        "phase": "observe.clues",
+        "seconds": 1.056144,
+        "status": "ok"
+      },
+      {
+        "t": 1794016100.414995,
+        "pid": 46919,
+        "phase": "task.serialize",
+        "seconds": 2.754573,
+        "status": "ok"
+      },
+      {
+        "t": 1794016101.1820831,
+        "pid": 46919,
+        "phase": "task.serialize",
+        "seconds": 0.730381,
+        "status": "ok"
+      },
+      {
+        "t": 1794016101.260066,
+        "pid": 46919,
+        "phase": "observe.grab",
+        "seconds": 0.075234,
+        "status": "ok"
+      },
+      {
+        "t": 1794016101.7161899,
+        "pid": 46919,
+        "phase": "observe.perception",
+        "seconds": 0.423688,
+        "status": "ok"
+      },
+      {
+        "t": 1794016102.271005,
+        "pid": 46919,
+        "phase": "task.load",
+        "seconds": 0.296267,
+        "status": "ok"
+      },
+      {
+        "t": 1794016102.3116071,
+        "pid": 46919,
+        "phase": "observe.clues",
+        "seconds": 0.594971,
+        "status": "ok"
+      },
+      {
+        "t": 1794016102.424783,
+        "pid": 46975,
+        "phase": "client.receive",
+        "seconds": 25.000151,
+        "status": "error",
+        "command": "play"
+      },
+      {
+        "t": 1794016111.609764,
+        "pid": 46919,
+        "phase": "task.serialize",
+        "seconds": 2.621775,
+        "status": "ok"
+      },
+      {
+        "t": 1794016112.548599,
+        "pid": 46919,
+        "phase": "server.dispatch",
+        "seconds": 35.124014,
+        "status": "ok",
+        "command": "play"
+      },
+      {
+        "t": 1794016114.060162,
+        "pid": 46919,
+        "phase": "server.encode",
+        "seconds": 0.063813,
+        "status": "ok",
+        "bytes": 11415139
+      },
+      {
+        "t": 1794016114.065608,
+        "pid": 46919,
+        "phase": "server.send",
+        "seconds": 0.000101,
+        "status": "error",
+        "bytes": 13123591
+      }
+    ],
+    "offline_final": [
+      {
+        "t": 1794016471.467903,
+        "pid": 48305,
+        "phase": "task.serialize",
+        "seconds": 0.307864,
+        "status": "ok"
+      },
+      {
+        "t": 1794016471.568117,
+        "pid": 48305,
+        "phase": "task.load",
+        "seconds": 0.092238,
+        "status": "ok"
+      },
+      {
+        "t": 1794016471.660476,
+        "pid": 48305,
+        "phase": "task.load",
+        "seconds": 0.092094,
+        "status": "ok"
+      },
+      {
+        "t": 1794016472.427493,
+        "pid": 48305,
+        "phase": "task.load",
+        "seconds": 0.105232,
+        "status": "ok"
+      },
+      {
+        "t": 1794016472.707075,
+        "pid": 48305,
+        "phase": "task.load",
+        "seconds": 0.279303,
+        "status": "ok"
+      },
+      {
+        "t": 1794016473.47139,
+        "pid": 48305,
+        "phase": "task.serialize",
+        "seconds": 0.395928,
+        "status": "ok"
+      },
+      {
+        "t": 1794016474.114547,
+        "pid": 48305,
+        "phase": "task.serialize",
+        "seconds": 0.635829,
+        "status": "ok"
+      },
+      {
+        "t": 1794016474.230758,
+        "pid": 48305,
+        "phase": "task.serialize",
+        "seconds": 0.108712,
+        "status": "ok"
+      },
+      {
+        "t": 1794016475.283836,
+        "pid": 48305,
+        "phase": "task.serialize",
+        "seconds": 0.457402,
+        "status": "ok"
+      }
+    ]
+  },
+  "native_read_followup": {
+    "status": "final canonical-read guard optimization verified offline; native final deadline pending",
+    "source_run": "runs/20261106-2305-universal-sleep-shop-garden-acceptance",
+    "captured_requests": [
+      {
+        "turn_id": 195,
+        "experience": "01942587c3255d5c",
+        "call_started": 1794030722.24,
+        "outcome_at": 1794030738.126612,
+        "next_clues_at": 1794030749.428679,
+        "client_delivery": "unknown",
+        "committed_once": true
+      },
+      {
+        "turn_id": 200,
+        "experience": "7ff1a829b5c28d8e",
+        "call_started": 1794031374.55,
+        "outcome_at": 1794031400.864039,
+        "runner_seconds": 27.427,
+        "client_delivery": "unknown",
+        "next_turn": 201,
+        "screen": "pause",
+        "committed_once": true,
+        "final_guard_optimization_loaded": false
+      }
+    ],
+    "replay_boundaries": "temporary task store, captured full-size frame, production image perception/clues; screenshot/input ports fake; no game input",
+    "profiled_before": {
+      "source_turn": 197,
+      "next_turn": 198,
+      "read_seconds": 5.840233875031117,
+      "summary_seconds": 0.25889733305666596,
+      "observations": 3,
+      "output_bytes": 11704336,
+      "task_bytes": 23184585,
+      "native_capture": false,
+      "native_input": false
+    },
+    "profiled_same_source_before_direct_encoding": {
+      "source_turn": 200,
+      "next_turn": 201,
+      "read_seconds": 31.534793708007783,
+      "summary_seconds": 1.628065874974709,
+      "observations": 1,
+      "output_bytes": 11856352,
+      "task_bytes": 23490163,
+      "native_capture": false,
+      "native_input": false
+    },
+    "profiled_same_source_after_direct_encoding": {
+      "source_turn": 200,
+      "next_turn": 201,
+      "read_seconds": 19.817013999971095,
+      "summary_seconds": 0.6764487089822069,
+      "observations": 1,
+      "output_bytes": 11856352,
+      "task_bytes": 23490163,
+      "native_capture": false,
+      "native_input": false
+    },
+    "unprofiled_intermediate": {
+      "source_turn": 200,
+      "next_turn": 201,
+      "read_seconds": 18.052843042009044,
+      "cpu_seconds": 11.625295000000001,
+      "profiled": false,
+      "summary_seconds": 0.7053102910285816,
+      "observations": 1,
+      "output_bytes": 11856352,
+      "task_bytes": 23490163,
+      "native_capture": false,
+      "native_input": false
+    },
+    "unprofiled_moved_null_under_parallel_gate_load": {
+      "source_turn": 200,
+      "next_turn": 201,
+      "read_seconds": 23.86480758304242,
+      "cpu_seconds": 11.97035,
+      "profiled": false,
+      "summary_seconds": 1.3318297499790788,
+      "observations": 1,
+      "output_bytes": 11856349,
+      "task_bytes": 23490163,
+      "native_capture": false,
+      "native_input": false
+    },
+    "proven_costs": [
+      "three native observation passes per input-free read",
+      "full Python scalar traversal for each of four atomic saves",
+      "another scalar traversal to encode NEXT",
+      "full input-guard history snapshot for an exact metadata-free observation"
+    ],
+    "safety": [
+      "no automatic resend",
+      "full historical evidence preserved",
+      "atomic persistence and complete response retained",
+      "black/unknown bounded reobservation retained",
+      "restart captures current state",
+      "one-snapshot moved remains null",
+      "financial metadata still guarded"
+    ],
+    "unprofiled_final_guard_optimization": {
+      "source_turn": 200,
+      "next_turn": 201,
+      "read_seconds": 13.729187624994665,
+      "cpu_seconds": 8.476222,
+      "profiled": false,
+      "summary_seconds": 1.8941561670508236,
+      "observations": 1,
+      "output_bytes": 11856349,
+      "task_bytes": 23490163,
+      "native_capture": false,
+      "native_input": false
+    },
+    "final_phase_rows": [
+      {
+        "t": 1794031545.600954,
+        "pid": 97296,
+        "phase": "observe.grab",
+        "seconds": 1.3e-05,
+        "status": "ok"
+      },
+      {
+        "t": 1794031548.386668,
+        "pid": 97296,
+        "phase": "observe.perception",
+        "seconds": 2.75785,
+        "status": "ok"
+      },
+      {
+        "t": 1794031549.3442209,
+        "pid": 97296,
+        "phase": "task.load",
+        "seconds": 0.810902,
+        "status": "ok"
+      },
+      {
+        "t": 1794031549.427509,
+        "pid": 97296,
+        "phase": "observe.clues",
+        "seconds": 0.998147,
+        "status": "ok"
+      },
+      {
+        "t": 1794031550.048287,
+        "pid": 97296,
+        "phase": "task.load",
+        "seconds": 0.617992,
+        "status": "ok"
+      },
+      {
+        "t": 1794031550.8273249,
+        "pid": 97296,
+        "phase": "task.load",
+        "seconds": 0.777215,
+        "status": "ok"
+      },
+      {
+        "t": 1794031550.845376,
+        "pid": 97296,
+        "phase": "observe.grab",
+        "seconds": 8e-06,
+        "status": "ok"
+      },
+      {
+        "t": 1794031551.1858208,
+        "pid": 97296,
+        "phase": "observe.perception",
+        "seconds": 0.317246,
+        "status": "ok"
+      },
+      {
+        "t": 1794031552.2057621,
+        "pid": 97296,
+        "phase": "task.load",
+        "seconds": 0.895386,
+        "status": "ok"
+      },
+      {
+        "t": 1794031552.3022048,
+        "pid": 97296,
+        "phase": "observe.clues",
+        "seconds": 1.083038,
+        "status": "ok"
+      },
+      {
+        "t": 1794031553.3778071,
+        "pid": 97296,
+        "phase": "task.serialize",
+        "seconds": 1.068919,
+        "status": "ok"
+      },
+      {
+        "t": 1794031554.0298922,
+        "pid": 97296,
+        "phase": "task.serialize",
+        "seconds": 0.628497,
+        "status": "ok"
+      },
+      {
+        "t": 1794031554.352513,
+        "pid": 97296,
+        "phase": "task.serialize",
+        "seconds": 0.308259,
+        "status": "ok"
+      },
+      {
+        "t": 1794031562.8606899,
+        "pid": 97296,
+        "phase": "task.serialize",
+        "seconds": 1.076813,
+        "status": "ok"
+      }
+    ]
+  }
+}

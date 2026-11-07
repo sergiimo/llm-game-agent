@@ -21,14 +21,14 @@ class GardenAdapter(GameAdapter):
         return super().prepare(action, observation)
 
     def observe(self):
-        from . import core, observe
+        from . import core, observe, screen
         from PIL import Image
         result = super().observe()
         observe.check_texts(result['screen']['texts'])
         map_pin = getattr(core.WF, 'map_pin', None)
         if map_pin and result['screen']['kind'] == 'gameplay':
             with Image.open(result['frame_path']) as frame:
-                if map_pin(frame):
+                if screen.map_panel(frame) and map_pin(frame):
                     result['screen'] = {'kind': 'map', 'texts': []}
                     result['interrupts'] = [*result.get('interrupts', ()), 'map open: model must resolve it']
         return result

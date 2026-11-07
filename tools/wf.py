@@ -19,6 +19,8 @@ import math
 import os
 import subprocess
 import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from runtime.timing import measure
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -4486,7 +4488,8 @@ def serve():
             moves0 = MOVES[0]
             with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
                 try:
-                    main(argv)
+                    with measure('server.dispatch', command=argv[0] if argv else ''):
+                        main(argv)
                 except SystemExit as e:
                     if isinstance(e.code, str):
                         print(e.code)
@@ -4513,7 +4516,10 @@ def serve():
                     except Exception:
                         pass
             try:
-                conn.sendall(json.dumps({'out': buf.getvalue(), 'code': code}).encode() + b'\n')
+                with measure('server.encode', bytes=buf.tell()):
+                    response = json.dumps({'out': buf.getvalue(), 'code': code}).encode() + b'\n'
+                with measure('server.send', bytes=len(response)):
+                    conn.sendall(response)
             except OSError:
                 pass
 

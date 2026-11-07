@@ -92,6 +92,28 @@ def fields(value, schema, required=()):
     return clean
 
 
+def expectations(value):
+    """Typed public evidence predictions; card is text (or '?'), never a boolean UI-state assertion."""
+    import re
+    def pattern(value):
+        text(value)
+        if value == '?':
+            return value  # existing observation-gap sentinel, not a regular expression
+        try:
+            re.compile(value)
+        except re.error as error:
+            raise ValueError(f'invalid log pattern: {error}') from None
+        return value
+    schema = {'card': optional(text), 'mode': optional(text), 'region': optional(text), 'node': optional(text),
+              'log': optional(pattern), 'moved': optional(boolean),
+              'events': optional(choice(enum('?'), sequence(text))), 'allowed_events': optional(sequence(text)),
+              'destination_position': optional(sequence(number, 2))}
+    try:
+        return {key: item for key, item in fields(value, schema).items() if item is not None}
+    except ValueError as error:
+        raise ValueError(f'expects: {error}') from None
+
+
 def purchase_rule(value):
     _require(isinstance(value, Mapping), 'expected purchase bound object', value)
     if 'item' in value:
@@ -118,11 +140,16 @@ def catalogue_declaration(value):
 def catalogue_observation(value):
     schema = {'item': text, 'category': text, 'available': boolean, 'frame_path': text,
               'evidence_refs': sequence(text)}
-    return fields(value, schema, required=schema)
+    required = tuple(schema)
+    schema.update(source=text, page=text)
+    clean = fields(value, schema, required=required)
+    if ('source' in clean) != ('page' in clean):
+        raise ValueError('catalogue source and page must be supplied together')
+    return clean
 
 
 # Runtime accounting, results, intents, coverage, flowers, clock and budget evidence are never public fields.
-# Catalogue observations/completeness are allowed only in a versioned subgoal push, never root creation.
+# Catalogue observations/completeness enter versioned catalogue decisions or item-trade pushes, never root creation.
 _COMMON = {
     'region': optional(text), 'kind': optional(text), 'node': optional(text), 'target': optional(text),
     'destination': text, 'destination_position': sequence(number, 2), 'marker': optional(text),

@@ -61,12 +61,12 @@ def has_ready(crop):
     return win(105, 35) - max(win(35, 35), win(35, 105)) >= READY_MIN
 
 
-def scan():
+def scan(image=None):
     """Every bubble on screen: kind, point, highlighted, drop sub-icon (frame only)."""
     W = core.WF
     if not hasattr(W, 'find_bubbles'):
         return []
-    img = W.grab()
+    img = image if image is not None else W.grab()
     out = []
     from . import badges, icons
     for b in W.find_bubbles(img):

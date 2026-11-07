@@ -122,6 +122,32 @@ class Turns(unittest.TestCase):
         with self.assertRaises(turn.DecisionRejected):
             self.loop.decide(resumed.turn_id, turn.Decision('accept'))
 
+    def test_restart_repairs_missing_canonical_intent_before_clearing_wal(self):
+        """A crash after the task WAL save but before intent append must not orphan its outcome."""
+        from game import history
+        c = self.loop.context()
+        write = self.loop._log
+        def crash_before_intent(task, turn_id, phase, **data):
+            if phase == 'intent':
+                raise RuntimeError('crash before canonical intent append')
+            return write(task, turn_id, phase, **data)
+        with mock.patch.object(self.loop, '_log', side_effect=crash_before_intent):
+            with self.assertRaises(RuntimeError):
+                self.loop.decide(c.turn_id, turn.Decision('accept'))
+        self.assertIsNotNone(self.store.load().active.pending_intent)
+        self.assertEqual(self.port.inputs, [], 'the crash happened before physical input')
+
+        resumed = turn.TurnLoop(S.TaskStore(self.store.path), self.port, self.policy).context()
+        refs = self.store.load().active.evidence_ids
+        records = history.records(os.path.join(self.tmp.name, 'log.jsonl'), refs)
+        self.assertEqual([row['experience']['id'] for row in records], refs)
+        self.assertIsNotNone(resumed.surprise)
+
+    def test_turn_log_fsyncs_each_canonical_append(self):
+        with mock.patch.object(turn.os, 'fsync') as sync:
+            self.loop._log(self.store.load(), 1, 'intent', intent={'action': {'kind': 'read'}})
+        sync.assert_called()
+
     def test_projection_never_binds_identity_but_late_positioned_event_does(self):
         c = self.loop.context()
         self.assertIsNone(c.transaction['actual_node'])
@@ -243,7 +269,7 @@ class Turns(unittest.TestCase):
         from types import SimpleNamespace
         from game import act, observe
         from game.affordances import Affordance
-        raw = SimpleNamespace(grab=lambda: Image.new('RGB', (1920, 1080)),
+        raw = SimpleNamespace(grab=lambda: Image.new('RGB', (1920, 1080), 'gray'),
                               state=lambda: {'mode': 'overlay', 'text': ['NATE']})
         seen = [Affordance('plant', None, (1080, 536), True, 120),
                 Affordance('plant_growing', None, (864, 540), False, 96)]
@@ -253,6 +279,49 @@ class Turns(unittest.TestCase):
         self.assertEqual(snapshot['screen']['kind'], 'gameplay')
         self.assertEqual(snapshot['screen']['texts'], ['NATE'])  # preserve raw clues, don't erase disagreements
         self.assertEqual(len(snapshot['visible_affordances']), 2)
+
+    def test_production_observation_classifies_and_scans_exact_saved_grab(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act
+        image = Image.new('RGB', (1920, 1080), 'gray')
+        raw = SimpleNamespace(grab=mock.Mock(return_value=image),
+                              state=mock.Mock(side_effect=AssertionError('independent capture')),
+                              classify=mock.Mock(return_value={'mode': 'gameplay', 'text': ['Road']}),
+                              find_bubbles=mock.Mock(return_value=[]))
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name):
+            snapshot = primitives.GameAdapter().observe()
+        self.assertEqual(snapshot['screen'], {'kind': 'gameplay', 'texts': ['Road']})
+        raw.grab.assert_called_once_with()
+        raw.classify.assert_called_once_with(image)
+        raw.find_bubbles.assert_called_once_with(image)
+        with Image.open(snapshot['frame_path']) as saved:
+            self.assertEqual(saved.size, (1920, 1080))
+
+    def test_black_observation_fails_closed_and_never_becomes_visual_movement(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act
+        before_path = os.path.join(self.tmp.name, 'before.jpg')
+        Image.new('RGB', (1920, 1080), 'gray').save(before_path)
+        raw = SimpleNamespace(grab=lambda: Image.new('RGB', (1920, 1080), 'black'),
+                              classify=mock.Mock(return_value={'mode': 'gameplay', 'text': []}),
+                              find_bubbles=mock.Mock(return_value=[]), wait_settle=lambda: None,
+                              log_since=lambda mark: '', _unhash=lambda text: text)
+        adapter = primitives.GameAdapter()
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name):
+            observation = adapter.observe()
+            self.assertEqual(observation['screen']['kind'], 'unknown')
+            self.assertEqual(observation['capture_validity'], 'black')
+            with self.assertRaises(ValueError):
+                adapter.prepare({'kind': 'waypoint', 'point': [1250, 640], 'walkable': True}, observation)
+            before = dict(self.port.snapshot, frame_path=before_path)
+            intent = S.Intent(1, {'kind': 'waypoint'}, 0, 1., before, {'moved': True})
+            outcome = adapter.capture(intent, before, intent.expects)
+            self.assertIsNone(outcome.evidence.moved)
+            self.assertEqual(outcome.verdict.value, 'miss')
+        raw.classify.assert_not_called()
+        raw.find_bubbles.assert_not_called()
 
     def test_unrepresentable_appearance_correction_stays_retryable(self):
         e = primitives.experience(S.Intent(1, {'kind': 'wait'}, 0, 1.), self.port.snapshot, {}, X.Evidence())

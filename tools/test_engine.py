@@ -189,7 +189,8 @@ class FakeGame:
                              'position': {'x': o['pos'][0], 'y': 0.1, 'z': o['pos'][1]},
                              'actorState': {'userState': {'entries': [{'name': k, 'value': v}
                                                                       for k, v in o['save'].items()]}}})
-        return 'fake.sav', {'scenes': [{'sceneName': 'Farm', 'addedObjects': objs, 'updatedObjects': []}],
+        return 'fake.sav', {'currentScene': 'Farm',
+                            'scenes': [{'sceneName': 'Farm', 'addedObjects': objs, 'updatedObjects': []}],
                             'currentPlayerPosition': {'x': 1.5, 'y': 0.1, 'z': -28.5},
                             'gameState': {'time': {'day': 185, 'timeOfDay': {'totalSeconds': 8 * 3600}},
                                           'player': {'inventory': {'items': [{'nameHash': k, 'count': v}
@@ -252,7 +253,7 @@ class FakeGame:
         else:
             self.complete(o, b)
 
-    def scan(self):
+    def scan(self, image=None):
         if self.card:   # a card hides the bubbles (game D184)
             return []
         out = []
@@ -331,9 +332,9 @@ class GeoGame(FakeGame):
             near = _m.dist(o['pos'], self.pos) <= self.SHOW and not o.get('no_bubble')
             o['bubble_pt'] = self._pt(o['pos']) if near else None
 
-    def scan(self):
+    def scan(self, image=None):
         self._place()
-        return super().scan()
+        return super().scan(image)
 
     def run_action(self, a):
         self._place()

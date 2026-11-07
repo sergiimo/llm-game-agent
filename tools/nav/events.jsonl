@@ -539,3 +539,5 @@
 {"t": 1793972203.4, "what": "where", "pin": [581, 500], "near": "farm-garden", "dist": 36}
 {"t": 1793972208.3, "what": "pos", "scene": "Farm", "x": -1.09, "z": -21.05, "fresh": false, "secs": 4.3}
 {"t": 1793993704.1, "what": "pos", "scene": "Farm", "x": 16.92, "z": -24.23, "fresh": true, "secs": 1.5}
+{"t": 1794007044.4, "what": "pos", "scene": "Town", "x": -82.22, "z": 53.01, "fresh": false, "secs": 4.3}
+{"t": 1794010765.0, "what": "pos", "scene": "Town", "x": -1.12, "z": 16.21, "fresh": true, "secs": 1.5}

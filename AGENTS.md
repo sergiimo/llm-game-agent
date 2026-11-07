@@ -58,8 +58,9 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
 0. **Focus mode (user's choice, L47): the game stays in front** (`./wf focus-mode front`; check with `./wf focus-mode`).
    Game time RUNS between calls (Relaxed speed), so batch actions, think briefly, and watch the clock: Tara passes out at
    ~02:00 (L27). `./wf focus-mode background` = old mode: focus only during input, time frozen between calls (L28).
-   **Before any off-game work (coding, docs, long thinking) `./wf pause`** and `./wf resume` after: 1 real minute ≈ 100
-   game minutes, so 10 minutes of coding = a passed-out night (L63). **After 23:00 game time: no optional work**
+   **For off-game work (coding, docs, long thinking), let the game lose focus; unfocus freezes game time. Do not issue
+   `./wf pause` merely for thinking**, because it creates a gameplay modal that later needs a model-owned Resume action.
+   **After 23:00 game time: no optional work**
    (exploring, `wf improve`); finish the step and ask about bed (`improve` stops by itself).
    **Before every new gameplay task, check the exact game clock. If it is later than 19:00, sleep and advance to the
    next day before starting the task** (user standing rule, 2026-11-06; this sleep is pre-approved).
@@ -86,7 +87,8 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
    **stuck retro**: read `retros/stuck-ledger.md` first (did earlier fixes hold?), add a row, save the retro in
    `retros/`; a cause that repeats gets a tool fix. Aim: fewer stuck episodes per trip.
 8. **One game command per tool call** (never `wf stop; wf resume; wf goto` in one call): a rejected call may already
-   have run its first commands. After any rejection: `tail -3 .shots/actions.log`, then `./wf pause` if needed.
+   have run its first commands. After any rejection: `tail -3 .shots/actions.log`, then inspect the current task/turn;
+   let the game lose focus during diagnosis rather than opening the Pause menu.
    wfc refuses an input command chained with another ./wf call.
 9. **Uncertainty → model vision, always (user, D183).** Game functions never fail blind: any `Failed` carries
    `NEED_VISION: look at <png>: <question>` (`core.ask_vision`, frame taken at the innermost failure, before menus

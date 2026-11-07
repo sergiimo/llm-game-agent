@@ -126,7 +126,7 @@ class GardenTurns(unittest.TestCase):
         task_before = store.load().to_dict()
         c = call()
         self.assertEqual(c.surprise.experience_id, '75f4d0fad86a4779')
-        self.assertEqual(set(c.allowed_decisions), {'look', 'correct', 'stop'})
+        self.assertEqual(set(c.allowed_decisions), {'look', 'read', 'correct', 'stop'})
         graph_before = {n.id: dict(n.state) for n in learn.MEMORY['graph'].nodes.values()}
         try:
             c = call(turn_id=c.turn_id, decision=Decision('correct', correction={
@@ -436,7 +436,8 @@ class GardenTurns(unittest.TestCase):
         from PIL import Image
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, 'frame.jpg')
-            Image.new('RGB', (1920, 1080)).save(path)
+            with Image.open(os.path.join(os.path.dirname(__file__), 'fixtures', 'play', 'historical-map-panel.png')) as image:
+                image.save(path)
             raw = mock.Mock()
             raw.map_pin.return_value = (900, 500)
             obs = {'screen': {'kind': 'gameplay', 'texts': []}, 'frame_path': path, 'interrupts': []}

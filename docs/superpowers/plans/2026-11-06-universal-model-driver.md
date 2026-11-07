@@ -180,7 +180,7 @@ existing daemon/run logging.
 
 **Files:**
 - Create: `tools/fixtures/play/enter-house-sleep.json`
-- Create: `tools/fixtures/play/buy-seeds.json`
+- Create: `tools/fixtures/play/sell-grown-buy-seeds.json`
 - Create: `tools/fixtures/play/garden-shop-return.json`
 - Modify: `tools/test_play.py`
 - Modify: `.claude/skills/wylde-play/actions/INDEX.md`
@@ -197,22 +197,23 @@ existing daemon/run logging.
 **Interfaces:**
 - Consumes: Task 1 `play.turn`, durable `Subgoal` stack, universal surprise/correction boundary, atomic primitives,
   alias cutover, and action-skill docs.
-- Produces: deterministic captured replays for sleep/purchase/return; final live evidence that the model alone drives
-  garden → sleep → shop → garden; final verified branch ready for broad review/integration.
+- Produces: deterministic captured replays for sleep/sale/catalogue-purchase/return; final live evidence that the
+  model alone drives garden → sleep → shop → garden; final verified branch ready for broad review/integration.
 
 - [ ] **Step 1: Capture honest RED fixtures from the current run**
 
   Preserve the exact failed sleep sequence: house entry, incorrect waypoint answers, `moved=false`, overlay/card modes,
-  frames, graph state, absent Bed vectors, and missing surprise. Capture a real shop purchase sequence without
-  inventing future evidence. If live evidence is not yet available, leave the purchase fixture explicitly incomplete
-  and obtain it through the bounded run before asserting success.
+  frames, graph state, absent Bed vectors, and missing surprise. Capture the real shop sequence that sells grown
+  Tulips and honey, enumerates every currently available seed type, and buys exactly 10 of each without inventing
+  future evidence. Until the live run supplies it, keep the trade fixture explicitly incomplete and never assert
+  success from synthetic outcomes.
 
 - [ ] **Step 2: Write and verify replay RED tests**
 
   Add:
   `test_enter_house_wrong_bed_route_requires_vision_then_graph_or_vector_correction`,
   `test_sleep_replay_reaches_west_bed_and_proves_sleep_transition`,
-  `test_buy_seed_replay_verifies_item_quantity_inventory_and_money`, and
+  `test_sell_tulip_honey_and_buy_ten_each_available_seed_verifies_signed_inventory_and_money`, and
   `test_garden_shop_return_reopens_constrained_beds_without_false_completion`.
   Run each test before its fixture/behavior is complete and record the expected failure.
 
@@ -223,17 +224,22 @@ existing daemon/run logging.
 
 - [ ] **Step 4: Run one bounded Luna-low live gate**
 
-  Resume the preserved live task. Required path: correct/remap the House→Bed clue after model vision; sleep; reach
-  Dahl General Store during open hours; buy only the authorized seed batch; verify inventory/money; return to
-  GardenSouth; reopen constrained beds; plant and water; continue remaining coverage. Parent watches `log.jsonl` and
+  Resume from preserved evidence in a fresh acceptance run. Required path: correct/remap the House→Bed clue after
+  model vision; sleep; verify merchant capabilities during open hours (offline references point to Violet for Tulip/honey
+  sales); sell grown Tulips and honey within observed stock; enumerate complete seed catalogues at both Violet and
+  Dahl/Lina with merchant/type/availability source frames; deduplicate exact item IDs and buy a total of exactly 10
+  of every unique available seed type
+  subject to the verified sale proceeds/available-money guard; verify every signed inventory/money delta; return to
+  GardenSouth; explicitly constrain/report insufficient funds without overspending or lowering quantities; reopen constrained beds; plant and water; continue remaining coverage. Parent watches `log.jsonl` and
   uses issue → pause → fixture → focused RED/GREEN → same-turn resume for any new gap.
 
 - [ ] **Step 5: Verify pass criteria from the canonical log**
 
   Assert: one intent/experience per selected action; zero/one physical input; no legacy driver calls; every mismatch
   has look/correction/gap/human handling; Bed graph/vector correction has provenance; `sleep_transition` is observed;
-  purchase has matching inventory/money deltas; parent task/subgoal IDs survive; reopened beds are actually planted and
-  watered; all garden targets end covered or explicitly constrained for a still-valid reason.
+  Tulip/honey sales and all ten-per-available-type purchases have matching signed inventory/money deltas; parent
+  task/subgoal IDs survive; reopened beds are actually planted and watered; all garden targets end covered or
+  explicitly constrained for a still-valid reason.
 
 - [ ] **Step 6: Run the final offline gate once at final SHA**
 

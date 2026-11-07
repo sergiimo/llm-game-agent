@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "source_run": null,
+  "scope": {
+    "sales": [
+      "Tulip",
+      "Honey"
+    ],
+    "sale_quantities": "bound to observed stock at root creation; no invented count",
+    "merchants": [
+      "Violet",
+      "Lina"
+    ],
+    "capability": "verify each accepting merchant from live UI",
+    "catalogue": "combined complete available seed catalogues; deduplicate exact item IDs across merchants",
+    "quantity_per_unique_available_seed_type": 10,
+    "max_spend": "available_money",
+    "insufficient_funds": "explicit constrained/human outcome; do not reduce quantities or overspend"
+  },
+  "success": {
+    "status": "incomplete",
+    "missing": "No live shop/catalogue/trade evidence yet. Need both merchant catalogues and signed inventory/money deltas for authorized sales and ten-per-unique-type purchases.",
+    "turns": []
+  }
+}

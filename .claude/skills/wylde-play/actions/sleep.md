@@ -14,7 +14,20 @@ bedtime prompt, and press its exact visible affirmative control in another turn.
 bed interaction and then `sleep_transition`; the latter is the completion proof. Morning/spawn/day-change events
 support the next-day observation. Inspect each dialogue/cutscene before explicitly continuing it.
 
+Bubble expectations use text, for example `expects:{card:"<verified prompt substring>"}`, or `card:"?"` to read
+an unknown prompt as a gap. Boolean `card:true` is invalid. Supply `visible_road:true` only for a freshly verified
+target/road; the bubble does not bypass that guard. Completion still requires the actual `sleep_transition` event.
+A highlighted/ready unknown bubble is not automatically sleep: inspect both icon and owner. In the captured
+D210 turn160 room view, `[728,488]` is a green jar/mug bubble over a white-haired NPC by the fridge, while Tara
+stands beside the purple east bed. It is not proved to be a sleep affordance. Tara's pink west bed is bottom-left.
+Do not replay that point; refresh the full frame and approach/identify the correct bed locally.
+
 No sleep event, wrong bed, blocked approach, wrong modal or missing confirmation is a surprise. Read its captured
 frame and choose the smallest correction. Do not resume a private `nav.reach`, click a guessed bed, or blindly retry.
 Use `complete` only after the captured `sleep_transition`, then `resume` explicitly. The frozen garden crop/node/phase
 must survive. Sleeping itself does not buy seeds, clear seed shortages, plant/water beds, or prove return to the garden.
+
+If the Bed kind has zero samples, `reembed` cannot supply the missing appearance clue. After inspecting a fresh
+frame containing Tara’s pink bed, use one provenance-bearing `appearance` correction with `op:sample`, `kind:Bed`
+and the bed’s bounded full-frame box. Correct an existing graph edge only if its exact relation exists; never
+invent world coordinates from a screen crop. A missing/invisible bed remains a gap until a fresh view supplies it.

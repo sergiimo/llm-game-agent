@@ -40,6 +40,8 @@ def garden_decision(answer):
         return Decision('act', action={'kind': text})
     if text.startswith('press:'):
         return Decision('act', action={'kind': 'press', 'label': text[6:]})
+    if text.startswith('key:'):
+        return Decision('act', action={'kind': 'key', 'label': text[4:]})
     words = shlex.split(text)
     if len(words) >= 2 and words[0] in ('walk', 'target', 'bubble', 'cell'):
         metadata = {k: v.strip().strip('"\'') for k, v in

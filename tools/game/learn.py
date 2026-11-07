@@ -129,7 +129,7 @@ def card_state(lines):
     return st
 
 
-def observe_card(c):
+def observe_card(c, node_id=None):
     """A click whose event has a position and whose texts are a crop card: the object there gets the card's state."""
     g = MEMORY['graph']
     if g is None or not c.at:
@@ -140,7 +140,7 @@ def observe_card(c):
     import re as _re
     from . import world
     kind = next((m.group(1) for m in map(_re.compile(r'target=(\w+)').search, c.lines) if m), None)
-    nid = world.find(g, kind, c.at) if kind else None
+    nid = node_id if node_id is not None else world.find(g, kind, c.at) if kind else None
     if nid:
         world._set(g, nid, st, stamp(), 'card')
     return nid

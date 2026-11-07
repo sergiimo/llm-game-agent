@@ -1,6 +1,6 @@
 """Atomic I/O: persist one intent, issue at most one raw input, capture one experience.
 
-No target selection, workflow, vision request, modal cleanup, or retries live here. A refused guard performs zero
+No target selection, workflow, vision request, modal cleanup, or input retries live here. A refused guard performs zero
 inputs. The caller owns integration/final state persistence via TurnLoop's write-ahead completion boundary.
 """
 import os
@@ -11,6 +11,7 @@ from dataclasses import replace
 
 from . import experience as X
 from .task_state import Intent, Interaction, freeze
+from runtime.timing import measure
 
 
 def _affordances(rows):
@@ -19,8 +20,11 @@ def _affordances(rows):
                   bool(a.get('highlighted'))) for a in rows)
 
 
-def experience(intent, before, expects, evidence, frames=()):
+def verification_checks(expects, evidence):
+    """One expectation verifier for initial capture and later authoritative observation reconciliation."""
     from . import integrate
+    from .params import expectations
+    expects = expectations(expects)
     checks, _ = integrate.verify(expects, evidence.lines, evidence.events, ' / '.join(evidence.texts))
     if expects.get('moved') is not None:
         checks.append(X.Check('moved', expects['moved'], evidence.moved, evidence.moved == expects['moved']))
@@ -32,6 +36,28 @@ def experience(intent, before, expects, evidence, frames=()):
         unexpected = sorted(set(evidence.events) - allowed)
         if unexpected:
             checks.append(X.Check('unexpected_events', [], unexpected, False))
+    return checks
+
+
+def experience(intent, before, expects, evidence, frames=()):
+    from . import integrate
+    from . import learn, world
+    after_state = dict(evidence.state)
+    # Presence matters: an explicit unknown before-state cannot borrow the final scene from after the action.
+    initial_scene = before['scene'] if 'scene' in before else before.get('region')
+    initial_scope = before['region'] if 'region' in before else initial_scene
+    sources = world.positioned_sources(evidence.lines, initial_scene, initial_scope)
+    legacy = not any(key in before or key in after_state for key in ('scene', 'region'))
+    if legacy and not any(row['scene'] for row in sources):
+        sources = []  # only genuinely undeclared legacy context retains the compatibility lookup
+    if sources:
+        after_state['event_sources'] = sources
+    proof = world.region_proof(learn.MEMORY.get('graph'), evidence.lines, after_state.get('region'), sources)
+    if proof:
+        after_state.update(regions=proof['regions'], region_provenance=proof)
+    if sources or proof:
+        evidence = replace(evidence, state=X._t(tuple(after_state.items())))
+    checks = verification_checks(expects, evidence)
     screen = before.get('screen') or {}
     original = intent.action['kind']
     kind, what = {'bubble': ('click', 'bubble'), 'target': ('click', 'object'), 'cell': ('click', 'point'),
@@ -59,6 +85,8 @@ def experience(intent, before, expects, evidence, frames=()):
 
 def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     """Leave a durable pending intent if input/capture crashes. Never retry an uncertain input."""
+    from .params import expectations
+    expects = expectations(expects)  # validate before observation, ownership, WAL intent or physical input
     action = dict(action)
     # The raw-click spelling has the same world-target semantics as target. Normalize before guards,
     # ownership bookkeeping, preparation, and intent persistence so no alias can evade the invariant.
@@ -67,8 +95,10 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     before = adapter.observe()
     refusal = None
     try:
-        if guard:
-            refusal = guard(freeze(dict(task.to_dict(), _observation=before)), freeze(action))
+        # The canonical observation has no input or resource metadata to authorize. Metadata-bearing
+        # act/read aliases still take the complete ordinary guard path.
+        if guard and not (action == {'kind': 'read'} and not expects):
+            refusal = guard(task.snapshot(_observation=before), freeze(action))
             if refusal:
                 raise ValueError(refusal)
         prepared = adapter.prepare(dict(action), before)
@@ -91,7 +121,10 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     owner = task if administrative else task.active
     if task.pending_intent is not None or task.active and task.active.pending_intent is not None:
         raise ValueError('pending intent must be reconciled before input')
-    intent = Intent(turn_id, prepared, adapter.mark(), time.time(), before, expects)
+    intent = Intent(turn_id, prepared, adapter.mark(), time.time(), before, expects, provenance={
+        'boundary': 'primitives.execute/v1',
+        'adapter': f'{type(adapter).__module__}.{type(adapter).__qualname__}',
+        'preparation': 'refused' if refusal else 'prepared', 'refusal': refusal})
     owner.pending_intent = intent
     if not refusal:
         for key, ledger in (('purchase', '_purchase_intents'), ('sale', '_sale_intents')):
@@ -99,6 +132,9 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
                 task.params.setdefault(ledger, []).append(dict(action[key], turn_id=turn_id))
     store.save(task)
     log('intent', intent=intent)
+    # In-memory fast path for the normal same-process finish. A crash before this assignment leaves the
+    # durable WAL unmarked, so recovery safely re-establishes the canonical intent before its outcome.
+    intent.journaled = True
     if refusal:
         s = before.get('screen') or {}
         e = experience(intent, before, expects, X.Evidence(mode=s.get('kind'), texts=tuple(s.get('texts') or ())))
@@ -112,10 +148,37 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     # TurnLoop._finish captures and persists the result, including zero-input observations.
 
 
+def invalid_expectation_outcome(intent, adapter, error):
+    """Recover an old malformed WAL intent without replay or pretending its unknown input status is safe."""
+    origin = intent.provenance if isinstance(intent.provenance, dict) else {}
+    not_issued = (origin.get('boundary') == 'primitives.execute/v1' and
+                  isinstance(origin.get('adapter'), str) and bool(origin['adapter'].strip()) and
+                  origin.get('preparation') == 'refused' and
+                  isinstance(origin.get('refusal'), str) and bool(origin['refusal'].strip()))
+    proof = {'original': intent.expects, 'error': str(error),
+             'input_status': 'not_issued' if not_issued else 'unknown',
+             'provenance': 'durable preparation refusal' if not_issued else 'originating preparation unproved',
+             'intent_provenance': origin}
+    if not_issued:
+        # Only originating WAL proof establishes that execute skipped perform. The current adapter or
+        # missing command says nothing about a different adapter that may already have executed the intent.
+        screen = intent.before.get('screen') or {}
+        e = experience(intent, intent.before, {}, X.Evidence(mode=screen.get('kind'),
+            texts=tuple(screen.get('texts') or ())))
+    else:
+        e = adapter.capture(intent, intent.before, {})  # observation only; original expectations remain in proof
+    state = dict(e.evidence.state, invalid_expectations=proof)
+    return replace(e, evidence=replace(e.evidence, state=X._t(tuple(state.items()))),
+                   verdict=X.Verdict('unsafe', (X.Check('expectations', 'valid schema', str(error), False),)),
+                   discrepancy=X.Discrepancy('expectations', 'valid schema', str(error)))
+
+
 class GameAdapter:
     """Production I/O adapter. clue_provider may add domain graph clues and interrupts, never inputs."""
     def __init__(self, clue_provider=None):
         self.clue_provider = clue_provider
+        self._latest_observation = None
+        self._captured_read = None
 
     def mark(self):
         from . import core
@@ -123,18 +186,28 @@ class GameAdapter:
 
     def observe(self):
         from . import act, core, observe, screen
-        image = core.WF.grab()
+        with measure('observe.grab'):
+            image = core.WF.grab()
         directory = act.frames_dir()
         os.makedirs(directory, exist_ok=True)
         path = os.path.join(directory, f'turn-{uuid.uuid4().hex}.jpg')
         image.convert('RGB').save(path, quality=90)  # full virtual frame; never resize
-        affordances = observe.scan()
-        s = screen.read(world_visible=any(a.kind not in (None, 'unknown') for a in affordances))
-        if s.kind == 'gameplay' and getattr(core.WF, 'map_pin', None) and core.WF.map_pin(image):
+        # The saved frame, affordances and OCR must describe one capture. A second grab can see a fade/menu
+        # while the artifact shows the world (live split-observation guard refusals). Never interpret black as
+        # textless gameplay or count its difference from a rendered frame as movement.
+        valid = image.convert('L').getextrema()[1] > 20
+        with measure('observe.perception'):
+            affordances = observe.scan(image) if valid else []
+            s = (screen.read(image=image, world_visible=any(a.kind not in (None, 'unknown') for a in affordances))
+                 if valid else screen.Screen('unknown', []))
+        if (s.kind in ('gameplay', 'unknown') and screen.map_panel(image) and
+                getattr(core.WF, 'map_pin', None) and core.WF.map_pin(image)):
             from .screen import Screen
             s = Screen('map', [])
-        clues = dict(self.clue_provider() if self.clue_provider else {})
+        with measure('observe.clues'):
+            clues = dict(self.clue_provider() if self.clue_provider else {})
         clues.update(screen={'kind': s.kind, 'texts': s.texts}, frame_path=path,
+                     capture_validity='rendered' if valid else 'black',
                      visible_affordances=[{'kind': a.kind, 'point': list(a.pt), 'drop': a.drop, 'ready': a.ready,
                                            'highlighted': a.highlighted} for a in affordances])
         clues.setdefault('graph_clues', [])
@@ -142,7 +215,13 @@ class GameAdapter:
         stamp = getattr(core.WF, 'game_stamp', None)
         if stamp is not None:
             clues['game_time'] = stamp()
+        self._latest_observation = clues
         return clues
+
+    def take_read_observation(self, experience_id):
+        """Consume only this in-process read receipt; never reuse a previous turn or persisted before-state."""
+        receipt, self._captured_read = self._captured_read, None
+        return receipt[1] if receipt and receipt[0] == experience_id else None
 
     def prepare(self, action, observation):
         """Resolve only the model-selected control. Guards may refuse, never close menus or choose another target."""
@@ -175,6 +254,8 @@ class GameAdapter:
                 raise ValueError('Space requires a visible highlighted affordance')
             action['command'] = 'key:space'
         elif kind == 'key':
+            if 'key' in action:
+                raise ValueError('key action uses label, not key; choose one supported menu key')
             label = str(action.get('label', '')).casefold()
             if screen != 'gameplay' or label not in ('j', 'm', 'i'):
                 raise ValueError('menu key requires gameplay and one of j/m/i; movement keys are forbidden')
@@ -196,6 +277,13 @@ class GameAdapter:
             action['command'] = ('text:Resume Game' if screen == 'pause' else
                                  f'click:{action["point"][0]}:{action["point"][1]}')
         elif kind == 'select_card':
+            if action.get('label'):
+                # A named item inspection must resolve that visible text; a supplied point cannot redirect it
+                # onto Buy/Sell. Financial labels still require trade authority at the universal guard.
+                hits = core.WF.find_text(action['label'], exact=True)
+                if len(hits or ()) != 1:
+                    raise ValueError('named card missing or ambiguous')
+                action['point'] = [round(hits[0]['cx']), round(hits[0]['cy'])]
             if screen not in ('card', 'picker', 'shop', 'inventory') or not action.get('point'):
                 raise ValueError('select_card needs one model-selected visible card point')
             x, y = action['point']
@@ -235,18 +323,37 @@ class GameAdapter:
     def capture(self, intent, before, expects):
         try:
             from . import act, core, observe
-            core.WF.wait_settle()
+            is_read = intent.action.get('kind') == 'read'
+            self._captured_read = None
+            same_read = is_read and self._latest_observation is before
+            self._latest_observation = None  # a receipt is valid only inside this execute/capture pair
+            if not same_read:
+                core.WF.wait_settle()
             if expects.get('events'):
                 core.seen(act.EVENT.pattern, intent.log_mark, act.EVENT_WAIT)
-            after = self.observe()
+            after = before if same_read else self.observe()
+            samples = [after]
+            if after['screen']['kind'] == 'unknown':
+                # Pixel stability alone does not establish a readable modal (live Resume had scenery OCR
+                # while the following coherent observation read gameplay). Take one bounded settling read,
+                # preserve both sources, and let the ordinary verifier judge the final observation.
+                core.WF.wait_settle()
+                after = self.observe()
+                samples.append(after)
+                after = dict(after, observation_samples=[{k: sample.get(k) for k in
+                    ('frame_path', 'screen', 'capture_validity', 'game_time')} for sample in samples])
             lines = core.log_text(intent.log_mark).splitlines()
             at = next((p for p in map(act.position_of, lines) if p), None)
             # Canonical identity is assigned by integration's positioned-event consumer, not target=kind.
             moved = None
-            if before.get('frame_path') and after.get('frame_path'):
+            if (not same_read and before.get('frame_path') and after.get('frame_path') and
+                    (before.get('screen') or {}).get('kind') == 'gameplay' and
+                    after['screen']['kind'] == 'gameplay' and
+                    before.get('capture_validity') != 'black' and after.get('capture_validity') != 'black'):
                 from PIL import Image
                 with Image.open(before['frame_path']) as a, Image.open(after['frame_path']) as b:
-                    moved = observe.view_changed(a, b)
+                    if a.convert('L').getextrema()[1] > 20 and b.convert('L').getextrema()[1] > 20:
+                        moved = observe.view_changed(a, b)
             if moved and not at:
                 from . import where
                 where.walked()
@@ -255,6 +362,9 @@ class GameAdapter:
                                   _affordances(after['visible_affordances']), moved,
                                   X._t(tuple((k, v) for k, v in after.items()
                                              if k not in ('screen', 'visible_affordances', 'graph_clues'))))
-            return experience(intent, before, expects, evidence, (after['frame_path'],))
+            result = experience(intent, before, expects, evidence, tuple(sample['frame_path'] for sample in samples))
+            if is_read:
+                self._captured_read = (result.id, after)
+            return result
         finally:
             self._release()

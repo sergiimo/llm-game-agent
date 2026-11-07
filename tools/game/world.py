@@ -65,6 +65,52 @@ def _after(lines, since):
 
 
 # ---- objects ------------------------------------------------------------------------------------------------------
+def scene_lines(lines, scene=None, scope=None, since=None):
+    """Each decoded line with its source physical scene and entered-building scope, in chronological order."""
+    scope = scope or scene
+    saved_scene, cutoff, anchored = scene, when(since), False
+    for line in lines:
+        stamp = when(line)
+        if cutoff is not None and not anchored and stamp is not None and stamp > cutoff:
+            if saved_scene is not None and scene != saved_scene:
+                scene = scope = saved_scene  # a newer snapshot supersedes an older scene-log reading
+            anchored = True
+        change = re.search(r'\bChangeScene (\w+)(?:/\w+)?', line)
+        entered = re.search(r'\bOnEnterBuilding (\w+)', line)
+        exited = re.search(r'\bOnExitBuilding (\w+)', line)
+        if change:
+            scene = scope = change[1]
+        elif entered:
+            scope = entered[1]
+        elif exited:
+            scope = scene
+        yield line, scene, scope
+
+
+def scene_context(lines, scene=None, scope=None, since=None):
+    saved_scene, cutoff = scene, when(since)
+    for _, scene, scope in scene_lines(lines, scene, scope, since):
+        pass
+    if (cutoff is not None and saved_scene is not None and scene != saved_scene and
+            not any(when(line) is not None and when(line) > cutoff for line in lines)):
+        return saved_scene, saved_scene  # no post-snapshot log reading can override the newer physical scene
+    return scene, scope or scene
+
+
+def positioned_sources(lines, scene=None, scope=None):
+    return [{'line': line, 'scene': source_scene, 'scope': source_scope}
+            for line, source_scene, source_scope in scene_lines(lines, scene, scope) if _EVENT.search(line)]
+
+
+def event_source(state, line):
+    """Immutable per-event context; legacy outcomes may contain only one captured current region."""
+    for row in state.get('event_sources', ()):
+        if row['line'] == line:
+            return row
+    region = state.get('region')
+    return {'scene': region, 'scope': region, 'line': line, 'legacy': True} if region else None
+
+
 def oid(kind, x, z):
     return f'{kind}#{round(x, 1)},{round(z, 1)}'
 
@@ -120,9 +166,20 @@ def find(g, kind, at, near=NEAR):
 
 def _ensure_object(g, kind, pos, scene, prefab=None, source='save'):
     from objects.graph import Node
-    nid = find(g, kind, pos)
+    if not scene:
+        raise ValueError('positioned object source scene is unknown')
+    if scene not in g.nodes:
+        g.nodes[scene] = Node(scene, 'region', source=source)
+    candidates = scoped_event_candidates(g, kind, pos, scene, physical_scene=scene)
+    if len(candidates) > 1:
+        raise ValueError('positioned object identity is ambiguous in source scene')
+    nid = candidates[0] if candidates else None
     if nid is None:
         nid = oid(kind, *pos)
+        if nid in g.nodes:
+            nid = f'{scene}:{nid}'
+            if nid in g.nodes:
+                raise ValueError('source-scoped object ID conflicts with existing graph identity')
         g.nodes[nid] = Node(nid, 'member', kind=kind, region=scene, source=source)
         new = True
     else:
@@ -262,7 +319,9 @@ def _neighbours(g, c):
         d1 = min(others)[0]
         for dd, mid, q in others:
             if dd <= 1.5 * d1 + 1e-6:
-                g.add_edge(nid, mid, 'next_to', dir=list(screen_dir(p, q)), source='cluster')
+                direction = screen_dir(p, q)
+                if direction is not None:  # coincident ambiguous objects have no direction between them
+                    g.add_edge(nid, mid, 'next_to', dir=list(direction), source='cluster')
 
 
 # ---- refresh / place ---------------------------------------------------------------------------------------------
@@ -302,6 +361,7 @@ def landmark_at(g, pin):
 def refresh(graph, save, today_lines, save_time_=None):
     """Save + today's log -> graph (module doc). Idempotent. {area: [new node ids]}."""
     g, changes = graph, {}
+    conflicts = g.extra['_refresh_conflicts'] = []
     landmarks(g)
     stamp = save_time_ or save_time(save)
     prefabs = g.extra.setdefault('prefabs', {})
@@ -312,7 +372,11 @@ def refresh(graph, save, today_lines, save_time_=None):
     for o in objs:
         if o['kind'] is None:
             continue
-        nid, new = _ensure_object(g, o['kind'], o['pos'], o['scene'], o['prefab'])
+        try:
+            nid, new = _ensure_object(g, o['kind'], o['pos'], o['scene'], o['prefab'])
+        except ValueError as error:
+            conflicts.append(dict(source='save', scene=o['scene'], kind=o['kind'], at=list(o['pos']), reason=str(error)))
+            continue
         if new:
             new_ids.append(nid)
         st = {k: v for k, v in o['raw'].items() if isinstance(v, (str, int, float, bool))}
@@ -322,27 +386,38 @@ def refresh(graph, save, today_lines, save_time_=None):
     pp = save.get('currentPlayerPosition')
     if pp and 'Tara' in g.nodes and (abs(pp.get('x', 0)) + abs(pp.get('z', 0))) > 1e-6:
         g.nodes['Tara'].extra['pos'] = [round(pp['x'], 2), round(pp['z'], 2)]
-    scene = save.get('currentScene') or 'Farm'
+    scene = save.get('currentScene')
     events, since = [], []
-    for line in _after(today_lines, stamp):   # each event with the lines around it up to the neighbours (its proof:
+    cutoff, current = when(stamp), None
+    for line, source_scene, source_scope in scene_lines(today_lines, scene, since=stamp):
+        current = when(line) if when(line) is not None else current
+        if cutoff is not None and (current is None or current <= cutoff):
+            continue
         m = _EVENT.search(line)               # `> plant` is logged when the panel opens, totalPlanted after, D186)
         since.append(line)
         if m:
             if events:
                 events[-1][4].extend(since[:-1])
-            events.append((m.group(1), m.group(2), (float(m.group(3)), float(m.group(4))), line, list(since)))
+            events.append((m.group(1), m.group(2), (float(m.group(3)), float(m.group(4))), line, list(since),
+                           {'scene': source_scene, 'scope': source_scope, 'line': line}))
             since = []
     if events:
         events[-1][4].extend(since)
-    for ev, kind, at, line, _ in events:   # a new kind's object first, so areas see it
-        if find(g, kind, at) is None:
-            nid = place(g, kind, at, [], scene=scene)
-            if nid:
-                new_ids.append(nid)
+    resolved = []
+    for ev, kind, at, line, ctx, source in events:
+        before_ids = set(g.nodes)
+        try:
+            nid = place(g, kind, at, [], scene=source['scene'], source=source)
+        except ValueError as error:
+            conflicts.append(dict(source, kind=kind, at=list(at), reason=str(error)))
+            continue
+        if nid not in before_ids:
+            new_ids.append(nid)
+        resolved.append((ev, kind, at, line, ctx, source, nid))
     for sc in {n.extra['scene'] for n in _objects(g)}:
         _areas(g, sc, changes)
-    for ev, kind, at, line, ctx in events:
-        place(g, kind, at, [ev], stamp=_stamp_of(line), scene=scene, lines=ctx)
+    for ev, kind, at, line, ctx, source, nid in resolved:
+        place(g, kind, at, [ev], stamp=_stamp_of(line), scene=source['scene'], lines=ctx, node_id=nid, source=source)
     for nid in new_ids:
         n = g.nodes.get(nid)
         if n is not None:
@@ -371,20 +446,28 @@ def _stamp_of(line):
     return m.group(1) if m else None
 
 
-def place(g, kind, at, events, effects=None, frame=None, stamp=None, scene='Farm', params=None, lines=None):
+def place(g, kind, at, events, effects=None, frame=None, stamp=None, scene='Farm', params=None, lines=None,
+          node_id=None, source=None):
     """A logged interaction at world `at` -> its object (created when unknown; an unnamed save object there names its
     prefab), its state from the events' effects (+ `frame` sub-icons, source 'frame'), Tara's position. The id."""
-    nid = find(g, kind, at)
+    candidates = scoped_event_candidates(g, kind, at, scene, physical_scene=scene) if node_id is None else []
+    if node_id is None and len(candidates) > 1:
+        raise ValueError('positioned object identity is ambiguous in source scene')
+    nid = node_id if node_id is not None else candidates[0] if candidates else None
+    if node_id is not None and (node_id not in g.nodes or g.nodes[node_id].kind != kind or
+                                math.dist(g.nodes[node_id].extra.get('pos', ()), at) > NEAR):
+        raise ValueError('resolved event node conflicts with positioned kind/coordinates')
     if nid is None:
-        un = min(((math.dist(o['pos'], at), o) for o in g.extra.get('_unnamed', [])), default=None,
+        un = min(((math.dist(o['pos'], at), o) for o in g.extra.get('_unnamed', []) if o['scene'] == scene), default=None,
                  key=lambda t: t[0])
         prefab = None
         if un and un[0] <= NEAR:
             prefab = un[1]['prefab']
             g.extra.setdefault('prefabs', {})[prefab] = kind
             scene = un[1]['scene'] or scene
-        near = min(((math.dist(tuple(n.extra['pos']), at), n) for n in _objects(g)), default=None, key=lambda t: t[0])
-        nid, _ = _ensure_object(g, kind, at, near[1].extra['scene'] if near else scene, prefab, source='event')
+        near = min(((math.dist(tuple(n.extra['pos']), at), n) for n in _objects(g) if n.extra['scene'] == scene),
+                   default=None, key=lambda t: t[0])
+        nid, _ = _ensure_object(g, kind, at, scene, prefab, source='event')
         if near and near[0] <= GAP_MAX:
             g.nodes[nid].region = near[1].region
         if not prefab and not known_kind(kind):   # a log-only object of a kind nothing knows (Weed, Stone): this call only
@@ -398,12 +481,59 @@ def place(g, kind, at, events, effects=None, frame=None, stamp=None, scene='Farm
             _set(g, nid, {'stage': 'growing', 'ready': False}, stamp, 'event')
     if frame:
         _set(g, nid, frame, stamp, 'frame')
+    if events:
+        g.nodes[nid].extra['event_provenance'] = dict(source or {'scene': g.nodes[nid].extra['scene']}, game_time=stamp)
     if 'Tara' in g.nodes and events:
         g.nodes['Tara'].extra['pos'] = [round(at[0], 2), round(at[1], 2)]
     return nid
 
 
 # ---- queries ------------------------------------------------------------------------------------------------------
+def scoped_event_candidates(g, kind, at, scene, physical_scene=None):
+    """Compatible candidates after source-scene filtering; callers never select among ambiguous identities."""
+    if g is None or not scene:
+        return []
+    scope_chain = g.chain(scene)
+    candidates = []
+    for node in _objects(g):
+        if physical_scene is not None and node.extra['scene'] != physical_scene:
+            continue
+        chain = [key for key in g.chain(node.id) if g.nodes[key].type == 'region']
+        physical_scope = physical_scene is not None and scene == physical_scene
+        if not physical_scope and (scene not in chain or node.extra['scene'] not in scope_chain):
+            continue
+        if node.kind == kind and math.dist(node.extra['pos'], at) <= NEAR:
+            candidates.append(node.id)
+    return candidates
+
+
+def scoped_event_node(g, kind, at, scene, physical_scene=None):
+    """Resolve exactly one kind/position candidate after filtering current scene and coherent ancestry."""
+    candidates = scoped_event_candidates(g, kind, at, scene, physical_scene)
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def region_proof(g, lines, scene, sources=()):
+    """Fresh positioned interaction -> known object ancestry. A stored player position alone proves no arrival."""
+    if g is None or not scene:
+        return None
+    found = None
+    for line in lines:
+        match = _EVENT.search(line)
+        if not match:
+            continue
+        found = None  # the latest positioned event supersedes an earlier object's location
+        at = (float(match[3]), float(match[4]))
+        source = next((row for row in sources if row['line'] == line), None)
+        if source and source.get('scope') not in g.chain(scene):
+            continue  # a later transition left this event's source; it cannot prove arrival in the final view
+        nid = scoped_event_node(g, match[2], at, scene, source.get('scene') if source else None)
+        if nid is not None:
+            chain = [key for key in g.chain(nid) if g.nodes[key].type == 'region']
+            found = {'source': 'positioned_event', 'node': nid, 'line': line, 'regions': chain}
+    return found
+
+
 def area_of(g, node_or_pos):
     if isinstance(node_or_pos, (tuple, list)):
         best = min(((math.dist(tuple(n.extra['pos']), tuple(node_or_pos)), n.region) for n in _objects(g)),

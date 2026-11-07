@@ -1,0 +1,13 @@
+{
+  "businesses": [
+    "Blacksmith", "Cafe Moretti", "Dahl General Store", "Kai's Treasures",
+    "Lightfoot Farm", "Nailed It!", "Soft and Son's Fish & Tackle",
+    "The Bar", "The Hayseed Homestead", "The Jewelry Box", "Violet's Violets"
+  ],
+  "mechanics": [
+    "Animals", "Cooking", "Crafting", "Farming", "Fishing", "Foraging",
+    "Gifting", "Magic", "Mine", "Mining", "Relationships", "Romance",
+    "Seasons", "Tools"
+  ],
+  "story": ["Achievements", "Bulletin Board Quests", "To-Do Quests"]
+}

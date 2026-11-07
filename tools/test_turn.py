@@ -99,6 +99,13 @@ class Turns(unittest.TestCase):
         self.assertEqual(cached.observation_freshness, 'cached')
         self.assertEqual(cached.view, c.view)
 
+    def test_required_vision_blocks_act_and_accept(self):
+        self.port.snapshot['vector_status'] = {'status': 'error', 'error': 'detector offline'}
+        c = self.loop.context()
+        self.assertEqual(c.need['kind'], 'vision')
+        self.assertNotIn('act', c.allowed_decisions)
+        self.assertNotIn('accept', c.allowed_decisions)
+
     def test_one_accept_persists_intent_before_input_and_rejects_stale(self):
         c = self.loop.context()
         original = self.port.perform
@@ -124,6 +131,16 @@ class Turns(unittest.TestCase):
         self.assertEqual(checkpoint['coverage'], {'targets': [], 'covered': [], 'unresolved': []})
         self.assertEqual(checkpoint['task_status'], 'active')
         self.assertIsNone(self.store.load().active.pending_intent)
+
+    def test_every_physical_action_preflights_its_persisted_turn_without_full_reobserve(self):
+        observed = mock.Mock(side_effect=self.port.observe)
+        self.port.observe = observed
+        self.port.preflight = mock.Mock()
+        self.port.take_outcome_observation = lambda experience_id: self.port.snapshot
+        c = self.loop.context()
+        self.loop.decide(c.turn_id, turn.Decision('accept'))
+        self.port.preflight.assert_called_once()
+        self.assertEqual(observed.call_count, 1, 'the action uses its receipt plus cheap preflight')
 
     def test_integration_journal_failure_keeps_the_captured_intent_for_recovery(self):
         c = self.loop.context()
@@ -329,6 +346,19 @@ class Turns(unittest.TestCase):
         with Image.open(snapshot['frame_path']) as saved:
             self.assertEqual(saved.size, (1920, 1080))
 
+    def test_production_observation_captures_control_coordinates_in_the_view(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act
+        image = Image.new('RGB', (1920, 1080), 'gray')
+        raw = SimpleNamespace(grab=lambda: image,
+                              classify=lambda frame: {'mode': 'overlay', 'text': ['(960,500) Collect']},
+                              find_bubbles=lambda frame: [])
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name):
+            snapshot = primitives.GameAdapter().observe()
+        self.assertEqual(snapshot['controls'], [{
+            'label': 'Collect', 'point': [960, 500], 'id': 'control-0', 'view_id': snapshot['view_id']}])
+
     def test_production_observation_runs_vectors_on_the_exact_saved_grab(self):
         from PIL import Image
         from types import SimpleNamespace
@@ -391,6 +421,31 @@ class Turns(unittest.TestCase):
                     {'kind': 'target', 'view_id': 'view-one', 'candidate': 'vector-0'},
                     {'view_id': 'view-one', 'frame_path': before, 'screen': {'kind': 'gameplay'}})
         raw.grab.assert_called_once_with()
+
+    def test_preflight_refuses_a_small_modal_patch(self):
+        from PIL import Image, ImageDraw
+        from types import SimpleNamespace
+        before = os.path.join(self.tmp.name, 'small-modal-source.jpg')
+        old = Image.new('RGB', (1920, 1080), 'gray')
+        old.save(before)
+        changed = old.copy()
+        ImageDraw.Draw(changed).rectangle((900, 450, 1000, 550), fill='white')
+        with mock.patch.object(core, 'WF', SimpleNamespace(grab=lambda: changed)):
+            with self.assertRaisesRegex(ValueError, 'stale view'):
+                primitives.GameAdapter().preflight(
+                    {'kind': 'press', 'view_id': 'view-one'},
+                    {'view_id': 'view-one', 'frame_path': before, 'screen': {'kind': 'gameplay'}})
+
+    def test_named_control_is_resolved_from_the_captured_view_without_find_text(self):
+        adapter = primitives.GameAdapter()
+        observation = dict(self.port.snapshot, view_id='view-one', controls=[{
+            'id': 'control-0', 'view_id': 'view-one', 'label': 'Collect', 'point': [960, 500]}],
+            screen={'kind': 'card', 'texts': ['Collect']})
+        with mock.patch.object(core, 'WF', mock.Mock(find_text=mock.Mock(
+                side_effect=AssertionError('control recaptured')))):
+            prepared = adapter.prepare({'kind': 'press', 'label': 'Collect'}, observation)
+        self.assertEqual(prepared['point'], [960, 500])
+        self.assertEqual(prepared['command'], 'click:960:500')
 
     def test_vector_failure_is_explicit_instead_of_looking_like_no_match(self):
         from PIL import Image

@@ -36,14 +36,12 @@ def _save_money(save):
 
 def _vector_scope(graph, *candidates, learned_kinds=None):
     """Learned appearance kinds visible in the current graph region, including nested landmarks and exits."""
-    if learned_kinds is None:
-        from objects.store import Store
-        learned_kinds = Store().kinds()
-    learned_kinds = set(learned_kinds)
     region = next((candidate for candidate in candidates if candidate in graph.nodes), None)
+    allowed = set(learned_kinds) if learned_kinds is not None else None
     kinds = sorted({node.kind for node in graph.nodes.values()
-                    if node.kind in learned_kinds and region and region in graph.chain(node.id)})
-    return {'region': region, 'kinds': kinds if region else sorted(learned_kinds)}
+                    if region and region in graph.chain(node.id) and
+                    (allowed is None or node.kind in allowed)})
+    return {'region': region, 'kinds': kinds if region else None}
 
 
 def _clues(store, frame_context=None):

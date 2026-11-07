@@ -10,7 +10,7 @@ import unittest
 from unittest import mock
 
 import wf
-from game import core, engine, forage, garden, integrate as I, nav, primitives, sleep, task_state as S, turn
+from game import core, engine, forage, garden, history, integrate as I, nav, primitives, sleep, task_state as S, turn
 from test_turn import Port
 from evals import store as eval_store
 
@@ -126,6 +126,18 @@ class PlayCase(unittest.TestCase):
         self.assertFalse(any(node.startswith('bed-') for node in nodes))
         self.assertLess(len(nodes), 10)
         self.assertLess(len(json.dumps(clues['graph_clues'])), 5000)
+
+    def test_unknown_region_and_large_task_history_stay_bounded(self):
+        from game import snapshot
+        from objects.graph import Graph, Node
+        graph = Graph()
+        for n in range(1000):
+            graph.nodes[f'node-{n}'] = Node(f'node-{n}', 'member', 'GardenBed')
+        projection = snapshot.project_graph(graph, None)
+        self.assertLessEqual(len(projection), snapshot.MAX_GRAPH_CLUES)
+        task = S.TaskState('large-public', 'navigate', evidence_refs=[f'e-{n}' for n in range(1000)])
+        public = history.public_task(task)
+        self.assertLess(len(json.dumps(public)), 10000)
 
 
 class CompactHistory(PlayCase):
@@ -2085,12 +2097,12 @@ class ReadLatency(PlayCase):
         self.assertEqual(dict(e['evidence']['state'])['frame_path'], fresh.frame_path)
         self.assertEqual(fresh.graph_clues[0]['node'], 'current-source')
         self.assertNotEqual(c.frame_path, fresh.frame_path)
-        # A new physical action still takes a new pre-input snapshot; the lease cannot cross decisions.
+        # A physical action uses the persisted receipt plus a cheap preflight grab, not another full observation.
         grabs.reset_mock()
         after_action = self.play().turn(answer={'turn_id': fresh.turn_id, 'kind': 'act', 'action':
                                       {'kind': 'waypoint', 'point': [900, 650], 'walkable': True}},
                                       store=self.store, adapter=adapter)
-        self.assertEqual(grabs.call_count, 2, 'physical action repeated the post-action observation for NEXT')
+        self.assertEqual(grabs.call_count, 2, 'cheap preflight plus fake settle fallback; no pre-action perception')
         self.assertEqual(inputs.call_count, 1)
         outcome = self.store.load().last_experience
         self.assertEqual(after_action.frame_path, outcome['artifacts']['frames'][-1])
@@ -2799,6 +2811,7 @@ class ReviewRoundOne(PlayCase):
         adapter = primitives.GameAdapter()
         inputs = []
         mock.patch.object(adapter, 'observe', return_value=snapshot).start()
+        mock.patch.object(adapter, 'preflight', side_effect=lambda action, observation: action).start()
         mock.patch.object(adapter, 'mark', return_value=0).start()
         mock.patch.object(adapter, 'perform', side_effect=lambda action: inputs.append(action['command'])).start()
         mock.patch.object(adapter, 'capture', side_effect=lambda intent, old, expected:

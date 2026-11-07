@@ -328,7 +328,8 @@ def _compact_projection(task, observation, surprise):
                 'frame': view['path']}
     memory = {'revision': observation.get('memory_revision'),
               'clues': observation.get('graph_clues', ())}
-    resource_keys = ('hour', 'light', 'rain', 'can', 'money', 'inventory', 'inventory_complete')
+    resource_keys = ('hour', 'light', 'rain', 'can', 'money', 'inventory', 'inventory_complete',
+                     'position', 'region', 'scene', 'save_scene', 'game_time', 'state_provenance')
     resources = {key: observation.get(key) for key in resource_keys if key in observation}
     provenance = observation.get('state_provenance') or {}
     resources['provenance'] = {key: provenance[key] for key in resources if key in provenance}
@@ -470,6 +471,8 @@ class TurnLoop:
             allowed = ('look', 'stop', 'push') if task.status == 'complete' and task.unresolved else ('look', 'stop')
         from .history import public_task
         view, result, need, memory, resources = _compact_projection(task, observation, surprise)
+        if surprise or need and need.get('reason') == 'vector_error':
+            allowed = ('look', 'read', 'stop') + (('correct',) if task.last_experience else ())
         c = TurnContext(task.turn_seq, public_task(task), thaw(task.active),
                         observation.get('screen'), observation.get('frame_path'), 'fresh',
                         observation.get('visible_affordances', ()), observation.get('graph_clues', ()),

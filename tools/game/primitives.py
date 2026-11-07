@@ -92,8 +92,13 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     # ownership bookkeeping, preparation, and intent persistence so no alias can evade the invariant.
     if action.get('kind') == 'click':
         action['kind'] = 'target'
-    before = adapter.observe()
-    source_view = task.current_turn if action.get('view_id') and task.current_turn else before
+    source_view = task.current_turn
+    leased = hasattr(adapter, 'preflight')
+    before = (adapter.observe() if action.get('kind') == 'read' or source_view is None or not leased
+              else dict(source_view))
+    if source_view is not None and leased:
+        before.update(source_view.get('resources') or {})
+    source_view = source_view or before
     refusal = None
     try:
         # The canonical observation has no input or resource metadata to authorize. Metadata-bearing
@@ -102,8 +107,8 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
             refusal = guard(task.snapshot(_observation=before), freeze(action))
             if refusal:
                 raise ValueError(refusal)
-        if action.get('view_id'):
-            adapter.preflight(action, source_view, current=before)
+        if action.get('kind') not in ('read', 'wait') and leased:
+            adapter.preflight(action, source_view)
         prepared = adapter.prepare(dict(action), source_view)
     except ValueError as ex:
         prepared, refusal = dict(action), str(ex)
@@ -262,7 +267,8 @@ class GameAdapter:
                      vector_status=vector_status)
         clues['view_id'] = view_id
         clues['candidates'] = view.candidates(clues)
-        clues.setdefault('controls', [])
+        clues['controls'] = [dict(row, id=f'control-{i}', view_id=view_id)
+                             for i, row in enumerate(s.controls)]
         clues.setdefault('graph_clues', [])
         clues.setdefault('interrupts', [])
         stamp = getattr(core.WF, 'game_stamp', None)
@@ -338,7 +344,11 @@ class GameAdapter:
                 raise ValueError('press requires a label')
             if screen == 'pause' and label.lower() != 'resume game':
                 raise ValueError('only Resume Game may be pressed on pause')
-            hits = core.WF.find_text(label, exact=True)
+            hits = [{'cx': row['point'][0], 'cy': row['point'][1]} for row in observation.get('controls', ())
+                    if str(row.get('label', '')).strip().casefold() == label.strip().casefold()]
+            finder = getattr(core.WF, 'find_text', None)
+            if not hits and finder:
+                hits = finder(label, path=observation.get('frame_path'), exact=True)
             if len(hits or ()) != 1:
                 raise ValueError('named control missing or ambiguous')
             action['point'] = [round(hits[0]['cx']), round(hits[0]['cy'])]
@@ -350,7 +360,11 @@ class GameAdapter:
             if action.get('label'):
                 # A named item inspection must resolve that visible text; a supplied point cannot redirect it
                 # onto Buy/Sell. Financial labels still require trade authority at the universal guard.
-                hits = core.WF.find_text(action['label'], exact=True)
+                hits = [{'cx': row['point'][0], 'cy': row['point'][1]} for row in observation.get('controls', ())
+                        if str(row.get('label', '')).strip().casefold() == action['label'].strip().casefold()]
+                finder = getattr(core.WF, 'find_text', None)
+                if not hits and finder:
+                    hits = finder(action['label'], path=observation.get('frame_path'), exact=True)
                 if len(hits or ()) != 1:
                     raise ValueError('named card missing or ambiguous')
                 action['point'] = [round(hits[0]['cx']), round(hits[0]['cy'])]
@@ -370,21 +384,32 @@ class GameAdapter:
 
     def preflight(self, action, observation, current=None):
         """Cheap pixel/scene lease check; it performs no OCR, DINO, graph refresh or input."""
-        if action.get('view_id') != observation.get('view_id'):
+        if action.get('view_id') is not None and action.get('view_id') != observation.get('view_id'):
             raise ValueError('stale view: decision does not match its source')
         old_path = observation.get('frame_path')
         if not old_path:
             raise ValueError('stale view: source frame is unavailable')
         from PIL import Image
         from . import core, observe
-        with Image.open(old_path) as old:
-            now = current
-            if isinstance(current, dict) and current.get('frame_path'):
-                with Image.open(current['frame_path']) as opened:
-                    changed = observe.view_changed(old, opened)
-            else:
-                now = core.WF.grab() if now is None else now
-                changed = observe.view_changed(old, now)
+        try:
+            with Image.open(old_path) as old:
+                now = current
+                if isinstance(current, dict) and current.get('frame_path'):
+                    with Image.open(current['frame_path']) as opened:
+                        changed = observe.view_changed(old, opened)
+                else:
+                    now = core.WF.grab() if now is None else now
+                    changed = observe.view_changed(old, now)
+                if not changed:
+                    from PIL import ImageChops, ImageStat
+                    diff = ImageChops.difference(old.convert('RGB'), now.convert('RGB'))
+                    width, height = diff.size
+                    tile = 96
+                    changed = any(max(ImageStat.Stat(diff.crop((x, y, min(x + tile, width),
+                                                                 min(y + tile, height)))).mean) > 12
+                                  for y in range(0, height, tile) for x in range(0, width, tile))
+        except OSError as error:
+            raise ValueError(f'stale view: source frame unavailable: {error}') from None
         if changed:
             raise ValueError('stale view: camera or modal changed before input')
         return action

@@ -388,6 +388,8 @@ class DetectTests(unittest.TestCase):
             '{"Farm": {"_disabled": ["GardenBed"]}}')
         self.assertEqual(self.D.inspect_scope(st, ['Gate', 'GardenBed', 'Bed'], 'Farm'), {
             'searched': ['Gate'], 'disabled': ['GardenBed'], 'untrained': ['Bed']})
+        self.assertEqual(self.D.inspect_scope(st, [], 'Farm'), {
+            'searched': [], 'disabled': [], 'untrained': []})
 
     def test_frame_features_are_reused_for_the_same_view_revision(self):
         import unittest.mock as mock

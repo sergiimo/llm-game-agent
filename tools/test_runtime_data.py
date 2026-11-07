@@ -47,6 +47,22 @@ class RevisionedWorldSnapshot(unittest.TestCase):
         self.assertIs(changed.graph, graphs[0])
         self.assertIs(reloaded.graph, graphs[1])
 
+    def test_replacement_save_and_truncated_log_reload_the_base_graph(self):
+        from game import snapshot
+        graphs = [object(), object(), object()]
+        load = mock.Mock(side_effect=graphs)
+        refresh = mock.Mock()
+        cache = snapshot.WorldSnapshot(refresh_world=refresh)
+        cache.refresh(load, {'saveCount': 7, 'currentScene': 'Farm', 'value': False},
+                      ['old', 'water'], graph_revision=('graph', 1))
+        replaced = cache.refresh(load, {'saveCount': 7, 'currentScene': 'Farm', 'value': True},
+                                 ['old', 'water'], graph_revision=('graph', 1))
+        truncated = cache.refresh(load, {'saveCount': 7, 'currentScene': 'Farm', 'value': True},
+                                  [], graph_revision=('graph', 1))
+        self.assertIs(replaced.graph, graphs[1])
+        self.assertIs(truncated.graph, graphs[2])
+        self.assertEqual(load.call_count, 3)
+
 
 class ClientDelivery(unittest.TestCase):
     def test_timeout_eof_or_invalid_response_after_send_is_not_retried(self):

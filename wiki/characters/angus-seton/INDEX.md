@@ -135,3 +135,10 @@ Note: this must be completed before Angus and Francis get married.
 
 ## See Also
 Navbox Characters
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Schedule](schedule.md)
+<!-- pages:end -->

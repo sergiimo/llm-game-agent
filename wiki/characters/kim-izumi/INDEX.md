@@ -52,3 +52,11 @@ See a list of events with Kim.
 ## Trivia
 ## See Also
 Navbox Characters
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Events](events.md)
+- [Schedule](schedule.md)
+<!-- pages:end -->

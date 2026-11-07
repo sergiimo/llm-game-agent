@@ -101,3 +101,10 @@ Parker: I love Lina for who she is. I know she doesn’t wear her heart on her s
 
 ## Quotes
 The full list of quotes for this character can be found here.
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Schedule](schedule.md)
+<!-- pages:end -->

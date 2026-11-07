@@ -42,3 +42,46 @@ Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/
 | Tulip | 4 days | Spring |  | 10 coins | Violet |
 | Turtlehead Flower | 4 days | Fall |  | 12 coins | Violet |
 | Wheat | 8 days | Spring |  | 48 coins | Dahl General Store |
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Anemone Flower](anemone-flower.md)
+- [Apple](apple.md)
+- [Black Tea](black-tea.md)
+- [Cabbage](cabbage.md)
+- [Carrot](carrot.md)
+- [Cauliflower](cauliflower.md)
+- [Corn](corn.md)
+- [Cotton](cotton.md)
+- [Crocus](crocus.md)
+- [Fennel](fennel.md)
+- [Grapes](grapes.md)
+- [Green Bean](green-bean.md)
+- [Hops](hops.md)
+- [Lemon](lemon.md)
+- [Lime](lime.md)
+- [Marigold](marigold.md)
+- [Moly Flower](moly-flower.md)
+- [Mulberry Leaf](mulberry-leaf.md)
+- [Mulberry](mulberry.md)
+- [Olive](olive.md)
+- [Onion](onion.md)
+- [Orange](orange.md)
+- [Pomegranate](pomegranate.md)
+- [Potato](potato.md)
+- [Primrose](primrose.md)
+- [Pumpkin](pumpkin.md)
+- [Snowdrop](snowdrop.md)
+- [Soybean](soybean.md)
+- [Spinach](spinach.md)
+- [Strawberry](strawberry.md)
+- [Sugarcane](sugarcane.md)
+- [Sunflower](sunflower.md)
+- [Sweet Potato](sweet-potato.md)
+- [Tiger Lily](tiger-lily.md)
+- [Tomato](tomato.md)
+- [Tulip](tulip.md)
+- [Turtlehead Flower](turtlehead-flower.md)
+- [Wheat](wheat.md)
+<!-- pages:end -->

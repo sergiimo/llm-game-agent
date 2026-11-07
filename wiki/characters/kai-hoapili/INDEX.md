@@ -157,3 +157,10 @@ Kai: Sick! Let’s go down to the beach and sit in the surf. Just you and me.
   FaveGift4Recipe: 1x Any Protein; 1x Egg; 1x Rice
   FaveGift5: Manapua (Pork Dumpling)
   FaveGift5Recipe: 1x Flour; 1x Pork; 1x Soybean; 1x Yeast
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Schedule](schedule.md)
+<!-- pages:end -->

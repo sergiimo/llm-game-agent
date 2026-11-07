@@ -106,3 +106,10 @@ Natalia: The old babka who held onto my great-grandpa’s hammer all those years
   FaveGift4Recipe: 1x Bread; 1x Butter; 1x Chicken Fillet
   FaveGift5: Golubtsi (Stuffed Cabbage)
   FaveGift5Recipe: 1x Any Protein; 1x Cabbage; 1x Rice; 1x Tomato
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Schedule](schedule.md)
+<!-- pages:end -->

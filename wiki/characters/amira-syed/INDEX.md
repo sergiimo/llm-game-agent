@@ -214,3 +214,12 @@ Tara: Yes!;
 Mayor Otto: I now pronounce you married! I wish you both the love and loyalty I have with my darling Vanessa.; 
 Amira: I’ll give you much, much more than that, Moosh.; 
 Tara: Shhh, don’t let them hear!
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Conversations](conversations.md)
+- [Dialogues](dialogues.md)
+- [Events](events.md)
+- [Schedule](schedule.md)
+<!-- pages:end -->

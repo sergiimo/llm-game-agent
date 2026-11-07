@@ -174,3 +174,10 @@ Damon: Forget it, let’s get to the bar before he starts talking again!
 
 ## Quotes
 The full list of quotes for this character can be found here.
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Schedule](schedule.md)
+<!-- pages:end -->

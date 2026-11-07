@@ -12,6 +12,9 @@ class WikiLayout(unittest.TestCase):
     def test_specific_infobox_wins_over_generic_item(self):
         self.assertEqual(classify_page('Apple Pie', '[Item]\n[Food]\n'), 'items/food/apple-pie.md')
 
+    def test_generic_item_has_a_browsable_item_home(self):
+        self.assertEqual(classify_page('Blue Jacket', '[Item]\n'), 'items/misc/blue-jacket.md')
+
     def test_character_and_subpages_share_directory(self):
         self.assertEqual(classify_page('Amira Syed', '[Character]\n'), 'characters/amira-syed/INDEX.md')
         self.assertEqual(classify_page('Amira Syed__Schedule', ''), 'characters/amira-syed/schedule.md')

@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import shutil
 
+from wiki_layout import classify_page
+
 
 @dataclass
 class MigrationReport:
@@ -75,25 +77,64 @@ def _write_indexes(wiki: Path) -> int:
     count = 0
     for directory in sorted([wiki] + [p for p in wiki.rglob('*') if p.is_dir()], reverse=True):
         index = directory / 'INDEX.md'
-        if index.exists():
-            continue
         children = sorted(p for p in directory.iterdir() if p.name not in {'INDEX.md', 'manifest.json', 'ATTRIBUTION.md'})
         if not children:
             continue
         title = 'Wylde Flowers Wiki' if directory == wiki else directory.name.replace('-', ' ').title()
-        lines = [f'# {title}', '', '> **Summary:** Browse this topic through the grouped links below.', '']
+        links = []
         for child in children:
             label = child.name.replace('.md', '').replace('-', ' ').replace('_', ' ').title()
             target = child.name + '/INDEX.md' if child.is_dir() else child.name
-            lines.append(f'- [{label}]({target})')
-        index.write_text('\n'.join(lines) + '\n')
+            links.append(f'- [{label}]({target})')
+        if index.exists():
+            current = index.read_text(errors='replace')
+            if '> **Summary:** Browse this topic through the grouped links below.' in current:
+                lines = [f'# {title}', '', '> **Summary:** Browse this topic through the grouped links below.', ''] + links
+                index.write_text('\n'.join(lines) + '\n')
+            else:
+                missing = [line for line in links if f']({line.rsplit("(", 1)[1]}' not in current]
+                start, end = '<!-- pages:start -->', '<!-- pages:end -->'
+                block = start + '\n## Detailed pages\n\n' + '\n'.join(missing) + '\n' + end
+                if start in current:
+                    before, rest = current.split(start, 1)
+                    _, after = rest.split(end, 1)
+                    current = before.rstrip() + '\n\n' + block + after
+                else:
+                    current = current.rstrip() + '\n\n' + block + '\n'
+                index.write_text(current)
+        else:
+            lines = [f'# {title}', '', '> **Summary:** Browse this topic through the grouped links below.', ''] + links
+            index.write_text('\n'.join(lines) + '\n')
         count += 1
     return count
 
 
+def _reclassify_materialized(manifest: dict, manifest_path: Path, base: Path) -> int:
+    moved = 0
+    for entry in manifest['pages']:
+        old = base / entry['canonical_path']
+        if not old.exists() or not entry['canonical_path'].startswith('wiki/story/topics/'):
+            continue
+        new_rel = 'wiki/' + classify_page(entry['title'], old.read_text(errors='replace'))
+        if new_rel == entry['canonical_path']:
+            continue
+        new = base / new_rel
+        new.parent.mkdir(parents=True, exist_ok=True)
+        if new.exists():
+            raise ValueError(f'reclassification collision: {old} -> {new}')
+        old.replace(new)
+        entry['canonical_path'] = new_rel
+        entry['kind'] = new_rel.split('/')[1]
+        moved += 1
+    if moved:
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
+    return moved
+
+
 def materialize(manifest_path: str, root: str, dry_run: bool = True) -> MigrationReport:
     base = Path(root).resolve()
-    manifest = json.loads(Path(manifest_path).read_text())
+    manifest_file = Path(manifest_path)
+    manifest = json.loads(manifest_file.read_text())
     report = MigrationReport(sources=manifest.get('source_count', len(manifest['pages'])))
     if dry_run:
         for entry in manifest['pages']:
@@ -129,6 +170,7 @@ def materialize(manifest_path: str, root: str, dry_run: bool = True) -> Migratio
         report.moved += 1
     if report.unresolved:
         return report
+    report.moved += _reclassify_materialized(manifest, manifest_file, base)
     (wiki / 'ATTRIBUTION.md').write_text(
         '# Attribution\n\n> **Summary:** Licensing and provenance for imported game-reference content.\n\n'
         'Fan-wiki-derived pages originated from the Wylde Flowers Wiki on Fandom and are used under '

@@ -57,6 +57,24 @@ class MigrateWiki(unittest.TestCase):
             self.assertEqual(second.unresolved, 0)
             self.assertEqual(quest, (root / 'wiki/quests/town/quest.md').read_text())
 
+    def test_reclassifies_a_generic_item_out_of_story(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / 'reference/wiki').mkdir(parents=True)
+            (root / 'reference/wiki/Blue Jacket.md').write_text('# Blue Jacket\n\n[Item]\n')
+            manifest = {'version': 1, 'source_count': 1, 'pages': [{
+                'title': 'Blue Jacket', 'source_path': 'reference/wiki/Blue Jacket.md',
+                'source_paths': ['reference/wiki/Blue Jacket.md'],
+                'canonical_path': 'wiki/story/topics/blue-jacket.md', 'aliases': ['Blue Jacket'],
+                'kind': 'story', 'source': 'fan-wiki'}]}
+            path = root / 'manifest.json'
+            path.write_text(json.dumps(manifest))
+            materialize(str(path), str(root), dry_run=False)
+            self.assertTrue((root / 'wiki/items/misc/blue-jacket.md').exists())
+            self.assertFalse((root / 'wiki/story/topics/blue-jacket.md').exists())
+            saved = json.loads(path.read_text())
+            self.assertEqual(saved['pages'][0]['canonical_path'], 'wiki/items/misc/blue-jacket.md')
+
 
 if __name__ == '__main__':
     unittest.main()

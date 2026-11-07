@@ -20,7 +20,7 @@ ITEM_TYPES = [
     ('Food', 'food'), ('Crops', 'crops'), ('Seeds', 'seeds'), ('Forage', 'forage'),
     ('Fish', 'fish'), ('Crafting Ingredient', 'ingredients'),
     ('Potions Incantations', 'potions'), ('Workstation', 'workstations'),
-    ('Tool', 'tools'), ('Book', 'books'),
+    ('Tool', 'tools'), ('Book', 'books'), ('Item', 'misc'),
 ]
 CHARACTER_SUFFIXES = {'Dialogues': 'dialogues.md', 'Conversations': 'conversations.md',
                       'Events': 'events.md', 'Schedule': 'schedule.md'}

@@ -24,3 +24,10 @@ CharacterNav
 
 ## Quotes
 The full list of quotes for this character can be found here.
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Events](events.md)
+<!-- pages:end -->

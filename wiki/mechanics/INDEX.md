@@ -22,3 +22,11 @@ Load order: this index → only the mechanic you need. "(wiki)" sections are unv
 | [crafting](crafting.md) | Tool Shed stations (mundane), Basement (magic), kitchen stove (cooking); blueprints from quests. |
 | [tools-and-upgrades](tools-and-upgrades.md) | Rusty watering can/axe/pickaxe → copper/silver/gold at the Blacksmith; rod from Bruno; shovel crafted. |
 | [cooking](cooking.md) | Cook at the farmhouse stove from recipes; Mushroom Risotto = mushroom + rice (❓ UI) |
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Gifting](gifting.md)
+- [Mine](mine.md)
+- [Tools](tools.md)
+<!-- pages:end -->

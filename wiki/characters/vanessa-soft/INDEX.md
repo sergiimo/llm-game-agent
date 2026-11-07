@@ -52,3 +52,10 @@ Vanessa: Well, I mean it! Oh, and Tara? Don’t tell everyone about my spot. I l
 
 ## Quotes
 The full list of quotes for this character can be found here.
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Schedule](schedule.md)
+<!-- pages:end -->

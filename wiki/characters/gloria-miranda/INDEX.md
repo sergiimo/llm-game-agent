@@ -183,3 +183,9 @@ On Saturdays, Gloria can be found on the bench outside the doctor’s office and
   FaveGift5: Truffled Mac And Cheese
   FaveGift5Source: Cooking
   FaveGift5Recipe: 1x Any Truffle; 1x Noodles; 1x Cheese; 1x Any Milk
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+<!-- pages:end -->

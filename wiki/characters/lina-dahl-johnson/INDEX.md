@@ -95,3 +95,10 @@ Lina: I love Parker. I hope this tough time we’re going through is just a temp
 
 ## See Also
 Navbox Characters
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Schedule](schedule.md)
+<!-- pages:end -->

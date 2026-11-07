@@ -69,3 +69,10 @@ Marty: Thanks for helping me. You could have just walked away. But you didn’t.
 
 ## Quotes
 The full list of quotes for this character can be found here.
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Schedule](schedule.md)
+<!-- pages:end -->

@@ -112,3 +112,10 @@ Francis: Oh no, not at all. They love him! In fact, Angus has been trying to tal
 
 ## Quotes
 The full list of quotes for this character can be found here.
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Schedule](schedule.md)
+<!-- pages:end -->

@@ -246,3 +246,10 @@ Eury will move to Fairhaven after a scene is triggered with Gloria at Town Hall.
   FaveGift5: Spanakopita
   FaveGift5Source: Cooking
   FaveGift5Recipe: 1x Cream Cheese; 2x Spinach; 1x Flour
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Events](events.md)
+<!-- pages:end -->

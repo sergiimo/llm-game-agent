@@ -57,3 +57,10 @@ See a full list of events here.
 ## Trivia
 ## See Also
 Navbox Characters
+
+<!-- pages:start -->
+## Detailed pages
+
+- [Dialogues](dialogues.md)
+- [Events](events.md)
+<!-- pages:end -->

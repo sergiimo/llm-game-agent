@@ -529,8 +529,8 @@ class TurnLoop:
         task.current_turn = None
         task.revision += 1
         self.store.save(task)
-        take_read = getattr(self.adapter, 'take_read_observation', None)
-        return take_read(e.id) if intent.action.get('kind') == 'read' and take_read else None
+        take_outcome = getattr(self.adapter, 'take_outcome_observation', None)
+        return take_outcome(e.id) if take_outcome else None
 
     def context(self, observation=None):
         """Return the persisted turn, optionally consuming one already captured coherent observation."""
@@ -758,8 +758,8 @@ class TurnLoop:
                     raise DecisionRejected(str(error)) from None
                 primitives.execute(self.store, task, turn_id, action, expected, self.adapter,
                                    lambda phase, **kw: self._log(task, turn_id, phase, **kw), guard=self.guard)
-                self._finish(task)
-                return self._context(task)
+                observation = self._finish(task)
+                return self._context(task, observation)
             task.current_turn = None
             task.revision += 1
             self.store.save(task)

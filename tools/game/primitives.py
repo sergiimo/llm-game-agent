@@ -178,7 +178,7 @@ class GameAdapter:
     def __init__(self, clue_provider=None):
         self.clue_provider = clue_provider
         self._latest_observation = None
-        self._captured_read = None
+        self._captured_outcome = None
 
     def mark(self):
         from . import core
@@ -239,9 +239,9 @@ class GameAdapter:
         self._latest_observation = clues
         return clues
 
-    def take_read_observation(self, experience_id):
-        """Consume only this in-process read receipt; never reuse a previous turn or persisted before-state."""
-        receipt, self._captured_read = self._captured_read, None
+    def take_outcome_observation(self, experience_id):
+        """Consume this action's in-process settled receipt; never reuse it across outcomes or restarts."""
+        receipt, self._captured_outcome = self._captured_outcome, None
         return receipt[1] if receipt and receipt[0] == experience_id else None
 
     def prepare(self, action, observation):
@@ -347,7 +347,7 @@ class GameAdapter:
         try:
             from . import act, core, observe
             is_read = intent.action.get('kind') == 'read'
-            self._captured_read = None
+            self._captured_outcome = None
             same_read = is_read and self._latest_observation is before
             self._latest_observation = None  # a receipt is valid only inside this execute/capture pair
             if not same_read:
@@ -386,8 +386,7 @@ class GameAdapter:
                                   X._t(tuple((k, v) for k, v in after.items()
                                              if k not in ('screen', 'visible_affordances', 'graph_clues'))))
             result = experience(intent, before, expects, evidence, tuple(sample['frame_path'] for sample in samples))
-            if is_read:
-                self._captured_read = (result.id, after)
+            self._captured_outcome = (result.id, after)
             return result
         finally:
             self._release()

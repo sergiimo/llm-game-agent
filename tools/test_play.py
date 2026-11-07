@@ -2067,11 +2067,14 @@ class ReadLatency(PlayCase):
         self.assertNotEqual(c.frame_path, fresh.frame_path)
         # A new physical action still takes a new pre-input snapshot; the lease cannot cross decisions.
         grabs.reset_mock()
-        self.play().turn(answer={'turn_id': fresh.turn_id, 'kind': 'act', 'action':
-                         {'kind': 'waypoint', 'point': [900, 650], 'walkable': True}},
-                         store=self.store, adapter=adapter)
-        self.assertGreaterEqual(grabs.call_count, 2)
+        after_action = self.play().turn(answer={'turn_id': fresh.turn_id, 'kind': 'act', 'action':
+                                      {'kind': 'waypoint', 'point': [900, 650], 'walkable': True}},
+                                      store=self.store, adapter=adapter)
+        self.assertEqual(grabs.call_count, 2, 'physical action repeated the post-action observation for NEXT')
         self.assertEqual(inputs.call_count, 1)
+        outcome = self.store.load().last_experience
+        self.assertEqual(after_action.frame_path, outcome['artifacts']['frames'][-1])
+        self.assertEqual(dict(outcome['evidence']['state'])['frame_path'], after_action.frame_path)
 
     def test_native_read_preserves_black_guard_and_one_bounded_reobservation(self):
         from PIL import Image

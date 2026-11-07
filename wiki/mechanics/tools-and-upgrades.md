@@ -10,4 +10,4 @@
 | Silver Axe / Pickaxe | 10 Silver Ingot + 5 Wood + 1000c each |
 | Gold Axe / Pickaxe | 12 Gold Ingot + 10 Wood + 3000c each |
 | Shovel | 20 Iron Ingot + 5 Wood + 150c |
-Priority: pickaxe. Details: `reference/wiki/Tools.md`.
+Priority: pickaxe. Details: `wiki/mechanics/tools.md`.

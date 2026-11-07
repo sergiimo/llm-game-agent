@@ -20,14 +20,14 @@ Tags: `energy` `food` `sleep` `time` `planning` `mining` `chopping` `farming` `w
 | T6 | Daily chores first: water planted crops every day (rain counts). | watering, farming, planning | verified | mechanics/farming.md |
 | T7 | Read progress from the tracker/journal, not by counting actions. Drops (wood, etc.) count only after pickup. | chopping, quests, foraging | verified | mechanics/basic-actions.md |
 | T8 | Chopping a log takes ~3–4 swings (~10 game-min each); ~2 logs drain an early-game ⚡ bar. | chopping, energy | verified | mechanics/basic-actions.md |
-| T9 | Shops have fixed hours and closed days; plan town trips inside them. NPCs follow schedules (e.g. mayor 9–17 at Town Hall). | shops, time, planning, npc | wiki ❓ (mayor schedule used) | world/businesses.md, reference/wiki/<Name>__Schedule.md |
+| T9 | Shops have fixed hours and closed days; plan town trips inside them. NPCs follow schedules (e.g. mayor 9–17 at Town Hall). | shops, time, planning, npc | wiki ❓ (mayor schedule used) | world/businesses.md, wiki/<Name>__Schedule.md |
 | T10 | Time freezes while the game isn't frontmost; day ends with a pass-out ~02:00, so walk home before ~23:00. | time, sleep, planning | verified | mechanics/time-and-calendar.md |
 | T11 | Quest steps can be sequential and hidden: a step only counts if done after it appears. | quests | verified | mechanics/quests-system.md |
 | T12 | NPCs wander. Locate them with `look`, then interact only when they stand still. | npc, relationships, quests | verified | mechanics/basic-actions.md |
 | T13 | Harvest everything before triggering a season change; out-of-season crops vanish. | seasons, farming | wiki ❓ | mechanics/seasons-and-weather.md |
 | T14 | Sell to each shop until it levels up (stars, top-right of the shop window) to unlock more stock; open Lina's store early for spring seeds. | shops, money | wiki ❓ | mechanics/money-and-shops.md |
 | T15 | Don't sell respawning forage you'll need later (moon flowers, mushrooms, shells, mandrake, nuts); inventory is unlimited. | foraging, money | wiki ❓ | mechanics/foraging.md |
-| T16 | Early money: buy tuna (Bruno) + flour (Lina), cook fish fingers, sell to Sophia (~65c profit each). | money, fishing, crafting, shops | wiki ❓ | reference/wiki/Helpful Tips & Tricks.md |
+| T16 | Early money: buy tuna (Bruno) + flour (Lina), cook fish fingers, sell to Sophia (~65c profit each). | money, fishing, crafting, shops | wiki ❓ | wiki/story/topics/helpful-tips-and-tricks.md |
 | T17 | Talk to each villager once a day; favourite gifts give a big boost the first time. | relationships, npc | wiki ❓ | mechanics/relationships.md, world/characters.md |
 | T18 | Pet the cat (and later chickens) daily: free bait/feathers. Keep 7+ days of animal feed (the ranch closes Thu–Sat). | animals, fishing | wiki ❓ | mechanics/animals.md |
 | T19 | Upgrade the pickaxe first among tools; it saves the most energy in the mine. | mining, energy, money | wiki ❓ | mechanics/tools-and-upgrades.md |

@@ -18,7 +18,7 @@
   me=Player target=GardenBed(Clone)`, no `> water`, plant unchanged. ❓ A second Space on the card probably digs it up
   (unplant; destructive: ask first). Wilted flowers likely don't feed the bee hives. Wiki: the **Reverse Time Spell** (Westley,
   130 coins) restores wilted plants (spending → ask the user). ❓ How many dry days until a crop dies.
-- New bubble kinds on the way (`fill_can`, `water`) are learned by one deliberate Space (docs/self-improvement.md).
+- New bubble kinds on the way (`fill_can`, `water`) are learned by one deliberate Space (docs/architecture/self-improvement.md).
 - Trips are the same every day: record them as anchored edges (`./wf edge add`), replay them (`./wf edge replay`).
 - Status is exact, not remembered: always re-run `./wf routines` instead of counting by hand.
 

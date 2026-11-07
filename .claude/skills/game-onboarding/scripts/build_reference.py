@@ -1,4 +1,4 @@
-"""Rebuild reference/wiki/*.md from a directory of raw .wiki files (fandom API dump)."""
+"""Rebuild content/wiki/*.md from a directory of raw .wiki files (fandom API dump)."""
 import glob
 import os
 import sys

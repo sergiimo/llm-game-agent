@@ -779,7 +779,7 @@ def route(name):
 # ---------------------------------------------------------------- wiki lookup
 
 def wiki(query, limit=15, show=False):
-    """Search reference/wiki: exact/partial title matches first, then content hits."""
+    """Search content/wiki: exact/partial title matches first, then content hits."""
     wdir = os.path.join(ROOT, 'reference', 'wiki')
     files = sorted(os.listdir(wdir))
     q = query.lower()
@@ -789,7 +789,7 @@ def wiki(query, limit=15, show=False):
         return
     print('# title matches')
     for f in titles[:limit]:
-        print('  reference/wiki/' + f)
+        print('  content/wiki/' + f)
     print('# content matches (file: line)')
     n = 0
     for f in files:
@@ -877,7 +877,7 @@ def main(argv=None):
     p.add_argument('--list', action='store_true')
     p = sub.add_parser('save-template', help='save HUD template from current frame (calibration)')
     p.add_argument('name', choices=sorted(HUD_TEMPLATES))
-    p = sub.add_parser('wiki', help='search offline wiki (reference/wiki)')
+    p = sub.add_parser('wiki', help='search offline wiki (content/wiki)')
     p.add_argument('query')
     p.add_argument('--show', action='store_true', help='print best title match in full')
     p.add_argument('--limit', type=int, default=15)

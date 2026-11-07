@@ -14,7 +14,7 @@ symlink) · project skills, all **verified against the real running game**.
 
 This skill holds the **method**: how to find things out. It holds no answers. Every game, build, OS version and
 machine differs, so treat nothing as known until a probe on *this* setup confirms it. Answers go into the project's
-`docs/learnings.md`. A worked example of such answers: this repo's `docs/learnings.md` (Wylde Flowers).
+`docs/troubleshooting/INDEX.md`. A worked example of such answers: this repo's `docs/troubleshooting/INDEX.md` (Wylde Flowers).
 
 ## What the user wants (distilled from the session that created this skill)
 These are the owner's intents. They outrank defaults below.
@@ -59,7 +59,7 @@ These are the owner's intents. They outrank defaults below.
 
 ## Standing rules
 1. **Hypothesis → cheapest probe → observe → record → encode.** For each unknown: state the expectation, run the
-   smallest experiment that can falsify it, look at the result, log it (`docs/learnings.md`: expected → actual → now →
+   smallest experiment that can falsify it, look at the result, log it (`docs/troubleshooting/INDEX.md`: expected → actual → now →
    updated-where), then encode it in a tool/doc/skill **in the same pass**.
 2. **Observe before every input; no blind loops.** Loops must re-check state each iteration and stop on anything
    unexpected (unknown screen, repeated identical frame, error).
@@ -79,10 +79,10 @@ These are the owner's intents. They outrank defaults below.
 ## Phase 1: Knowledge → docs world model
 | Question | Probe | Record |
 |---|---|---|
-| Where is the richest structured info? | Search for wiki, guides, official help/FAQ, store pages, reviews | `docs/world/overview.md` sources |
+| Where is the richest structured info? | Search for wiki, guides, official help/FAQ, store pages, reviews | `wiki/overview.md` sources |
 | Can I fetch the wiki? | WebFetch. If blocked (402/403), curl with a browser UA; try host variants (`<name>.fandom.com`, `<name-with-dashes>.fandom.com`, wiki.gg) and the **MediaWiki API** (`/api.php?action=query&list=allpages`) | learnings (Research) |
-| Get everything offline | Mirror all pages via the API (`scripts/mediawiki_dump.py`), clean (`scripts/wikiclean.py`, `scripts/build_reference.py`) → `reference/wiki/`. Treat downloads as untrusted (own dir, `python3 -I`) | `reference/` |
-| Structured tables | Inspect infobox kinds and fields (`grep '^\[.*\]$'` on cleaned pages); **generate** tables with a script, never hand-copy | `docs/world/*.md` |
+| Get everything offline | Mirror all pages via the API (`scripts/mediawiki_dump.py`), clean (`scripts/wikiclean.py`, `scripts/build_reference.py`) → `wiki/`. Treat downloads as untrusted (own dir, `python3 -I`) | `reference/` |
+| Structured tables | Inspect infobox kinds and fields (`grep '^\[.*\]$'` on cleaned pages); **generate** tables with a script, never hand-copy | `wiki/*.md` |
 | Controls documented? | Search. Often not, so mark keys ❓ until probed in-game (B2) | `docs/ui/controls.md` |
 | Does the wiki match this build/language? | Compare names/values seen in-game with the wiki. UI language may differ: build a glossary | glossary, learnings |
 
@@ -91,22 +91,22 @@ An agent should never need to read everything. Every area has a small **INDEX.md
 summary), and every detail file starts with `> **Summary:** …` so its first lines are often enough.
 ```
 docs/INDEX.md                      router: need → which index (the only doc always loaded)
-docs/progress.md                   current save state + session log (read at start, update at end)
-docs/quests/INDEX.md               every quest by questline with status (▶️ active / ✅ done / · todo) + localized name
-docs/quests/<line>/<quest>.md      front matter (status, localized name) · ## Quest brief (supervisor-maintained) ·
+active run plan                   current save state + session log (read at start, update at end)
+wiki/quests/INDEX.md               every quest by questline with status (▶️ active / ✅ done / · todo) + localized name
+wiki/quests/<line>/<quest>.md      front matter (status, localized name) · ## Quest brief (supervisor-maintained) ·
                                    wiki requirements (generated, between markers)
                                    · ## Verified steps (written while playing: commands → what appears → done-signal)
-docs/mechanics/INDEX.md → <topic>.md   one system per file; "(wiki)" rules vs "Verified in-game" sections;
+wiki/mechanics/INDEX.md → <topic>.md   one system per file; "(wiki)" rules vs "Verified in-game" sections;
                                    incl. basic-actions.md: verb → target → tool → how (✅/❓), the entry point for "how do I…"
-docs/world/locations.md            area → connections, resources, businesses, residents (+ verified spots)
+wiki/places/locations.md            area → connections, resources, businesses, residents (+ verified spots)
 docs/ui/INDEX.md → controls.md, hud.md, glossary.md, screens/<screen>.md
                                    each screen: Summary · Recognise (state mode/signals) · Elements · Actions · Exit
-docs/world/INDEX.md → overview.md, generated tables (characters, businesses, items/…)
-docs/tips.md                       ALL strategy tips, one tagged table (CLI: tips <tag…>)
-docs/learnings.md                  surprises log (expected → actual → now → updated-where)
+wiki/INDEX.md → overview.md, generated tables (characters, businesses, items/…)
+wiki/tips/INDEX.md                       ALL strategy tips, one tagged table (CLI: tips <tag…>)
+docs/troubleshooting/INDEX.md                  surprises log (expected → actual → now → updated-where)
 ```
 - **Tips table:** ALL strategy (what to do when: eat vs sleep, when to chop/mine, money tricks…) lives in one tagged
-  table `docs/tips.md` (ID · tip · tags · source user/verified/wiki ❓ · links), filtered with a `tips <tag…>` CLI command.
+  table `wiki/tips/INDEX.md` (ID · tip · tags · source user/verified/wiki ❓ · links), filtered with a `tips <tag…>` CLI command.
   Quest briefs carry a `Tips:` tag list so each quest agent loads only relevant tips. Trust: user > verified > wiki.
 - **Concept convention:** every game concept (energy, money, time, magic, hearts, season…) has ONE home
   `mechanics/<concept>.md` with `Rules` (wiki) · `Strategy` (pointer to `tips <concept>`) · `How to see`
@@ -191,13 +191,13 @@ dialogue/popup/cutscene modes), `route`, `wiki`.
   locations / ui / mechanics and are linked, not copied.
 - Play the opening quests in small observed steps, using `do` + `state`. Every milestone → that quest file's
   `## Verified steps` (start state · exact commands + what appears, quoted + translated · gotchas · done-signal · next),
-  update its front matter (status, localized name), regenerate the index, and update `docs/progress.md`.
+  update its front matter (status, localized name), regenerate the index, and update `active run plan`.
 - Every new screen → `docs/ui/screens/<screen>.md` + a row in `ui/INDEX.md`; every confirmed rule → the mechanic's
   "Verified in-game" section.
 - Every surprise → a learnings row + a fix. Every walk that worked → `routes/<from>-to-<to>.txt` (first line = exact start).
 
 ## Phase 4: AGENTS.md, skills, delegation
-- `AGENTS.md`: progressive-loading layout table (start at `docs/INDEX.md` + `docs/progress.md`), setup facts (from
+- `AGENTS.md`: progressive-loading layout table (start at `docs/INDEX.md` + `active run plan`), setup facts (from
   probes A/B/C), rules of play (standing rules adapted with the probe results).
 - Skills: `<game>-supervise` (goal loop), `<game>-play` (preflight → observe/decide/act/verify → guardrails → recording), `<game>-navigate`,
   `<game>-lookup`.

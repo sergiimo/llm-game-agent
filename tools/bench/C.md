@@ -3,7 +3,7 @@
 - **Goal:** benchmark C (spec 2026-10-30 §7.2): find Violet's shop in Town and talk to her; measured by
   `./wf bench report` (questions asked, answers that worked, calls).
 - **Done when:** a `[REL] Violet` or Violet dialogue line in the log, menu closed, back in gameplay.
-- **Brief:** docs/world/businesses.md (Violet's Violets: Tue–Sat 9–17) · docs/actions.md (A12) ·
+- **Brief:** wiki/businesses/INDEX.md (Violet's Violets: Tue–Sat 9–17) · docs/operations/actions.md (A12) ·
   docs/ui/screens/interaction-menu.md · .claude/skills/wylde-navigate/SKILL.md
 - **Review:** template; run after M4 (question protocol), Tue–Sat 9–17 only; no buying or selling.
 
@@ -23,7 +23,7 @@
 - **If stuck:** as step 1
 
 ## Step 3: Talk to Violet and leave the menu
-- **Do:** docs/actions.md A12: `./wf do go:<Violet>` → `./wf do key:space` → interaction menu → the talk topic →
+- **Do:** docs/operations/actions.md A12: `./wf do go:<Violet>` → `./wf do key:space` → interaction menu → the talk topic →
   `./wf advance` → one `./wf do key:escape`
 - **Signal:** Violet's dialogue lines in `./wf log`
 - **Done when:** gameplay mode again

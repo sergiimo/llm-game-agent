@@ -10,11 +10,11 @@ PLAN = '''# Plan: VioletBeehives
 
 - **Goal:** hand 1 honey to Violet
 - **Done when:** `./wf save` lists VioletBeehives under done
-- **Brief:** docs/quests/town/meant-to-bee.md
+- **Brief:** wiki/quests/town/meant-to-bee.md
 - **Review:** ok
 
 ## Step 1: Water the wilted beds
-- **Do:** `./wf routines`, then per docs/routines.md R1
+- **Do:** `./wf routines`, then per docs/operations/routines.md R1
 - **Signal:** `> water me=Player target=GardenBed` in the log
 - **Done when:** R1 DONE
 - **Budget:** 2 calls, 60 min

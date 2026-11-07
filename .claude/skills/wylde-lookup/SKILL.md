@@ -10,15 +10,15 @@ The game is in Russian and the wiki is in English. Translate names with `docs/ui
 
 | Question | Where |
 |---|---|
-| Who is X, where/when, favorite gifts | `docs/world/characters.md`, then `reference/wiki/<Name>.md`, `<Name>__Schedule.md`, `__Events.md` |
-| Is shop X open now / what it sells | `docs/world/businesses.md`, then `reference/wiki/<Business>.md` (inventory + unlock levels) |
-| Recipe / station / sell price | `docs/world/items/*.md` (food-and-drink, potions-and-incantations, crafting-ingredients, workstations …) |
-| Crop season / grow time / profit | `docs/mechanics/farming.md`, `reference/wiki/Farming.md` |
-| Fish by area & bait | `docs/world/items/fish.md`, `reference/wiki/Fishing.md`, area pages |
-| Quest requirements, rewards, status, verified steps | `docs/quests/INDEX.md` → `docs/quests/<line>/<quest>.md`; board: `reference/wiki/Bulletin Board Quests.md` |
-| How a system works | `docs/mechanics/INDEX.md` → `docs/mechanics/<topic>.md` |
+| Who is X, where/when, favorite gifts | `wiki/characters/INDEX.md`, then `wiki/<Name>.md`, `<Name>__Schedule.md`, `__Events.md` |
+| Is shop X open now / what it sells | `wiki/businesses/INDEX.md`, then `wiki/<Business>.md` (inventory + unlock levels) |
+| Recipe / station / sell price | `wiki/items/*.md` (food-and-drink, potions-and-incantations, crafting-ingredients, workstations …) |
+| Crop season / grow time / profit | `wiki/mechanics/farming.md`, `wiki/mechanics/farming.md` |
+| Fish by area & bait | `wiki/items/fish.md`, `wiki/mechanics/fishing.md`, area pages |
+| Quest requirements, rewards, status, verified steps | `wiki/quests/INDEX.md` → `wiki/quests/<line>/<quest>.md`; board: `wiki/story/bulletin-board-quests.md` |
+| How a system works | `wiki/mechanics/INDEX.md` → `wiki/mechanics/<topic>.md` |
 | What a screen is / how to exit / which key | `docs/ui/INDEX.md` → `docs/ui/screens/<screen>.md`, `controls.md`, `hud.md` |
 | Anything else | `./wf wiki "<term>"` (title + content matches); `./wf wiki "<Title>" --show` prints a page |
 
 Wiki data is community-written and may be out of date (the game is v1.7.2). When the game disagrees, trust the
-game and log it in `docs/learnings.md`.
+game and log it in `docs/troubleshooting/INDEX.md`.

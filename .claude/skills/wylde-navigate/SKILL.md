@@ -72,8 +72,8 @@ scene change, stuck, `./wf pos`) measure where Tara really is and append a fact 
 
 ## Finding the way
 - `./wf key m` opens the map: the pink pin is Tara and a dotted line marks the current quest route. Close with Esc.
-- World connections: `docs/world/overview.md` (Map), `docs/world/locations.md` (verified landmarks) and
-  `reference/wiki/<Area>.md` → "Connections" (e.g. Town Center → Farm exits top-left by the Blacksmith).
+- World connections: `wiki/overview.md` (Map), `wiki/places/locations.md` (verified landmarks) and
+  `wiki/<Area>.md` → "Connections" (e.g. Town Center → Farm exits top-left by the Blacksmith).
 - Old keyboard routes in `routes/*.txt` are disabled, but their comments still describe landmarks along the way.
 
 ## Arrival

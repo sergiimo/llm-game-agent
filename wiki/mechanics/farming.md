@@ -11,7 +11,7 @@
 | Hay Field | – | *Hay What's Up?*: 2000c, 40 Soil |
 ## Structures
 Garden Bed 10 Wood + 1 Soil + 25c (4 seeds or 1 tree) · Compost Bin 6 Wood + 10c (2 Weeds → Soil in 24 h, + worms) · Bee Hive 10 Wood + 50c (honey/wax near blooming flowers) · Hummingbird Feeder (decor).
-## Crops (seed → sell, days) — full table `reference/wiki/Farming.md`
+## Crops (seed → sell, days) — full table `wiki/mechanics/farming.md`
 Spring: Green Bean 3→10 4d · Potato 5→15 5d · Carrot 10→20 5d · Cauliflower 15→20 6d · **Wheat 8→48 8d** · Tulip · Snowdrop.
 Summer: Corn · Tomato · **Strawberry 20→48 6d** · Sugarcane · Hops · Marigold · Sunflower · Cotton (Thomas).
 Fall: Cabbage · Grapes · Fennel · Pumpkin · Soybean · Tiger Lily · Turtlehead. Winter: Onion · Spinach · Sweet Potato · Fennel · Black Tea · Crocus · Primrose.

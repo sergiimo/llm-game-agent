@@ -664,7 +664,7 @@ ENERGY_RING = {'center': (116, 116), 'radius': 96, 'start_deg': 82, 'end_deg': 2
 
 def read_energy(img):
     """Energy as 0-100 from the orange arc next to the clock (⚡ marks its start). None if the ring isn't visible.
-    Orange = filled; pale brown track = empty. See docs/mechanics/energy.md."""
+    Orange = filled; pale brown track = empty. See wiki/mechanics/energy.md."""
     import math
     cx, cy = ENERGY_RING['center']
     r = ENERGY_RING['radius']
@@ -915,7 +915,7 @@ def collect_bubble_samples(log_lines):
 
 
 def learn_report():
-    """`wf learn`: what the self-improving parts know and how well (bubble kinds now; see docs/self-improvement.md)."""
+    """`wf learn`: what the self-improving parts know and how well (bubble kinds now; see docs/architecture/self-improvement.md)."""
     import numpy as np
     refs = _bubble_refs()
     kinds = {}
@@ -937,7 +937,7 @@ def learn_report():
     pend = os.path.join(SHOT_DIR, 'bubble_samples', 'unlabelled')
     if os.path.isdir(pend) and os.listdir(pend):
         print(f'unlabelled samples (Space with no logged interaction): {len(os.listdir(pend))} in {pend}')
-    # action outcomes observed in run logs -> compare with docs/actions.md Expect
+    # action outcomes observed in run logs -> compare with docs/operations/actions.md Expect
     obs = {}
     for f in run_logs():
         cur = None
@@ -965,7 +965,7 @@ def learn_report():
     if asks:
         print('model questions per run: ' + ', '.join(f'{f} {n}' for f, n in asks.items()))
     if obs:
-        print('observed in run logs (target: destroyed · hits each · pickups after each) → compare docs/actions.md Expect:')
+        print('observed in run logs (target: destroyed · hits each · pickups after each) → compare docs/operations/actions.md Expect:')
         for k, o in sorted(obs.items()):
             print(f'  {k}: {o["n"]} · hits {sorted(set(o["hits"]))} · picked {o["picked"]}')
 
@@ -3724,17 +3724,23 @@ def route(name):
 # ---------------------------------------------------------------- wiki lookup
 
 def wiki(query, limit=15, show=False):
-    """Search reference/wiki: exact/partial title matches first, then content hits."""
-    wdir = os.path.join(ROOT, 'reference', 'wiki')
-    files = sorted(os.listdir(wdir))
+    """Search the nested unified Wiki: title matches first, then content."""
+    wdir = os.path.join(ROOT, 'wiki')
+    files = sorted(os.path.relpath(os.path.join(d, f), wdir) for d, _, fs in os.walk(wdir)
+                   for f in fs if f.endswith('.md'))
     q = query.lower()
-    titles = [f for f in files if f[:-3].lower() == q] + [f for f in files if q in f.lower() and f[:-3].lower() != q]
+    manifest = json.load(open(os.path.join(wdir, 'manifest.json')))
+    alias_hits = [p['canonical_path'][5:] for p in manifest['pages']
+                  if any(a.lower() == q for a in p['aliases'])]
+    partial_alias_hits = [p['canonical_path'][5:] for p in manifest['pages']
+                          if any(q in a.lower() for a in p['aliases']) and p['canonical_path'][5:] not in alias_hits]
+    titles = alias_hits + partial_alias_hits
     if show and titles:
         print(open(os.path.join(wdir, titles[0])).read())
         return
     print('# title matches')
     for f in titles[:limit]:
-        print('  reference/wiki/' + f)
+        print('  wiki/' + f)
     print('# content matches (file: line)')
     n = 0
     for f in files:
@@ -3752,9 +3758,11 @@ def wiki(query, limit=15, show=False):
 # ---------------------------------------------------------------- tips
 
 def tips(tags, require_all=False):
-    """Print rows of docs/tips.md matching tags (any by default)."""
+    """Print rows from nested wiki/tips pages matching tags."""
     want = {t.lower().strip(',') for t in tags}
-    rows = [l for l in open(os.path.join(ROOT, 'docs', 'tips.md')) if re.match(r'\| T\d+ ', l)]
+    tdir = os.path.join(ROOT, 'wiki', 'tips')
+    rows = [line for d, _, fs in os.walk(tdir) for f in fs if f.endswith('.md')
+            for line in open(os.path.join(d, f)) if re.match(r'\| T\d+ ', line)]
     n = 0
     for l in rows:
         cells = [c.strip() for c in l.strip().strip('|').split('|')]
@@ -3769,10 +3777,10 @@ def tips(tags, require_all=False):
 
 
 def actions(tags, require_all=False):
-    """Print rows of docs/actions.md (action -> expected outcome -> verify) matching tags (any by default)."""
+    """Print rows of docs/operations/actions.md (action -> expected outcome -> verify) matching tags (any by default)."""
     want = {t.lower().strip(',') for t in tags}
     n = 0
-    for l in open(os.path.join(ROOT, 'docs', 'actions.md')):
+    for l in open(os.path.join(ROOT, 'docs', 'operations', 'actions.md')):
         if not re.match(r'\| A\d+ ', l):
             continue
         rid, name, tg, do, expect, verify, ifnot, status = ([c.strip() for c in l.strip().strip('|').split('|')] + [''] * 8)[:8]
@@ -3956,7 +3964,7 @@ def today_log():
 
 
 def routines():
-    """Today's routines with status, from the save (what exists) and today's log (what was done). docs/routines.md"""
+    """Today's routines with status, from the save (what exists) and today's log (what was done). docs/operations/routines.md"""
     today, day, lines = today_log()
     fc = next((l for l in reversed(lines) if f'[D{day} ' in l and 'Forecast is' in l), '')
     rain = bool(re.search(r'Forecast is (Rain|Storm|Thunder)', fc))
@@ -4100,7 +4108,7 @@ def main(argv=None):
     p.add_argument('--list', action='store_true')
     p = sub.add_parser('save-template', help='save HUD template from current frame (calibration)')
     p.add_argument('name', choices=sorted(HUD_TEMPLATES))
-    p = sub.add_parser('wiki', help='search offline wiki (reference/wiki)')
+    p = sub.add_parser('wiki', help='search the unified offline wiki')
     p.add_argument('query')
     p.add_argument('--show', action='store_true', help='print best title match in full')
     p.add_argument('--limit', type=int, default=15)
@@ -4170,7 +4178,7 @@ def main(argv=None):
     p.add_argument('--width', type=int, default=1280)
     sub.add_parser('pause', help='pause the game if it is running (checks first; Escape toggles)')
     sub.add_parser('resume', help='resume the game if it is paused (checks first)')
-    sub.add_parser('routines', help="today's daily chores and their status (save + today's log); docs/routines.md")
+    sub.add_parser('routines', help="today's daily chores and their status (save + today's log); docs/operations/routines.md")
     p = sub.add_parser('edge', help='anchored route edges: wf edge add <A> <B> x:y x:y … | replay <A> <B> | list')
     p.add_argument('sub')
     p.add_argument('args', nargs='*')
@@ -4183,10 +4191,10 @@ def main(argv=None):
     p = sub.add_parser('learn', help='self-improvement status: learned bubble kinds, accuracy, recent additions; '
                                      '`learn nav` = navigation loop (calibration, places, edges, blocks, L62)')
     p.add_argument('what', nargs='?')
-    p = sub.add_parser('actions', help='action DB rows from docs/actions.md by tag (do/expect/verify): wf actions chop pickup [--all]')
+    p = sub.add_parser('actions', help='action DB rows from docs/operations/actions.md by tag (do/expect/verify): wf actions chop pickup [--all]')
     p.add_argument('tags', nargs='*')
     p.add_argument('--all', action='store_true')
-    p = sub.add_parser('tips', help='list tips from docs/tips.md by tag: wf tips energy mining [--all]')
+    p = sub.add_parser('tips', help='list tips from wiki/tips by tag: wf tips energy mining [--all]')
     p.add_argument('tags', nargs='*')
     p.add_argument('--all', action='store_true', help='require every tag')
     p = sub.add_parser('log', help='CHEAP + EXACT: new game event-log lines since last read (quests, dialogue, '

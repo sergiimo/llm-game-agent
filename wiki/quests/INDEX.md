@@ -6,6 +6,7 @@ To change a status or add the internal id (seen in `./wf log`), edit the quest f
 ## ▶️ Active now
 
 - [The Most Elaborate Icebreaker](town/the-most-elaborate-icebreaker.md) — `MayorMeetEveryone` · Town
+- [Meant To Bee](town/meant-to-bee.md) — Town
 - [From Bud To Spud](gardening-foraging-and-plants/from-bud-to-spud.md) — `GrandmaPotato` · Gardening, Foraging, and Plants
 - [Steeped in Mystery](coven/steeped-in-mystery.md) — `GrandmaHerblore` · Coven
 
@@ -23,7 +24,7 @@ To change a status or add the internal id (seen in `./wf log`), edit the quest f
 | · | [Oh, the Iron-y](town/oh-the-iron-y.md) |  | Spring Year 1 | If you bring Natalia some iron ore from the mine, she’ll smelt it into an ingot. (from Nat |
 | · | [We Make a Great Pair-ogi](town/we-make-a-great-pair-ogi.md) |  | Spring Year 1 | Help Angus make his family’s pierogi recipe by bringing him mushrooms and potatoes. (from  |
 | · | [A Questionable Supply Chain](town/a-questionable-supply-chain.md) |  | Spring Year 1 | The mayor needs you to bring him some wood, stone, and iron ingots. (from Otto Soft; 2 ste |
-| · | [Meant To Bee](town/meant-to-bee.md) |  | Spring Year 1 | Set up a beehive in your field so that you can make honey. (from Violet Miranda; 1 step(s) |
+| ▶️ | [Meant To Bee](town/meant-to-bee.md) |  | Spring Year 1 | Set up a beehive in your field so that you can make honey. (from Violet Miranda; 1 step(s) |
 | · | [Good Grief](town/good-grief.md) |  | Summer | Make some Berry Smoothies to bring to the grief group. (from Vanessa Soft; 2 step(s)) |
 | · | [For Crying Drought Loud](town/for-crying-drought-loud.md) |  | Summer | Thomas says a drought has hit Fairhaven! Ask around town to see if everyone’s ok. (from Th |
 | · | [This Rock is Mine](town/this-rock-is-mine.md) |  | Summer | Look for artifacts in the bottom levels of the mine and take them to Giva. (from Giva Josh |
@@ -239,29 +240,3 @@ To change a status or add the internal id (seen in `./wf log`), edit the quest f
 | | Quest | Id | Season | Summary |
 |---|---|---|---|---|
 | · | [It's a Spring Fling Thing](post-epilogue/its-a-spring-fling-thing.md) |  | Spring Fling Quests | The Festival starts in 12 days. (from Gloria Miranda; 3 step(s)) |
-
-<!-- pages:start -->
-## Detailed pages
-
-- [Brewing](brewing/INDEX.md)
-- [Building](building/INDEX.md)
-- [Conversation](conversation/INDEX.md)
-- [Coven](coven/INDEX.md)
-- [Election](election/INDEX.md)
-- [Epilogue](epilogue/INDEX.md)
-- [Gardening Foraging And Plants](gardening-foraging-and-plants/INDEX.md)
-- [Gloaming First Keystone](gloaming-first-keystone/INDEX.md)
-- [Gloaming Second Keystone](gloaming-second-keystone/INDEX.md)
-- [Gloaming Third Keystone](gloaming-third-keystone/INDEX.md)
-- [Medicine](medicine/INDEX.md)
-- [Other](other/INDEX.md)
-- [Post Epilogue](post-epilogue/INDEX.md)
-- [Ravenwood Hollow](ravenwood-hollow/INDEX.md)
-- [Romance](romance/INDEX.md)
-- [Summer Festival](summer-festival/INDEX.md)
-- [Technology](technology/INDEX.md)
-- [Town](town/INDEX.md)
-- [Wedding](wedding/INDEX.md)
-- [Winter Feast](winter-feast/INDEX.md)
-- [Wraith](wraith/INDEX.md)
-<!-- pages:end -->

@@ -1,4 +1,4 @@
-"""The interaction laws (docs/mechanics/interaction-laws.md, user D183-D185, L124-L138) now run in the generic engine
+"""The interaction laws (wiki/mechanics/interaction-laws.md, user D183-D185, L124-L138) now run in the generic engine
 (game/engine.py, spec 2026-11-03): goals (goals.json) over a world graph (world.py) with a learned transition table
 (actions.json, plan.py, steps.py), one vision question at a time (ask.py), navigation in nav.py. This module keeps the
 names older callers import."""

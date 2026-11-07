@@ -1,6 +1,6 @@
-# Potions And Incantations (generated, 60 entries)
+# Potions (generated, 60 entries)
 
-Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/wiki/<Name>.md`.
+Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `./wf wiki "<Name>"`.
 
 | Name | Recipe | Made at | Time | Buy | Sell | Sell to | Use | Unlock |
 |---|---|---|---|---|---|---|---|---|
@@ -18,8 +18,8 @@ Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/
 | Crystal Ball Potion | 1x Essence of Copper ; 1x Red Dye ; 1x Paper |  |  |  | 70 | Peri | Reveals a favorite food of the character of your choice. |  |
 | Crystal Ball Solution | 1x Essence of Copper; 1x Red Dye; 1x Paper | Cauldron | 10 Hours | 140 coins | 70 coins | Peri's Apothecary | Powers your crystal ball to reveal a favorite item of a person or animal. |  |
 | Cure Animal Sickness Potion | Seaweed x1; Coconut x1; Aryel's Hair x1 | Cauldron |  |  |  |  |  |  |
-| Enchanted Silk Thread | 1x of one of the following:; *Silk Thread *Black Silk Thread *Blue Silk Thread *Green Silk Thread *Orange Sil… | Cauldron | 1 day |  |  |  |  | Quest That's a Wrap from Eury in Y2 Fall |
 | Enchanted Silk | 1x Silk; 1x Essence of Silver; 1x Moon Flower; 1x Green Dye |  | 1 Day |  |  |  |  | Cloaked In Mystery Quest (Post-Epilogue) |
+| Enchanted Silk Thread | 1x of one of the following:; *Silk Thread *Black Silk Thread *Blue Silk Thread *Green Silk Thread *Orange Sil… | Cauldron | 1 day |  |  |  |  | Quest That's a Wrap from Eury in Y2 Fall |
 | Fall Ritual Incantation | 1x Paper; 1x Black Ink; 1x Ruby; 1x Marigold; 1x Beeswax | Desk |  |  |  |  | Change the season from Summer to Fall |  |
 | Fealty to the Fair Folk Spell | 1x Paper; 1x Black Ink; 3x Amethyst | Desk |  |  |  |  | Gain access to Ravenwood Hollow |  |
 | Festival Offering Cake | 1x Beesting Cake; 1x Bone Meal or Powdered Calcium; 1x Essence of Silver; 1x Wool Weed | Cauldron |  |  |  |  | Quest Bee Our Guests | Quest Bee Our Guests Summer Y2 |
@@ -51,8 +51,8 @@ Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/
 | Summer Ritual Incantation | 1x Flower Paper; 1x Black Ink; 1x Snowdrop; 1x Topaz; 1x Pearl Dust | Desk |  |  |  |  | Change the season from Spring to Summer |  |
 | Summon Night Spell | 1x Paper; 1x Black Ink; 1x Moon Flower; 1x Pearl | Desk |  |  |  | Arcane Texts | Move time forward to 7pm. |  |
 | Summon Rain Spell | 1x Paper; 1x Black Ink; 1x Essence of Silver; 1x Poppy Flower |  |  |  |  | Westley | Change weather to rainy | Summer drought |
-| Summon Small Things Longer | 1x Parchment; 1x Black Ink; 1x Wolfsbane; 1x Pinecone; 1x Heather |  |  |  |  | Westley | Magnetic effect on forgeables on the ground | Purchase from Arcane Texts |
 | Summon Small Things | 1x Paper; 1x Black Ink; 1x Weed; 1x Moon Flower |  |  |  | 15 | Arcane Texts | Magnetic effect on forage and mined items on the ground |  |
+| Summon Small Things Longer | 1x Parchment; 1x Black Ink; 1x Wolfsbane; 1x Pinecone; 1x Heather |  |  |  |  | Westley | Magnetic effect on forgeables on the ground | Purchase from Arcane Texts |
 | Summon Storm Spell | 1x Paper; 1x Black Ink; 1x Pinecone; 1x Crocus; 1x Topaz |  |  |  |  | Arcane Texts | Change weather to stormy, spawn numerous forage on beach |  |
 | Summon Wind Spell | 1x Parchment; 1x Ink; 1x Essence of Gold; 1x Wool Weed |  |  |  |  | Westley | Sets the day's weather to windy | Purchase recipe from Westley at shop level 1 |
 | Summon Witch Incantation | 1x Parchment; 1x Black Ink; 1x Essence of Gold; 1x Giant Lotus | Desk |  |  |  |  | Summon a new witch to the coven |  |
@@ -64,68 +64,3 @@ Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/
 | Vanessa's Wraith Banishment Spell | 1x Parchment; 1x Black Ink; 1x Fennel Powder; 1x Vanessa's Gloves; 1x Otto's Wedding Ring | Desk |  |  |  |  | Banish the wraith possessing Vanessa |  |
 | Very Charming Potion | 1x Rose Water ; 1x Honey ; 1x Essence of Joy | Cauldron |  |  | 100 | Peri | Increases the effectiveness of interactions to build relationships |  |
 | Winter Ritual Incantation | 1x Parchment; 1x Black Ink; 1x Trompette de la Mort; 1x Emerald; 1x Tiger Lily | Desk |  |  |  |  | Change the season from Fall to Winter |  |
-
-<!-- pages:start -->
-## Detailed pages
-
-- [Angus Wraith Banishment Spell](angus-wraith-banishment-spell.md)
-- [Animal Growth Booster](animal-growth-booster.md)
-- [Animal Shapeshifting Spell](animal-shapeshifting-spell.md)
-- [Anti Shapeshifting Spell](anti-shapeshifting-spell.md)
-- [Atonement Incantation](atonement-incantation.md)
-- [Boost Harvest Potion](boost-harvest-potion.md)
-- [Bumper Harvest Potion](bumper-harvest-potion.md)
-- [Charming Potion](charming-potion.md)
-- [Concentrated Levitation Potion](concentrated-levitation-potion.md)
-- [Create Wand](create-wand.md)
-- [Cryptography Incantation](cryptography-incantation.md)
-- [Crystal Ball Potion](crystal-ball-potion.md)
-- [Crystal Ball Solution](crystal-ball-solution.md)
-- [Cure Animal Sickness Potion](cure-animal-sickness-potion.md)
-- [Enchanted Silk Thread](enchanted-silk-thread.md)
-- [Enchanted Silk](enchanted-silk.md)
-- [Fall Ritual Incantation](fall-ritual-incantation.md)
-- [Fealty To The Fair Folk Spell](fealty-to-the-fair-folk-spell.md)
-- [Festival Offering Cake](festival-offering-cake.md)
-- [Freeze Time](freeze-time.md)
-- [Initiation Rite](initiation-rite.md)
-- [Levitation Potion](levitation-potion.md)
-- [Lockpick Incantation](lockpick-incantation.md)
-- [Max Restore Magic Potion](max-restore-magic-potion.md)
-- [Max Revitalizing Potion](max-revitalizing-potion.md)
-- [Midsummer Animal Blessing](midsummer-animal-blessing.md)
-- [Minor Animal Blessing](minor-animal-blessing.md)
-- [Miracle Grow Potion](miracle-grow-potion.md)
-- [Natalias Wraith Banishment](natalias-wraith-banishment.md)
-- [Pranking Pumpkin Pie](pranking-pumpkin-pie.md)
-- [Repair Bramble](repair-bramble.md)
-- [Reverse Time Spell](reverse-time-spell.md)
-- [Revitalizing Potion](revitalizing-potion.md)
-- [Reviving Potion](reviving-potion.md)
-- [Scrying Potion](scrying-potion.md)
-- [Shrinking Potion](shrinking-potion.md)
-- [Silencing Potion](silencing-potion.md)
-- [Spectare Potion](spectare-potion.md)
-- [Speed Boost Longer](speed-boost-longer.md)
-- [Speed Boost Spell](speed-boost-spell.md)
-- [Speed Time Spell](speed-time-spell.md)
-- [Spirit Flame](spirit-flame.md)
-- [Spring Ritual Incantation](spring-ritual-incantation.md)
-- [Stretching Potion](stretching-potion.md)
-- [Summer Ritual Incantation](summer-ritual-incantation.md)
-- [Summon Night Spell](summon-night-spell.md)
-- [Summon Rain Spell](summon-rain-spell.md)
-- [Summon Small Things Longer](summon-small-things-longer.md)
-- [Summon Small Things](summon-small-things.md)
-- [Summon Storm Spell](summon-storm-spell.md)
-- [Summon Wind Spell](summon-wind-spell.md)
-- [Summon Witch Incantation](summon-witch-incantation.md)
-- [Sunny Day Spell](sunny-day-spell.md)
-- [Thaw Incantation](thaw-incantation.md)
-- [Transformation Cure](transformation-cure.md)
-- [Truth Serum Malasada](truth-serum-malasada.md)
-- [Ultra Miracle Grow Potion](ultra-miracle-grow-potion.md)
-- [Vanessas Wraith Banishment Spell](vanessas-wraith-banishment-spell.md)
-- [Very Charming Potion](very-charming-potion.md)
-- [Winter Ritual Incantation](winter-ritual-incantation.md)
-<!-- pages:end -->

@@ -1,4 +1,4 @@
-"""Affordances (docs/mechanics/basic-actions.md "Interaction bubbles"): every bubble on screen is an action on offer.
+"""Affordances (wiki/mechanics/basic-actions.md "Interaction bubbles"): every bubble on screen is an action on offer.
 `scan()` lists them with their kind (icon vectors, L56), point, highlight and water-drop sub-icon, from the frame only
 (no positions). The proof stays the game log line."""
 from dataclasses import dataclass

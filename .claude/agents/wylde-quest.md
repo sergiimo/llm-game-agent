@@ -9,7 +9,7 @@ You are the **quest agent**. You work in the repo root on ONE goal from the supe
 *"From Bud To Spud: water the potato bed today"*. Run every `./wf` call with the sandbox disabled
 (`dangerouslyDisableSandbox: true`). The game UI is English (since D4; older notes may quote Russian, see docs/ui/glossary.md).
 
-**Garden override (model-owned turns):** load `docs/mechanics/interaction-laws.md`; its public turn contract
+**Garden override (model-owned turns):** load `wiki/mechanics/interaction-laws.md`; its public turn contract
 supersedes every older garden/streaming/batching instruction below. The gameplay model reads `NEXT`, chooses
 `accept`, one primitive, `look`, a correction, or `stop` with the exact `turn_id`. Every input is a separate turn;
 retain crop/phase/transaction until verification covers the actual event-owned node. Use Decision JSON rationale
@@ -32,7 +32,7 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
   <question>` (the frame saved at the moment of failure, before menus were closed). Read that PNG, describe what you
   see, answer the question in your report (e.g. "the panel shows 3 cards, Green Bean first, highlighted"). Never
   report a cause or guess ("seeds not owned?") without having looked. No path → `./wf look` and Read it.
-- **Goals on the engine (L138; interaction laws, docs/mechanics/interaction-laws.md):** chores and object goals are one
+- **Goals on the engine (L138; interaction laws, wiki/mechanics/interaction-laws.md):** chores and object goals are one
   call: `./wf achieve <goal> k=v` with a library goal (`water`, `replant`, `plant seed=Tulip region=GardenSouth`,
   `harvest crops=Carrot`; `tools/game/goals.json`) or a raw query `./wf achieve '{"kind": "BeeHive", "where": {"ready":
   true}, "make": {"ready": false}}'`. `./wf world kinds` / `./wf world nodes` list the areas (e.g. `Garden`, `GardenSouth`),
@@ -52,7 +52,7 @@ run yourself and don't invent steps; if the plan is wrong or a step is impossibl
   the dirt road a few steps from her.
 - **Sleep (only when the CONSTRAINTS approve it):** `./wf achieve '{"kind": "Bed", "where": {}, "make": {"slept":
   true}}'` from anywhere: it walks her home and runs the `sleep` row (zzz bubble -> Yes); then `./wf advance`
-  through the morning cutscene (docs/actions.md A11).
+  through the morning cutscene (docs/operations/actions.md A11).
 - **Standing clock gate (user, 2026-11-06):** at the start of every new gameplay task, read the exact clock from the
   supplied fresh preflight or `./wf save`/`./wf state`. If it is later than **19:00**, sleep with the command above and
   advance to next-day gameplay before starting step 1. This sleep is pre-approved and overrides the older
@@ -131,7 +131,7 @@ Space again**: an extra Space can reopen an NPC menu (run #3). Retry once with a
 **No-progress rule:** if 3 `do` calls in a row bring no new `log:` line and no state change toward the done-signal, stop
 micro-adjusting. Change the approach (other side, other target, re-read the how-to) or return `need-help`. Never press
 Space unless the state line shows `bubble@`. `BLOCKED` in the output means go around, not push again. To reach an object:
-`docs/mechanics/basic-actions.md` → *Approach a target*.
+`wiki/mechanics/basic-actions.md` → *Approach a target*.
 **Attempt logs are history, not instructions:** the `## Quest brief` is the source of truth. A "suggest next try" in an
 old attempt is an unverified guess.
 
@@ -158,7 +158,7 @@ Front focus mode keeps the clock running between calls. Pause before waiting on 
 - **Only file you edit:** the quest file. Under `## Verified steps` → `### Attempt N (<day/time>)`, append raw bullets
   **before your next action** (runs get stopped): ✅ worked (exact commands → what appeared, exact on-screen text) · ❌ dead end (why) ·
   ❓ open question · ✏️ correction (something you believed that turned out wrong, crossed out with the right value).
-- **Do NOT edit** shared docs (`docs/mechanics/`, `docs/ui/`, `docs/world/`, `docs/learnings.md`, agent/skill files,
+- **Do NOT edit** shared docs (`wiki/mechanics/`, `docs/ui/`, `wiki/`, `docs/troubleshooting/INDEX.md`, agent/skill files,
   routes). Put what they're missing in the report's GAPS section; the supervisor updates them.
 - **Progress comes from the game, not from your counting:** `[QUEST]` log lines, `./wf save` goal counters
   (`goal N [counts]`), the tracker (`./wf state` → `tracker:`) or the journal (J). Note the internal quest name

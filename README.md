@@ -265,7 +265,7 @@ perception memory, world representation, transition knowledge, tests and agent i
 | Evidence and learning | [tools/game/act.py](tools/game/act.py), [learn.py](tools/game/learn.py), [ask.py](tools/game/ask.py) |
 | Control plane | [tools/wf.py](tools/wf.py), [tools/wfc.py](tools/wfc.py) |
 | Code factory | [tools/runwatch.py](tools/runwatch.py), [tools/evals/](tools/evals), [tools/bench/](tools/bench), [retros/](retros) |
-| Shared knowledge | [docs/](docs/INDEX.md), [docs/self-improvement.md](docs/self-improvement.md), [AGENTS.md](AGENTS.md), [.claude/](.claude) |
+| Shared knowledge | [docs/](docs/INDEX.md), [docs/architecture/self-improvement.md](docs/architecture/self-improvement.md), [AGENTS.md](AGENTS.md), [.claude/](.claude) |
 
 ## Try it
 
@@ -285,4 +285,4 @@ permission.
 
 - Test bed: *Wylde Flowers* © Studio Drydock. This is an unofficial research project and is not affiliated with or
   endorsed by Studio Drydock.
-- reference/wiki/ and generated tables under docs/ derive from the game’s fan wiki (Fandom), CC BY-SA 3.0.
+- wiki/ derive from the game’s fan wiki (Fandom), CC BY-SA 3.0.

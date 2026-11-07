@@ -12,7 +12,7 @@ price tags; coins top-right; an "out of season" section **"Out of season..."**; 
 ## Elements
 - Item card → detail popup: name, description, how many are in your bag, price, pink button **"Buy (1)"** (Buy (1),
   focused), a **▶** arrow next to it (probably raises the quantity ❓).
-- Stock depends on shop level (stars ❓ not seen yet); prices in `reference/wiki/<Shop>.md` (Rice 8c at Lina's).
+- Stock depends on shop level (stars ❓ not seen yet); prices in `wiki/<Shop>.md` (Rice 8c at Lina's).
 
 ## Actions
 1. Stand at the counter until the shopkeeper's bubble shows → Space → interaction menu with 2 icons: speech (talk),

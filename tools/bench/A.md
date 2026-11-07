@@ -4,7 +4,7 @@
   back to bed; measured by `./wf bench report`.
 - **Done when:** `./wf routines` shows no wilted beds and R1 DONE (after an autosave) and
   Tara is in bed (next day 7:00).
-- **Brief:** docs/routines.md (R1, wilted beds) · docs/actions.md (A7–A9, A11) · .claude/skills/wylde-navigate/SKILL.md
+- **Brief:** docs/operations/routines.md (R1, wilted beds) · docs/operations/actions.md (A7–A9, A11) · .claude/skills/wylde-navigate/SKILL.md
 - **Review:** template; the supervisor checks the start state (morning, in the house) before dispatch.
 
 ## Step 1: Orient
@@ -30,7 +30,7 @@
 - **If stuck:** as step 2
 
 ## Step 4: Back to bed
-- **Do:** `./wf goto House:in`, then docs/actions.md A11 (pink bed; click it, `./wf do key:space`, `text:Yes`)
+- **Do:** `./wf goto House:in`, then docs/operations/actions.md A11 (pink bed; click it, `./wf do key:space`, `text:Yes`)
 - **Signal:** log `Spawning player at Farm/Bed`, `OnDayStarted`
 - **Done when:** next day 7:00
 - **Budget:** 10 calls, 40 min

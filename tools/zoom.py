@@ -1,4 +1,4 @@
-"""Camera zoom (L85, docs/mechanics/basic-actions.md "Camera zoom"): the game zooms in in some places (the garden), so
+"""Camera zoom (L85, wiki/mechanics/basic-actions.md "Camera zoom"): the game zooms in in some places (the garden), so
 one screen<->ground calibration per area is wrong there. The gauge is Tara herself (user): her height on screen now
 over her height at the zoom the area was calibrated at (`tara_h` in calib.json)."""
 import numpy as np

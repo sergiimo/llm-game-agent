@@ -1,4 +1,4 @@
-"""Rebuild reference/wiki/*.md from a directory of raw .wiki files (fandom API dump)."""
+"""Clean raw fan-wiki pages into a requested destination from a directory of raw .wiki files (fandom API dump)."""
 import glob
 import os
 import sys

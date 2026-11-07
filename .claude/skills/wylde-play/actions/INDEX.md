@@ -10,7 +10,7 @@
 | Reach Tara's bed and sleep | [sleep.md](sleep.md) |
 | Open a merchant UI, sell authorized items and buy discovered types | [shop.md](shop.md) |
 | Maintain every bed/hive in a named region | [garden.md](garden.md) |
-| Talk, advance a quest, use inventory or craft | Read the relevant `docs/ui/INDEX.md` screen and `docs/actions.md` row; apply the same atomic loop below. |
+| Talk, advance a quest, use inventory or craft | Read the relevant `docs/ui/INDEX.md` screen and `docs/operations/actions.md` row; apply the same atomic loop below. |
 
 Start a reviewed run, check exact game time, and observe `./wf play <goal> [k=v ...]`. Bare domain aliases also
 return `NEXT` without input. All aliases share the active run's `task.json` (existing `garden-task.json` is adopted

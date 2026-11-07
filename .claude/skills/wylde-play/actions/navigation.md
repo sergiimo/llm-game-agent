@@ -55,7 +55,7 @@ placement stays unresolved. Use a navigation subgoal when travel interrupts anot
 
 Foraging (`./wf forage rock|chop|pickup|forage`) uses vision, never graph nodes. Inspect one target, click its visible
 road/bubble, choose a single highlighted tool/pickup action, and read damage/destroy/grab-item evidence. The historical
-expected hit counts in `docs/actions.md` are estimates, not an instruction to repeat N inputs. Inspect drops and choose
+expected hit counts in `docs/operations/actions.md` are estimates, not an instruction to repeat N inputs. Inspect drops and choose
 each pickup separately. Wrong tool/target or absent damage/pickup proof requires correction. Completion means all
 model-counted drops/targets have their event proof or explicit unresolved constraints, with no unproved claims.
 

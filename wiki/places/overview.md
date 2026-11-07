@@ -21,9 +21,9 @@ and, later, a mysterious enemy (the "Raven"). The story is split by **seasons**;
 **Seasons never change on their own.** You trigger the change when you complete the ritual quest, so
 you can stay in a season as long as you want. Out-of-season crops **vanish** at the change, so harvest first.
 
-## Core systems (details in docs/mechanics/)
+## Core systems (details in wiki/mechanics/)
 - **Time:** clock advances in 10-minute ticks; game speed is configurable (Relaxed/Normal/Challenging).
-  Days have weekdays, and **shops have fixed hours and closed days** (docs/world/businesses.md).
+  Days have weekdays, and **shops have fixed hours and closed days** (wiki/businesses/INDEX.md).
 - **Energy (stamina):** tool use, foraging, spells all cost energy. Eat food/coffee to restore. Running out
   makes Tara collapse. Sleeping restores it. Max energy grows via coven rewards (Increase Energy spell).
 - **Magic meter:** spells/wand use magic; restore with alcohol drinks or Restore Magic potions.
@@ -35,15 +35,15 @@ you can stay in a season as long as you want. Out-of-season crops **vanish** at 
 - **Quests:** To-Do quests in the Journal (story questlines) + Bulletin Board quests outside Town Hall.
 - **Inventory is unlimited**, so hoard materials rather than selling them.
 
-## Map (docs/world/locations.md)
+## Map (wiki/places/locations.md)
 Farm (home) ↔ Town Center (hub of shops) ↔ Woods (coven meeting place, Silver Willow, Bramble Gate) ;
 Farm ↔ Beach (Thomas's farm, Hayseed Homestead) ; Farm ↔ Mountain (after bridge repair) ; Farm ↔ Mine ;
 Ravenwood Hollow and the Gloaming (magical areas, later).
 
 ## Where to look things up
 - Hand-written guides: `docs/` (start with AGENTS.md)
-- Generated tables: `docs/world/characters.md`, `businesses.md`, `items/*.md`
-- Full offline fan wiki (1190 pages): `reference/wiki/` → search with `./wf wiki "<term>"`
-- Story quest list with requirements and rewards: `reference/wiki/To-Do Quests.md`
-- Town board requests: `reference/wiki/Bulletin Board Quests.md`
+- Generated tables: `wiki/characters/INDEX.md`, `businesses.md`, `items/*.md`
+- Full offline fan wiki (1190 pages): `wiki/` → search with `./wf wiki "<term>"`
+- Story quest list with requirements and rewards: `wiki/story/to-do-quests.md`
+- Town board requests: `wiki/story/bulletin-board-quests.md`
 - Sources: wylde-flowers.fandom.com (CC BY-SA), wyldeflowersgame.com/help.html, commonsensegamer.com guides.

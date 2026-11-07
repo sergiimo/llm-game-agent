@@ -4,7 +4,7 @@
 > stove"). Recipes need ingredients in the inventory. ❓ Exact UI not yet seen.
 
 ## Rules (wiki)
-- Station: kitchen stove ("Frypan / Stovetop" category in `reference/wiki/Cooking.md`). Other categories need other stations.
+- Station: kitchen stove ("Frypan / Stovetop" category in `wiki/mechanics/cooking.md`). Other categories need other stations.
 - Recipes come from quests, books, mine chests and bottles found while fishing.
 - **Mushroom Risotto** = 1 Mushroom (or Shiitake) + 1 Rice; Frypan; sells to Sophia for 20c; restores energy. It's
   Gramma's favourite and the Rice and Shine quest target.
@@ -14,7 +14,7 @@
 `./wf tips crafting food money`
 
 ## How to cook ✅ (Wed d3 23:08, run #12)
-1. Reach the stove (left room; path in `docs/world/locations.md` → House doorway → kitchen stove) → orange **"?"** bubble → Space.
+1. Reach the stove (left room; path in `wiki/places/locations.md` → House doorway → kitchen stove) → orange **"?"** bubble → Space.
 2. Screen **Cooking (EN ❓)** (`overlay`): tabs on the left = cooking type; sections **Raw / Fried / Boiled / Baked (EN ❓)** with recipe cards.
 3. Click the card (Mushroom Risotto = 3rd card under **Fried (EN ❓)**, `click:500:512`) → detail "Mushroom Risotto" with ingredients have/need (Mushroom 2/1, Rice 1/1) and the button **Craft** (EN ❓, was Смастерить), focused.
 4. Space → crafted at once (log `[STATS] totalCrafted.MushroomRisotto = 1`) → Esc closes.

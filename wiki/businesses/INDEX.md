@@ -1,6 +1,6 @@
 # Businesses & opening hours (generated)
 
-Inventory, unlock levels and prices: `reference/wiki/<Business>.md`. Selling items to a shop raises its level (stars, top-right of the shop window) and unlocks more stock.
+Inventory, unlock levels and prices: `./wf wiki "<Business>"`. Selling items to a shop raises its level (stars, top-right of the shop window) and unlocks more stock.
 
 | Business | Owner | Hours | Buys / sells |
 |---|---|---|---|
@@ -22,19 +22,3 @@ Inventory, unlock levels and prices: `reference/wiki/<Business>.md`. Selling ite
 | Peri's Apothecary | Peri | Mon-Tues Closed; Wed-Sun 9am-5pm | Magic ingredients/potions/Gloaming seeds (Ravenwood Hollow) |
 | Coiffed & Crowned by Eury | Eury | Mon-Tue 9am-5pm; Wed-Fri Closed; Sat-Sun 9am-5pm | Hairstyles; buys hair products |
 | Violet's Boutique | Violet | Mon Closed; Tue-Sat 9am-5pm; Sun Closed | Sewing patterns (later rename of Violet's Violets) |
-
-<!-- pages:start -->
-## Detailed pages
-
-- [Blacksmith](blacksmith.md)
-- [Cafe Moretti](cafe-moretti.md)
-- [Dahl General Store](dahl-general-store.md)
-- [Kais Treasures](kais-treasures.md)
-- [Lightfoot Farm](lightfoot-farm.md)
-- [Nailed It](nailed-it.md)
-- [Soft And Sons Fish And Tackle](soft-and-sons-fish-and-tackle.md)
-- [The Bar](the-bar.md)
-- [The Hayseed Homestead](the-hayseed-homestead.md)
-- [The Jewelry Box](the-jewelry-box.md)
-- [Violets Violets](violets-violets.md)
-<!-- pages:end -->

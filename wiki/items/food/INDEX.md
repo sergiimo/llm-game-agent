@@ -1,6 +1,6 @@
-# Food And Drink (generated, 185 entries)
+# Food (generated, 185 entries)
 
-Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/wiki/<Name>.md`.
+Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `./wf wiki "<Name>"`.
 
 | Name | Recipe | Category/station | Time | Buy | Sell | Sell to | Recipe from | Favorite of |
 |---|---|---|---|---|---|---|---|---|
@@ -19,7 +19,7 @@ Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/
 | Banana Bread | 1x Banana; 1x Egg; 1x Wheat; 1x Walnut | Desserts |  | 160 | 80 | Seton's Bakery | Recipes for Bakers | Marty |
 | Banana Smoothie | 1x Banana; 1x Milk/Soy Milk | Drinks |  |  | 20 | Sophia | Recipes for Beverage Buffs | Juliet |
 | Beef & Shiitake | 1x Beef; 1x Shiitake Mushroom; 1x Onion; 1x Wine | Frypan |  |  | 100 coins | Cafe Moretti | mountain pass dig spot |  |
-| Beef And Shiitake | 1x Beef; 1x Shiitake Mushroom; 1x Onion; 1x Wine | Frypan |  |  | 100 coins | Cafe Moretti | Mountain dig spot |  |
+| Beef And Shiitake | 1x Beef; 1x Shiitake Mushroom; 1x Onion; 1x Wine | Frypan |  |  | 100 coins | Cafe Moretti | mountain pass dig spot |  |
 | Beef Stroganoff | 1x Beef; 1x Mushroom; 1x Paprika; 1x Tomato | Frypan |  |  | 100 coins | Cafe Moretti | Recipes for Meat-Lovers | Natalia |
 | Beef Wellington | 1x Beef; 1x Flour; 1x Mushroom; 1x Spinach; 1x Wine | Oven |  | 200 coins | 100 coins | Sophia | Mountain dig spot | Otto |
 | Beer | Hops 2 | Fermentation Barrel |  | 90 coins | 45 coins | Damon | Available at start of game | Bruno |
@@ -30,8 +30,8 @@ Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/
 | Blue Hawaii Cocktail | 1x Orange; 1x Pineapple; 1x Rum | Drinks |  |  | 45 coins |  | Mountain dig spot | Kai |
 | Blueberry Tart | 5x Blueberry; 1x Egg; 1x Flour; 1x Sugar | Desserts |  | 160 Coins | 80 Coins | Angus | Quest from Angus |  |
 | Bobotie | 1x Protein; 1x Egg; 1x Dairy; 1x Rice | Oven |  |  | 100 coins | Sophia | Mountain dig spot | Damon |
-| Bread Pudding | 1x Bread; 1x Egg; 1x Any Milk; 1x Sugar | Desserts |  |  | 80 | Angus | More Recipes for Bakers | Shelby |
 | Bread | 1x Flour; 1x Yeast | Oven |  | 40 coins | 20 coins | Angus | Available at start of game |  |
+| Bread Pudding | 1x Bread; 1x Egg; 1x Any Milk; 1x Sugar | Desserts |  |  | 80 | Angus | More Recipes for Bakers | Shelby |
 | Brigadeiro (Chocolate Coconut Truffles) | 1x Almond; 1x Chocolate; 1x Coconut; 1x Pistachio | Desserts |  |  | 80 Coins | Angus | Ocean Fishing | Aryel |
 | Buddha's Delight | 1x Shiitake Mushroom; 1x Noodles; 1x Peanut; 1x Tofu | Raw Foods |  |  | 100 coins | Sophia | Mountain dig spot | Kim |
 | Cabbage Soup | 1x Vegetable; 1x Cabbage | Pot |  |  |  |  | Mountain dig spot | Thomas |
@@ -49,7 +49,7 @@ Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/
 | Chakalaka | 1x Cabbage; 1x Chili; 1x Paprika; 1x Tomato | Pot |  |  | 100 coins |  | Mountain dig spot | Damon |
 | Cheese Pizza | 1x Cheese; 1x Pizza Dough; 1x Tomato | Oven |  |  | 100 coins | Sophia | Recipes for Pizza Chefs | Sebastián |
 | Cheese Souffle | 1x Butter; 1x Cheese; 1x Flour; 1x Milk/Soy Milk | Desserts |  |  |  | Angus | Lake or Ocean Fishing | Otto |
-| Cheese Soufflé | 1x Butter; 1x Cheese; 1x Flour; 1x Milk | Desserts |  |  | 80 coins | Seton's Bakery | Fishing | Otto |
+| Cheese Soufflé | 1x Butter; 1x Cheese; 1x Flour; 1x Milk/Soy Milk | Desserts |  |  |  | Angus | Lake or Ocean Fishing | Otto |
 | Chicken Fricassèe | 1x Chicken Filet; 2x Mushroom; 1x Dairy | pot |  |  |  |  | Fishing | Eury |
 | Chicken Kiev | 1x Bread; 1x Butter; 1x Chicken Filet | Oven |  |  | 100 coins | Sophia | Recipes for Meat Lovers | Natalia |
 | Chicken Soup | 1x Carrot; 1x Chicken Filet; 1x Noodles; 1x Onion | Pot |  |  | 50 | Sophia | Mountain dig spot | Sophia |
@@ -171,7 +171,7 @@ Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/
 | Sweet Potato & Coriander Pizza | 1x Coriander; 1x Pizza Dough; 1x Sweet Potato; 1x Tomato | Oven |  |  | 100 coins | Cafe Moretti | Lake or Ocean Fishing | Cameron |
 | Sweet Potato Casserole | 1x Sugar; 1x Sweet Potato; 1x Walnut | Desserts |  |  | 80 Coins | Angus | Mountain dig spot |  |
 | Sweet Potato Fries | 1x Fat; 1x Paprika; 1x Sweet Potato | Frypan |  |  | 20 coins | Sophia | Mountain dig spot | Cameron |
-| Sweet Potato and Coriander Pizza | 1x Coriander; 1x Pizza Dough; 1x Sweet Potato; 1x Tomato | Oven |  |  | 100 coins | Cafe Moretti | River Fishing | Cameron |
+| Sweet Potato and Coriander Pizza | 1x Coriander; 1x Pizza Dough; 1x Sweet Potato; 1x Tomato | Oven |  |  | 100 coins | Cafe Moretti | Lake or Ocean Fishing | Cameron |
 | Syrniki (Russian Cheese Pancake) | 1x Blueberry/Blackberry /Mulberry/Apple; 1x Cheese; 1x Egg; 1x Flour | Desserts |  |  | 80 | Angus | Mountain dig spot | Natalia |
 | Tabbouleh | 1x Mint; 1x Olive Oil; 1x Parsley; 1x Tomato |  |  |  | 20 coins | Sophia | Mountain dig spot |  |
 | Texas Brownie | 1x Butter; 1x Chocolate; 1x Coffee; 1x Flour; 1x Sugar | Desserts |  |  | 80 | Angus | Mountain dig spot | Zephyr |
@@ -189,190 +189,3 @@ Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/
 | Whiskey | 2x Wheat |  | 4 days | 90 | 45 | The Bar | Recipes for Mixologists | Angus |
 | Wine | 1x Grapes | Fermentation Barrel | 4 days | 90 coins | 45 coins | Damon | Available at start of game | Westley |
 | Zeytoon Parvardeh (Marinated Olives) | 1x Mint; 1x Olive; 1x Pomegranate; 1x Walnut | Raw Foods |  |  | 20 | Sophia | Mountain dig spot Food source: Digging Spots in Mountain | Amira |
-
-<!-- pages:start -->
-## Detailed pages
-
-- [Anzac Biscuit](anzac-biscuit.md)
-- [Apple Cider](apple-cider.md)
-- [Apple Juice](apple-juice.md)
-- [Apple Martini](apple-martini.md)
-- [Apple Pie](apple-pie.md)
-- [Arroz Con Gandules](arroz-con-gandules.md)
-- [Arroz Con Huevos](arroz-con-huevos.md)
-- [Asopao Chicken And Rice](asopao-chicken-and-rice.md)
-- [Avocado Toast](avocado-toast.md)
-- [Avolatte](avolatte.md)
-- [Bagel](bagel.md)
-- [Baklava](baklava.md)
-- [Banana Bread](banana-bread.md)
-- [Banana Smoothie](banana-smoothie.md)
-- [Beef And Shiitake](beef-and-shiitake.md)
-- [Beef Stroganoff](beef-stroganoff.md)
-- [Beef Wellington](beef-wellington.md)
-- [Beer](beer.md)
-- [Beesting Cake](beesting-cake.md)
-- [Beignet](beignet.md)
-- [Berry Smoothie](berry-smoothie.md)
-- [Black Pudding](black-pudding.md)
-- [Blue Hawaii Cocktail](blue-hawaii-cocktail.md)
-- [Blueberry Tart](blueberry-tart.md)
-- [Bobotie](bobotie.md)
-- [Bread Pudding](bread-pudding.md)
-- [Bread](bread.md)
-- [Brigadeiro Chocolate Coconut Truffles](brigadeiro-chocolate-coconut-truffles.md)
-- [Buddhas Delight](buddhas-delight.md)
-- [Cabbage Soup](cabbage-soup.md)
-- [Caipirinha](caipirinha.md)
-- [Caipirnha](caipirnha.md)
-- [Cape Malay Curry](cape-malay-curry.md)
-- [Cappuccino](cappuccino.md)
-- [Capricciosa Pizza](capricciosa-pizza.md)
-- [Caramel Apple](caramel-apple.md)
-- [Caramel Popcorn](caramel-popcorn.md)
-- [Carrot Cake](carrot-cake.md)
-- [Carrot Juice](carrot-juice.md)
-- [Cauliflower Soup](cauliflower-soup.md)
-- [Chai](chai.md)
-- [Chakalaka](chakalaka.md)
-- [Cheese Pizza](cheese-pizza.md)
-- [Cheese Souffle](cheese-souffle.md)
-- [Chicken Fricassee](chicken-fricassee.md)
-- [Chicken Kiev](chicken-kiev.md)
-- [Chicken Soup](chicken-soup.md)
-- [Chicken Tikka Masala](chicken-tikka-masala.md)
-- [Chocolate Cupcake](chocolate-cupcake.md)
-- [Chocolate Milkshake](chocolate-milkshake.md)
-- [Chopped Cheese Sandwich](chopped-cheese-sandwich.md)
-- [Churros](churros.md)
-- [Coconut Macaroon](coconut-macaroon.md)
-- [Coconut Rice](coconut-rice.md)
-- [Coffee](coffee.md)
-- [Corn Bread](corn-bread.md)
-- [Corn Soup](corn-soup.md)
-- [Cream Cheese Bagel](cream-cheese-bagel.md)
-- [Cream Of Mushroom Soup](cream-of-mushroom-soup.md)
-- [Croissant](croissant.md)
-- [Danish](danish.md)
-- [Duck A Lorange](duck-a-lorange.md)
-- [Empanada](empanada.md)
-- [Fennel Salad](fennel-salad.md)
-- [Fesenjan Pomegranate Walnut Stew](fesenjan-pomegranate-walnut-stew.md)
-- [Fish Chowder](fish-chowder.md)
-- [Fish Fingers](fish-fingers.md)
-- [Fish Stew](fish-stew.md)
-- [Flan](flan.md)
-- [Fried Flounder Sandwich](fried-flounder-sandwich.md)
-- [Fruit Punch](fruit-punch.md)
-- [Fruit Salad](fruit-salad.md)
-- [Golubtsi Stuffed Cabbage](golubtsi-stuffed-cabbage.md)
-- [Goulash](goulash.md)
-- [Grape Juice](grape-juice.md)
-- [Haupia Coconut Pudding](haupia-coconut-pudding.md)
-- [Honey Lemon Tea](honey-lemon-tea.md)
-- [Honey Mint Cooler](honey-mint-cooler.md)
-- [Hot Chocolate](hot-chocolate.md)
-- [Hot Cross Bun](hot-cross-bun.md)
-- [Italian Sausage](italian-sausage.md)
-- [Jambalaya](jambalaya.md)
-- [Jeweled Rice](jeweled-rice.md)
-- [Lasagna](lasagna.md)
-- [Latke](latke.md)
-- [Lemon Square](lemon-square.md)
-- [Lemonade](lemonade.md)
-- [Lobster Roll](lobster-roll.md)
-- [Lobster Tails With Truffle Oil](lobster-tails-with-truffle-oil.md)
-- [Lobster Thermidor](lobster-thermidor.md)
-- [Loco Moco](loco-moco.md)
-- [Malasada](malasada.md)
-- [Manapua Pork Dumpling](manapua-pork-dumpling.md)
-- [Marmalade Pudding](marmalade-pudding.md)
-- [Matzo Ball Soup](matzo-ball-soup.md)
-- [Mint Julep](mint-julep.md)
-- [Miso Soup](miso-soup.md)
-- [Mojito](mojito.md)
-- [Moroccan Carrot Soup](moroccan-carrot-soup.md)
-- [Muffin](muffin.md)
-- [Mulled Wine](mulled-wine.md)
-- [Mushroom Pizza](mushroom-pizza.md)
-- [Mushroom Risotto](mushroom-risotto.md)
-- [Nachos](nachos.md)
-- [New England Chowder](new-england-chowder.md)
-- [Noodles](noodles.md)
-- [Nougat](nougat.md)
-- [Oatmeal Raisin Cookie](oatmeal-raisin-cookie.md)
-- [Orange Juice](orange-juice.md)
-- [Pacoquinha Peanut Rolls](pacoquinha-peanut-rolls.md)
-- [Pancakes](pancakes.md)
-- [Pav Bhaji](pav-bhaji.md)
-- [Peanut Brittle](peanut-brittle.md)
-- [Peking Duck](peking-duck.md)
-- [Pepperoni Pizza](pepperoni-pizza.md)
-- [Persian Love Cake](persian-love-cake.md)
-- [Pierogi](pierogi.md)
-- [Pikliz](pikliz.md)
-- [Pina Colada](pina-colada.md)
-- [Poke Bowl](poke-bowl.md)
-- [Popcorn](popcorn.md)
-- [Praline Cookie](praline-cookie.md)
-- [Prawns Koliwada](prawns-koliwada.md)
-- [Prawns Koliwanda](prawns-koliwanda.md)
-- [Precipizi](precipizi.md)
-- [Pumpkin Bread](pumpkin-bread.md)
-- [Pumpkin Mochi Pie](pumpkin-mochi-pie.md)
-- [Pumpkin Pie](pumpkin-pie.md)
-- [Pumpkin Soup](pumpkin-soup.md)
-- [Pumpkin Spice Latte](pumpkin-spice-latte.md)
-- [Quiche](quiche.md)
-- [Ramen](ramen.md)
-- [Restorative Tea](restorative-tea.md)
-- [Rice Pudding](rice-pudding.md)
-- [Rice Wine](rice-wine.md)
-- [Roast Beef](roast-beef.md)
-- [Roast Pork](roast-pork.md)
-- [Roast Salmon](roast-salmon.md)
-- [Rum](rum.md)
-- [Rumbledethumps](rumbledethumps.md)
-- [Satay Noodles](satay-noodles.md)
-- [Schnitzel](schnitzel.md)
-- [Scottiglia Mixed Meat Stew](scottiglia-mixed-meat-stew.md)
-- [Seafood Fra Diavolo](seafood-fra-diavolo.md)
-- [Seafood Paella](seafood-paella.md)
-- [Seitan](seitan.md)
-- [Skirlie](skirlie.md)
-- [Slap Chips](slap-chips.md)
-- [Smoked Salmon Bagel](smoked-salmon-bagel.md)
-- [Snickerdoodle](snickerdoodle.md)
-- [Spaghetti Bolognese](spaghetti-bolognese.md)
-- [Spaghetti Puttanesca](spaghetti-puttanesca.md)
-- [Spanakopita](spanakopita.md)
-- [Spanish Omelette](spanish-omelette.md)
-- [Spinach Smoothie](spinach-smoothie.md)
-- [Spring Stew](spring-stew.md)
-- [Strawberry Daiquiri](strawberry-daiquiri.md)
-- [Strawberry Daquiri](strawberry-daquiri.md)
-- [Strawberry Milkshake](strawberry-milkshake.md)
-- [Strawberry Shortcake](strawberry-shortcake.md)
-- [Succotash](succotash.md)
-- [Sushi](sushi.md)
-- [Sweet Potato And Coriander Pizza](sweet-potato-and-coriander-pizza.md)
-- [Sweet Potato Casserole](sweet-potato-casserole.md)
-- [Sweet Potato Fries](sweet-potato-fries.md)
-- [Syrniki Russian Cheese Pancake](syrniki-russian-cheese-pancake.md)
-- [Tabbouleh](tabbouleh.md)
-- [Texas Brownie](texas-brownie.md)
-- [The Welcome Refresher](the-welcome-refresher.md)
-- [Three Sisters Stew](three-sisters-stew.md)
-- [Tiramisu](tiramisu.md)
-- [Tofu](tofu.md)
-- [Tomato Soup](tomato-soup.md)
-- [Truffled Mac And Cheese](truffled-mac-and-cheese.md)
-- [Truffled Mashed Potatoes](truffled-mashed-potatoes.md)
-- [Truffled Mushroom Soup](truffled-mushroom-soup.md)
-- [Turkish Delight](turkish-delight.md)
-- [Vada Pav Bombay Burger](vada-pav-bombay-burger.md)
-- [Vodka](vodka.md)
-- [Whiskey](whiskey.md)
-- [Wine](wine.md)
-- [Zeytoon Parvardeh Marinated Olives](zeytoon-parvardeh-marinated-olives.md)
-<!-- pages:end -->

@@ -3,7 +3,7 @@
 - **Goal:** benchmark B (spec 2026-10-30 §7.2): house → garden → well → ranch → town fountain → home, one leg per
   step; measured by `./wf bench report` (calls, game minutes, readings, stuck per leg).
 - **Done when:** step 6 ends in the farmhouse.
-- **Brief:** .claude/skills/wylde-navigate/SKILL.md · docs/world/locations.md (Farm, Town Center, RuralBeach)
+- **Brief:** .claude/skills/wylde-navigate/SKILL.md · wiki/places/locations.md (Farm, Town Center, RuralBeach)
 - **Review:** template; daytime only (start before 12:00), shops irrelevant.
 
 ## Step 1: House to the garden

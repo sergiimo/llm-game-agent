@@ -4,7 +4,7 @@
 > time. Crop, phase and positioned-event identity survive pauses, corrections and nested subgoals.
 
 Prerequisites: current clock/weather/can, reviewed run, `region` and authorized crops/seed. Bare `./wf garden` or
-`./wf play garden` observes the same task. Read the coverage set and [interaction laws](../../../../docs/mechanics/interaction-laws.md).
+`./wf play garden` observes the same task. Read the coverage set and [interaction laws](../../../../wiki/mechanics/interaction-laws.md).
 General maintenance includes empty beds; narrow water/harvest work does not. Preserve flowers unless named crop
 permission authorizes collecting them. A ready `!` means collectible. A plant plus drop needs interaction evidence
 to distinguish dry from wilted; appearance alone never proves watering need.

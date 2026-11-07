@@ -9,7 +9,7 @@ disallowedTools: Agent
 You drive Wylde Flowers through `./wf` in the repo root. Run every `./wf` call with the sandbox
 disabled. The game UI is English (since D4; older notes may quote Russian, see docs/ui/glossary.md).
 
-For an explicitly delegated **garden turn loop**, load `docs/mechanics/interaction-laws.md`: the gameplay model
+For an explicitly delegated **garden turn loop**, load `wiki/mechanics/interaction-laws.md`: the gameplay model
 owns each decision and may Read the full-scale frame. This overrides the text-only/no-decisions description for
 that assignment. Start/resume with bare `./wf garden`; submit one exact `turn_id` decision per call with structured
 rationale/evidence refs. Read outcome before continuing, keep the durable transaction, and route surprises through

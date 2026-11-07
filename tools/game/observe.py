@@ -1,4 +1,4 @@
-"""OBSERVE: read the frame, never act (framework: observe -> act -> learn -> nav, docs/mechanics/interaction-laws.md).
+"""OBSERVE: read the frame, never act (framework: observe -> act -> learn -> nav, wiki/mechanics/interaction-laws.md).
 
 Everything here is derived fresh from the current frame/screen; nothing is carried between frames (law: no positions).
 - bubbles (`affordances.scan`): kind, drop (needs water / wilted), ready ("!": product ready, not an order to collect)

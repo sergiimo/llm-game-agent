@@ -1,6 +1,6 @@
-# Forage (generated, 35 entries)
+# Forage (generated, 36 entries)
 
-Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/wiki/<Name>.md`.
+Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `./wf wiki "<Name>"`.
 
 | Name | Season | Where | Buy | Sell | Sell to |
 |---|---|---|---|---|---|
@@ -11,6 +11,7 @@ Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/
 | Coconut |  | Beach | 40 coins | 20 coins | Dahl General Store |
 | Conch Shell |  | Beach |  | 10 | Shelby |
 | Coriander | Fall | Mountain Overpass | 10 coins |  |  |
+| Forget Me Not | Fall; Winter | Woods | 10 coins |  |  |
 | Forget-Me-Not | Fall; Winter | Woods | 10 coins |  |  |
 | Giant Lotus |  | Gloaming |  |  |  |
 | Heather | Fall; Winter | Beach, south of Lightfoot Farm | 20 coins |  |  |
@@ -39,42 +40,3 @@ Source: fan wiki infoboxes via `tools/gen_world_tables.py`. Details: `reference/
 | Witch Weed | Spring, Summer, and Fall | Beach (below Thomas's farm) |  |  |  |
 | Wolfsbane |  | Gloaming |  |  |  |
 | Wool Weed |  | Gloaming |  |  |  |
-
-<!-- pages:start -->
-## Detailed pages
-
-- [Almond](almond.md)
-- [Banana](banana.md)
-- [Blackberry](blackberry.md)
-- [Blueberry](blueberry.md)
-- [Coconut](coconut.md)
-- [Conch Shell](conch-shell.md)
-- [Coriander](coriander.md)
-- [Giant Lotus](giant-lotus.md)
-- [Heather](heather.md)
-- [Hedgehog Grass](hedgehog-grass.md)
-- [Mandrake](mandrake.md)
-- [Mint](mint.md)
-- [Mistletoe](mistletoe.md)
-- [Moon Flower](moon-flower.md)
-- [Mushroom](mushroom.md)
-- [Nigella](nigella.md)
-- [Parsley](parsley.md)
-- [Peanut](peanut.md)
-- [Pearl](pearl.md)
-- [Pecan](pecan.md)
-- [Pinecone](pinecone.md)
-- [Pistachio](pistachio.md)
-- [Poppy Flower](poppy-flower.md)
-- [Seashell](seashell.md)
-- [Seaweed](seaweed.md)
-- [Shiitake Mushroom](shiitake-mushroom.md)
-- [Thistle](thistle.md)
-- [Toadstool](toadstool.md)
-- [Trompette De La Mort](trompette-de-la-mort.md)
-- [Walnut](walnut.md)
-- [Weed](weed.md)
-- [Witch Weed](witch-weed.md)
-- [Wolfsbane](wolfsbane.md)
-- [Wool Weed](wool-weed.md)
-<!-- pages:end -->

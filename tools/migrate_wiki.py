@@ -38,7 +38,7 @@ def _copy_curated(root: Path) -> None:
             target.parent.mkdir(parents=True, exist_ok=True)
             if not target.exists():
                 shutil.copy2(path, target)
-    tips = root / 'docs/tips.md'
+    tips = root / 'wiki/tips/INDEX.md'
     if tips.exists():
         target = root / 'wiki/tips/INDEX.md'
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -181,7 +181,7 @@ def materialize(manifest_path: str, root: str, dry_run: bool = True) -> Migratio
     for source in (base / 'reference/wiki', base / 'docs/mechanics', base / 'docs/quests', base / 'docs/world'):
         if source.exists():
             shutil.rmtree(source)
-    tips = base / 'docs/tips.md'
+    tips = base / 'wiki/tips/INDEX.md'
     if tips.exists():
         tips.unlink()
     return report

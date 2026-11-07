@@ -1,7 +1,7 @@
 # Locations
 
 > **Summary:** areas of Fairhaven, how they connect, and what you can gather in each (from the wiki; verify in-game).
-Verified positions/walks live in `routes/` and quest files. Full pages: `reference/wiki/<Area>.md`.
+Verified positions/walks live in `routes/` and quest files. Full pages: `wiki/<Area>.md`.
 
 ## Farm
 The Farm serves as Tara's home base throughout the game and supports crafting in the kitchen, Basement, and Tool Shed, farming in the Garden and additional farm plot, and animal rearing in the Barn and chicken coop. There are resources to forage along the left and lower parts of the area, as well as respawning trees to chop for wood and rocks to break for stone. Early on raw wood may occasionally 

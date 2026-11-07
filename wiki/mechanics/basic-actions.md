@@ -5,7 +5,7 @@
 > equipped by hand; the game uses the right tool for the target (can at a bed, axe at a log/tree, pickaxe at a rock, rod
 > at a fishing spot). Tools sit in the inventory section **Tools**. Every tool use costs energy.
 
-**The per-action table lives in [../actions.md](../actions.md)** (recipe → expected hits/drops/energy → verify signal →
+**The per-action table lives in [../actions.md](../../docs/operations/actions.md)** (recipe → expected hits/drops/energy → verify signal →
 what to do if it differs). Print the rows a job needs: `./wf actions chop rock pickup`. This file keeps the shared
 interaction model: approaching targets, gotchas, movement.
 
@@ -70,7 +70,7 @@ What forageables look like on the 0.4 look: **Mushroom** = small grey-brown cap 
 often next to grey rocks (easy to read as a pebble). **Thistle** = purple flower (also picked with a "+" bubble).
 
 ## Finding targets
-- Where things are: [../world/locations.md](../world/locations.md) (per-area resources) → quest file notes → map `M` + `./wf look`.
+- Where things are: [../world/locations.md](../places/locations.md) (per-area resources) → quest file notes → map `M` + `./wf look`.
 - The object graph stays singular. Nodes that visibly exist on the illustrated map may have optional map examples;
   descendants use their nearest represented ancestor (a bed → Garden, a stove → House). Seed examples from existing
   labelled map points with `./wf graph map-seed .shots/map_full.png`; inspect a saved map with

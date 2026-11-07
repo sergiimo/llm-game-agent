@@ -20,11 +20,11 @@
 (49 wood + 26 stone ≈ 240% → ran out twice and used 6 teas; retro 2026-10-27.)
 
 ## Strategy
-`./wf tips energy` (all energy/food/sleep strategy lives in [../tips.md](../tips.md): T1–T5, T8).
+`./wf tips energy` (all energy/food/sleep strategy lives in [../tips.md](../tips/INDEX.md): T1–T5, T8).
 
 ## How to see
 Orange arc on the right of the clock widget, starting at a ⚡ icon, filling clockwise over a pale track:
-[../ui/hud.md](../ui/hud.md) (Clock widget row).
+[../ui/hud.md](../../docs/ui/hud.md) (Clock widget row).
 
 ## How to read
 `./wf state` → `⚡N%` (`read_energy` in tools/wf.py: share of orange along the ring at r=96 around (116,116),

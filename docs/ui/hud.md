@@ -6,12 +6,12 @@
 | Element | Where (1920×1080) | Appears | `wf state` field |
 |---|---|---|---|
 | Pause button (Esc badge) | ≈(108,110) | game start → replaced by the clock | template `hud_pause` |
-| Clock widget: analog clock + day/time panel ("Wednesday 1:00 pm") → [time](../mechanics/time-and-calendar.md) | top-left; clock centre ≈(116,116), text ≈(150–500, 25–115) | after the first farm quest popups | `clock` |
-| Energy arc: orange arc right of the clock, starting at a ⚡ icon, over a pale track → [energy](../mechanics/energy.md) | ring r≈96 around (116,116), 82°→205° | with the clock | `energy` (⚡N%) |
+| Clock widget: analog clock + day/time panel ("Wednesday 1:00 pm") → [time](../../wiki/mechanics/time-and-calendar.md) | top-left; clock centre ≈(116,116), text ≈(150–500, 25–115) | after the first farm quest popups | `clock` |
+| Energy arc: orange arc right of the clock, starting at a ⚡ icon, over a pale track → [energy](../../wiki/mechanics/energy.md) | ring r≈96 around (116,116), 82°→205° | with the clock | `energy` (⚡N%) |
 | Small pause "II" button in the clock panel; a flower icon (season? ❓) | clock panel right edge | with the clock | — |
 | Map button (M; orange "!" = quest target) | ≈(1520,110) (≈(1690,110) before inventory existed) | start | — |
 | Journal button (J) | ≈(1660,110) (≈(1828,110) early) | start | template `hud_journal3` |
-| Inventory button (I) + coin badge → [money](../mechanics/money-and-shops.md) | ≈(1815,110), coins ≈(1815,166) | after farm arrival | `money` (OCR misses it indoors ❓) |
+| Inventory button (I) + coin badge → [money](../../wiki/mechanics/money-and-shops.md) | ≈(1815,110), coins ≈(1815,166) | after farm arrival | `money` (OCR misses it indoors ❓) |
 | Prompt bubble | above its object, y > 230; several at once when several objects are in reach | standing next to interactables; **click a bubble = its action**, the highlighted one = Space (mechanics/basic-actions.md) | `bubble@x,y` |
 | Empty-can instruction modal: **“Fill watering can at the Well”** + grey water-drop icon | top-left, directly below/overlapping the clock panel; live frame ≈x80–660, y105–220 | after interacting with a dry planted bed while the watering can is empty; gameplay continues, no button | log `> out_of_water … target=GardenBed`; OCR text may appear in `state` |
 | Filled-can success notification: **“Rusty Watering Can”** | top-left notification area | immediately after filling the can at the well; non-blocking | state text `Rusty Watering Can`; log `> fill_watering_can … target=Well` is exact proof |

@@ -76,7 +76,7 @@ _Verified 2026-10-26 (Spring Y1, Monday, first minutes)._ Route: `./wf route tow
 The location banner "Hazel Wylde's Farm" appears and the farm arrival cutscene starts.
 
 ### Next
-Farm arrival cutscene → quest **From Bud To Spud**: see [02-from-bud-to-spud.md](02-from-bud-to-spud.md).
+Farm arrival cutscene → quest **From Bud To Spud**: see [02-from-bud-to-spud.md](from-bud-to-spud.md).
 
 ## Fan wiki article
 

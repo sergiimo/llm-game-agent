@@ -3,8 +3,8 @@
 > **Summary:** Journal quests by questline + bulletin board requests; the hint button gives the actionable step.
 
 ## Rules
-- Journal (J): active quests; **hint button = actionable step** (description can lag, L12). See [../ui/screens/journal.md](../ui/screens/journal.md).
-- New quests/steps arrive as **quest popups** ([../ui/screens/quest-popup.md](../ui/screens/quest-popup.md)) with a progress counter.
+- Journal (J): active quests; **hint button = actionable step** (description can lag, L12). See [../ui/screens/journal.md](../../docs/ui/screens/journal.md).
+- New quests/steps arrive as **quest popups** ([../ui/screens/quest-popup.md](../../docs/ui/screens/quest-popup.md)) with a progress counter.
 - Bulletin board outside Town Hall: delivery requests for coins (`wiki/story/bulletin-board-quests.md`).
 - Villager side quests aren't tracked until accepted, so talk to people.
 - Quest steps can be **sequential and hidden**: a step (e.g. "eat something") only counts if done *after* it appears; doing it earlier doesn't count (Wood-n't You Know It).

@@ -81,6 +81,9 @@ def _clues(store, frame_context=None):
                                  'region': {'source': 'scene_log'}}}
     if 'x' in point and 'z' in point:
         data['position'] = [point['x'], point['z']]
+    if task_state and domain(task_state.to_dict())['goal'] == 'navigate':
+        from . import navigation
+        data['navigation'] = navigation.receipt(task_state, data)
     state = _declaration(task_state) if task_state else {
         'params': {'_started_late': hour is not None and hour > 19}}
     blocked = garden_policy.interrupt(state, data)
@@ -195,12 +198,23 @@ def reduce(task, experience):
     from . import garden_policy
     if not task.stack and task.goal == 'garden':
         garden_policy.reduce(task, experience)
+    if domain(task.to_dict())['goal'] == 'navigate':
+        from . import navigation
+        navigation.advance(task, experience)
 
 
 def guard(task, action):
     from . import garden_policy
     current = domain(task)
     observation = task.get('_observation', {})
+    if current['goal'] == 'navigate' and action.get('kind') == 'waypoint':
+        from . import navigation
+        assessment = navigation.assess(action, observation.get('navigation'))
+        if not assessment.get('allowed'):
+            return ('navigation compass mismatch: graph requires '
+                    f'{assessment.get("graph_compass")}, waypoint predicts '
+                    f'{(assessment.get("world") or {}).get("compass")}; '
+                    'choose a waypoint within one compass sector')
     sleeping = current['goal'] == 'sleep' or any(row['goal'] == 'sleep' for row in task.get('stack', ()))
     if not sleeping and current['goal'] != 'garden':
         blocked = garden_policy.interrupt(current, observation)

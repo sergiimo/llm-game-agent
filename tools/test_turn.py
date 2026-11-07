@@ -8,7 +8,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from game import badges, core, experience as X, icons, integrate as I, learn, primitives, steps, task_state as S, turn
+from game import badges, core, experience as X, icons, integrate as I, learn, play, primitives, steps, task_state as S, turn
 from objects.graph import Graph, Node
 
 
@@ -131,6 +131,65 @@ class Turns(unittest.TestCase):
         self.assertEqual(checkpoint['coverage'], {'targets': [], 'covered': [], 'unresolved': []})
         self.assertEqual(checkpoint['task_status'], 'active')
         self.assertIsNone(self.store.load().active.pending_intent)
+
+    def test_each_model_turn_writes_a_live_human_readable_decision_log(self):
+        c = self.loop.context()
+        original = self.port.perform
+        def perform(action):
+            original(action)
+            self.port.lines.append('watered')
+        self.port.perform = perform
+        self.loop.decide(c.turn_id, turn.Decision(
+            'accept', rationale='the highlighted bubble is the expected water action',
+            evidence_refs=('full.jpg',)))
+
+        with open(os.path.join(self.tmp.name, 'decisions.md')) as stream:
+            readable = stream.read()
+        self.assertIn(f'## Turn {c.turn_id}', readable)
+        self.assertIn('Observe: gameplay', readable)
+        self.assertIn('Decision: accept', readable)
+        self.assertIn('the highlighted bubble is the expected water action', readable)
+        self.assertIn('Result: hit', readable)
+        self.assertIn('Experience:', readable)
+        self.assertIn('Integration:', readable)
+        self.assertRegex(readable, r'- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] Observe: gameplay')
+        self.assertRegex(readable, r'- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] Decision: accept')
+
+    def test_navigate_turn_exposes_graph_compass_and_refuses_mismatching_waypoint_before_input(self):
+        store = S.TaskStore(os.path.join(self.tmp.name, 'navigate-task.json'))
+        store.create(S.TaskState('navigate-1', 'navigate', params={'destination': 'supermarket'}))
+        port = Port()
+        port.snapshot.update(scene='Town', region='Town', position=[0.0, 0.0], navigation={
+            'status': 'resolved', 'requested': 'supermarket', 'scene': 'Town',
+            'position': {'value': [0.0, 0.0], 'source': 'save'},
+            'goal': {'node': 'Town:fountain-square', 'position': [10.0, -10.0], 'source': 'arrived'},
+            'route': {'next_node': 'Town:fountain-square', 'edge': 'walk', 'compass': 'SE',
+                      'distance': 14.14, 'source': 'arrived'},
+            'calibration': {'available': True, 'H': [[1, 0, 0], [0, -1, 0], [0, 0, 1]],
+                            'samples': 6, 'error': 0.05, 'source': 'Town'}})
+        loop = turn.TurnLoop(store, port, play.recommend, reducer=play.reduce, guard=play.guard)
+
+        context = loop.context()
+        self.assertEqual(context.navigation['route']['compass'], 'SE')
+        next_context = loop.decide(context.turn_id, turn.Decision('act', action={
+            'kind': 'waypoint', 'point': [1460, 40], 'walkable': True, 'expects': {'moved': True}},
+            rationale='follow the road northeast'))
+
+        self.assertEqual(port.inputs, [])
+        self.assertIsNotNone(next_context.surprise)
+        with open(os.path.join(self.tmp.name, 'log.jsonl')) as stream:
+            rows = [json.loads(line) for line in stream]
+        decision = next(row for row in rows if row['phase'] == 'decision' and row['turn_id'] == context.turn_id)
+        self.assertEqual(decision['navigation']['route']['compass'], 'SE')
+        self.assertEqual(decision['waypoint']['world']['compass'], 'NE')
+        self.assertEqual(decision['waypoint']['alignment'], 'mismatch')
+        with open(os.path.join(self.tmp.name, 'decisions.md')) as stream:
+            readable = stream.read()
+        self.assertIn('Graph: Town', readable)
+        self.assertIn('Town:fountain-square', readable)
+        self.assertIn('required SE', readable)
+        self.assertIn('Waypoint: screen NE; world NE', readable)
+        self.assertIn('alignment mismatch', readable)
 
     def test_every_physical_action_preflights_its_persisted_turn_without_full_reobserve(self):
         observed = mock.Mock(side_effect=self.port.observe)
@@ -435,6 +494,21 @@ class Turns(unittest.TestCase):
                 primitives.GameAdapter().preflight(
                     {'kind': 'press', 'view_id': 'view-one'},
                     {'view_id': 'view-one', 'frame_path': before, 'screen': {'kind': 'gameplay'}})
+
+    def test_preflight_allows_local_character_animation_for_world_waypoint(self):
+        from PIL import Image, ImageDraw
+        from types import SimpleNamespace
+        before = os.path.join(self.tmp.name, 'animated-world-source.jpg')
+        old = Image.new('RGB', (1920, 1080), 'gray')
+        ImageDraw.Draw(old).rectangle((1040, 360, 1160, 560), fill='#704020')
+        old.save(before)
+        animated = Image.new('RGB', (1920, 1080), 'gray')
+        ImageDraw.Draw(animated).rectangle((1060, 360, 1180, 560), fill='#704020')
+        with mock.patch.object(core, 'WF', SimpleNamespace(grab=lambda: animated)):
+            action = {'kind': 'waypoint', 'view_id': 'view-one', 'point': [980, 970]}
+            self.assertIs(primitives.GameAdapter().preflight(
+                action, {'view_id': 'view-one', 'frame_path': before,
+                         'screen': {'kind': 'gameplay'}}), action)
 
     def test_named_control_is_resolved_from_the_captured_view_without_find_text(self):
         adapter = primitives.GameAdapter()

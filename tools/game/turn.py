@@ -270,6 +270,7 @@ class TurnContext(Snapshot):
     need: object = None
     memory: object = None
     resources: object = None
+    navigation: object = None
 
     @classmethod
     def from_dict(cls, d):
@@ -288,6 +289,7 @@ class TurnContext(Snapshot):
         d.setdefault('need', None)
         d.setdefault('memory', None)
         d.setdefault('resources', None)
+        d.setdefault('navigation', None)
         d['recommendation'] = Recommendation(**d['recommendation'])
         if d.get('surprise'):
             d['surprise'] = Surprise(**d['surprise'])
@@ -419,12 +421,113 @@ class TurnLoop:
         self.reducer = reducer  # evidence-only domain state update; never input or target selection
         self.guard = guard  # optional pure transaction invariant, checked before any primitive input
 
+    def _human_log(self, turn_id, phase, data, logged_at):
+        """Append the readable projection of the canonical turn timeline at the same durable boundary."""
+        if phase not in ('clues', 'decision', 'outcome', 'integration', 'correction', 'vision',
+                         'catalogue', 'cancellation'):
+            return
+        path = os.path.join(os.path.dirname(self.store.path), 'decisions.md')
+        exists = os.path.exists(path)
+        lines = []
+        if phase == 'clues':
+            screen = (data.get('screen') or {}).get('kind', 'unknown')
+            resources = data.get('resources') or {}
+            place = resources.get('region') or resources.get('scene')
+            when = resources.get('game_time')
+            details = '; '.join(str(value) for value in (screen, when, place) if value)
+            frame = data.get('frame_path')
+            if frame:
+                details += f'; frame [{os.path.basename(frame)}](clicks/{os.path.basename(frame)})'
+            need = data.get('need')
+            if need:
+                details += f'; need {need.get("kind")}: {need.get("reason")}'
+            lines.extend((f'## Turn {turn_id}', '', f'- Observe: {details}.'))
+        elif phase == 'decision':
+            decision = data.get('decision') or {}
+            kind = decision.get('kind', 'unknown')
+            payload = decision.get('action') or decision.get('correction')
+            rendered = '' if not payload else f' — `{json.dumps(payload, ensure_ascii=False, sort_keys=True)[:500]}`'
+            rationale = decision.get('rationale')
+            lines.append(f'- Decision: {kind}{rendered}' + (f' — {rationale}.' if rationale else '.'))
+            navigation = data.get('navigation') or {}
+            route = navigation.get('route') or {}
+            position = navigation.get('position') or {}
+            if navigation:
+                pos = position.get('value')
+                here = f' @ ({pos[0]:.2f}, {pos[1]:.2f})' if isinstance(pos, list) and len(pos) == 2 else ''
+                goal = (navigation.get('goal') or {}).get('node') or navigation.get('resolved_as') or 'unresolved'
+                lines.append(f'- Graph: {navigation.get("scene") or "unknown"}{here} → {goal}; '
+                             f'required {route.get("compass") or "unknown"}; '
+                             f'next {route.get("next_node") or "unresolved"}; '
+                             f'edge {route.get("edge") or "unknown"}; '
+                             f'position source {position.get("source") or "unknown"}.')
+            waypoint = data.get('waypoint')
+            if waypoint:
+                world = waypoint.get('world') or {}
+                delta = world.get('delta')
+                delta_text = (f' Δ({delta[0]:+.2f},{delta[1]:+.2f})'
+                              if isinstance(delta, list) and len(delta) == 2 else '')
+                lines.append(f'- Waypoint: screen {waypoint.get("screen_compass") or "unknown"}; '
+                             f'world {world.get("compass") or "unknown"}{delta_text}; '
+                             f'graph {waypoint.get("graph_compass") or "unknown"}; '
+                             f'alignment {waypoint.get("alignment") or "unknown"}.')
+        elif phase == 'outcome':
+            experience = data.get('experience') or {}
+            verdict = (experience.get('verdict') or {}).get('value', 'unknown')
+            evidence = experience.get('evidence') or {}
+            facts = []
+            if evidence.get('mode'):
+                facts.append(f'mode {evidence["mode"]}')
+            if evidence.get('events'):
+                facts.append('events ' + ', '.join(map(str, evidence['events'])))
+            checks = (experience.get('verdict') or {}).get('checks') or ()
+            failed = [row for row in checks if not row.get('ok')]
+            if failed:
+                facts.append('failed ' + ', '.join(str(row.get('field')) for row in failed))
+            suffix = f' — {"; ".join(facts)}' if facts else ''
+            lines.append(f'- Result: {verdict}. Experience: `{experience.get("id", "?")}`{suffix}.')
+        elif phase == 'integration':
+            result = data.get('result') or {}
+            summary = {key: result[key] for key in ('applied', 'learned', 'errors', 'bundle', 'status')
+                       if key in result and result[key] not in (None, [], {}, '')}
+            lines.append(f'- Integration: `{json.dumps(summary or result, ensure_ascii=False, sort_keys=True)[:500]}`.')
+        elif phase == 'correction':
+            lines.append(f'- Correction: {data.get("kind")} — '
+                         f'`{json.dumps(data.get("data") or {}, ensure_ascii=False, sort_keys=True)[:500]}`.')
+        elif phase == 'vision':
+            frame = data.get('frame_path')
+            lines.append(f'- Vision: inspect '
+                         f'[{os.path.basename(frame)}](clicks/{os.path.basename(frame)}).' if frame else
+                         '- Vision: requested.')
+        else:
+            lines.append(f'- {phase.title()}: '
+                         f'`{json.dumps(data, ensure_ascii=False, sort_keys=True)[:500]}`.')
+        stamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(logged_at))
+        lines = [f'- [{stamp}] {line[2:]}' if line.startswith('- ') else line for line in lines]
+        with open(path, 'a') as stream:
+            if not exists:
+                stream.write('# Model decision log\n\n')
+            stream.write('\n'.join(lines) + '\n')
+            stream.flush()
+            os.fsync(stream.fileno())
+
     def _log(self, task, turn_id, phase, **data):
         path = os.path.join(os.path.dirname(self.store.path), 'log.jsonl')
         created = not os.path.exists(path)
+        readable = thaw(data)
+        if phase == 'decision' and task.current_turn:
+            from . import navigation
+            nav = thaw(task.current_turn.get('navigation'))
+            if nav:
+                readable['navigation'] = nav
+                decision = readable.get('decision') or {}
+                action = decision.get('action') or task.current_turn.get('recommendation', {}).get('action')
+                if action and action.get('kind') == 'waypoint':
+                    readable['waypoint'] = navigation.assess(action, nav)
+        logged_at = time.time()
         with open(path, 'a') as f:
-            f.write(json.dumps({'t': time.time(), 'type': 'turn', 'task_id': task.task_id,
-                                'turn_id': turn_id, 'phase': phase, **thaw(data)}) + '\n')
+            f.write(json.dumps({'t': logged_at, 'type': 'turn', 'task_id': task.task_id,
+                                'turn_id': turn_id, 'phase': phase, **readable}) + '\n')
             f.flush()
             os.fsync(f.fileno())
         if created:
@@ -433,6 +536,7 @@ class TurnLoop:
                 os.fsync(directory)
             finally:
                 os.close(directory)
+        self._human_log(turn_id, phase, readable, logged_at)
 
     def _ensure_intent(self, task, intent, recovered=False):
         """Idempotently make the persisted WAL intent canonical before its outcome can be referenced."""
@@ -481,7 +585,7 @@ class TurnLoop:
                         observation.get('vector_detections', ()), (), observation.get('vector_status'))
         c = replace(c, view_id=observation.get('view_id'), candidates=observation.get('candidates', ()),
                     controls=observation.get('controls', ()), view=view, result=result, need=need,
-                    memory=memory, resources=resources)
+                    memory=memory, resources=resources, navigation=observation.get('navigation'))
         task.current_turn = c.to_dict()
         self.store.save(task)
         self._log(task, c.turn_id, 'clues', screen=c.screen, frame_path=c.frame_path,
@@ -489,7 +593,8 @@ class TurnLoop:
                   coverage=c.coverage, transaction=c.transaction, interrupts=c.interrupts,
                   vector_detections=c.vector_detections, vector_status=c.vector_status,
                   view=c.view, result=c.result, need=c.need, memory=c.memory, resources=c.resources,
-                  region=task.params.get('region'), task_status=task.status, surprise=c.surprise)
+                  navigation=c.navigation, region=task.params.get('region'), task_status=task.status,
+                  surprise=c.surprise)
         self._log(task, c.turn_id, 'recommendation', recommendation=rec)
         return c
 

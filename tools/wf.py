@@ -22,6 +22,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from runtime.timing import measure
 import time
+from dataclasses import dataclass
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOT_DIR = os.environ.get('WF_SHOT_DIR', os.path.join(ROOT, '.shots'))
@@ -1781,24 +1782,32 @@ def wait_tara(tr=None, timeout=4.0, interval=0.1, start_within=1.0):
     return round(time.time() - t0, 2), seen
 
 
+@dataclass(frozen=True)
+class SettleResult:
+    seconds: float
+    frame: object
+
+
 def wait_settle(before=None, timeout=3.0, interval=0.1, still=1.5, min_wait=0.25):
     """After an action: wait until the frame stops changing (2 consecutive still polls) or `timeout`.
 
     Idle animations (grass, NPC idle) give diffs ~0.2-0.5, so `still` tolerates them. `before` is unused but kept
-    for callers that want to compare. Returns elapsed seconds.
+    for callers that want to compare. Returns elapsed seconds and the exact final full frame.
     """
     t0 = time.time()
     time.sleep(min_wait)
-    prev = _signature()
+    final = _frame()
+    prev = final.convert('L').resize((96, 54))
     calm = 0
     while time.time() - t0 < timeout:
         time.sleep(interval)
-        cur = _signature()
+        final = _frame()
+        cur = final.convert('L').resize((96, 54))
         calm = calm + 1 if _diff(prev, cur) < still else 0
         if calm >= 2:
             break
         prev = cur
-    return round(time.time() - t0, 2)
+    return SettleResult(round(time.time() - t0, 2), final)
 
 
 MENU_WORDS = ('game paused', 'resume game', 'settings', 'volume', 'return to menu', 'exit game', 'inventory',
@@ -3628,7 +3637,7 @@ def do(specs, look_scale=None, crop=None):
     if release_focus():  # game pauses in background => fast, time-frozen observation
         time.sleep(SPACE_SETTLE())  # let the Space transition finish before capturing
     s = state()
-    print(brief(s) + f'  [settled {waited}s]')
+    print(brief(s) + f'  [settled {waited.seconds}s]')
     final = ' '.join(t.split(') ', 1)[1] for t in s['text'])
     saw = _toasts(frames, final)
     if saw:

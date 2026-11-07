@@ -216,10 +216,7 @@ def see_all(region=None, image=None, kinds=None):
     ``image`` keeps vectors, bubbles, OCR and the persisted frame coherent.  The
     legacy no-image form remains for read-only callers that do not own a frame.
     """
-    try:
-        return detect_frame(image if image is not None else core.WF.grab(), region=region, kinds=kinds)
-    except Exception:   # noqa: BLE001
-        return []
+    return detect_frame(image if image is not None else core.WF.grab(), region=region, kinds=kinds)
 
 
 def node_of_bubble(a):

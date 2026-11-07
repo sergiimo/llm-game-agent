@@ -15,9 +15,10 @@ Docs choose sequences; Python never does. `./wf play <goal> [k=v]` and bare doma
 Continue with the exact `turn_id` and one explicit model decision. Accept an obvious saved recommendation, choose one
 primitive, inspect the full-scale source frame, correct data, push/suspend/complete/resume a subgoal, or stop. Read the
 outcome before deciding again. Never use legacy `py`, `call`, batched commands or routes to run a hidden workflow.
-Every `NEXT` prints `vector_detections` from the same captured frame and a compact `model_workflow` trace:
-observe → decide → optional/required vision → act → verify → learn → repeat. Read it on every turn; it exposes
-evidence/status and never substitutes hidden reasoning.
+Every `NEXT` is receipt-first: `view` identifies the exact settled full-scale frame and its controls, bubbles and
+vector candidates; `result` summarizes the preceding immutable experience; `need` makes required vision explicit;
+`memory` is the bounded current-region graph projection; `resources` contains relevant save/log facts. Choose the
+next primitive from this receipt. Detailed observe/act/verify/learn events remain in the run log for retros.
 
 Game files first: `./wf log` for live events; `./wf save` for exact but potentially stale autosave facts; `./wf state`
 for screen/HUD text. A `look` decision returns the saved 1920×1080 frame without input; read it for uncertainty.
@@ -25,7 +26,8 @@ Tara is at frame centre. A target needs its entire visible walkable road; otherw
 waypoint. Move only by clicking. Current modal and guard rules apply to each primitive; no blind key loops.
 
 A surprise blocks gameplay until `look`, `correct` or `stop` resolves it. Preserve the active crop/phase/node and
-parent interaction. Pending input reconciles from recorded evidence without repetition. Corrections update named
+parent interaction. Pending input reconciles from recorded evidence without repetition. The settle boundary's final
+full frame is the next view; do not capture again merely to decide. Corrections update named
 graph/vector/transition data with provenance, revise a decision, mark a constraint, record a gap, or report ambiguity
 to the human; never patch runtime code while playing. Purchases require explicit root-task quantity/spend bounds and
 matching inventory/money proof. Do not change settings, sell valuables or choose major story actions without scope.

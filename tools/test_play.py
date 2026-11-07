@@ -2691,8 +2691,7 @@ class BoundaryValidation(PlayCase):
                 'gameState': {'time': {'day': 210, 'timeOfDay': {'totalSeconds': 32400}},
                               'player': {'state': {'userState': {'entries': [{'name': 'money', 'value': 95}]}},
                                          'inventory': {'items': [{'nameHash': 'TulipSeed', 'count': 2}]}}}}
-        wf_port = SimpleNamespace(read_save=lambda: ('save.json', save), today_log=lambda: ([], None),
-                                  current_scene=lambda: 'House')
+        wf_port = SimpleNamespace(read_save=lambda: ('save.json', save), today_log=lambda: ([], None))
         with mock.patch.object(core, 'WF', wf_port), mock.patch.object(engine, '_open_graph', return_value=Graph()), \
                 mock.patch.object(observe, 'clock', return_value=(9., 'day')):
             data = self.play()._clues(self.store)
@@ -2700,7 +2699,7 @@ class BoundaryValidation(PlayCase):
         self.assertEqual(data['inventory'], {'TulipSeed': 2})
         self.assertTrue(data['inventory_complete'])
         self.assertEqual(data['money'], 95)
-        self.assertEqual(data['region'], 'House')
+        self.assertEqual(data['region'], 'Farm')
         self.assertEqual(data['state_provenance']['inventory']['save_count'], 7)
         self.assertEqual(data['state_provenance']['inventory']['source'], 'save')
 

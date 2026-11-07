@@ -188,10 +188,11 @@ class GameAdapter:
         from . import core
         return core.WF.log_mark()
 
-    def observe(self):
+    def observe(self, image=None):
         from . import act, core, observe, screen
-        with measure('observe.grab'):
-            image = core.WF.grab()
+        if image is None:
+            with measure('observe.grab'):
+                image = core.WF.grab()
         directory = act.frames_dir()
         os.makedirs(directory, exist_ok=True)
         path = os.path.join(directory, f'turn-{uuid.uuid4().hex}.jpg')
@@ -417,18 +418,21 @@ class GameAdapter:
             self._captured_outcome = None
             same_read = is_read and self._latest_observation is before
             self._latest_observation = None  # a receipt is valid only inside this execute/capture pair
-            if not same_read:
-                core.WF.wait_settle()
             if expects.get('events'):
                 core.seen(act.EVENT.pattern, intent.log_mark, act.EVENT_WAIT)
-            after = before if same_read else self.observe()
+            settled = None if same_read else core.WF.wait_settle()
+            settle_frame = getattr(settled, 'frame', None)
+            from PIL import Image
+            settle_frame = settle_frame if isinstance(settle_frame, Image.Image) else None
+            after = before if same_read else self.observe(image=settle_frame)
             samples = [after]
             if after['screen']['kind'] == 'unknown':
                 # Pixel stability alone does not establish a readable modal (live Resume had scenery OCR
                 # while the following coherent observation read gameplay). Take one bounded settling read,
                 # preserve both sources, and let the ordinary verifier judge the final observation.
-                core.WF.wait_settle()
-                after = self.observe()
+                settled = core.WF.wait_settle()
+                settle_frame = getattr(settled, 'frame', None)
+                after = self.observe(image=settle_frame if isinstance(settle_frame, Image.Image) else None)
                 samples.append(after)
                 after = dict(after, observation_samples=[{k: sample.get(k) for k in
                     ('frame_path', 'screen', 'capture_validity', 'game_time')} for sample in samples])

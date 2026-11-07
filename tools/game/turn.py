@@ -335,36 +335,6 @@ def _compact_projection(task, observation, surprise):
     return view, result, need, memory, resources
 
 
-def _model_workflow(task, observation, recommendation, allowed, surprise):
-    """Compact, inspectable control flow for every NEXT; evidence state, never hidden reasoning."""
-    latest = task.last_experience or {}
-    verdict = latest.get('verdict') or {}
-    current = task.stack[-1] if task.stack else task
-    missing_appearance = any(clue.get('appearance_needed') for clue in observation.get('graph_clues', ()))
-    vector_error = (observation.get('vector_status') or {}).get('status') == 'error'
-    vision_required = bool(surprise or missing_appearance or vector_error)
-    return (
-        {'stage': 'observe', 'status': observation.get('capture_validity', 'captured'),
-         'freshness': 'fresh',
-         'screen': (observation.get('screen') or {}).get('kind'),
-         'vectors': len(observation.get('vector_detections', ())),
-         'vector_status': (observation.get('vector_status') or {}).get('status', 'not_requested'),
-         'affordances': len(observation.get('visible_affordances', ())),
-         'graph_clues': len(observation.get('graph_clues', ()))},
-        {'stage': 'decide', 'status': 'awaiting_model', 'allowed': list(allowed),
-         'suggested_action': bool(recommendation.action), 'confidence': recommendation.confidence},
-        {'stage': 'vision', 'status': 'required' if vision_required else 'optional',
-         'trigger': surprise.reason if surprise else 'missing_appearance' if missing_appearance else
-         'vector_error' if vector_error else None},
-        {'stage': 'act', 'status': 'blocked_for_resolution' if surprise else 'awaiting_decision'},
-        {'stage': 'verify', 'status': verdict.get('value', 'pending'), 'experience': latest.get('id')},
-        {'stage': 'learn', 'status': 'correction_required' if surprise else
-         'integrated' if latest else 'idle'},
-        {'stage': 'repeat', 'status': task.status, 'goal': current.goal,
-         'phase': getattr(task.active, 'phase', None)},
-    )
-
-
 def outcome_surprise(task, intent, e):
     """Compare the immutable outcome to explicit expectations and goal-related proof; arrival is verified separately."""
     import math

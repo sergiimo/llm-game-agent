@@ -125,6 +125,17 @@ class Turns(unittest.TestCase):
         self.assertEqual(checkpoint['task_status'], 'active')
         self.assertIsNone(self.store.load().active.pending_intent)
 
+    def test_integration_journal_failure_keeps_the_captured_intent_for_recovery(self):
+        c = self.loop.context()
+        self.port.lines.append('watered')
+        with mock.patch.object(I, 'apply', side_effect=OSError('journal unavailable')):
+            with self.assertRaisesRegex(OSError, 'journal unavailable'):
+                self.loop.decide(c.turn_id, turn.Decision('accept'))
+        restored = self.store.load()
+        self.assertIsNotNone(restored.active.pending_intent)
+        self.assertIsNotNone(restored.active.pending_intent.experience)
+        self.assertEqual(len(self.port.inputs), 1)
+
     def test_restart_reconciles_pending_input_without_repeating_it(self):
         c = self.loop.context()
         self.port.fail = True
@@ -420,6 +431,41 @@ class Turns(unittest.TestCase):
             self.assertEqual(outcome.verdict.value, 'miss')
         raw.classify.assert_not_called()
         raw.find_bubbles.assert_not_called()
+
+    def test_capture_reuses_the_final_full_settle_frame_without_another_grab(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act
+        before_path = os.path.join(self.tmp.name, 'before-settle.jpg')
+        Image.new('RGB', (1920, 1080), '#334455').save(before_path)
+        final = Image.new('RGB', (1920, 1080), '#668844')
+        settled = SimpleNamespace(seconds=.4, frame=final)
+        raw = SimpleNamespace(wait_settle=mock.Mock(return_value=settled),
+                              grab=mock.Mock(side_effect=AssertionError('receipt performed a second grab')),
+                              classify=lambda image: {'mode': 'gameplay', 'text': ['settled']},
+                              find_bubbles=lambda image: [], log_since=lambda mark: '',
+                              log_mark=lambda: 0, _unhash=lambda value: value)
+        before = dict(self.port.snapshot, frame_path=before_path, capture_validity='rendered')
+        intent = S.Intent(1, {'kind': 'wait'}, 0, 1., before, {})
+        adapter = primitives.GameAdapter()
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name):
+            outcome = adapter.capture(intent, before, {})
+            receipt = adapter.take_outcome_observation(outcome.id)
+        raw.wait_settle.assert_called_once_with()
+        raw.grab.assert_not_called()
+        self.assertEqual(receipt['screen']['texts'], ['settled'])
+        with Image.open(receipt['frame_path']) as saved:
+            self.assertLessEqual(max(abs(a - b) for a, b in zip(
+                saved.getpixel((0, 0)), final.getpixel((0, 0)))), 2)
+
+    def test_settle_returns_its_exact_final_full_frame(self):
+        from PIL import Image
+        import wf
+        frames = [Image.new('RGB', (1920, 1080), color) for color in ('red', 'green', 'green')]
+        with mock.patch.object(wf, '_frame', side_effect=frames):
+            result = wf.wait_settle(timeout=.1, interval=0, min_wait=0, still=100)
+        self.assertIs(result.frame, frames[-1])
+        self.assertEqual(result.frame.size, (1920, 1080))
 
     def test_unrepresentable_appearance_correction_stays_retryable(self):
         e = primitives.experience(S.Intent(1, {'kind': 'wait'}, 0, 1.), self.port.snapshot, {}, X.Evidence())

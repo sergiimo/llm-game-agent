@@ -18,10 +18,11 @@ in place). `./wf play` resumes it. A different domain does not silently start an
 Legacy `do`, `py`, `call`, `goto`, `advance`, routes and batching requests are task descriptions; they execute no
 old Python workflow. Continue all tasks through `play` with the exact saved turn ID.
 
-Every fresh gameplay `NEXT` includes learned `vector_detections` computed from the exact full-scale frame used for
-OCR and bubbles. Treat these as the primary appearance/navigation clues; graph placement and routes provide context,
-not a reason to ignore a current vector match. `model_workflow` prints the current observe, decide, vision, act,
-verify, learn and repeat stages on every turn. It is a compact audit trace, not private chain-of-thought.
+Every fresh gameplay `NEXT` is one coherent receipt. `view` names the exact settled full-scale frame and contains
+its captured candidates, controls, bubbles and vector status. Treat those candidates as the primary current-frame
+appearance/navigation clues. `result` is the preceding immutable outcome, `need` requests vision when required,
+`memory` is the bounded current-region graph projection, and `resources` carries relevant save/log facts. Detailed
+observe, decide, act, verify and learn rows stay in `log.jsonl`; they are not repeated as workflow prose in `NEXT`.
 
 For long-distance navigation, the model first opens the map with canonical guarded
 `{kind:"key",label:"m",expects:{mode:"map"}}`, inspects and learns pin/landmarks/road connections with frame
@@ -35,7 +36,8 @@ map open/read/close and route decision; Python supplies no hidden route schedule
 ./wf play turn_id=9 answer='{"kind":"push","action":{"goal":"sleep","params":{}},"rationale":"late_task_gate"}'
 ```
 
-Each `act` or `accept` performs at most one input. Read its immutable outcome before choosing again. Allowed primitives:
+Each `act` or `accept` performs at most one input. Its settling loop supplies the exact final frame for the next
+receipt without a following grab. Read its immutable outcome before choosing again. Allowed primitives:
 `target`/`cell`/`bubble` (model-confirmed visible target and entire road), `waypoint` (short visible walkable ground),
 `press` (one exact visible label), `space` (highlighted world affordance or known dialogue/popup/cutscene),
 `select_card` (one visible card point, or exact visible nonfinancial item `label`), `key` with `j`/`m`/`i` in gameplay, `close` on a recognized closable panel,

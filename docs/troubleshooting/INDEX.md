@@ -15,6 +15,9 @@
   `sqlite3 runs/wf.sqlite3 ".backup 'runs/wf-backup.sqlite3'"` while the daemon is stopped.
 - `save_lineage_mismatch` is a safe zero-input stop, not a navigation failure. Inspect the cited observation/profile,
   correct the active game/profile, then take a fresh read or stop; never rebind the run to a contradictory save.
+- `no_coherent_profile` with a current low-day save beside an old high-day save can mean `Player.log` retained both
+  playthroughs under one file identity. A backward jump of more than two game days starts a new log epoch; only the
+  latest suffix is midnight-normalized and compared with save slots. A same-day 23:xx → 02:00 wrap is not a reset.
 - A full paper map whose pin is not colour-detected is still a map when the labelled paper/cloud header appearance
   vector matches. The header proves the modal; the pink pin only localises Tara. Do not downgrade such a frame to
   gameplay or issue a world click through it.

@@ -40,14 +40,17 @@ def _coherent(candidate, log_epoch, tolerance=6 * 3600):
 
 
 def monotonic_log_times(stamps):
-    """Normalize the pre-day-change midnight wrap while preserving explicit next-day stamps."""
-    out = []
+    """Return the latest profile epoch, normalizing its pre-day-change midnight wrap."""
+    out, previous_raw = [], None
     for raw in stamps:
+        if previous_raw is not None and raw < previous_raw - 2 * 86400:
+            out = []  # Player.log kept an older save profile before a large backward day reset.
         value = raw
         if out:
             while value + 12 * 3600 < out[-1]:
                 value += 86400
         out.append(value)
+        previous_raw = raw
     return out
 
 

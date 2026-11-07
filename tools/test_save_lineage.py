@@ -40,6 +40,27 @@ class SaveLineage(unittest.TestCase):
             5 * 86400 + 11 * 3600 + 30 * 60,
         ])
 
+    def test_log_profile_reset_discards_the_older_high_day_epoch(self):
+        from runtime.save_lineage import monotonic_log_times
+        stamps = [
+            219 * 86400 + 12 * 3600,
+            219 * 86400 + 12 * 3600 + 10 * 60,
+            4 * 86400,
+            4 * 86400 + 11 * 3600,
+            4 * 86400 + 23 * 3600 + 17 * 60,
+            4 * 86400 + 2 * 3600,
+            5 * 86400 + 2 * 3600,
+            5 * 86400 + 15 * 3600 + 17 * 60,
+        ]
+        self.assertEqual(monotonic_log_times(stamps), [
+            4 * 86400,
+            4 * 86400 + 11 * 3600,
+            4 * 86400 + 23 * 3600 + 17 * 60,
+            5 * 86400 + 2 * 3600,
+            5 * 86400 + 2 * 3600,
+            5 * 86400 + 15 * 3600 + 17 * 60,
+        ])
+
     def test_fix_resume_accepts_stale_pinned_save_when_continuous_log_bridges_to_next_day(self):
         save = SaveCandidate('root', '/root/4.local', '4', 'same', 392,
                              4 * 86400 + 24 * 3600 + 10 * 60, 'Town', {})

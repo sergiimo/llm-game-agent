@@ -71,5 +71,10 @@
    "err": 3.98
   }
  },
+ "aliases": {
+  "supermarket": "fountain-square",
+  "dahl general store": "fountain-square",
+  "dahl-general-store": "fountain-square"
+ },
  "_doc": "L4 map layer. places: map px (1920x1080 frame, map open with M) of named places, seeded by hand + `wf where --learn`. fits: per outdoor scene, world x = a*mx + b, z = c*my + d (cache, derived from pin facts). Indoor areas have no map layer."
 }

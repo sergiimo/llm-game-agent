@@ -54,6 +54,11 @@
   with newer current visual Garden+Well evidence or a positioned Well interaction, and stores immutable checkpoints,
   bounded gameplay metrics, and start/finish revisions in SQLite. Different revisions mean the run exercised hot fixes
   and should not be presented as a single-revision baseline.
+- If `NEXT.need.kind=vision` is followed by a durable `stop` without a `vision` or correction event, the failure is
+  orchestration ownership, not an absent engine callback. The same primary gameplay agent must open `view.path`,
+  resolve/correct the surprise, and continue. Do not delegate the turn to the exact-command runner. If evidence stays
+  ambiguous, return `need-help` with the task active; `stop` is reserved for an intentional terminal outcome or an
+  explicit user stop.
 - A bounded `./wf do go:... --look` may legitimately need more than 25 seconds (pre-check OCR + up to 15 seconds of
   movement tracking + settle/final OCR). The daemon client deadline is 60 seconds as of D4; an exact 25-second
   `outcome unknown after request delivery` indicates an older client. Do not retry the movement blindly: inspect the

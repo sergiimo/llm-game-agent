@@ -17,6 +17,8 @@ return `NEXT` without input. All aliases share the active run's SQLite task row 
 resumes it. A different domain does not silently start another task: push a subgoal explicitly.
 Legacy `do`, `py`, `call`, `goto`, `advance`, routes and batching requests are task descriptions; they execute no
 old Python workflow. Continue all tasks through `play` with the exact saved turn ID.
+The same vision-capable gameplay agent owns this entire loop. Do not delegate `NEXT` to a text-only executor or wait
+for Python to call a model. An optional exact-command helper returns its receipt immediately to the owner.
 
 Every fresh gameplay `NEXT` is one coherent receipt. `view` names the exact settled full-scale frame and contains
 its captured candidates, controls, bubbles and vector status. Treat those candidates as the primary current-frame
@@ -92,7 +94,10 @@ For a journal hint, open `j`, inspect the quest, press visible `Show Hint`, read
 Inventory use/crafting similarly needs a visible item/control, explicit resource authorization, and its item/event
 change as proof. Do not turn a historical action recipe into a batch of keys.
 
-A surprise permits `look`, zero-input `read`, `correct`, `stop`. `answer='{"kind":"read"}'` takes a fresh coherent
+A surprise permits `look`, zero-input `read`, `correct`, `stop`. Open the preserved `view.path` with model vision
+before diagnosing uncertain evidence; `look` records that vision but does not invoke it. `stop` is terminal, not a
+handoff for vision, exhausted budget, or missing context—return `need-help` with the durable task still active instead.
+`answer='{"kind":"read"}'` takes a fresh coherent
 frame and authoritative save observation even for a pre-upgrade saved turn; it accepts no action/correction/runtime
 state payload. It never repeats pending input. An unknown/black frame stays unsafe for world input. An
 outcome gets no automatic credit from its intended mode: if its first capture is unknown, the boundary performs

@@ -88,5 +88,5 @@ the old region cannot resolve a promised arrival elsewhere; absent node/event/ca
 Older outcomes recover full expectations only from their exact canonical intent, never a partial Prediction.
 If the source outcome says `unsafe` / `world input blocked by unknown`, the guard issued no click: fresh known-screen
 observation can resolve that refusal, but movement from an earlier action cannot credit it. Inspect the fresh full-size
-frame before choosing any next input; keep NEED_VISION/surprise when proof remains missing. Do not replay the refused
+frame before choosing any next input; keep the vision need/surprise when proof remains missing. Do not replay the refused
 or uncertain point automatically.

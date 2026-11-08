@@ -16,6 +16,8 @@ active transaction, coverage, last outcome, surprise, interrupts, recommendation
 the primary current-frame navigation evidence; graph/routes contextualize them. Detection, OCR, bubbles and the saved
 frame must come from one capture. Every `NEXT` also prints the compact `model_workflow` stages observe → decide →
 vision → act → verify → learn → repeat so omissions are visible without exposing private chain-of-thought.
+One primary vision-capable gameplay agent owns those stages for the task. It opens `view.path` itself and does not
+delegate a returned turn to a text-only executor or wait for low-level code to invoke a model.
 
 **Navigation:** every domain pushes the same generic `navigate` child before using a waypoint; garden is an ordinary
 nested region, not a special route mode. The graph supplies one next edge as compass plus `near|mid|far`. The model
@@ -41,7 +43,9 @@ Continue with the exact returned turn ID; each command is its own tool call:
 
 `accept` consumes the exact saved recommendation. `act` selects one primitive: target/cell/bubble, waypoint, press
 label, space, select_card, guarded menu key (j/m/i), close, wait or read. `look` returns the saved full-scale frame path without input or a new turn; Read
-that image. `correct` applies the model's smallest correction; `stop` ends safely. Stale IDs refuse input. Use
+that image. `correct` applies the model's smallest correction; `stop` ends the durable task. It is not a handoff for
+vision, a budget boundary, missing manifest knowledge, or ambiguity: return `need-help` with the task active and resume
+the same gameplay owner after resolution. Stale IDs refuse input. Use
 Decision JSON for concise rationale categories and evidence references; no separate `run think` row is needed for
 the same decision. Shell-safe alternatives include `answer=walk:F7`, `answer=target:K8`, `answer=press:Collect`.
 
@@ -127,10 +131,10 @@ perform no gameplay input. Never invent object identity or overwrite current pos
 
 ## One timeline and hot learning
 
-`runs/<run>/log.jsonl` contains chronological `type=turn` rows joined by `task_id` and `turn_id`: clues,
+`runs/wf.sqlite3` contains chronological `run_events` rows joined by `run_id`, `task_id` payload, and `turn_id`: clues,
 recommendation, decision, optional vision, intent, outcome, integration and correction. Calls/game events share
-this log. `experiences.jsonl` is a machine replay journal only; follow its IDs for raw evidence, not a second
-reasoning history. `.venv/bin/python tools/runwatch.py <run> --follow` watches every phase and alerts on surprises;
+this stream; immutable raw evidence lives in its `experiences` table. `decisions.md` and `progress.md` are generated
+human-readable projections, not recovery sources. `.venv/bin/python tools/runwatch.py <run> --follow` watches every phase and alerts on surprises;
 `--report` writes coverage, timing and trace to `watch.md`. Legacy `event=turn` captures remain readable.
 
 Learning `actions.json`, graph JSON, observation journals and image/vector data does not restart the daemon.

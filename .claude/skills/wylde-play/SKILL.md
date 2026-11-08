@@ -1,6 +1,6 @@
 ---
 name: wylde-play
-description: Play Wylde Flowers through the universal model-owned one-turn boundary; read clues, choose one atomic input, verify evidence and record docs.
+description: Use when playing any Wylde Flowers goal through the universal model-owned one-turn boundary, including navigation, vision, atomic inputs, evidence verification, corrections, subgoals, and durable recovery.
 ---
 
 # Playing Wylde Flowers
@@ -8,6 +8,8 @@ description: Play Wylde Flowers through the universal model-owned one-turn bound
 Session start: read `AGENTS.md`, the relevant Wiki/Docs router, and `./wf run status`; if a task is open, read its
 `runs/<task>/plan.md`. Then load only the relevant index/detail.
 The supervisor owns one current goal and a reviewed run plan; gameplay children use the user's cheapest-model rule.
+One primary gameplay child owns the complete loop for that goal. It does not delegate returned turns to a text-only
+runner; an optional exact-command helper may only return a receipt to this owner.
 Check permissions, exact clock and current save/log before starting. A new task after 19:00 requires pre-approved
 sleep first. Focus mode is front: pause before coding, documentation or long thinking.
 
@@ -23,7 +25,7 @@ Continue with the exact `turn_id` and one explicit model decision. Accept an obv
 primitive, inspect the full-scale source frame, correct data, push/suspend/complete/resume a subgoal, or stop. Read the
 outcome before deciding again. Never use legacy `py`, `call`, batched commands or routes to run a hidden workflow.
 Every `NEXT` is receipt-first: `view` identifies the exact settled full-scale frame and its controls, bubbles and
-vector candidates; `result` summarizes the preceding immutable experience; `need` makes required vision explicit;
+vector candidates; `result` summarizes the preceding immutable experience; `need` makes the request for model vision explicit;
 `memory` is the bounded current-region graph projection; `resources` contains relevant save/log facts. Choose the
 next primitive from this receipt. Detailed observe/act/verify/learn events remain in the run log for retros.
 `complete` proves a root but intentionally leaves its durable record selected. A run owns one immutable root task id:
@@ -32,7 +34,8 @@ belong to one planned task, choose their durable parent up front and use explici
 root in place or push a new workflow beneath an already-complete root.
 
 Game files first: `./wf log` for live events; `./wf save` for exact but potentially stale autosave facts; `./wf state`
-for screen/HUD text. A `look` decision returns the saved 1920×1080 frame without input; read it for uncertainty.
+for screen/HUD text. When vision is requested, the primary gameplay agent opens `view.path` itself. A `look` decision
+records vision and returns the saved 1920×1080 frame without input; it never invokes a model or transfers ownership.
 Tara is at frame centre. A target needs its entire visible walkable road; otherwise choose one short visible-ground
 waypoint. Move only by clicking. Current modal and guard rules apply to each primitive; no blind key loops.
 
@@ -56,6 +59,9 @@ full frame is the next view; do not capture again merely to decide. Corrections 
 graph/vector/transition data with provenance, revise a decision, mark a constraint, record a gap, or report ambiguity
 to the human; never patch runtime code while playing. Purchases require explicit root-task quantity/spend bounds and
 matching inventory/money proof. Do not change settings, sell valuables or choose major story actions without scope.
+`stop` is a terminal durable-task decision, not the spelling of “return to my parent.” A vision request, call-budget
+handoff, missing manifest fact, or genuine ambiguity leaves the task active and returns `need-help` with its turn,
+frame and experience; resume the same owner after the supervisor resolves it.
 
 The canonical chronological timeline, observations, intents and immutable experiences live in `runs/wf.sqlite3`;
 the same loop boundary regenerates timestamped human-readable `decisions.md` and `progress.md` projections. Never

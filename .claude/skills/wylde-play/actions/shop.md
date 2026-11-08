@@ -98,7 +98,7 @@ balance. If that original snapshot is unavailable/mismatched, funds remain unkno
 do not reset the task or declare runtime money manually.
 
 Before pushing a trade child, inspect `NEXT.task.stack`. If the same bounded trade is already active, continue it;
-do not repeat a manifest’s push merely because a new runner started. Bare `./wf play` resumes the existing stack.
+do not repeat a manifest’s push merely because the gameplay owner was resumed. Bare `./wf play` resumes the existing stack.
 An untouched or administrative duplicate can use the action index’s zero-input `cancel`; the cancellation guard
 will reject reserved/partial trades, completed receipts or uncertain domain effects. Complete/resume verified
 trades through their normal proof path. Cancelled children never count as verified trades or release reservations.

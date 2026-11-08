@@ -18,7 +18,7 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 | `wiki/INDEX.md` → topical mechanics, quests, characters, places, businesses, items, story, and tips | Reference knowledge (generated from the wiki) |
 | `docs/operations/actions.md` | **Actions DB:** each action → recipe, **expected** hits/drops/energy, verify signal, fix. `./wf actions <tags>` prints a job's rows |
 | `runs/wf.sqlite3`, `runs/<YYYYMMDD-HHMM>-<task>/` | **SQLite is the sole structured authority** for runs, observations, tasks, intents, experiences, and local world facts. Each task dir keeps human artifacts: `plan.md`, generated `decisions.md`/`progress.md` (with SQLite row IDs), screenshots, and retros. `./wf run status` / `report` / `export --jsonl <run>`. |
-| `tools/game/` | **Generic engine (L138): `./wf achieve <goal> k=v [answer=X]` (goals in `goals.json`, or a raw `{kind, where, make}` query); world graph from save + log (`world.py`, areas by distance; `./wf world kinds\|nodes\|status <Kind>` = readings with source + game time, CHECK = not read today), learned transition table (`actions.json`), one vision question (`ask.py`); framework `observe` → `act` → `learn` → `nav`.** **Proven primitives (L147)**: `smoke.plant_one/plant_visible/plant_garden/morning`, `smoke.fill_can`, `screen.py` (screen rules), `where.py` (position); `garden.water_all/replant_all/harvest_all/plant_all` = one-line goals; `ui.press/close`. Each proves itself from the game log and logs an action tree. `./wf py "<code>"`, `./wf call <module.fn> args`, `./wf run waits`. **Improvement loop (spec 2026-11-04, L161):** every action = one immutable experience (`experience.py`) through one boundary (`integrate.py`: world facts → evals → memory → transitions → gap bundles; idempotent replay); `./wf gaps` = escalations for the offline code factory |
+| `tools/game/` | **Universal model-owned engine:** `./wf play <goal> k=v` returns one durable `NEXT`; the gameplay agent reads its evidence/full-scale frame and selects exactly one guarded primitive. Public aliases resume the same turn boundary; legacy `achieve`/`do`/`py`/`call`/routes are not workflow executors. `turn.py` persists task/transaction state, `primitives.py` performs zero or one input, and `integrate.py` records immutable evidence/corrections/gaps. `./wf gaps` is the offline code-factory queue. |
 | `tools/runtime/`, `tools/world/` | **Runtime evidence + world model (M1–M2, shadow)**: one game-log parser (`runtime/log.py`), actuators with a menu guard (`act.py`), the save (`save.py`); the world = entities (from log lines with positions), scene graph (networkx), costmap + A*, Tara's belief (Kalman), view. `./wf world [entities\|tara\|route X Z\|explain ID]`. **`tools/world/` coordinate model is superseded** by the object graph (spec 2026-10-31 §10 step 5: remove; don't extend). Identify targets from game-log `at (x, y, z)` lines instead (§13) |
 | `tools/objects/` | **Objects by appearance (spec 2026-10-31)**: per-kind vector store of labelled crops (`db/<kind>/`) + detection (DINOv2 patch heatmaps, one pass per frame, per-kind calibrated z thresholds, zoom-invariant). `./wf objects list\|add <kind> x0 y0 x1 y1 [state]\|detect [kinds]\|find <kind>\|eval\|calibrate\|reembed`; reads the frame only, no input. **Object graph with nested regions** (`graph.py`, `query.py`, `regions.py`, `views.py`, `graph/Farm.json`): Farm ⊃ House, Garden ⊃ beds/hives/well; `./wf graph show\|where\|path <Kind> [k=v]\|view-add <region>` (frame only, no input). `./wf graph sync` applies the game log to node states (the old object loop was removed; objects and their state live in the engine's world graph, `game/world.py`) |
 | `tools/evals/`, `tools/bench/` | **Eval + benchmark (M0, spec 2026-10-30)**: every prediction's hit/miss per component (`./wf eval`, `./wf eval mark <id> hit\|miss`); fixed benchmark tasks A garden day, B trips, C NPC (`./wf bench start\|report\|compare`) |
@@ -30,8 +30,8 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 | `routes/*.txt` | Old keyboard routes (disabled, L54); landmarks in them still describe the way |
 | `.claude/skills/` | `wylde-play` (main loop), `wylde-navigate`, `wylde-lookup`; generic `game-onboarding` (method for onboarding any game, with template scripts) |
 | `.claude/skills/wylde-supervise/` | **How to play:** supervisor loop (main conversation) → one `wylde-quest` per goal |
-| `.claude/agents/wylde-quest.md` | Quest agent (cheapest model): one goal, loads relevant docs, plans, records verified steps |
-| `.claude/agents/wylde-runner.md` | Action agent (cheapest model): executes one concrete step via `./wf`, text-only |
+| `.claude/agents/wylde-quest.md` | Primary gameplay agent (cheapest model): owns one goal's complete model-owned turn/vision/correction loop |
+| `.claude/agents/wylde-runner.md` | Optional exact-command helper only; never owns, interprets, or stops a gameplay turn |
 | `retros/` | Retrospectives (`/retro`) |
 | `tools/gen_quests.py`, `gen_world_tables.py`, `build_reference.py`, `wikiclean.py` | Regenerate quests/world/reference (verified steps are preserved) |
 
@@ -44,10 +44,12 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
   (captures scaled, clicks mapped), whatever the window size. Input commands focus the game for the action only
   (~0.2 s), then return focus; a `do` ≈ 2.3 s.
 
-## Playing = supervisor → quest agent → action agent
+## Playing = supervisor → one primary gameplay agent
 Always have **one current goal** in the current task's `runs/<task>/plan.md`. The main conversation supervises (`wylde-supervise`):
 choose the goal, dispatch `wylde-quest`, review, ask the user for decisions. The quest agent loads only the relevant
-docs and drives steps through `wylde-runner`.
+docs and owns every observe → model vision → decide → one primitive → verify/correct turn itself. Do not insert a
+text-only runner between the returned `NEXT` receipt and the model that must inspect its frame. `wylde-runner` is an
+optional exact-command helper after a decision is already complete; normal gameplay does not spawn it.
 **User model preference (2026-11-01): every spawned gameplay agent uses the cheapest available model** unless the user
 explicitly requests another one (Codex: `gpt-6-luna` low; Claude: `haiku`). Do not inherit the supervisor model.
 **Manifest protocol:** the parent gives the child every file/reference it needs (quest file + its `Read:` list). A child that
@@ -63,13 +65,14 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
    (exploring, `wf improve`); finish the step and ask about bed (`improve` stops by itself).
    **Before every new gameplay task, check the exact game clock. If it is later than 19:00, sleep and advance to the
    next day before starting the task** (user standing rule, 2026-11-06; this sleep is pre-approved).
-1. **One call per step:** `./wf do <actions> [--look]` acts, waits for the screen to settle and prints a one-line state.
+1. **One model-owned decision per step:** `./wf play <goal> [k=v]` observes and returns `NEXT`; continue with the exact
+   `turn_id` and one explicit decision. Each continuation performs zero or one input, settles, integrates one immutable
+   experience, and returns control to the same gameplay agent.
    Observe with the game files first: `./wf log` (live events: quests, dialogue, scenes, pickups; input commands
    print new lines as `log: …`) and `./wf save` (exact money/time/quests/inventory as of the last autosave), see
    `docs/ui/game-files.md`. Then `./wf state` (text) → `./wf look` (full-scale JPEG, then Read it; **every screenshot and vision image is full scale**, user D188: small copies made the map unreadable).
-   **Move only by clicking (L54, user rule):** `./wf do go:<x>:<y>` (click-to-move; the game pathfinds, L49) to a
-   spot/object from a look. There is no keyboard fallback: `walk:`/`path:`/`route:`/`bubble:` are disabled. `NO MOVE`
-   → click a nearer ground point; `ALREADY THERE` → act (Space).
+   **Move only by a selected click primitive:** choose a target only when its complete visible road is clear; otherwise
+   choose one short visible-ground waypoint. There is no keyboard fallback or hidden route executor.
 2. **Small steps, no blind loops.** Never spam keys through cutscenes, dialogue or menus. `./wf advance` stops at
    anything unexpected.
 3. **Don't change the user's settings** (language, game speed) or spend/sell/sleep through big decisions without
@@ -92,30 +95,32 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
    have run its first commands. After any rejection: `tail -3 .shots/actions.log`, then inspect the current task/turn;
    let the game lose focus during diagnosis rather than opening the Pause menu.
    wfc refuses an input command chained with another ./wf call.
-9. **Uncertainty → model vision, always (user, D183).** Game functions never fail blind: any `Failed` carries
-   `NEED_VISION: look at <png>: <question>` (`core.ask_vision`, frame taken at the innermost failure, before menus
-   close). Agents Read it before reporting a cause or deciding; code that can't tell (unknown icon, unread card, no
-   proof) asks vision, it doesn't guess.
-10. **Model-owned garden turns (`wiki/mechanics/interaction-laws.md`):** bare `./wf garden region=…` observes and
-   prints `NEXT`; the gameplay model chooses every continuation with `turn_id=N answer=accept|<Decision JSON>`.
+9. **Uncertainty → the primary agent uses model vision (user, D183).** Every `NEXT` supplies its coherent full-scale
+   `view.path`; `need.kind=vision`, a surprise, unknown icon/card, or missing proof tells the same gameplay agent to
+   open that image itself before diagnosing or deciding. Low-level code never invokes a model. A `look` decision logs
+   optional vision and exposes the saved frame; it is not an engine-owned callback or a handoff to another agent.
+10. **Universal model-owned turns (`wiki/mechanics/interaction-laws.md`):** every gameplay domain, including garden,
+   navigation, indoors, sleep, shops, dialogue and foraging, uses the same durable `NEXT` contract. The gameplay model
+   chooses every continuation with `turn_id=N answer=accept|<Decision JSON>`.
    Each continuation performs at most one input. Keep the active transaction/crop/phase through surprises and fixes;
    only positioned events bind an actual node. Every decision carries a concise rationale category/evidence refs
    in the run's ordered SQLite event stream; immutable experiences live in the SQLite `experiences` table. Learned actions/graph/observations/images
    are hot data, not restart triggers. Every bed/hive needs covered identity proof or an explicit event-owned
    blocked-target entry (phase/reason/evidence); constrained completion needs supervisor review. General
    maintenance plants empty beds and waters after planting unless rain; narrow harvest/water jobs leave empties.
-   Read the interaction-laws command contract before garden play; it supersedes old scheduler/streaming instructions.
+   Read the interaction-laws command contract before play; it supersedes old scheduler/streaming instructions.
 11. **Other interaction laws (user, D183/D191):** Tara is always at the frame centre
    (never ask where she is); record every click result and update state from it; click every fitting bubble until none
    is left. A target click is preferred when the target **and its full walkable road from Tara are visible**; otherwise
    click one short visible-ground waypoint and look again. Vision answers `target <cell>` or `walk <cell>`; projected
    ownership is only a hint and the game event decides which node was treated. Garden surprises use rule 10's durable
    correction path; other legacy goals may request close cards + fresh frame.
-   **Chores and object goals run on the engine (L138):** `./wf achieve <goal> k=v` (`./wf world kinds` = what exists);
-   **foraging (rocks, trees, drops, forage plants) is pure vision, never graph nodes (L158, spec §13):** `./wf forage
-   chop|rock|pickup|forage` → one `NEED_VISION click` per target → `answer=<cell>|walk:<cell>|none`;
-   `NEED_VISION click|button|name` → call again with `answer=…`; `NEED_INPUT <goal>: <param>?` → ask the user or answer from
-   the task text (never default it).
+   Chores, objects and foraging are goals/subgoals on `./wf play`. Foraging remains pure current-frame vision and never
+   creates graph nodes, but the agent still selects one atomic target/waypoint/tool action per turn. A missing required
+   parameter is answered from explicit task authorization or returned to the user; never default it.
+   A surprise or vision request is not a terminal stop. The primary agent inspects/corrects it; if genuinely ambiguous,
+   it returns `need-help` while leaving the durable task active. Only an intentional terminal outcome or explicit user
+   stop submits the durable `stop` decision.
 12. **A user stop stops everything (user, 2026-11-07):** immediately interrupt every live gameplay child/descendant;
    do not wait for a cooperative stop. Make at most one zero-input durable-task stop and run-close attempt, then run
    `./wf stop` to terminate and verify the controller/recording thread and every live `runwatch.py` watcher and remove

@@ -1,16 +1,20 @@
 ---
 name: wylde-supervise
-description: Supervise playing Wylde Flowers — keep one task-local goal, pick the next quest/goal, dispatch one wylde-quest agent per goal (which uses wylde-runner for steps), review results, handle decisions with the user, and keep the current run plan accurate. Use when asked to play, continue the game, or progress quests.
+description: Use when asked to play, continue, or progress Wylde Flowers and a supervisor must maintain one reviewed task, dispatch one primary gameplay agent that owns every model-owned turn, monitor evidence, handle user decisions, and keep the run plan accurate.
 ---
 
 # Supervisor loop
 
-You are the supervisor (main conversation). You don't press keys yourself except for quick checks (`./wf state`).
+You are the supervisor (main conversation). You don't choose or execute gameplay inputs. You perform preflight,
+maintain the plan, watch evidence, repair gaps, and handle user decisions.
 The hierarchy:
 ```
-supervisor (you)  ──spawns──▶  wylde-quest (cheapest model): one goal, loads relevant docs, plans, records
-                                   └──spawns──▶  wylde-runner (cheapest model): one concrete step via ./wf, text-only
+supervisor (you)  ──spawns──▶  wylde-quest (cheapest model): one goal; owns observe → vision → decide
+                                                → one primitive → verify/correct until terminal or handoff
 ```
+
+Do not place `wylde-runner` between a `NEXT` receipt and its gameplay owner. The optional runner may execute one
+already-selected exact command, but it never reads vision to decide, continues a turn loop, or submits durable stop.
 
 ## 0. Purpose
 We are **testing the docs**: the goal is minimal docs sufficient for an agent to pass quests. **Filling gaps beats
@@ -19,9 +23,9 @@ docs, then re-test. Judge runs by gaps found and fixed.
 
 ## 1. Orient (cheap)
 - **Clock gate before every new gameplay task:** read the exact game time from `./wf save` or `./wf state` before
-  planning or dispatching any action. If it is later than **19:00**, do not start the task: sleep first with
-  `./wf achieve '{"kind": "Bed", "where": {}, "make": {"slept": true}}'`, run `./wf advance` to next-day gameplay,
-  then refresh the start state. This standing user rule pre-approves that sleep; it is not a decision-needed stop.
+  planning or dispatching any action. If it is later than **19:00**, make model-owned sleep the first reviewed task/
+  subgoal and dispatch the primary gameplay agent to execute it one turn at a time; refresh state next morning before
+  ordinary work. This standing user rule pre-approves that sleep; it is not a decision-needed stop.
 - **Before every dispatch:** `./wf status` — a locked Mac screen blocks capture and input (loop-live 2026-10-31: the
   agent stopped at its first call). Locked → tell the user, wait; never dispatch.
 - **…and check the user isn't playing:** `./wf log --tail 20` + `tail -5 .shots/actions.log`. Game actions in the log
@@ -58,13 +62,14 @@ Carry the chosen goal into the new task's `./wf run start` command and `runs/<ta
 done-signal, constraints) before dispatching.
 
 ## 3. Dispatch: give the child EVERYTHING it needs (the manifest)
-**Model rule (user, 2026-11-01): always use the cheapest available model for every spawned gameplay agent**, both
-quest and runner, unless the user explicitly overrides it. In Codex collaboration this is `gpt-6-luna` with low
+**Model rule (user, 2026-11-01): always use the cheapest available model for every spawned gameplay agent**, unless
+the user explicitly overrides it. In Codex collaboration this is `gpt-6-luna` with low
 reasoning; in Claude agent definitions it is `haiku`. Never inherit the supervisor's more expensive model by default.
 
 **Fast-start rule (user, 2026-11-01): routine navigation must not become an analysis phase.** Start/resume the generic
 `./wf play navigate destination=<node-or-kind>` workflow and act from its one next graph edge. The edge is compass plus
-`near|mid|far`; the model inspects the supplied full-scale frame and chooses one matching visible-road click. Do not
+`near|mid|far`; the same primary gameplay child inspects the supplied full-scale frame and chooses one matching
+visible-road click. Do not
 run retired `goto`/calibration/coordinate routes first. The supervisor's fresh preflight is passed in the manifest so
 the child does not repeat it.
 
@@ -82,7 +87,7 @@ The child should finish the quest from the manifest alone. Before dispatching, c
 1. `./wf run start <task-id> <goal…>` → `runs/<YYYYMMDD-HHMM>-<task>/` with a `plan.md` template. You open the run,
    not the agent.
 2. Write `plan.md` for the agent: header (Goal · Done when · Brief = quest file · Review) and one `## Step N: <title>`
-   per concrete step with **Do** (exact `./wf` commands, docs/ sections), **Signal**, **Done when**, **Budget**
+   per concrete step with **Do** (goal/workflow and docs sections, never a preselected screen point), **Signal**, **Done when**, **Budget**
    (`<N> calls, <M> min` of game time, from `docs/operations/actions.md` Expect / earlier runs) and **If stuck**. Small steps:
    one place or one action kind each; sleeping/waiting gets its own step.
 3. **Review it**: `./wf run plan` (fields complete) + your check: every step's key action is ✅ verified in
@@ -115,9 +120,9 @@ its `run end`: wait for its task notification (retro 2026-10-28: my Escapes foug
 `docs/operations/actions.md`, mark that step ❓ in the brief instead of guessing (retro 2026-10-28: "!" topic vs Build button).
 
 ## 3c. Watch every live run (user D186: "the supervisor was meant to control the execution and see a detailed log")
-For garden tasks, first load `wiki/mechanics/interaction-laws.md`. Dispatch a `gpt-6-luna` low gameplay model with
-that file, the reviewed run plan, clock/authorization/budget and durable task path. It owns one decision per turn;
-this supersedes the older engine-owned garden and `achieve` gating below. Watch the ordered SQLite run stream: `type=turn`
+For every gameplay task, first load `wiki/mechanics/interaction-laws.md`. Dispatch one `gpt-6-luna` low primary
+gameplay model with that file, the reviewed run plan, clock/authorization/budget and durable task path. It owns one
+decision per turn across every domain; do not spawn nested gameplay runners. Watch the ordered SQLite run stream: `type=turn`
 joins clues, recommendation, model decision, optional vision, intent, experience, integration and corrections by
 turn ID. Do not duplicate structured Decision rationales in another reasoning log. On surprise: stop/pause safely,
 preserve experience/frame, update the real replay, make the smallest fix, run only the focused regression, then
@@ -144,14 +149,13 @@ Never let a child run the game blind. For every dispatch that touches the game:
    In `focus-mode front`, do not wait for that 45-second alert when the next game call is not ready: activate Codex
    (`open -a Codex`) during off-game reasoning so Unity freezes without changing the saved focus mode. The next `./wf`
    input refocuses the game. Never open the Pause modal merely to buy thinking time.
-3. **Gated steps:** the child makes ONE `./wf achieve` call per dispatch and returns its summary line; you read the
-   watcher lines and decide the next instruction (continue via SendMessage). A `NEED_VISION` answer comes back to you
-   with the image path before it is used: check the image yourself. **Every vision click (yours too) goes through the
-   answer path.** For garden/object coverage answer `target <cell>` only when the target and the complete walkable road
-   from Tara are visible; otherwise answer `walk <cell>` for one short visible-ground waypoint. Use
-   `./wf achieve <goal> answer='<mode> <cell>'`, `smoke.plant_garden(answer=<cell>)` or
-   `./wf py "from game import smoke; smoke.vision_click('<cell>')"` - never a raw click: what the click proves becomes a
-   stored look, a learned direction and a scored answer (L151).
+3. **Vision and surprise turns:** the primary child reads `NEXT.view.path` itself and chooses the next versioned
+   decision. A `need.kind=vision` or surprise is not a request for the supervisor to answer and not permission to
+   delegate or terminate the task. The child opens the full-scale frame, logs optional `look`, then chooses one
+   correction or later one atomic primitive. The supervisor independently spot-checks frames while monitoring, but
+   never races the child with another game command. If the child returns `need-help`, the durable task remains active;
+   fix the brief/data or ask the user and resume the same child. A durable `stop` here is a defect unless the task is
+   intentionally terminal or the user explicitly stopped everything.
 4. **After the run:** `.venv/bin/python tools/runwatch.py <run> --report` writes `<run>/watch.md` (a table per attempt:
    clicks, walks, still, predictions hit/miss, alerts, stops); put it in the debrief.
 
@@ -197,11 +201,12 @@ stop always uses and verifies both ownership boundaries.
 - Read the report; verify with `./wf state`. Spot-check that the quest file's Verified steps were written.
 - RESULT=done → close the task with `./wf run end done`, update the quest's Wiki status/verified steps, then pick the next task.
 - partial/blocked → decide: re-brief with a narrower goal, fix a tool/doc (log in learnings), or ask the user.
-- decision-needed → **ask the user** (purchases, choices, sleeping/ending the day, romance), then re-dispatch.
+- decision-needed → **ask the user** (purchases, choices, sleeping/ending the day, romance), then resume the same child.
   Exception (user, 2026-10-30): **"pass quest X" pre-approves sleeping** as many nights as the quest needs (waiting for
   honey, crops); put "sleeping approved" in CONSTRAINTS. Due routines still come first each morning; spending still asks.
-  **How to sleep:** one engine call from anywhere, `./wf achieve '{"kind": "Bed", "where": {}, "make": {"slept": true}}'`
-  (goes home, zzz -> Yes), then `./wf advance` (docs/operations/actions.md A11). Before 02:00: passing out risks sickness.
+  **How to sleep:** the primary gameplay agent pushes/resumes the documented `sleep` workflow and owns each navigation,
+  bed interaction, confirmation and morning turn. Completion requires captured `sleep_transition`; there is no hidden
+  one-call engine route. Before 02:00: passing out risks sickness.
 
 ## 5. Debrief: you own the shared docs (mandatory, before the next goal)
 Agents only write raw attempt notes in the quest file and report GAPS. **You** turn them into docs.

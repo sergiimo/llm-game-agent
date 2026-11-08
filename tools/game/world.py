@@ -107,6 +107,30 @@ def scene_context(lines, scene=None, scope=None, since=None):
     return scene, scope or scene
 
 
+def graph_scope(lines, graph, scene, default=None):
+    """Recover a nested region from a scene spawn anchor, until later building/scene evidence replaces it."""
+    current_scene, scope = scene, default or scene
+    for line in lines:
+        change = re.search(r'\bChangeScene (\w+)(?:/(\w+))?', line)
+        entered = re.search(r'\bOnEnterBuilding (\w+)', line)
+        exited = re.search(r'\bOnExitBuilding (\w+)', line)
+        if change:
+            current_scene, scope = change[1], change[1]
+            anchor = change[2]
+            matches = [node for node in graph.nodes.values()
+                       if anchor and (node.id == anchor or str(node.kind) == anchor)]
+            if len(matches) == 1:
+                node = matches[0]
+                nested = node.id if node.type == 'region' else node.region
+                if nested and current_scene in graph.chain(nested):
+                    scope = nested
+        elif entered:
+            scope = entered[1]
+        elif exited:
+            scope = current_scene
+    return scope if current_scene == scene else (default or scene)
+
+
 def positioned_sources(lines, scene=None, scope=None):
     return [{'line': line, 'scene': source_scene, 'scope': source_scope}
             for line, source_scene, source_scope in scene_lines(lines, scene, scope) if _EVENT.search(line)]

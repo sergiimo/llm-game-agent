@@ -6,7 +6,7 @@ import unittest
 from unittest import mock
 
 from game import experience as X
-from game import navigation, play
+from game import navigation, play, world
 from game.task_state import TaskState
 import nav
 from objects import graph as OG
@@ -28,7 +28,8 @@ class NavigationReceipts(unittest.TestCase):
     @staticmethod
     def farm_graph():
         graph = OG.Graph()
-        graph.nodes['House'] = OG.Node('House', 'region')
+        graph.nodes['House'] = OG.Node('House', 'region', region='Farm')
+        graph.nodes['Bed'] = OG.Node('Bed', 'unique', region='House')
         graph.nodes['HouseExit'] = OG.Node('HouseExit', 'unique', region='House', navigation_only=True)
         graph.nodes['Farm'] = OG.Node('Farm', 'region')
         graph.nodes['Garden'] = OG.Node('Garden', 'region', region='Farm')
@@ -123,6 +124,13 @@ class NavigationReceipts(unittest.TestCase):
                  'region_provenance': {'source': 'positioned_event', 'node': 'Well',
                                        'regions': ['Farm', 'Garden']}}
         self.assertTrue(play.region_matches(state, 'Well'))
+
+    def test_spawn_anchor_recovers_nested_region_until_an_explicit_exit(self):
+        lines = ['[D5 7:16:57 PM] [GAME] ChangeScene Farm/Bed',
+                 '[D5 7:16:57 PM] [MODE] Spawning player at Farm/Bed']
+        self.assertEqual(world.graph_scope(lines, self.graph, 'Farm', 'Farm'), 'House')
+        lines.append('[D6 8:10:00 AM] [GAME] OnExitBuilding House')
+        self.assertEqual(world.graph_scope(lines, self.graph, 'Farm', 'Farm'), 'Farm')
 
 
 if __name__ == '__main__':

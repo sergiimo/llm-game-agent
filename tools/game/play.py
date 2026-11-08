@@ -79,6 +79,7 @@ def _clues(store, frame_context=None):
     save_proof = {'source': 'save', 'path': path, 'save_count': save.get('saveCount'),
                   'game_time': save_stamp}
     scene, region = world.scene_context(lines, save.get('currentScene'), since=world.save_time(save))
+    region = world.graph_scope(lines, graph, scene, region)
     vector_scope = _vector_scope(graph, region, scene, save.get('currentScene'))
     point = save.get('currentPlayerPosition') or {}
     task_state = store.load() if store.exists() else None

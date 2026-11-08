@@ -234,6 +234,42 @@ class TaskStore:
             self._write_task(connection, task, create=True)
         return task
 
+    def restart(self, task, hint=None):
+        """Replace expired operational state; history survives only as one advisory run event."""
+        now = time.time()
+        with self.locked(), self.db.transaction(immediate=True) as connection:
+            pending = connection.execute(
+                "SELECT COUNT(*) AS n FROM intents WHERE run_id=? AND status!='settled'", (self.run_id,)
+            ).fetchone()['n']
+            if pending:
+                raise StaleTask('task restart refuses an unresolved in-flight input; read once to reconcile it')
+            row = connection.execute(
+                'SELECT payload_json FROM task_state WHERE run_id=?', (self.run_id,)
+            ).fetchone()
+            old = json.loads(row['payload_json']) if row else {}
+            max_turn = connection.execute(
+                'SELECT max(turn_id) AS n FROM intents WHERE run_id=?', (self.run_id,)
+            ).fetchone()['n']
+            task.turn_seq = max(int(old.get('turn_seq') or 0), int(max_turn or 0))
+            payload = self._encode(task)
+            if row:
+                connection.execute(
+                    'UPDATE task_state SET revision=?, payload_json=?, updated_at=? WHERE run_id=?',
+                    (task.revision, payload, now, self.run_id))
+            else:
+                connection.execute(
+                    'INSERT INTO task_state(run_id,revision,payload_json,updated_at) VALUES (?,?,?,?)',
+                    (self.run_id, task.revision, payload, now))
+            connection.execute('UPDATE runs SET pinned_profile_id=NULL WHERE id=?', (self.run_id,))
+            connection.execute(
+                "UPDATE live_evals SET status='fail', ended_at=?, result_json=? "
+                "WHERE run_id=? AND status='active'",
+                (now, json.dumps({'reason': 'task_restarted'}), self.run_id))
+            self._insert_event(connection, None, 'task_restart', {
+                'old_task_id': old.get('task_id'), 'new_task_id': task.task_id,
+                'hint': thaw(hint or {}), 'authoritative': False})
+        return task
+
     def load(self):
         with measure('task.load'), self.db.connect() as connection:
             row = connection.execute('SELECT payload_json FROM task_state WHERE run_id = ?', (self.run_id,)).fetchone()

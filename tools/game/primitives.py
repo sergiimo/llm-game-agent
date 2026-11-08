@@ -39,6 +39,35 @@ def verification_checks(expects, evidence):
     return checks
 
 
+def _saved_position_moved(before, after, freshness_seconds=15 * 60):
+    """Return saved displacement only when both save positions are click-local observations.
+
+    A day-start lineage bridge may pair a fresh live log with a stale evening save. That position is a
+    useful hint, but the next autosave can contain the entire overnight relocation and must not be credited
+    to the first morning click.
+    """
+    import math
+    from .world import when
+
+    endpoints = []
+    for state in (before, after):
+        position = state.get('position')
+        proof = (state.get('state_provenance') or {}).get('position') or {}
+        observed_time, save_time = when(state.get('game_time')), when(proof.get('game_time'))
+        if (not isinstance(position, (list, tuple)) or len(position) != 2 or
+                any(type(value) not in (int, float) or not math.isfinite(value) for value in position) or
+                proof.get('source') != 'save' or not isinstance(proof.get('path'), str) or
+                type(proof.get('save_count')) is not int or observed_time is None or save_time is None or
+                abs(observed_time - save_time) > freshness_seconds):
+            return None
+        endpoints.append((list(position), proof, save_time))
+    (a, ap, at), (b, bp, bt) = endpoints
+    if (os.path.dirname(os.path.abspath(ap['path'])) != os.path.dirname(os.path.abspath(bp['path'])) or
+            bp['save_count'] <= ap['save_count'] or bt < at):
+        return None
+    return math.dist(a, b) >= .5
+
+
 def goal_expectations(goal, expects):
     """Add deterministic co-events that belong to a goal's declared completion event."""
     expects = dict(expects)
@@ -287,30 +316,28 @@ class GameAdapter:
         scope = clues.get('vector_scope')
         detections = []
         vector_status = {'status': 'not_requested'}
-        if valid and s.kind in ('gameplay', 'unknown') and isinstance(scope, dict):
-            effective = {'searched': [], 'disabled': [], 'untrained': list(scope.get('kinds') or ())}
+        requested_kinds = scope.get('kinds') if isinstance(scope, dict) else ()
+        vector_kinds = (None if requested_kinds is None else
+                        [kind for kind in requested_kinds if kind != 'Tara'])
+        vector_requested = vector_kinds is None or bool(vector_kinds)
+        if valid and s.kind in ('gameplay', 'unknown') and isinstance(scope, dict) and vector_requested:
+            effective = {'searched': [], 'disabled': [], 'untrained': list(vector_kinds or ())}
             try:
                 if self._vector_store is None:
                     from objects.store import Store
                     self._vector_store = Store()
                 effective = observe.inspect_vector_scope(
-                    self._vector_store, scope.get('kinds'), scope.get('region'))
+                    self._vector_store, vector_kinds, scope.get('region'), exclude=('Tara',))
                 with measure('observe.vectors'):
                     detections = observe.detect_frame(
-                        image, region=scope.get('region'), kinds=scope.get('kinds'), store=self._vector_store,
-                        cache_key=(view_id, self._vector_store.revision()))
+                        image, region=scope.get('region'), kinds=vector_kinds, store=self._vector_store,
+                        cache_key=(view_id, self._vector_store.revision()), exclude=('Tara',))
                 vector_status = {'status': 'ok' if detections else 'no_match', 'region': scope.get('region'),
                                  **effective, 'hits': len(detections)}
             except Exception as error:  # the model must distinguish detector failure from a valid empty frame
                 vector_status = {'status': 'error', 'region': scope.get('region'),
                                  **effective,
                                  'error': f'{type(error).__name__}: {error}'}
-        # Semantic modal/card classifiers have already had priority above.  On an
-        # otherwise unclassified frame, a Tara appearance hit is positive proof
-        # that the rendered world is visible even when OCR finds no HUD controls.
-        if s.kind == 'unknown' and any(d.kind == 'Tara' for d in detections):
-            s = screen.Screen('gameplay', s.texts, s.controls)
-            frame_context['screen'] = s.kind
         clues.update(screen={'kind': s.kind, 'texts': s.texts}, frame_path=path,
                      capture_validity='rendered' if valid else 'black',
                      visible_affordances=[{'kind': a.kind, 'point': list(a.pt), 'drop': a.drop, 'ready': a.ready,
@@ -321,7 +348,17 @@ class GameAdapter:
         if s.kind == 'map' and map_pin:
             clues['map_pin'] = list(map_pin)
         clues['view_id'] = view_id
-        clues['candidates'] = view.candidates(clues)
+        candidates = view.candidates(clues)
+        feet_reader = getattr(core.WF, 'tara_feet', None)
+        if s.kind == 'gameplay' and feet_reader is not None:
+            try:
+                feet = [int(value) for value in feet_reader(image)]
+                candidates.append({'id': 'tara-feet', 'kind': 'Tara', 'point': feet,
+                                   'source': 'tracker', 'confirmed': True, 'view_id': view_id})
+                clues['tara_feet'] = feet
+            except Exception:  # noqa: BLE001 - optional appearance clue must never break a coherent observation
+                pass  # a tracker miss grants no inferred Tara location
+        clues['candidates'] = candidates
         clues['controls'] = [dict(row, id=f'control-{i}', view_id=view_id)
                              for i, row in enumerate(s.controls)]
         clues.setdefault('graph_clues', [])
@@ -374,6 +411,8 @@ class GameAdapter:
             if screen != 'gameplay':
                 raise ValueError(f'world input blocked by {screen}')
             point = action.get('point')
+            if point is None and type(action.get('x')) in (int, float) and type(action.get('y')) in (int, float):
+                point = [action['x'], action['y']]
             if point is None and action.get('cell'):
                 m = re.fullmatch(r'([A-Xa-x])(1[0-6]|[1-9])', action['cell'])
                 if not m:
@@ -383,6 +422,44 @@ class GameAdapter:
                 raise ValueError('click point is outside walkable frame or on HUD')
             if kind == 'waypoint' and not action.get('walkable'):
                 raise ValueError('waypoint needs model-confirmed visible walkable ground')
+            if kind == 'waypoint':
+                surface = action.get('surface')
+                surface_box = action.get('surface_box')
+                if surface is not None:
+                    surface_words = [name for name in ('road', 'floor', 'porch', 'bridge')
+                                     if re.search(rf'\b{name}\b', str(surface).casefold())]
+                    if len(surface_words) != 1:
+                        raise ValueError('waypoint surface must be road, floor, porch or bridge')
+                    surface = action['surface'] = surface_words[0]
+                    if (not isinstance(surface_box, (list, tuple)) or len(surface_box) != 4 or
+                            any(type(value) not in (int, float) for value in surface_box)):
+                        raise ValueError('waypoint surface needs visible [x0,y0,x1,y1] bounds')
+                    x0, y0, x1, y1 = surface_box
+                    if not (x0 < x1 and y0 < y1 and x0 <= point[0] <= x1 and y0 <= point[1] <= y1):
+                        raise ValueError('waypoint must be inside its model-confirmed surface bounds')
+                tara_hits = [row for row in observation.get('candidates', ())
+                             if row.get('kind') == 'Tara' and row.get('point')
+                             and row.get('source') == 'tracker' and row.get('confirmed') is True]
+                if any(sum((float(point[i]) - float(row['point'][i])) ** 2 for i in (0, 1)) <
+                       240 ** 2
+                       for row in tara_hits):
+                    raise ValueError('waypoint must clear confirmed Tara tracker anchor by 240 px')
+                unique_kinds = {str(row.get('kind')) for row in observation.get('graph_clues', ())
+                                if row.get('type') == 'unique' and row.get('kind') and row.get('kind') != 'Tara'}
+                approach_radii = {str(row.get('kind')): float(row.get('approach_radius', 96))
+                                   for row in observation.get('graph_clues', ())
+                                   if row.get('type') == 'unique' and row.get('kind') and row.get('kind') != 'Tara'}
+                # Vector hits are appearance hypotheses, not authoritative occupied geometry. They can be false
+                # positives on obvious walkable ground (for example porch shrubs labelled Bed/Mailbox), so only an
+                # interaction-proved/model-confirmed candidate may veto a model-confirmed waypoint.
+                nearby = [row for row in observation.get('candidates', ())
+                          if (row.get('source') != 'vector' or row.get('confirmed') is True)
+                          and str(row.get('kind')) in unique_kinds and row.get('point')
+                          and sum((float(point[i]) - float(row['point'][i])) ** 2 for i in (0, 1)) <
+                          approach_radii.get(str(row.get('kind')), 96) ** 2]
+                if nearby:
+                    kinds = ','.join(sorted({str(row.get('kind')) for row in nearby}))
+                    raise ValueError(f'waypoint overlaps visible object approach zone: {kinds}')
             if kind != 'waypoint' and not action.get('visible_road'):
                 raise ValueError('target and full visible walkable road must be confirmed')
             action['point'] = [round(p) for p in point]
@@ -424,6 +501,7 @@ class GameAdapter:
             # The daemon deliberately rejects raw clicks while paused. Its named-control path issues one click
             # without invoking resume's retry/fallback loop.
             action['command'] = ('text:Resume Game' if screen == 'pause' else
+                                 'key:space' if screen == 'popup' and label.strip().casefold() == 'zzzz' else
                                  f'click:{action["point"][0]}:{action["point"][1]}')
         elif kind == 'select_card':
             if action.get('label'):
@@ -458,7 +536,13 @@ class GameAdapter:
                 'frame_path': observation.get('frame_path'), 'view_id': observation.get('view_id')},
                 validate_only=True)
             if fresh.status != 'coherent':
-                raise ValueError('save_lineage_mismatch: ' + str(fresh.mismatch))
+                terminal_cleanup = (action.get('kind') == 'press' and
+                                    str(action.get('label', '')).strip().casefold() == 'zzzz' and
+                                    (observation.get('screen') or {}).get('kind') == 'popup' and
+                                    sum(str(row.get('label', '')).strip().casefold() == 'zzzz'
+                                        for row in observation.get('controls', ())) == 1)
+                if not terminal_cleanup:
+                    raise ValueError('save_lineage_mismatch: ' + str(fresh.mismatch))
             action['lineage_observation_id'] = fresh.observation_id
         if action.get('view_id') is not None and action.get('view_id') != observation.get('view_id'):
             raise ValueError('stale view: decision does not match its source')
@@ -494,6 +578,15 @@ class GameAdapter:
                 # invalidate a visible-road decision when the coarse camera view is unchanged.  UI actions remain
                 # strict because even a small newly appeared control/modal can redirect them.
                 world_input = action.get('kind') in ('click', 'target', 'cell', 'bubble', 'waypoint')
+                if changed and world_input:
+                    from . import screen
+                    source_world = (observation.get('screen') or {}).get('kind') == 'gameplay'
+                    live_kind = screen.read(image=now, world_visible=source_world).kind
+                    shift = observe.view_shift(old, now) if live_kind == 'gameplay' else None
+                    if shift is not None and sum(float(axis) ** 2 for axis in shift) ** .5 <= 12:
+                        # Day/night tint and ambient animation may change many pixels while the walkable geometry
+                        # stays fixed. A near-zero correlated scene shift keeps a coordinate lease valid.
+                        changed = False
                 if not changed and not world_input:
                     from PIL import ImageChops, ImageStat
                     diff = ImageChops.difference(old.convert('RGB'), now.convert('RGB'))
@@ -502,6 +595,26 @@ class GameAdapter:
                     changed = any(max(ImageStat.Stat(diff.crop((x, y, min(x + tile, width),
                                                                  min(y + tile, height)))).mean) > 12
                                   for y in range(0, height, tile) for x in range(0, width, tile))
+                # Menu hotkeys are non-positional. Refocusing a time-frozen game routinely changes ambient
+                # pixels, which must not invalidate a decision to open a menu. Re-authorize against the live
+                # screen instead: a newly appeared modal still refuses, while gameplay camera/animation drift
+                # is harmless for j/m/i.
+                if changed and action.get('kind') == 'key':
+                    from . import screen
+                    # The passive late-night banner carries OCR text but is not a modal. The source observation
+                    # already proved a rendered gameplay world (including appearance candidates), so let the
+                    # classifier use that positive world clue while pause/popup/menu/card rules retain priority.
+                    source_world = (observation.get('screen') or {}).get('kind') == 'gameplay'
+                    changed = screen.read(image=now, world_visible=source_world).kind != 'gameplay'
+                if changed and action.get('kind') == 'close':
+                    from . import screen
+                    source_kind = (observation.get('screen') or {}).get('kind')
+                    same_panel = (screen.map_panel(now) if source_kind == 'map'
+                                  else screen.read(image=now).kind == source_kind)
+                    if same_panel and source_kind in ('card', 'picker', 'map', 'journal', 'inventory', 'shop'):
+                        # Close is non-positional. Refocus animation does not stale it when the exact same
+                        # positively recognized panel remains on top; a different modal still refuses.
+                        changed = False
         except OSError as error:
             raise ValueError(f'stale view: source frame unavailable: {error}') from None
         if changed:
@@ -567,7 +680,17 @@ class GameAdapter:
                 from PIL import Image
                 with Image.open(before['frame_path']) as a, Image.open(after['frame_path']) as b:
                     if a.convert('L').getextrema()[1] > 20 and b.convert('L').getextrema()[1] > 20:
-                        moved = observe.view_changed(a, b)
+                        changed = observe.view_changed(a, b)
+                        shift = observe.view_shift(a, b) if changed else (0., 0.)
+                        if shift is not None:
+                            moved = sum(float(axis) ** 2 for axis in shift) ** .5 > 12
+                        else:
+                            moved = changed
+            if _saved_position_moved(before, after):
+                # Camera follow can produce a near-zero correlated image shift even when Tara moved. A fresh,
+                # click-local save delta is stronger positive evidence than image geometry. Bridged stale saves
+                # are deliberately excluded because their next delta can contain an overnight relocation.
+                moved = True
             if moved and not at:
                 from . import where
                 where.walked()

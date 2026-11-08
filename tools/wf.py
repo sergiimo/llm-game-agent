@@ -391,6 +391,8 @@ def find_text(needle, path=None, region=None, exact=False):
 
 # ---------------------------------------------------------------- input
 
+INPUTS = [0]  # physical actuator invocations issued by this daemon; cursor parking/motion is not gameplay input
+
 def _to_screen(x, y):
     w = require_window()
     x0, y0, sc = content_box(w)
@@ -416,21 +418,25 @@ def key(combo, hold=0.2):
     """Press a key or modifier combo like 'e', 'escape', 'shift+tab', 'cmd+q'."""
     parts = combo.lower().split('+')
     mods, main = parts[:-1], parts[-1]
+    mod_codes = [_code(modifier) for modifier in mods]
+    main_code = _code(main)
     flags = 0
-    for m in mods:
+    INPUTS[0] += 1
+    for m, code in zip(mods, mod_codes):
         flags |= MODIFIER_FLAGS[m]
-        _post_key(_code(m), True, flags)
-    _post_key(_code(main), True, flags)
+        _post_key(code, True, flags)
+    _post_key(main_code, True, flags)
     time.sleep(hold)
-    _post_key(_code(main), False, flags)
-    for m in reversed(mods):
-        _post_key(_code(m), False, 0)
+    _post_key(main_code, False, flags)
+    for code in reversed(mod_codes):
+        _post_key(code, False, 0)
     time.sleep(0.05)
 
 
 def hold_keys(keys, seconds):
     """Hold several keys simultaneously (e.g. ['w','d'] to walk diagonally)."""
     codes = [_code(k) for k in keys]
+    INPUTS[0] += 1
     for c in codes:
         _post_key(c, True)
     end = time.time() + seconds
@@ -470,6 +476,7 @@ def click(x, y, button='left', count=1, hold=0.06):
         down, up, btn = Q.kCGEventLeftMouseDown, Q.kCGEventLeftMouseUp, Q.kCGMouseButtonLeft
     mouse_move(x, y)
     time.sleep(0.05)
+    INPUTS[0] += 1
     for i in range(count):
         e1 = Q.CGEventCreateMouseEvent(None, down, (sx, sy), btn)
         Q.CGEventSetIntegerValueField(e1, Q.kCGMouseEventClickState, i + 1)
@@ -486,11 +493,14 @@ def scroll(dy, x=None, y=None):
     if x is not None:
         mouse_move(x, y)
     ev = Q.CGEventCreateScrollWheelEvent(None, Q.kCGScrollEventUnitLine, 1, int(dy))
+    INPUTS[0] += 1
     Q.CGEventPost(Q.kCGHIDEventTap, ev)
 
 
 def type_text(text):
     Q = _quartz()
+    if text:
+        INPUTS[0] += 1
     for ch in text:
         ev = Q.CGEventCreateKeyboardEvent(None, 0, True)
         Q.CGEventKeyboardSetUnicodeString(ev, len(ch), ch)
@@ -1711,6 +1721,8 @@ def run_report(path):
     ev = run_events(path)
     if not ev:
         return print('(empty run)')
+    from runtime.run_reports import render_decisions
+    render_decisions(_run_store().database, run['id'], run['directory'])
     t0 = ev[0]['t']
     t1 = ev[-1].get('end', ev[-1]['t'])
     mmss = lambda t: time.strftime('%M:%S', time.gmtime(t - t0))
@@ -4262,7 +4274,7 @@ def main(argv=None):
     p.add_argument('args', nargs='*')
     p = sub.add_parser('eval', help='hits/misses of predictions: wf eval [all] | pending | mark <id> hit|miss')
     p.add_argument('args', nargs='*')
-    p = sub.add_parser('play', help='universal model-owned turn: [goal] [k=v] [turn_id=N answer=Decision-JSON]')
+    p = sub.add_parser('play', help='universal model-owned turn: [goal] [k=v] [restart=true] [turn_id=N answer=Decision-JSON]')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('achieve', help='the engine (L138): wf achieve <goal|json> [k=v ...] [answer=X]; goals in '
                                        'tools/game/goals.json, e.g. wf achieve plant seed=Tulip region=GardenSouth')
@@ -4606,6 +4618,7 @@ def serve():
             buf = io.StringIO()
             code = 0
             moves0 = MOVES[0]
+            inputs0 = INPUTS[0]
             with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
                 try:
                     with measure('server.dispatch', command=argv[0] if argv else ''):
@@ -4637,11 +4650,16 @@ def serve():
                         pass
             try:
                 with measure('server.encode', bytes=buf.tell()):
-                    response = json.dumps({'out': buf.getvalue(), 'code': code}).encode() + b'\n'
+                    response = json.dumps(response_envelope(buf.getvalue(), code, inputs0)).encode() + b'\n'
                 with measure('server.send', bytes=len(response)):
                     conn.sendall(response)
             except OSError:
                 pass
+
+
+def response_envelope(output, code, inputs_before):
+    """Daemon receipt metadata; old clients ignore the additive issuance flag."""
+    return {'out': output, 'code': code, 'input_issued': INPUTS[0] > inputs_before}
 
 
 if __name__ == '__main__':

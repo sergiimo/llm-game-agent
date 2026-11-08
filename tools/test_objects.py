@@ -393,12 +393,15 @@ class DetectTests(unittest.TestCase):
         st = S.Store(root)
         st.add('Gate', crop(), unit(1))
         st.add('GardenBed', crop(), unit(2))
+        st.add('Tara', crop(), unit(3))
         open(os.path.join(root, 'thresholds.json'), 'w').write(
             '{"Farm": {"_disabled": ["GardenBed"]}}')
         self.assertEqual(self.D.inspect_scope(st, ['Gate', 'GardenBed', 'Bed'], 'Farm'), {
             'searched': ['Gate'], 'disabled': ['GardenBed'], 'untrained': ['Bed']})
         self.assertEqual(self.D.inspect_scope(st, [], 'Farm'), {
             'searched': [], 'disabled': [], 'untrained': []})
+        self.assertEqual(self.D.inspect_scope(st, None, 'Farm', exclude=('Tara',)), {
+            'searched': ['Gate'], 'disabled': ['GardenBed'], 'untrained': []})
 
     def test_frame_features_are_reused_for_the_same_view_revision(self):
         import unittest.mock as mock

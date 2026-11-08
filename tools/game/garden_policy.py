@@ -26,8 +26,8 @@ def interrupt(task, obs):
     if hour is not None and (hour >= 23 or hour < 6):
         return 'HARD_STOP: after 23:00 or before 06:00; finish tonight and sleep'
     if (obs.get('rain') or obs.get('light') in ('dusk', 'night') or
-            task.get('params', {}).get('_started_late') and (hour is None or hour > 19)):
-        return 'SLEEP_REQUIRED: rain, darkness, or new task after 19:00; sleep then resume garden'
+            task.get('params', {}).get('_started_late') and (hour is None or hour >= 18)):
+        return 'SLEEP_REQUIRED: rain, darkness, or task at/after 18:00; sleep or hand control to human'
     needs_can = task.get('goal', 'garden') == 'garden' and bool(
         set(task.get('params', {}).get('chores', CHORES)) & {'water', 'plant', 'replant'})
     if needs_can and obs.get('can') == 'empty':

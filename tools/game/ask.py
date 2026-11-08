@@ -29,14 +29,23 @@ def garden_decision(answer):
     """Parse one explicit model decision. Never capture, ask vision, or execute gameplay here."""
     import shlex
     from .turn import Decision
+    def structured(value):
+        value = dict(value)
+        if value.get('kind') == 'push' and value.get('action') is None and 'goal' in value:
+            action = {'goal': value.pop('goal'), 'params': value.pop('params', {})}
+            value['action'] = action
+        try:
+            return Decision(**value)
+        except TypeError as error:
+            raise ValueError(f'invalid decision envelope: {error}') from None
     if isinstance(answer, dict):
-        return Decision(**answer)
+        return structured(answer)
     text = str(answer).strip()
     if text.startswith('{'):
-        return Decision(**json.loads(text))
-    if text in ('accept', 'look', 'stop'):
+        return structured(json.loads(text))
+    if text in ('accept', 'look', 'read', 'stop'):
         return Decision(text)
-    if text in ('space', 'close', 'wait', 'read'):
+    if text in ('space', 'close', 'wait'):
         return Decision('act', action={'kind': text})
     if text.startswith('press:'):
         return Decision('act', action={'kind': 'press', 'label': text[6:]})

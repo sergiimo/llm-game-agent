@@ -59,7 +59,8 @@
       "id": "Bed",
       "type": "unique",
       "kind": "Bed",
-      "region": "House"
+      "region": "House",
+      "approach_radius": 180
     },
     {
       "id": "Stove",
@@ -72,6 +73,13 @@
       "type": "unique",
       "kind": "HouseExit",
       "region": "House"
+    },
+    {
+      "id": "House/BedroomPassage",
+      "type": "unique",
+      "kind": "BedroomPassage",
+      "region": "House",
+      "navigation_only": true
     },
     {
       "id": "GardenBed@Garden",
@@ -332,11 +340,20 @@
     },
     {
       "a": "House",
+      "b": "House/BedroomPassage",
+      "rel": "nav",
+      "compass": "E",
+      "range": "far",
+      "source": "verified house layout: leave the bed alcove through the east passage",
+      "walkable": true
+    },
+    {
+      "a": "House/BedroomPassage",
       "b": "HouseExit",
       "rel": "nav",
-      "compass": "S",
+      "compass": "SE",
       "range": "far",
-      "source": "verified house layout: the full exit gap is S/SE far from the bed area",
+      "source": "verified house layout: from the bedroom passage bend southeast toward the visible porch exit",
       "walkable": true
     },
     {
@@ -346,6 +363,24 @@
       "compass": "N",
       "range": "near",
       "source": "reverse of verified House to HouseExit edge",
+      "walkable": true
+    },
+    {
+      "a": "House",
+      "b": "Bed",
+      "rel": "nav",
+      "compass": "N",
+      "range": "far",
+      "source": "verified farmhouse layout: bed area is north of the entry passage",
+      "walkable": true
+    },
+    {
+      "a": "Bed",
+      "b": "House",
+      "rel": "nav",
+      "compass": "S",
+      "range": "far",
+      "source": "reverse of verified House to Bed edge",
       "walkable": true
     },
     {

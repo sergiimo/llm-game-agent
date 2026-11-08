@@ -3,20 +3,56 @@
 > **Summary:** navigation follows nested graph edges expressed as compass plus near/mid/far; screen points identify one current-frame click only.
 > Every click returns to `play`; no route, search, forage or retry loop runs inside Python.
 
-Prerequisites: read the active goal/transaction, exact clock, current modal and full-scale frame. Tara stays at the
-frame centre. Graph edges/detector matches are hypotheses with provenance, never permission to click off-screen.
-Read `NEXT.vector_detections` first: these learned appearance vectors are the primary current-frame landmark/object
-evidence and are computed from the same frame as bubbles/OCR. Use the graph to scope and interpret them. If an
-expected learned kind is absent or contradicts the graph, inspect the frame with model vision and correct the vector,
-graph or decision explicitly; never silently fall back to a stale route.
+Prerequisites: read the active goal/transaction, exact clock, current modal and
+`NEXT.navigation.localization`. Tara stays at the frame centre. The localization packet carries `stage`, `current`,
+`prior_hint`, current-frame `landmarks`, and `graph_slice`. Each landmark supplies `landmark_from_tara` and the
+inverse `tara_from_landmark`; the route is in `graph_slice.route_edges`.
 
-Push a generic `navigate` child before any waypoint, including from garden work. Read its
-`navigation.next_edge.compass` and `.range`; then choose a target or visible-road waypoint in that qualitative sector
-from the current full-scale frame. A point/cell binds the atomic click to that view and is discarded afterward. Do
+Use the localization cascade exactly:
+
+1. At stage `vectors`, localize Tara from the returned vector landmarks plus graph relations and **do not run a
+   separate model-vision localization escalation**. The acting model still reads the current full-scale screenshot
+   on every turn to verify the target/entire walkable road and choose the one current-frame click; vectors replace
+   visual semantic localization, not road-safety inspection.
+   A returned localization vector is usable evidence. A wrong returned vector is a vector-system defect: stop route
+   continuation and fix its label/detection/calibration rather than silently bypassing it with vision.
+2. At stage `vision`, and only because the current frame has no vectors, read the full-scale image at `view.path`.
+   **At or after 18:00, stop before vector creation:** evening/darkness is not valid appearance-training evidence. Existing
+   vectors may still localize, but do not create, update, calibrate, or keep any vector from the dark frame. Defer the
+   missing exemplar until daylight. For the return-home/sleep interrupt only, use current-frame model vision as
+   ephemeral localization and choose one visible-road step without persisting a vector. Stop safely only when the
+   dark frame does not show enough road/landmark evidence for that one step.
+   If an identifiable unique graph landmark is visible, prefer a stable crop. Gameplay zoom is stable per scene, so
+   calibrate each crop once in source-frame pixels for that scene; do not enlarge it merely to simulate arbitrary
+   zoom invariance. An ordinary patch vector should be object-dominant, normally 100–300 px and at least about 80×80
+   source pixels (four DINO patches per side). For a whole structure or contextual landmark, use a separate matching
+   landmark kind and `state=structure`; normally crop 300–900 px with about 0.5–1 object width of recognisable context
+   per side. A mailbox crop includes the full box, post and adjacent fence/road (roughly 250–400 px in the calibrated
+   Farm view), not an unconditional 300 px margin on every side. Scale is stable but viewing angle can vary: keep a
+   few clean angle exemplars at the same scene-calibrated scale rather than expanding one crop indefinitely.
+   Different scene zooms or stable visual states get separate scene/state templates. Do not label a large contextual crop as a tight sub-object kind. If Tara occludes
+   the identifying shape, the frame clips it, or the requested context is unavailable, skip that landmark for now
+   instead of storing a partial vector. Create an ordinary vector with
+   `./wf objects add <kind> x0 y0 x1 y1`, or a spatial-context template with
+   `./wf objects add <kind> x0 y0 x1 y1 structure`, preserving frame/crop
+   provenance, then submit a zero-input `read` on the saved turn so detection reruns. The receipt names this step
+   `identify_unique_object_and_create_vector`. Keep it only when that immediate reread returns the correct landmark
+   and no stronger false peak; otherwise remove or region-disable it.
+3. Only when stage 2 leaves localization unresolved, use the outdoor map. The receipt names this fallback
+   `map_if_still_unresolved`; it is stage 3, never the first localization step.
+
+Before any movement, replace belief `current` with a semantic relation justified by the packet, for example
+`west of Farmhouse`, then derive `next_objective` from that localized position and `graph_slice.route_edges`.
+Do not infer that a visually plausible bridge or road leads to the goal without that graph derivation.
+
+Push a generic `navigate` child before any waypoint, including from garden work. Read its localization packet and
+`navigation.next_edge`; then choose a target or visible-road waypoint that serves the localized graph objective.
+A point/cell binds the atomic click to that view and is discarded afterward. Do
 not derive, persist, or compare world coordinates, calibrated distances, or dead-reckoned positions. Garden,
 interiors, and outdoors all use the same nested graph path.
 
-The map workflow is outdoors only and optional when a long segment is visually unresolved. A canonical guarded
+The map workflow is outdoors only and is localization stage 3 after a no-vector vision pass could not create usable
+unique-landmark coverage. A canonical guarded
 `action:{kind:"key",label:"m",expects:{mode:"map"}}` produces another source frame for model interpretation; it
 does not become a coordinate system or automatic route. Record landmarks/road connectivity as qualitative graph
 evidence. An indoor `m` request is a guard refusal and issues no input.
@@ -72,11 +108,18 @@ The immutable outcome records `regions` and `region_provenance` from that object
 the current scene/building. Use `expects:{region:"<nested region>"}`, then complete the navigation child after
 that proof. A stored Tara location, nearest-object guess or no-event waypoint never supplies nested arrival.
 
+One highlighted named affordance may also prove arrival when the current-region graph has exactly one unique provider
+for it (for example `sleep` offered only by `Bed`). Complete the navigation child from that fresh zero-input receipt,
+resume its parent, and interact under the parent workflow; do not click the affordance through an active navigation
+child merely to manufacture object proof.
+
 For a model-selected visible-road waypoint, declare the atomic movement expectation explicitly, for example
 `action:{kind:"waypoint",cell:"F7",walkable:true,expects:{moved:true}}`. Matching `expects.moved=true` and captured `moved=true` is relevant step evidence. A stationary
 waypoint still reports no progress when `expects.moved=false` matches `moved=false`. Absent or mismatched expectations still require the usual conservative
 progress checks. Complete navigation only after captured matching region/ancestry proof; a movement check
 does not complete the region handoff. Read the returned frame before selecting another point.
+Explicit virtual coordinates may be supplied as either `point:[x,y]` or equivalent numeric `x` and `y` fields; the
+boundary normalizes both to the canonical point before frame/HUD checks.
 
 If the capture is unknown or black, use the versioned zero-input `answer='{"kind":"read"}'` to refresh it while
 retaining the task/stack. OCR, affordances and the saved frame now come from the same capture. Black pixels never

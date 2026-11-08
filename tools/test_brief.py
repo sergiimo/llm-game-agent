@@ -130,5 +130,36 @@ class StateBrief(unittest.TestCase):
         self.assertNotIn("status={'ready'", text)   # verbose object state does not bury navigation clues
 
 
+class NavigationAgentContract(unittest.TestCase):
+    @staticmethod
+    def read(path):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, path)) as stream:
+            return stream.read()
+
+    def test_navigation_contract_uses_vectors_then_vision_vector_creation_then_map(self):
+        navigation = self.read('.claude/skills/wylde-play/actions/navigation.md')
+        index = self.read('.claude/skills/wylde-play/actions/INDEX.md')
+        agent = self.read('.claude/agents/wylde-quest.md')
+        combined = '\n'.join((navigation, index, agent))
+
+        self.assertIn('navigation.localization', combined)
+        self.assertIn('stage `vectors`', combined)
+        self.assertIn('do not run model vision', combined)
+        self.assertIn('stage `vision`', combined)
+        self.assertIn('identify_unique_object_and_create_vector', combined)
+        self.assertIn('create its appearance vector', combined)
+        self.assertIn('stage 3', combined)
+        self.assertIn('map_if_still_unresolved', combined)
+
+    def test_navigation_contract_localizes_before_deriving_graph_objective(self):
+        navigation = self.read('.claude/skills/wylde-play/actions/navigation.md')
+        self.assertIn('landmark_from_tara', navigation)
+        self.assertIn('tara_from_landmark', navigation)
+        self.assertIn('graph_slice.route_edges', navigation)
+        self.assertIn('derive `next_objective`', navigation)
+        self.assertIn('A wrong returned vector is a vector-system defect', navigation)
+
+
 if __name__ == '__main__':
     unittest.main()

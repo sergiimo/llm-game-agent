@@ -39,6 +39,20 @@ def _coherent(candidate, log_epoch, tolerance=6 * 3600):
     return abs(candidate.game_time - log_epoch.last_time) <= tolerance
 
 
+def _day_start_bridge(candidate, log_epoch):
+    """Accept one stale evening snapshot when its own log explicitly proves the next morning transition."""
+    if candidate.game_time is None or log_epoch.last_time is None:
+        return False
+    candidate_day, log_day = candidate.game_time // 86400, log_epoch.last_time // 86400
+    if (log_day != candidate_day + 1 or candidate.game_time > log_epoch.last_time or
+            log_epoch.last_time - candidate.game_time > 24 * 3600):
+        return False
+    # A normal bedtime emits day_start_intro; involuntary 02:00 exhaustion emits
+    # day_start_intro_late after advancing the morning clock. Both share this prefix.
+    markers = ('> advance_day ', '[TIME] Day ', '> day_start_intro')
+    return all(any(marker in line for line in log_epoch.lines) for marker in markers)
+
+
 def monotonic_log_times(stamps):
     """Return the latest profile epoch, normalizing its pre-day-change midnight wrap."""
     out, previous_raw, inferred_offset = [], None, 0
@@ -84,9 +98,23 @@ def _forward_log_bridge(candidate, log_epoch, previous_log):
                ('[TRIGGER] AdvanceDay', '[TIME] Day ', '[GAME] ChangeScene '))
 
 
+def _silent_save_advance(candidate, log_epoch, previous, previous_log):
+    """Accept a monotonic autosave when the same live log emitted no newer timestamp."""
+    advanced = (candidate.save_count > previous.save_count and
+                candidate.game_time >= previous.game_time) if previous else False
+    unchanged = (candidate.save_count == previous.save_count and
+                 candidate.game_time == previous.game_time and
+                 candidate.digest == previous.digest) if previous else False
+    return bool(previous and previous_log and _continuous(log_epoch, previous_log) and
+                log_epoch.last_time == previous_log.last_time and
+                (advanced or unchanged) and
+                candidate.scene == previous.scene)
+
+
 def select_profile(candidates, log_epoch):
     """Select one coherent profile, allowing slot rotation only inside that profile."""
-    coherent = [candidate for candidate in candidates if _coherent(candidate, log_epoch)]
+    coherent = [candidate for candidate in candidates
+                if _coherent(candidate, log_epoch) or _day_start_bridge(candidate, log_epoch)]
     profiles = {candidate.profile_key for candidate in coherent}
     if not coherent:
         raise LineageMismatch('no_coherent_profile', log_epoch=log_epoch.file_id)
@@ -99,7 +127,9 @@ def validate_pinned(candidate, log_epoch, profile_key, previous=None, previous_l
     """Validate a later slot/log read against a pinned profile and monotonic timeline."""
     if candidate.profile_key != profile_key:
         raise LineageMismatch('profile_changed', pinned=profile_key, observed=candidate.profile_key)
-    if not _coherent(candidate, log_epoch) and not _forward_log_bridge(candidate, log_epoch, previous_log):
+    if (not _coherent(candidate, log_epoch) and not _day_start_bridge(candidate, log_epoch) and
+            not _forward_log_bridge(candidate, log_epoch, previous_log) and
+            not _silent_save_advance(candidate, log_epoch, previous, previous_log)):
         raise LineageMismatch('save_log_timeline_conflict', save_time=candidate.game_time,
                               log_time=log_epoch.last_time)
     if previous:

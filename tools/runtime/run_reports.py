@@ -59,6 +59,11 @@ def _decision_lines(row):
         rendered = '' if not payload else f' — `{json.dumps(payload, ensure_ascii=False, sort_keys=True)[:500]}`'
         rationale = decision.get('rationale')
         lines = [prefix + f'Decision: {kind}{rendered}' + (f' — {rationale}.' if rationale else '.') + _ref(row)]
+        belief = decision.get('belief_update')
+        if belief:
+            lines.append(prefix + 'Belief proposed: ' +
+                         f'{belief.get("assessment", "unknown")} at {belief.get("current", "unknown")}; '
+                         f'next `{belief.get("next_objective", "unknown")}`.')
         navigation = row.get('navigation') or {}
         next_edge = navigation.get('next_edge') or {}
         if navigation:
@@ -68,7 +73,7 @@ def _decision_lines(row):
                     f'next {next_edge.get("to") or "unresolved"}')
             required = ' '.join(str(value) for value in
                                 (next_edge.get('compass'), next_edge.get('range')) if value) or 'unknown'
-            lines.append(prefix + f'Graph: {navigation.get("scene") or "unknown"} → {goal}; '
+            lines.append(prefix + f'Graph advisory: {navigation.get("scene") or "unknown"} → {goal}; '
                          f'required {required}; {edge}; edge {next_edge.get("relation") or "unknown"}.')
         waypoint = row.get('waypoint')
         if waypoint:
@@ -78,6 +83,13 @@ def _decision_lines(row):
                          f'{waypoint.get("graph_range") or "unknown"}; '
                          f'alignment {waypoint.get("alignment") or "unknown"}.')
         return lines
+    if phase == 'belief':
+        belief = row.get('belief') or {}
+        action = row.get('action') or {}
+        return [prefix + f'Belief committed: revision {belief.get("revision", "?")}; '
+                f'{belief.get("assessment", "unknown")} at {belief.get("current", "unknown")}; '
+                f'next `{belief.get("next_objective", "unknown")}`; '
+                f'action `{action.get("kind", "unknown")}`.' + _ref(row)]
     if phase == 'intent':
         intent = row.get('intent') or {}
         observation = (intent.get('action') or {}).get('lineage_observation_id') or \

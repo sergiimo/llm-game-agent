@@ -56,8 +56,16 @@ def view_shift(a, b, size=(480, 270)):
     shifts the opposite way; phase correlation on small grey copies. None when unsure (flat frames, no clear peak)."""
     import numpy as np
     try:
-        x = np.asarray(a.convert('L').resize(size), dtype=float)
-        y = np.asarray(b.convert('L').resize(size), dtype=float)
+        # Fixed HUD elements dominate full-frame phase correlation and create a false zero-shift peak even while
+        # the gameplay camera pans substantially. Correlate only the rendered world interior; modal callers are
+        # screened before reaching this function.
+        box = (120, 120, 1800, 1000)
+        x = np.asarray(a.crop(box).convert('L').resize(size), dtype=float)
+        y = np.asarray(b.crop(box).convert('L').resize(size), dtype=float)
+        # Correlate structural edges, not raw luminance. Day→dusk tint can change most pixels while camera and
+        # walkable geometry remain identical.
+        x = np.hypot(np.diff(x, axis=1, prepend=x[:, :1]), np.diff(x, axis=0, prepend=x[:1, :]))
+        y = np.hypot(np.diff(y, axis=1, prepend=y[:, :1]), np.diff(y, axis=0, prepend=y[:1, :]))
         if x.std() < 2 or y.std() < 2:
             return None   # a flat frame (a fake, a fade): no texture to follow
         x, y = x - x.mean(), y - y.mean()
@@ -71,8 +79,8 @@ def view_shift(a, b, size=(480, 270)):
             iy -= size[1]
         if ix > size[0] // 2:
             ix -= size[0]
-        k = W_ / size[0]
-        return (float(ix * k), float(iy * k))   # scene moved by (-ix, -iy): she moved (+ix, +iy)
+        kx, ky = (box[2] - box[0]) / size[0], (box[3] - box[1]) / size[1]
+        return (float(ix * kx), float(iy * ky))  # scene moved by (-ix, -iy): she moved (+ix, +iy)
     except Exception:   # noqa: BLE001
         return None
 
@@ -199,15 +207,15 @@ def see(kind, tried=()):
     return sorted(dets, key=lambda x: d(x.point, CENTRE))
 
 
-def detect_frame(image, region=None, kinds=None, store=None, cache_key=None):
+def detect_frame(image, region=None, kinds=None, store=None, cache_key=None, exclude=()):
     """Strict learned-vector read for a caller-owned frame; failures remain distinguishable from zero matches."""
     from objects import detect as D, store as S
-    return D.detect(image, store or S.Store(), kinds=kinds, region=region, cache_key=cache_key)
+    return D.detect(image, store or S.Store(), kinds=kinds, region=region, cache_key=cache_key, exclude=exclude)
 
 
-def inspect_vector_scope(store, kinds, region=None):
+def inspect_vector_scope(store, kinds, region=None, exclude=()):
     from objects import detect as D
-    return D.inspect_scope(store, kinds, region)
+    return D.inspect_scope(store, kinds, region, exclude=exclude)
 
 
 def see_all(region=None, image=None, kinds=None):

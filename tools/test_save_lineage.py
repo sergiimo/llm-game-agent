@@ -92,6 +92,17 @@ class SaveLineage(unittest.TestCase):
         ), scene='Farm')
         self.assertIs(validate_pinned(save, live_log, 'root', save, previous_log), save)
 
+    def test_time_fail_late_intro_bridges_the_stale_evening_save_to_next_day(self):
+        save = SaveCandidate('root', '/root/162.local', '162', 'same', 546,
+                             16 * 86400 + 17 * 3600 + 10 * 60, 'Farm', {})
+        live_log = LogEpoch('log', 16 * 86400, 17 * 86400 + 11 * 3600 + 30 * 60, lines=(
+            '[D16 2:00:01 AM] > advance_day me=Player target=null',
+            '[D16 2:00:33 AM] [TIME] Day 17',
+            '[D17 11:30:00 AM] > day_start_intro_late me=Player target=null',
+        ), scene='House')
+
+        self.assertIs(select_profile([save], live_log), save)
+
     def test_captured_d4_town_then_d219_farm_fails_closed(self):
         fixture = os.path.join(os.path.dirname(__file__), 'fixtures', 'play',
                                'save-lineage-d4-town-vs-d219-farm.json')
@@ -133,6 +144,15 @@ class SaveLineage(unittest.TestCase):
             earlier = SaveCandidate('root', '/root/3.local', '3', 'earlier', 12,
                                     old.game_time - 1, 'Town', {})
             validate_pinned(earlier, log, 'root', old)
+
+    def test_same_profile_save_can_advance_while_the_continuous_log_is_silent(self):
+        old = SaveCandidate('root', '/root/14.local', '14', 'old', 399,
+                            7 * 86400 + 11 * 3600 + 30 * 60, 'Farm', {})
+        new = SaveCandidate('root', '/root/15.local', '15', 'new', 400,
+                            7 * 86400 + 20 * 3600 + 30 * 60, 'Farm', {})
+        silent = LogEpoch('log', 4 * 86400, old.game_time)
+        self.assertIs(validate_pinned(new, silent, 'root', old, silent), new)
+        self.assertIs(validate_pinned(new, silent, 'root', new, silent), new)
 
     def test_contradictory_log_rotation_fails(self):
         save = candidate('root', 4, 11)

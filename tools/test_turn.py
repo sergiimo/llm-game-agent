@@ -132,6 +132,44 @@ class Turns(unittest.TestCase):
         self.assertNotIn('act', c.allowed_decisions)
         self.assertNotIn('accept', c.allowed_decisions)
 
+    def test_late_clock_allows_only_sleep_push_through_a_saved_surprise(self):
+        store = S.TaskStore(os.path.join(self.tmp.name, 'late-task.json'))
+        task = S.TaskState('late-route', 'navigate', params={'destination': 'Farm/LinkTown'})
+        task.last_surprise = {
+            'experience_id': 'e-late', 'before': {}, 'intended': {}, 'expected': {},
+            'actual': {}, 'artifacts': {}, 'reason': 'mismatch', 'checks': [],
+        }
+        store.create(task)
+        port = Port()
+        port.snapshot.update(hour=19.5, interrupts=['SLEEP_REQUIRED: return home and sleep'])
+        loop = turn.TurnLoop(store, port, self.policy)
+
+        c = loop.context()
+
+        self.assertIn('push', c.allowed_decisions)
+        with self.assertRaisesRegex(turn.DecisionRejected, 'only the sleep subgoal'):
+            loop.decide(c.turn_id, turn.Decision('push', action={
+                'goal': 'shop', 'params': {'item': 'Seed'}}))
+        c = loop.decide(c.turn_id, turn.Decision('push', action={'goal': 'sleep', 'params': {}}))
+        self.assertEqual(c.task['stack'][-1]['goal'], 'sleep')
+        self.assertEqual(port.inputs, [])
+
+    def test_exact_passout_popup_can_be_acknowledged_through_a_saved_surprise(self):
+        task = self.store.load()
+        task.last_surprise = {
+            'experience_id': 'e-stale-view', 'before': {}, 'intended': {}, 'expected': {},
+            'actual': {}, 'artifacts': {}, 'reason': 'mismatch', 'checks': [],
+        }
+        self.store.save(task)
+        self.port.snapshot.update(
+            screen={'kind': 'popup', 'texts': ['Out of time!', 'Zzzz']},
+            controls=[{'id': 'control-3', 'label': 'Zzzz', 'point': [960, 578], 'view_id': 'view-passout'}],
+            view_id='view-passout')
+
+        c = self.loop.context()
+
+        self.assertIn('act', c.allowed_decisions)
+
     def test_one_accept_persists_intent_before_input_and_rejects_stale(self):
         c = self.loop.context()
         original = self.port.perform
@@ -157,7 +195,7 @@ class Turns(unittest.TestCase):
         self.assertEqual(checkpoint['task_status'], 'active')
         self.assertIsNone(self.store.load().active.pending_intent)
 
-    def test_each_model_turn_writes_a_live_human_readable_decision_log(self):
+    def test_terminal_projection_writes_a_human_readable_decision_log(self):
         c = self.loop.context()
         original = self.port.perform
         def perform(action):
@@ -167,6 +205,9 @@ class Turns(unittest.TestCase):
         self.loop.decide(c.turn_id, turn.Decision(
             'accept', rationale='the highlighted bubble is the expected water action',
             evidence_refs=('full.jpg',)))
+
+        from runtime.run_reports import render_decisions
+        render_decisions(self.store.db, self.store.run_id, self.store.run_dir)
 
         with open(os.path.join(self.tmp.name, 'decisions.md')) as stream:
             readable = stream.read()
@@ -185,12 +226,19 @@ class Turns(unittest.TestCase):
         self.assertRegex(readable, r'- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] Observe: gameplay')
         self.assertRegex(readable, r'- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] Decision: accept')
 
-    def test_projection_failure_does_not_hide_or_roll_back_the_canonical_event(self):
-        with mock.patch.object(self.loop, '_human_log', side_effect=OSError('projection disk full')):
-            context = self.loop.context()
+    def test_canonical_event_does_not_depend_on_markdown_projection(self):
+        context = self.loop.context()
         clues = [row for row in self.events() if row.get('phase') == 'clues']
         self.assertEqual(len(clues), 1)
         self.assertEqual(clues[0]['turn_id'], context.turn_id)
+
+    def test_turn_hot_path_does_not_regenerate_markdown_projection(self):
+        context = self.loop.context()
+        self.port.lines.append('watered')
+        self.loop.decide(context.turn_id, turn.Decision('accept'))
+
+        self.assertFalse(os.path.exists(os.path.join(self.tmp.name, 'decisions.md')))
+        self.assertTrue(any(row.get('phase') == 'integration' for row in self.events()))
 
     def test_navigate_turn_exposes_graph_compass_and_refuses_mismatching_waypoint_before_input(self):
         store = S.TaskStore(os.path.join(self.tmp.name, 'navigate-task.json'))
@@ -218,6 +266,8 @@ class Turns(unittest.TestCase):
         self.assertEqual(decision['waypoint']['range'], 'far')
         self.assertNotIn('world', decision['waypoint'])
         self.assertEqual(decision['waypoint']['alignment'], 'mismatch')
+        from runtime.run_reports import render_decisions
+        render_decisions(store.db, store.run_id, store.run_dir)
         with open(os.path.join(self.tmp.name, 'decisions.md')) as stream:
             readable = stream.read()
         self.assertIn('Graph: Town', readable)
@@ -474,6 +524,7 @@ class Turns(unittest.TestCase):
         self.assertIs(vectors.call_args.args[0], image)
         self.assertEqual(vectors.call_args.kwargs['region'], 'House')
         self.assertEqual(vectors.call_args.kwargs['kinds'], ['Bed', 'HouseExit'])
+        self.assertEqual(vectors.call_args.kwargs['exclude'], ('Tara',))
         self.assertEqual(snapshot['vector_detections'], [{
             'kind': 'HouseExit', 'point': [1600, 630], 'box': [1500, 500, 1700, 760],
             'score': 8.2, 'raw': .81,
@@ -486,26 +537,42 @@ class Turns(unittest.TestCase):
         self.assertEqual(snapshot['candidates'][0]['kind'], 'HouseExit')
         self.assertEqual(snapshot['candidates'][0]['view_id'], snapshot['view_id'])
 
-    def test_tara_vector_proves_world_on_control_free_unknown_ocr_frame(self):
+    def test_unresolved_region_scans_all_object_kinds_except_tara(self):
         from PIL import Image
         from types import SimpleNamespace
         from game import act, observe
-        from objects.detect import Detection
+        image = Image.new('RGB', (1920, 1080), '#678967')
+        raw = SimpleNamespace(grab=mock.Mock(return_value=image),
+                              classify=mock.Mock(return_value={'mode': 'gameplay', 'text': []}),
+                              find_bubbles=mock.Mock(return_value=[]))
+        vectors = mock.Mock(return_value=[])
+        clues = lambda: {'region': None, 'vector_scope': {'region': None, 'kinds': None}}
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name), \
+                mock.patch.object(observe, 'inspect_vector_scope', return_value={
+                    'searched': ['Bed'], 'disabled': [], 'untrained': []}), \
+                mock.patch.object(observe, 'detect_frame', vectors):
+            snapshot = primitives.GameAdapter(clues).observe()
+        self.assertEqual(snapshot['vector_status']['searched'], ['Bed'])
+        self.assertIsNone(vectors.call_args.kwargs['kinds'])
+        self.assertEqual(vectors.call_args.kwargs['exclude'], ('Tara',))
+
+    def test_tara_vectors_are_not_scanned_or_used_to_prove_unknown_world(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act, observe
         image = Image.new('RGB', (1920, 1080), '#678967')
         raw = SimpleNamespace(grab=mock.Mock(return_value=image),
                               classify=mock.Mock(return_value={'mode': 'overlay', 'text': ['md ATic']}),
                               find_bubbles=mock.Mock(return_value=[]),
                               map_pin=mock.Mock(return_value=None))
-        detected = [Detection('Tara', (920, 440, 1000, 540), 6.2, None, (953, 490), .65)]
         clues = lambda: {'region': 'Town', 'vector_scope': {'region': 'Town', 'kinds': ['Tara']}}
         with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name), \
                 mock.patch.object(observe, 'scan', return_value=[]), \
-                mock.patch.object(observe, 'inspect_vector_scope', return_value={
-                    'searched': ['Tara'], 'disabled': [], 'untrained': []}), \
-                mock.patch.object(observe, 'detect_frame', return_value=detected):
+                mock.patch.object(observe, 'detect_frame', side_effect=AssertionError('Tara vector scan')):
             snapshot = primitives.GameAdapter(clues).observe()
-        self.assertEqual(snapshot['screen']['kind'], 'gameplay')
-        self.assertEqual(snapshot['vector_detections'][0]['kind'], 'Tara')
+        self.assertEqual(snapshot['screen']['kind'], 'unknown')
+        self.assertEqual(snapshot['vector_detections'], [])
+        self.assertEqual(snapshot['vector_status']['status'], 'not_requested')
 
     def test_map_observation_exposes_pin_from_exact_captured_frame(self):
         from PIL import Image
@@ -633,6 +700,27 @@ class Turns(unittest.TestCase):
                 action, {'view_id': 'view-one', 'frame_path': before,
                          'screen': {'kind': 'gameplay'}}), action)
 
+    def test_preflight_uses_proven_world_clue_for_tinted_gameplay(self):
+        from PIL import Image, ImageDraw
+        from types import SimpleNamespace
+        from game import observe, screen
+        before = os.path.join(self.tmp.name, 'daylight-world-source.jpg')
+        old = Image.new('RGB', (1920, 1080), '#8da36b')
+        ImageDraw.Draw(old).rectangle((350, 250, 1500, 850), fill='#6f583d')
+        old.save(before)
+        evening = Image.new('RGB', (1920, 1080), '#554b72')
+        ImageDraw.Draw(evening).rectangle((350, 250, 1500, 850), fill='#463a42')
+        classify = mock.Mock(return_value=SimpleNamespace(kind='gameplay'))
+        action = {'kind': 'waypoint', 'view_id': 'view-one', 'point': [1030, 760]}
+        with mock.patch.object(core, 'WF', SimpleNamespace(grab=lambda: evening)), \
+                mock.patch.object(observe, 'view_changed', return_value=True), \
+                mock.patch.object(observe, 'view_shift', return_value=(0.0, 0.0)), \
+                mock.patch.object(screen, 'read', side_effect=classify):
+            self.assertIs(primitives.GameAdapter().preflight(
+                action, {'view_id': 'view-one', 'frame_path': before,
+                         'screen': {'kind': 'gameplay'}}), action)
+        classify.assert_called_once_with(image=evening, world_visible=True)
+
     def test_named_control_is_resolved_from_the_captured_view_without_find_text(self):
         adapter = primitives.GameAdapter()
         observation = dict(self.port.snapshot, view_id='view-one', controls=[{
@@ -658,6 +746,52 @@ class Turns(unittest.TestCase):
         self.assertEqual(snapshot['vector_detections'], [])
         self.assertEqual(snapshot['vector_status']['status'], 'error')
         self.assertIn('model unavailable', snapshot['vector_status']['error'])
+
+    def test_waypoint_uses_only_confirmed_tara_tracker_for_clearance(self):
+        adapter = primitives.GameAdapter()
+        observation = dict(self.port.snapshot, candidates=[
+            {'id': 'vector-0', 'kind': 'Tara', 'point': [400, 400], 'source': 'vector'},
+            {'id': 'tara-feet', 'kind': 'Tara', 'point': [960, 690],
+             'source': 'tracker', 'confirmed': True},
+        ])
+
+        prepared = adapter.prepare(
+            {'kind': 'waypoint', 'point': [450, 400], 'walkable': True}, observation)
+
+        self.assertEqual(prepared['command'], 'click:450:400')
+        with self.assertRaisesRegex(ValueError, 'tracker anchor'):
+            adapter.prepare(
+                {'kind': 'waypoint', 'point': [960, 800], 'walkable': True}, observation)
+
+    def test_click_accepts_equivalent_xy_coordinate_form(self):
+        adapter = primitives.GameAdapter()
+
+        prepared = adapter.prepare(
+            {'kind': 'click', 'x': 1040, 'y': 740, 'visible_road': True}, self.port.snapshot)
+
+        self.assertEqual(prepared['point'], [1040, 740])
+        self.assertEqual(prepared['command'], 'click:1040:740')
+
+    def test_waypoint_normalizes_descriptive_road_surface(self):
+        adapter = primitives.GameAdapter()
+
+        prepared = adapter.prepare({
+            'kind': 'waypoint', 'point': [1030, 760], 'walkable': True,
+            'surface': 'visible dirt road', 'surface_box': [850, 650, 1150, 950],
+        }, self.port.snapshot)
+
+        self.assertEqual(prepared['surface'], 'road')
+        self.assertEqual(prepared['command'], 'click:1030:760')
+
+    def test_waypoint_accepts_model_confirmed_point_near_surface_edge(self):
+        adapter = primitives.GameAdapter()
+
+        prepared = adapter.prepare({
+            'kind': 'waypoint', 'point': [960, 510], 'walkable': True,
+            'surface': 'road', 'surface_box': [875, 480, 1045, 600],
+        }, self.port.snapshot)
+
+        self.assertEqual(prepared['command'], 'click:960:510')
 
     def test_black_observation_fails_closed_and_never_becomes_visual_movement(self):
         from PIL import Image

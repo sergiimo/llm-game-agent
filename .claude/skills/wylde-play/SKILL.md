@@ -10,8 +10,12 @@ Session start: read `AGENTS.md`, the relevant Wiki/Docs router, and `./wf run st
 The supervisor owns one current goal and a reviewed run plan; gameplay children use the user's cheapest-model rule.
 One primary gameplay child owns the complete loop for that goal. It does not delegate returned turns to a text-only
 runner; an optional exact-command helper may only return a receipt to this owner.
-Check permissions, exact clock and current save/log before starting. A new task after 19:00 requires pre-approved
-sleep first. Focus mode is front: pause before coding, documentation or long thinking.
+Check permissions, exact clock and current save/log before starting. At 18:00 or later, ordinary gameplay stops:
+the pre-approved return-home/sleep workflow takes ownership, or the agent explicitly hands control to the human.
+Universal gameplay receipts automatically return focus
+to Warp and verify it remains frontmost through the game's background-save focus bounce, so model reasoning consumes
+no game time; the next input focuses the game again. Never open the Pause menu
+for coding, documentation, or thinking.
 
 **Daemon discipline:** live gameplay uses one persistent `./wf` controller daemon. Never set `WF_NO_DAEMON=1` or
 start parallel diagnostic `wf` helpers while a request is pending; on macOS each helper can independently trigger
@@ -51,7 +55,13 @@ frame correction. Do not extend `tools/world/` coordinates or the retired calibr
 Keep clocks source-specific. `hud_hour` is refreshed from each captured frame for user-facing gates, `log_time` is
 refreshed at the action/outcome boundary and is the canonical action timeline, and `save_time` belongs only to the
 latest save snapshot and its provenance. Never merge them into a synthetic “current game time” or advance one source
-because another changed; refresh that source at its normal observation trigger.
+because another changed; refresh that source at its normal observation trigger. Every settled action receipt carries
+a newly captured HUD clock. At or after 18:00 its interrupt replaces ordinary objectives with return-home/sleep;
+do not spend another input on the prior objective. If the agent does not own that sleep route, stop and explicitly
+hand control to the human.
+When a cutscene/transition intentionally hides the HUD, the hard cutoff may use that receipt's independently refreshed
+coherent `log_time`; this is a source fallback, not a merged synthetic clock. A black frame still cannot authorize a
+visual or positional action.
 
 A surprise blocks gameplay until `look`, `correct` or `stop` resolves it. Preserve the active crop/phase/node and
 parent interaction. Pending input reconciles from recorded evidence without repetition. The settle boundary's final

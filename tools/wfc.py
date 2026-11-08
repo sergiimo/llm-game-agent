@@ -21,12 +21,47 @@ LOCAL_AUTOMATION = (
     ('watcher', r'tools/runwatch\.py .*--follow'),
 )
 
+# Model-owned gameplay returns a settled receipt and then reasons before the next call.  Wylde Flowers advances
+# its clock whenever it remains frontmost, so freeze that reasoning interval even when the user's persistent
+# focus-mode is `front`.  The next input focuses the game again; this does not change the saved focus-mode setting.
+GAMEPLAY_RECEIPTS = frozenset({'play', 'achieve', 'garden', 'sleep', 'forage'})
+
+
+def freeze_after_gameplay_receipt(argv, run=subprocess.run, sleep=time.sleep, monotonic=time.monotonic):
+    """Keep Warp frontmost through the game's background-save bounce after a gameplay receipt."""
+    if not argv or argv[0] not in GAMEPLAY_RECEIPTS:
+        return False
+    try:
+        from AppKit import NSWorkspace
+        from Foundation import NSDate, NSRunLoop
+        warp = 'dev.warp.Warp-Stable'
+        deadline, stable_since, activated = monotonic() + 8.0, None, False
+        while monotonic() < deadline:
+            NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(0.01))
+            app = NSWorkspace.sharedWorkspace().frontmostApplication()
+            front = app.bundleIdentifier() if app is not None else None
+            now = monotonic()
+            if front == warp:
+                stable_since = stable_since or now
+                # Wylde Flowers can reclaim focus when its ~2-second background save finishes. Do not declare the
+                # handoff safe until Warp survives beyond that bounce.
+                if now - stable_since >= 3.0:
+                    return True
+            else:
+                stable_since = None
+                activated = (run(['open', '-b', warp], stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL).returncode == 0) or activated
+            sleep(0.1)
+        return False
+    except (ImportError, OSError):
+        return False
+
 
 class DeliveryUnknown(RuntimeError):
     """The daemon may have accepted this request. Never automatically resend or execute it locally."""
 
 
-def via_daemon(argv, timeout=60.):
+def via_daemon(argv, timeout=60., with_meta=False):
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     deadline = time.monotonic() + timeout
     delivered = False
@@ -62,7 +97,8 @@ def via_daemon(argv, timeout=60.):
                 raise ValueError('invalid daemon response envelope')
         with measure('client.output', bytes=len(res['out'])):
             sys.stdout.write(res['out'])
-        return res['code']
+        result = (res['code'], bool(res.get('input_issued', True)))
+        return result if with_meta else result[0]
     except (OSError, ValueError, EOFError) as error:
         if delivered:
             raise DeliveryUnknown(f'outcome unknown after request delivery ({received} response bytes): {error}; '
@@ -218,10 +254,14 @@ def main():
         except OSError:
             pass
         try:
-            code = via_daemon(argv)
+            delivered = via_daemon(argv, with_meta=True)
+            code, input_issued = delivered if isinstance(delivered, tuple) else (delivered, True)
+            if input_issued:
+                freeze_after_gameplay_receipt(argv)
             log_end(start, argv)
             return code
         except DeliveryUnknown as error:
+            freeze_after_gameplay_receipt(argv)
             log_end(start, argv, delivery='unknown')
             print(f'ERROR: {error}', file=sys.stderr)
             return 1
@@ -234,10 +274,14 @@ def main():
             for _ in range(60):
                 time.sleep(0.25)
                 try:
-                    code = via_daemon(argv)
+                    delivered = via_daemon(argv, with_meta=True)
+                    code, input_issued = delivered if isinstance(delivered, tuple) else (delivered, True)
+                    if input_issued:
+                        freeze_after_gameplay_receipt(argv)
                     log_end(start, argv)
                     return code
                 except DeliveryUnknown as error:
+                    freeze_after_gameplay_receipt(argv)
                     log_end(start, argv, delivery='unknown')
                     print(f'ERROR: {error}', file=sys.stderr)
                     return 1

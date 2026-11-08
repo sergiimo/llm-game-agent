@@ -9,7 +9,13 @@
   approval, enable Warp under System Settings → Privacy & Security → Full Disk Access, then reopen Warp after the run.
 - Run game-touching `./wf` commands outside restricted sandboxes so Quartz, AppKit, and CGEvent can reach the WindowServer.
 - The app ignores the game's black secondary window and captures the non-black game window through Quartz.
-- Before documentation or code work, let the game lose focus so time freezes; do not open the in-game Pause menu merely for thinking.
+- Universal gameplay receipts activate Warp before returning so the game clock freezes during model reasoning even
+  when persistent `focus-mode front` is selected. If a receipt leaves the game frontmost, treat that as a timing
+  failure and stop ordinary input; do not run `./wf focus` as cleanup because it advances the clock. Never open the
+  in-game Pause menu merely for thinking.
+- A one-shot Warp activation is insufficient: Wylde Flowers can reclaim focus when its ~2-second background save
+  finishes. Receipt cleanup must observe the frontmost bundle through that bounce and require Warp to remain stable
+  for 3 seconds; otherwise hours can elapse during the next model decision despite an apparent focus handoff.
 - Use `./wf log` and `./wf save` before screenshots: they are authoritative quest, inventory, time, and event evidence.
 - Runtime integrity: `sqlite3 runs/wf.sqlite3 'PRAGMA integrity_check;'` must print `ok`. Back up consistently with
   `sqlite3 runs/wf.sqlite3 ".backup 'runs/wf-backup.sqlite3'"` while the daemon is stopped.
@@ -27,15 +33,34 @@
   the documented confirmation with an unbound key or coordinate click. A successful sleep normally emits
   `sleep_transition`, `advance_day`, `day_start_intro`, and `complete`; the latter three are allowed co-events, not a
   mismatch, and the next fresh save read must still prove the new day coherently.
+- A world interaction may settle one frame before its expected modal appears. If the immutable outcome still shows
+  the unchanged source mode and a following zero-input read shows the expected card/panel with no intervening domain
+  input, reconciliation credits that delayed modal transition and clears the mismatch; never replay the interaction.
 - Day-start generation may log the new day's forecast at the prior evening clock, then reset the same explicit day
   to 07:00. This is not the pre-AdvanceDay midnight wrap and must not be shifted forward another day; otherwise a
   valid D6 save is falsely compared against D7 and fails closed with `no_coherent_profile`.
+- The first new-day background slot may still decode to the prior evening even after the same live log records
+  `advance_day`, `[TIME] Day N`, and `day_start_intro`. Profile selection bridges only that explicit one-day transition,
+  only forward, and only within 24 game hours; unrelated or multi-day stale profiles still fail closed. The
+  involuntary pass-out variant `day_start_intro_late` is the same bridge only when all three markers are present.
 - A full paper map whose pin is not colour-detected is still a map when the labelled paper/cloud header appearance
   vector matches. The header proves the modal; the pink pin only localises Tara. Do not downgrade such a frame to
   gameplay or issue a world click through it.
 - A control-free frame can have unreadable HUD OCR even while the world is visible. After semantic map, pause, card,
   and menu checks, a positive Tara appearance-vector hit upgrades only an otherwise `unknown` frame to `gameplay`;
   never use OCR garbage such as a partial HUD label as proof of a modal.
+- Movement phase-correlation must exclude the fixed HUD. Otherwise the clock/menu icons produce a strong zero-shift
+  peak while the world camera visibly pans, falsely recording `moved=false` against a stale autosave position.
+- A coherent day-start bridge does not make its stale evening position click-local evidence. Saved displacement may
+  override image geometry only when both endpoint saves are operationally fresh for their observations; otherwise the
+  next autosave can falsely credit the entire overnight relocation to the first morning click.
+- Localization examples need stable context. Gameplay zoom is stable per scene, so calibrate a fixed source-pixel
+  crop for that scene: the whole named landmark or the full object plus enough surroundings to disambiguate it,
+  commonly 0.5–1 object width. Do not add arbitrary scale margins. If Tara occludes the identifying shape or the
+  frame clips the object/context (the porch mailbox case), skip or region-disable that vector instead of storing a
+  partial crop. Scale is stable per scene but viewing angle varies, so store a few clean angle exemplars at the same
+  calibrated scale instead of growing one crop indefinitely. Use separate scene/state templates when stable views differ. Never relabel a broad house crop as
+  `HouseDoor`; use a matching contextual landmark kind. Multiple hits for one unique node collapse to the strongest.
 - A labelled gap/threshold such as `HouseExit` is a spatial structure, not a bag of wall/board patches. Store the
   full opening crop with state `structure`; detection then correlates its aligned DINO patch grid in one existing
   frame pass. A high relative z-score is insufficient by itself: the structural window must also clear the absolute

@@ -85,6 +85,39 @@ class LiveLogEpoch(unittest.TestCase):
 
 
 class ClientDelivery(unittest.TestCase):
+    def test_server_receipt_reports_physical_input_issuance(self):
+        import wf
+        envelope = getattr(wf, 'response_envelope', lambda *_args: {})
+        counter = getattr(wf, 'INPUTS', [0])
+        before = counter[0]
+
+        self.assertEqual(envelope('NEXT', 0, before).get('input_issued'), False)
+        counter[0] = before + 1
+        try:
+            self.assertEqual(envelope('NEXT', 0, before).get('input_issued'), True)
+        finally:
+            counter[0] = before
+
+    def test_low_level_key_marks_one_physical_input(self):
+        import wf
+        counter = getattr(wf, 'INPUTS', [0])
+        before = counter[0]
+        with mock.patch.object(wf, '_post_key'), mock.patch.object(wf.time, 'sleep'):
+            wf.key('space')
+        self.assertEqual(counter[0], before + 1)
+
+    def test_zero_input_gameplay_receipt_skips_focus_stabilization(self):
+        with mock.patch.object(wfc, 'parent_cmdline', return_value=''), \
+             mock.patch.object(wfc, 'log_call', return_value=None), \
+             mock.patch.object(wfc.os.path, 'exists', return_value=True), \
+             mock.patch.object(wfc, 'stale', return_value=False), \
+             mock.patch.object(wfc, 'via_daemon', return_value=(0, False)), \
+             mock.patch.object(wfc, 'freeze_after_gameplay_receipt') as freeze, \
+             mock.patch.object(sys, 'argv', ['wfc', 'play']):
+            self.assertEqual(wfc.main(), 0)
+
+        freeze.assert_not_called()
+
     def test_default_deadline_allows_bounded_game_action_response(self):
         response = json.dumps({'out': 'gameplay\n', 'code': 0}).encode() + b'\n'
         endpoint = mock.MagicMock()

@@ -4,6 +4,7 @@
 
 | Need | Load |
 |---|---|
+| Read or update current product requirements | [requirements.md](../requirements.md) |
 | Run actions and chores safely | [operations/INDEX.md](operations/INDEX.md) |
 | Recognize or exit an in-game screen | [ui/INDEX.md](ui/INDEX.md) |
 | Diagnose capture, input, runtime, or automation failures | [troubleshooting/INDEX.md](troubleshooting/INDEX.md) |

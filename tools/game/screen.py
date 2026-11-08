@@ -94,6 +94,13 @@ def classify(mode, texts, *, world_visible=False):
     # than that stale underlying mode.
     if paused(texts):
         return 'pause'
+    # End-of-day exhaustion is a one-action modal.  The daemon reports its
+    # overlay mode as unknown, but the visible copy/button is positive modal
+    # evidence and must remain actionable rather than being mistaken for the
+    # world behind it.
+    if (any(('exhausted' in t or 'out of time' in t or "time's up" in t) for t in low)
+            and any(('zzz' in t) for t in low)):
+        return 'popup'
     if mode in ('dialogue', 'popup', 'cutscene'):
         return mode
     if mode == 'gameplay' or not any(str(t).strip() for t in texts):

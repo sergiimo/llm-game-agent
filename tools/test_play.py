@@ -97,9 +97,13 @@ class PlayCase(unittest.TestCase):
         graph.nodes['Bed'] = Node('Bed', 'unique', region='House')
         graph.nodes['HouseExit'] = Node('HouseExit', 'unique', region='House')
         graph.nodes['Garden'] = Node('Garden', 'region', region='Farm')
+        graph.nodes['HouseDoor'] = Node('HouseDoor', 'unique', region='Farm')
         scope = self.play()._vector_scope(graph, 'House', learned_kinds={'Bed', 'HouseExit'})
         self.assertEqual(scope['region'], 'House')
-        self.assertEqual(scope['kinds'], ['Bed', 'HouseExit', 'Tara'])
+        self.assertEqual(scope['kinds'], ['Bed', 'HouseExit'])
+        farm_scope = self.play()._vector_scope(
+            graph, 'Farm', learned_kinds={'Tara', 'Bed', 'Garden', 'HouseDoor'})
+        self.assertEqual(farm_scope['kinds'], ['Garden', 'HouseDoor'])
 
     def test_new_task_reuses_its_vector_observation_in_the_first_next(self):
         observed = mock.Mock(wraps=self.port.observe)
@@ -663,6 +667,22 @@ class ApiGapRepairs(PlayCase):
         self.assertEqual(data['state_provenance']['save_scene'], data['state_provenance']['position'])
         self.assertIsNone(turn._saved_position(data), 'a later scene log cannot relabel a stale saved position')
 
+    def test_bridged_stale_save_position_cannot_prove_click_movement(self):
+        def state(game_time, save_time, count, position):
+            proof = {'source': 'save', 'path': f'/profile/{count}.local',
+                     'save_count': count, 'game_time': save_time}
+            return {'game_time': game_time, 'position': position,
+                    'state_provenance': {'position': proof}}
+
+        stale = state('D17 11:30:00 AM', 'D16 5:10:00 PM', 546, [-14.06, 19.09])
+        fresh = state('D17 11:32:10 AM', 'D17 11:30:00 AM', 547, [10.80, -24.08])
+        self.assertIsNone(primitives._saved_position_moved(stale, fresh),
+                          'a day-start bridge is coherent lineage, not click-local movement evidence')
+
+        before = state('D17 11:30:00 AM', 'D17 11:29:00 AM', 547, [10.80, -24.08])
+        after = state('D17 11:32:10 AM', 'D17 11:32:00 AM', 548, [12.00, -23.00])
+        self.assertTrue(primitives._saved_position_moved(before, after))
+
     def test_real_clues_navigation_receipt_uses_active_subgoal_params(self):
         from objects.graph import Node
         self.graph.nodes['SceneA'] = Node('SceneA', 'region')
@@ -1068,6 +1088,32 @@ class CapturedCancellation(PlayCase):
         c = self.choose(c, 'cancel', rationale='obsolete child contains only proven no-effect world misses')
         self.assertEqual(c.task['stack'], ())
         self.assertEqual(len(self.port.inputs), 1)
+
+    def test_position_only_waypoint_child_can_be_archived_when_user_redirects_the_goal(self):
+        from game import experience as X
+        c = self.play().turn('work', store=self.store, adapter=self.port)
+        c = self.choose(c, 'push', action={'goal': 'navigate', 'params': {'region': 'Garden'}})
+        self.port.capture = lambda intent, before, expected: primitives.experience(
+            intent, before, expected, X.Evidence(mode='gameplay', moved=True, state=(
+                ('position', [1., 0.]), ('state_provenance', {'position': {'source': 'save'}}))))
+        c = self.choose(c, 'act', action={'kind': 'waypoint', 'point': [1200, 600],
+                                         'walkable': True, 'expects': {'moved': True}})
+        if c.surprise:
+            c = self.choose(c, 'correct', correction={'kind': 'revise_decision', 'data': {
+                'reason': 'position-only waypoint was observed; user redirected the goal'}})
+        c = self.choose(c, 'cancel', rationale='user redirected an obsolete position-only child')
+        self.assertEqual(c.task['stack'], ())
+        self.assertEqual(len(self.store.load().params['_cancelled_subgoals'][-1]['subgoal']['evidence_refs']), 1)
+
+    def test_prepared_click_guard_refusal_is_proved_zero_input_for_cancellation(self):
+        row = {'action': {'kind': 'click'}, 'before': {}, 'experience': {
+            'verdict': {'value': 'unsafe', 'checks': [
+                {'field': 'guard', 'expected': 'safe input', 'got': 'blocked', 'ok': False}]},
+            'evidence': {'state': [], 'events': [], 'lines': [], 'texts': [], 'moved': None}}}
+        try:
+            turn._cancellable_outcome(row)
+        except turn.DecisionRejected as error:
+            self.fail(f'authoritative zero-input guard refusal should be cancellable: {error}')
 
     def test_unnamed_positioned_evidence_cannot_be_discarded_by_cancellation(self):
         from game import experience as X
@@ -2270,6 +2316,35 @@ class ReadLatency(PlayCase):
                         'one physical action re-embedded journal history into durable state')
         self.assertEqual(len(self.port.inputs), 1)
 
+    def test_model_summary_leads_with_navigation_and_omits_recursive_history(self):
+        context = {
+            'turn_id': 2,
+            'navigation': {'localization': {'stage': 'vectors'},
+                           'next_edge': {'from': 'Farm', 'to': 'Farm/LinkTown'}},
+            'task': {'task_id': 'route', 'goal': 'navigate', 'params': {}},
+            'allowed_decisions': ['act', 'read'],
+            'view': {'path': 'full.jpg', 'candidates': [
+                {'id': f'vector-{n}', 'kind': 'Garden', 'point': [n, n], 'blob': 'x' * 200}
+                for n in range(20)]},
+            'result': {'experience': 'e-1', 'status': 'miss', 'events': []},
+            'memory': {'revision': 3, 'clues': [{'blob': 'x' * 5000}]},
+            'vector_detections': [{'kind': 'Garden', 'point': [n, n], 'blob': 'x' * 200}
+                                  for n in range(20)],
+            'last_outcome': {'before': {'recursive': 'x' * 20_000}},
+            'graph_clues': [{'blob': 'x' * 20_000}],
+            'recommendation': {'action': None, 'confidence': 0, 'reasons': [], 'expects': None},
+        }
+
+        rendered = self.play().summary(context)
+        payload = json.loads(rendered.split('NEXT ', 1)[1])
+
+        self.assertTrue(rendered.startswith('NEXT {"navigation"'), rendered[:100])
+        self.assertEqual(payload['navigation']['localization']['stage'], 'vectors')
+        self.assertNotIn('last_outcome', payload)
+        self.assertNotIn('graph_clues', payload)
+        self.assertLessEqual(len(payload['view']['candidates']), 8)
+        self.assertLess(len(rendered), 5000)
+
     def test_public_zero_input_read_does_not_copy_financial_guard_state(self):
         c = self.play().turn('sleep', store=self.store, adapter=self.port)
         with mock.patch.object(self.play(), 'guard', side_effect=AssertionError('pure read entered input guard')):
@@ -2343,6 +2418,12 @@ class ReadLatency(PlayCase):
 
 
 class Play(PlayCase):
+    def test_six_pm_interrupt_requires_sleep_or_human_handoff(self):
+        reason = self.play()._clock_interrupt({'goal': 'navigate', 'stack': []}, {'hour': 18.0})
+
+        self.assertIn('SLEEP_REQUIRED', reason)
+        self.assertIn('hand control to the human', reason)
+
     def test_every_public_gameplay_alias_returns_before_input(self):
         # A public alias choosing a hidden follow-up would emit input or enter the legacy focus path.
         for argv in ALIASES:
@@ -2728,6 +2809,21 @@ class BoundaryValidation(PlayCase):
         self.assertEqual(far['screen_compass'], 'E')
         self.assertEqual(far['range'], 'far')
         self.assertNotIn('world', far)
+
+    def test_explicit_visible_detour_allows_one_short_local_waypoint_around_an_obstacle(self):
+        from game import navigation
+        receipt = {'next_edge': {'compass': 'S', 'range': 'far'}}
+        ordinary = navigation.assess(
+            {'kind': 'waypoint', 'point': [1320, 540], 'walkable': True}, receipt)
+        detour = navigation.assess(
+            {'kind': 'waypoint', 'point': [1320, 540], 'walkable': True, 'visible_detour': True}, receipt)
+        far_detour = navigation.assess(
+            {'kind': 'waypoint', 'point': [100, 500], 'walkable': True, 'visible_detour': True}, receipt)
+        self.assertFalse(ordinary['allowed'])
+        self.assertTrue(detour['allowed'])
+        self.assertEqual(detour['alignment'], 'visible_detour')
+        self.assertEqual(detour['range'], 'mid')
+        self.assertFalse(far_detour['allowed'], 'a detour is one short visible-ground waypoint, never a far override')
 
     def test_waypoint_under_garden_requires_a_generic_navigation_child(self):
         c = self.play().turn('garden', {'region': 'Garden', 'chores': ['water']},

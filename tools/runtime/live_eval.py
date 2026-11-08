@@ -6,7 +6,8 @@ import uuid
 
 SCENARIOS = {
     'bed-to-well': {'start_scene': 'House', 'start_kind': 'Bed',
-                    'destination_scene': 'Garden', 'destination_kind': 'Well'},
+                    # Garden is a nested object-graph region inside the Farm Unity scene, not its own scene.
+                    'destination_scene': 'Farm', 'destination_kind': 'Well'},
 }
 FRESH_SECONDS = 300
 
@@ -200,6 +201,19 @@ class LiveEvalStore:
                 'elapsed_real_seconds': max(0.0, end_at - evaluation['created_at']),
                 'elapsed_game_seconds': elapsed_game}
 
+    @staticmethod
+    def _passed_out(connection, evaluation, end_at):
+        for row in connection.execute(
+                "SELECT payload_json FROM run_events WHERE run_id=? AND t>=? AND t<=? "
+                "AND type='turn' AND phase='clues' ORDER BY id",
+                (evaluation['run_id'], evaluation['created_at'], end_at)):
+            payload = json.loads(row['payload_json'])
+            texts = ' / '.join(str(text).casefold()
+                               for text in ((payload.get('screen') or {}).get('texts') or ()))
+            if 'exhausted' in texts and ('out of time' in texts or "time's up" in texts):
+                return True
+        return False
+
     def finish(self, eval_id, revision=None):
         existing = self.get(eval_id)
         if existing['status'] != 'active':
@@ -217,6 +231,7 @@ class LiveEvalStore:
             definition = SCENARIOS[evaluation['scenario']]
             positioned = self._positioned_destination(connection, evaluation, definition, now)
             result = self._metrics(connection, evaluation, now)
+            passed_out = self._passed_out(connection, evaluation, now)
             if proof or positioned:
                 result.update(destination=definition['destination_kind'],
                               scene=positioned['scene'] if positioned else proof['scene'],
@@ -226,7 +241,9 @@ class LiveEvalStore:
                     result['checkpoint_id'] = proof['id']
                 if positioned:
                     result['proof_source'] = 'positioned_event'
-            status = 'pass' if proof or positioned else 'fail'
+            if passed_out:
+                result['failure_reason'] = 'passed_out_before_completion'
+            status = 'pass' if (proof or positioned) and not passed_out else 'fail'
             connection.execute(
                 'UPDATE live_evals SET status=?,ended_at=?,finished_revision=?,result_json=? WHERE id=?',
                 (status, now, str(revision) if revision is not None else None,

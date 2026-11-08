@@ -11,6 +11,7 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 
 | Path | What |
 |---|---|
+| `requirements.md` | Canonical persistent product requirements; dated specs/plans may reference but not redefine them |
 | `docs/INDEX.md` | Router: need → which index to open |
 | `wiki/quests/INDEX.md` → `quests/<line>/<quest>.md` | All 131 quests by questline with status ▶️/✅/·; each file = wiki requirements (generated) + **verified steps** (written while playing) |
 | `wiki/mechanics/INDEX.md` → `mechanics/<topic>.md` | Game systems (time, energy, farming, fishing, shops, …); "(wiki)" vs "Verified in-game" sections |
@@ -63,8 +64,9 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
    `./wf pause` merely for thinking**, because it creates a gameplay modal that later needs a model-owned Resume action.
    **After 23:00 game time: no optional work**
    (exploring, `wf improve`); finish the step and ask about bed (`improve` stops by itself).
-   **Before every new gameplay task, check the exact game clock. If it is later than 19:00, sleep and advance to the
-   next day before starting the task** (user standing rule, 2026-11-06; this sleep is pre-approved).
+   **At 18:00 or later, stop ordinary gameplay and either return home/sleep immediately or explicitly hand control
+   to the human. Before every new gameplay task, check the exact clock and sleep/advance first if needed**
+   (user standing rule, updated 2026-11-08; this sleep is pre-approved).
 1. **One model-owned decision per step:** `./wf play <goal> [k=v]` observes and returns `NEXT`; continue with the exact
    `turn_id` and one explicit decision. Each continuation performs zero or one input, settles, integrates one immutable
    experience, and returns control to the same gameplay agent.

@@ -36,8 +36,10 @@ def clear_frame_cache():
     _FRAME_CACHE.clear()
 
 
-def inspect_scope(store, kinds, region=None):
-    requested, trained = set(store.kinds() if kinds is None else kinds), set(store.kinds())
+def inspect_scope(store, kinds, region=None, exclude=()):
+    excluded = set(exclude)
+    requested = set(store.kinds() if kinds is None else kinds) - excluded
+    trained = set(store.kinds()) - excluded
     disabled = disabled_kinds(store, region) & requested
     return {'searched': sorted(requested & trained - disabled),
             'disabled': sorted(disabled), 'untrained': sorted(requested - trained)}

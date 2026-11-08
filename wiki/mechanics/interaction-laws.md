@@ -88,8 +88,8 @@ Never infer actual node ownership from projection.
    no input. The model may then accept a separate close-card recommendation before selecting the next target.
    Preserve the active crop/card/transaction while fixing the smallest issue. Do not close a useful card or start
    the whole task again as generic recovery.
-6. **Check interrupts each turn.** Rain/darkness or a new task after 19:00 calls for sleep/resume; the standing task
-   start sleep gate is pre-approved. After 23:00 stop optional work. Empty can calls for refill then this transaction.
+6. **Check interrupts each turn.** Rain/darkness or reaching 18:00 calls for sleep/resume or explicit human handoff;
+   the standing sleep gate is pre-approved. After 23:00 stop optional work. Empty can calls for refill then this transaction.
    Dialogue, pause, cutscene, map and unknown menus block world input. Pause before coding or long off-game work;
    front focus mode means the clock runs between calls. Do not change user settings.
    Arbitrary OCR text does not establish a card: controls/detail/hint semantics distinguish cards, recognized

@@ -71,6 +71,79 @@ class NavigationReceipts(unittest.TestCase):
         self.assertEqual(result['graph']['current_node'], 'Farm')
         self.assertEqual(result['next_edge']['to'], 'Garden')
 
+    def test_vector_landmark_localizes_relative_to_tara_and_keeps_route_slice(self):
+        observation = {
+            'scene': 'Farm', 'region': 'Farm',
+            'candidates': [
+                {'id': 'vector-0', 'source': 'vector', 'kind': 'Well',
+                 'point': [1200, 540], 'view_id': 'view-1'},
+                {'id': 'tara-feet', 'source': 'tracker', 'kind': 'Tara',
+                 'point': [960, 620], 'view_id': 'view-1'},
+            ],
+        }
+
+        result = navigation.receipt(self.task, observation, self.graph)
+
+        localization = result['localization']
+        self.assertEqual(localization['stage'], 'vectors')
+        self.assertEqual(localization['current'], 'unknown')
+        self.assertEqual(localization['likely_region'], 'Farm')
+        self.assertIsNone(localization['prior_hint'])
+        self.assertNotIn('vision', localization)
+        self.assertEqual(localization['next'], 'localize_from_vectors_and_graph')
+        self.assertEqual(localization['landmarks'], [{
+            'candidate': 'vector-0', 'kind': 'Well', 'node': 'Well',
+            'point': [1200, 540], 'landmark_from_tara': 'E', 'tara_from_landmark': 'W',
+            'region': 'Garden',
+        }])
+        self.assertEqual(localization['graph_slice']['route_nodes'], ['Farm', 'Garden', 'Well'])
+        self.assertEqual(localization['graph_slice']['route_edges'][0], {
+            'from': 'Farm', 'to': 'Garden', 'compass': 'W', 'range': 'far',
+            'source': 'test', 'transition': None,
+        })
+
+    def test_context_landmark_uses_only_the_strongest_hit_for_one_unique_node(self):
+        observation = {
+            'scene': 'Farm', 'region': 'Farm',
+            'candidates': [
+                {'id': 'weak', 'source': 'vector', 'kind': 'Well', 'score': 4.2,
+                 'point': [500, 500]},
+                {'id': 'strong', 'source': 'vector', 'kind': 'Well', 'score': 7.1,
+                 'point': [1200, 540]},
+            ],
+        }
+
+        landmarks = navigation.receipt(self.task, observation, self.graph)['localization']['landmarks']
+
+        self.assertEqual([row['candidate'] for row in landmarks], ['strong'])
+        self.assertEqual(landmarks[0]['point'], [1200, 540])
+
+    def test_no_vectors_requests_vision_and_vector_creation_before_map(self):
+        result = navigation.receipt(self.task, {
+            'scene': 'Farm', 'region': 'Farm',
+            'candidates': [{'id': 'tara-feet', 'source': 'tracker', 'kind': 'Tara',
+                            'point': [960, 620]}],
+        }, self.graph)
+
+        localization = result['localization']
+        self.assertEqual(localization['stage'], 'vision')
+        self.assertEqual(localization['current'], 'unknown')
+        self.assertEqual(localization['landmarks'], [])
+        self.assertEqual(localization['next'], 'identify_unique_object_and_create_vector')
+        self.assertEqual(localization['after_vision'], 'map_if_still_unresolved')
+        self.assertEqual(localization['graph_slice']['route_nodes'], ['Farm', 'Garden', 'Well'])
+
+    def test_region_container_vector_is_not_a_localization_landmark(self):
+        result = navigation.receipt(self.task, {
+            'scene': 'Farm', 'region': 'Farm',
+            'candidates': [{'id': 'vector-0', 'source': 'vector', 'kind': 'Garden',
+                            'point': [1200, 700]}],
+        }, self.graph)
+
+        self.assertEqual(result['localization']['stage'], 'vision')
+        self.assertEqual(result['localization']['landmarks'], [])
+        self.assertEqual(result['localization']['next'], 'identify_unique_object_and_create_vector')
+
     def test_positioned_object_ancestry_keeps_nested_current_under_physical_scene(self):
         self.task.params.update(_nav_current='Garden', _nav_current_proof={
             'source': 'positioned_event', 'node': 'Well', 'regions': ['Farm', 'Garden']})

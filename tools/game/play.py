@@ -35,15 +35,47 @@ def _save_money(save):
 
 
 def _vector_scope(graph, *candidates, learned_kinds=None):
-    """Appearance kinds visible in the region, plus Tara as the global gameplay/movement anchor."""
+    """World-object appearance kinds visible in the region; Tara uses the centre-seeded feet tracker."""
     region = next((candidate for candidate in candidates if candidate in graph.nodes), None)
     allowed = set(learned_kinds) if learned_kinds is not None else None
     kinds = sorted({node.kind for node in graph.nodes.values()
-                    if region and region in graph.chain(node.id) and
+                    if region and node.region == region and
+                    node.kind != 'Tara' and
                     (allowed is None or node.kind in allowed)})
-    if region:
-        kinds = sorted(set(kinds) | {'Tara'})
     return {'region': region, 'kinds': kinds if region else None}
+
+
+def _sleep_workflow(task):
+    if task is None:
+        return False
+    goal = task.get('goal') if hasattr(task, 'get') else task.goal
+    stack = task.get('stack', ()) if hasattr(task, 'get') else task.stack
+    return goal == 'sleep' or any((row.get('goal') if hasattr(row, 'get') else row.goal) == 'sleep'
+                                  for row in stack)
+
+
+def _operational_hour(observation, belief=None):
+    """Choose one current source for the safety gate without merging clock timelines."""
+    hour = observation.get('hour')
+    if hour is not None:
+        return hour, 'hud'
+    belief_hour = (belief or {}).get('observed_hour')
+    if belief_hour is not None:
+        return belief_hour, 'model_hud'
+    # Cutscenes and black transition frames intentionally have no HUD. The action-bound log timestamp is still a
+    # coherent, independently refreshed source and is safer than making the morning transition impossible.
+    from .world import when
+    stamp = observation.get('log_time') or observation.get('game_time')
+    seconds = when(stamp)
+    return ((seconds % 86400) / 3600, 'log') if seconds is not None else (None, None)
+
+
+def _clock_interrupt(task, observation):
+    hour, _source = _operational_hour(observation)
+    if hour is not None and hour >= 18 and not _sleep_workflow(task):
+        return ('SLEEP_REQUIRED: at or after 18:00, return home and sleep before ordinary gameplay '
+                'or hand control to the human')
+    return None
 
 
 def _clues(store, frame_context=None):
@@ -110,9 +142,28 @@ def _clues(store, frame_context=None):
         from . import navigation
         data['navigation'] = navigation.receipt(_declaration(task_state), data)
     state = _declaration(task_state) if task_state else {
-        'params': {'_started_late': hour is not None and hour > 19}}
-    blocked = garden_policy.interrupt(state, data)
-    data['interrupts'] = [blocked] if blocked else []
+        'params': {'_started_late': hour is not None and hour >= 19}}
+    blocked = garden_policy.interrupt(state, data) if state.get('goal') == 'garden' else None
+    data['interrupts'] = [value for value in (blocked, _clock_interrupt(task_state, data)) if value]
+    return data
+
+
+def _bind_task_observation(task, data):
+    """Rebind derived local clues after a task create/restart; captured frame/save evidence stays immutable."""
+    from . import garden_policy, learn, navigation, snapshot
+    data = dict(data)
+    declaration = _declaration(task)
+    data.pop('navigation', None)
+    if declaration['goal'] == 'navigate':
+        data['navigation'] = navigation.receipt(declaration, data)
+    graph = learn.MEMORY.get('graph')
+    if graph is not None:
+        data['graph_clues'] = snapshot.project_graph(
+            graph, data.get('region'), data.get('candidates', ()), None)
+    blocked = garden_policy.interrupt(declaration, data) if declaration['goal'] == 'garden' else None
+    lineage = ('SAVE_LINEAGE_MISMATCH: ' + str(data.get('lineage_mismatch'))
+               if data.get('lineage_status') == 'save_lineage_mismatch' else None)
+    data['interrupts'] = [value for value in (lineage, blocked, _clock_interrupt(task, data)) if value]
     return data
 
 
@@ -225,15 +276,22 @@ def recommend(task, observation):
         reasons.append(f'confirmed interaction has a missing appearance sample for {names}: use model vision on the '
                        'proven source frame, then a provenance-bearing appearance correction with its bounded box')
     if (observation.get('screen') or {}).get('kind') == 'map':
-        reasons.append('recognized map: after inspecting it, use the close primitive, not key:m or key:esc; '
-                       'menu-key guard refusals issue no input')
+        reasons.append('recognized map: label Tara pin as origin_point and the exact navigation goal as target_point; '
+                       'persist both with target, region, current map frame and expiry so the engine derives '
+                       'direction/range; then use the '
+                       'close primitive, not key:m or key:esc. Viewing a map without binding its direction does not '
+                       'change navigation')
+    elif (observation.get('navigation') or {}).get('status') == 'route_hint_expired':
+        reasons.append('task-local map route expired: refresh from the map or a newly proved landmark before input; '
+                       'do not fall back to the broad scene edge')
     if current['goal'] == 'navigate' and observation.get('region') == 'House':
         reasons.append('indoor navigation: exit the building through its visible exit, cross the porch/stairs, and '
                        'move far enough outside that the interior disappears before opening the map')
     else:
-        reasons.append('long-distance navigation: inspect and learn the map first; use visible roads for local '
-                       'approach or only after captured unavailable/insufficient map evidence; on a long clear road '
-                       'choose the farthest safe visible point whose entire path remains visible')
+        reasons.append('navigation: reconcile the current full-scale frame, last outcome, graph/map/vector advisories '
+                       'into one replacement belief, then bind one primitive to its exact next objective. Graph '
+                       'compass/range cannot veto the model route. On a long clear road choose the farthest safe '
+                       'visible point whose entire path remains visible')
     return Recommendation(reasons=tuple(reasons))
 
 
@@ -250,21 +308,31 @@ def guard(task, action):
     from . import garden_policy
     current = domain(task)
     observation = task.get('_observation', {})
+    terminal_cleanup = (action.get('kind') == 'press' and
+                        str(action.get('label', '')).strip().casefold() == 'zzzz' and
+                        (observation.get('screen') or {}).get('kind') == 'popup' and
+                        sum(str(row.get('label', '')).strip().casefold() == 'zzzz'
+                            for row in observation.get('controls', ())) == 1)
+    if terminal_cleanup:
+        return None
     if action.get('kind') == 'waypoint' and current['goal'] != 'navigate':
         return 'waypoint requires generic navigation: push a navigate subgoal for the destination region'
-    if current['goal'] == 'navigate' and action.get('kind') == 'waypoint':
-        from . import navigation
-        assessment = navigation.assess(action, observation.get('navigation'))
-        if not assessment.get('allowed'):
-            return ('navigation qualitative mismatch: graph requires '
-                    f'{assessment.get("graph_compass")} {assessment.get("graph_range")}, waypoint is '
-                    f'{assessment.get("screen_compass")} {assessment.get("range")}; '
-                    'choose a waypoint matching the next graph edge')
     sleeping = current['goal'] == 'sleep' or any(row['goal'] == 'sleep' for row in task.get('stack', ()))
-    if not sleeping and current['goal'] != 'garden':
-        blocked = garden_policy.interrupt(current, observation)
-        if blocked and action.get('kind') not in ('wait', 'read', 'close'):
-            return blocked
+    if current['goal'] == 'navigate' and action.get('kind') not in ('wait', 'read', 'close'):
+        belief = current.get('params', {}).get('_navigation_belief') or {}
+        if (action.get('belief_revision') != belief.get('revision') or
+                action.get('belief_objective') != belief.get('next_objective') or
+                action.get('objective') != belief.get('next_objective')):
+            return 'navigation input is not bound to the current model belief revision and objective'
+        hour, _clock_source = _operational_hour(observation, belief)
+        destination = str(current.get('params', {}).get('destination') or
+                          current.get('params', {}).get('where') or '').casefold()
+        returning = destination in {'home', 'house', 'farmhouse', 'bed'}
+        if hour is None and not sleeping:
+            return 'NEED_VISION: current clock unknown across HUD, model HUD reading, and coherent log time'
+        if hour is not None and hour >= 18 and not (sleeping or returning):
+            return ('SLEEP_REQUIRED: at or after 18:00, push the sleep workflow and return home '
+                    'or hand control to the human')
     refusal = trade_guard(task, current, action, observation)
     if refusal:
         return refusal
@@ -494,7 +562,7 @@ def region_matches(state, wanted):
             list(proof.get('regions', ())) == list(state.get('regions', ())))
 
 
-def verify_completion(task, current, outcomes):
+def verify_completion(task, current, outcomes, context=None):
     """Evidence-only completion proof. Model supplied results cannot manufacture successful gameplay."""
     from .turn import DecisionRejected
     if not outcomes and current is task and task.last_experience:
@@ -535,9 +603,40 @@ def verify_completion(task, current, outcomes):
     if current.goal in ('navigate', 'enter', 'exit'):
         after = dict(outcomes[-1]['experience']['evidence'].get('state', ())) if outcomes else {}
         region = params.get('region') or params.get('destination') or params.get('where')
-        if not region or not region_matches(after, region):
-            raise DecisionRejected('region completion needs captured matching region evidence')
-        return {'region': region}
+        if region and region_matches(after, region):
+            return {'region': region}
+        # Task-derived navigation is rebound after integrating a zero-input read.  Its persisted successor context
+        # can therefore contain fresher arrival proof than the read experience's pre-rebind state projection.
+        context = context or {}
+        navigation = context.get('navigation') or after.get('navigation') or {}
+        graph = navigation.get('graph') or {}
+        if (navigation.get('status') == 'arrived' and graph.get('current_node') == region and
+                graph.get('current_source') == 'visible_affordance'):
+            resources = context.get('resources') or {}
+            return {'node': region, 'region': resources.get('region') or after.get('region'),
+                    'source': 'visible_affordance'}
+        # A navigation destination may be a unique/nested world node (Well, Bed, counter), not a scene region.
+        # Require a captured chain: the model selected that exact candidate, the click moved Tara, and the settled
+        # result still visually detects the same kind. A vector in isolation is never completion proof.
+        arrived = False
+        for row in reversed(outcomes):
+            experience = row['experience']
+            action = row.get('action') or {}
+            before = row.get('before') or {}
+            evidence = experience.get('evidence') or {}
+            after_state = dict(evidence.get('state', ()))
+            selected = next((candidate for candidate in before.get('candidates', ())
+                             if candidate.get('id') == action.get('candidate')), None)
+            settled = any(candidate.get('kind') == region
+                          for candidate in after_state.get('candidates', ()))
+            if (region and action.get('kind') == 'target' and selected and selected.get('kind') == region
+                    and evidence.get('moved') is True and settled):
+                arrived = True
+                after = after_state
+                break
+        if not arrived:
+            raise DecisionRejected('navigation completion needs captured matching region or target-arrival evidence')
+        return {'node': region, 'region': after.get('region')}
     if current.goal == 'garden' and task.active is None and set(task.targets) <= set(task.covered):
         return {'covered': list(task.covered)}
     raise DecisionRejected('completion proof unavailable; correct/gap or human resolution required')
@@ -571,9 +670,19 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
             store = TaskStore(database, run_id)
         else:  # offline adapters still use SQLite, keyed by a non-file fixture identity
             store = TaskStore(os.path.join(directory, '.task-fixture'))
+    raw_params = dict(params or {})
+    restart = raw_params.pop('restart', False)
+    if type(restart) is not bool:
+        raise ValueError('restart must be true or false')
+    if restart and answer is not None:
+        raise ValueError('task restart starts from a fresh observation and accepts no turn answer')
     existing = store.load() if store.exists() else None
+    expired = existing if restart else None
+    if restart and existing:
+        goal = goal or existing.goal
+        existing = None
     schema_goal = goal if goal is not None else _declaration(existing)['goal'] if existing else None
-    goal, params = _normalize(goal, validate(params, schema_goal))
+    goal, params = _normalize(goal, validate(raw_params, schema_goal))
     turn_id = params.pop('turn_id', None)
     if existing:
         current = _declaration(existing)
@@ -599,14 +708,24 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
             with open(os.path.join(os.path.dirname(__file__), 'kinds.json')) as f:
                 params['flowers'] = json.load(f).get('_lists', {}).get('flowers', [])
         obs = initial_observation = adapter.observe()
-        params['_started_late'] = obs.get('hour') is not None and obs['hour'] > 19
+        params['_started_late'] = obs.get('hour') is not None and obs['hour'] >= 19
         params['_trade_start_money'] = obs.get('money')
         params['_trade_start_money_provenance'] = obs.get('state_provenance', {}).get('money')
         graph = learn.MEMORY.get('graph')
         targets = garden_policy.coverage(graph, params['region']) if graph and goal == 'garden' else []
         task = TaskState(uuid.uuid4().hex, goal, params=params, targets=targets)
-        store.create(task)  # root catalogue rows are declarations; only versioned decisions register proof
-    loop = TurnLoop(store, adapter, recommend, reducer=reduce, guard=guard)
+        if expired:
+            old = expired.current_turn or {}
+            resources = old.get('resources') or {}
+            hint = {'task_id': expired.task_id, 'goal': expired.goal, 'status': expired.status,
+                    'game_time': resources.get('game_time'), 'region': resources.get('region') or old.get('region'),
+                    'screen': (old.get('screen') or {}).get('kind')}
+            store.restart(task, hint)
+        else:
+            store.create(task)  # root catalogue rows are declarations; only versioned decisions register proof
+        initial_observation = _bind_task_observation(task, initial_observation)
+    loop = TurnLoop(store, adapter, recommend, reducer=reduce, guard=guard,
+                    rebind=_bind_task_observation)
     if answer is None:
         return loop.context(observation=initial_observation)
     if isinstance(answer, str) and answer.strip().startswith('{'):
@@ -614,7 +733,7 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
     if isinstance(answer, dict):
         answer = dict(answer)
         turn_id = answer.pop('turn_id', turn_id)
-        answer = Decision(**answer)
+        answer = ask.garden_decision(answer)
     if not isinstance(answer, Decision):
         if isinstance(answer, str):
             import re
@@ -625,8 +744,57 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
     return loop.decide(int(turn_id), answer)
 
 
+def _model_candidate(row):
+    fields = ('id', 'kind', 'point', 'source', 'score', 'view_id', 'box',
+              'highlighted', 'ready', 'drop', 'label')
+    return {name: row[name] for name in fields if name in row}
+
+
+def _model_receipt(context):
+    """Bounded CLI projection; SQLite retains the complete immutable context and outcome."""
+    raw = context.to_dict() if hasattr(context, 'to_dict') else dict(context)
+    navigation = raw.get('navigation')
+    view = dict(raw.get('view') or {})
+    view['candidates'] = [_model_candidate(dict(row)) for row in view.get('candidates', ())[:8]]
+    memory = dict(raw.get('memory') or {})
+    if navigation:
+        memory = {'revision': memory.get('revision')}
+    surprise = raw.get('surprise')
+    if surprise:
+        surprise = surprise.to_dict() if hasattr(surprise, 'to_dict') else dict(surprise)
+        surprise = {name: surprise.get(name) for name in ('experience_id', 'reason', 'checks')}
+    vectors = []
+    for row in raw.get('vector_detections', ())[:8]:
+        row = dict(row)
+        vectors.append({name: row[name] for name in ('kind', 'point', 'score') if name in row})
+    # Navigation is deliberately first: even a downstream display cap preserves localization and the route edge.
+    return {
+        'navigation': navigation,
+        'turn_id': raw.get('turn_id'),
+        'allowed_decisions': raw.get('allowed_decisions', ()),
+        'task': raw.get('task'),
+        'belief': raw.get('belief'),
+        'view': view,
+        'result': raw.get('result'),
+        'need': raw.get('need'),
+        'resources': raw.get('resources'),
+        'recommendation': raw.get('recommendation'),
+        'surprise': surprise,
+        'transaction': raw.get('transaction'),
+        'coverage': raw.get('coverage'),
+        'interrupts': raw.get('interrupts', ()),
+        'memory': memory,
+        'vector_detections': vectors,
+        'vector_status': raw.get('vector_status'),
+        'screen': raw.get('screen'),
+        'frame_path': raw.get('frame_path'),
+        'observation_freshness': raw.get('observation_freshness'),
+        'observation_id': raw.get('observation_id'),
+    }
+
+
 def summary(context):
-    return 'NEXT ' + json.dumps(context, default=json_record, sort_keys=True)
+    return 'NEXT ' + json.dumps(_model_receipt(context), default=json_record)
 
 
 def cli(goal, args):

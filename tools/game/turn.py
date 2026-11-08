@@ -131,12 +131,13 @@ def _reconcile_observation(task, evidence, log_path):
                 moved = a['scene'] != b['scene'] or a['position'] != b['position']
                 if moved and known_screen:
                     proposed = 'verified_movement'
-    elif (original_intent and original['verdict']['value'] != 'unsafe' and
-          original['evidence'].get('mode') == 'unknown' and known_screen and
+    elif (original_intent and original['verdict']['value'] != 'unsafe' and known_screen and
           source['action'].get('kind') in ('press', 'close', 'key', 'space', 'select_card') and
           not source['action'].get('sale') and not source['action'].get('purchase') and
           original_intent.expects.get('mode') is not None and
-          original_intent.expects['mode'] != (before.get('screen') or {}).get('kind')):
+          original_intent.expects['mode'] == evidence.mode and
+          original_intent.expects['mode'] != (before.get('screen') or {}).get('kind') and
+          original['evidence'].get('mode') in ('unknown', (before.get('screen') or {}).get('kind'))):
         proposed = 'verified_observation'  # all original checks/outcome rules below must still pass
     if proposed and original_intent:
         from . import primitives
@@ -164,18 +165,23 @@ def _cancellable_outcome(row):
     import re
     from . import act
     action, exp = row.get('action', {}), row.get('experience', {})
+    kind = action.get('kind')
     label = str(action.get('label', '')).strip().casefold()
     if action.get('purchase') or action.get('sale') or re.match(r'^(buy|purchase|sell)\b', label):
         raise DecisionRejected('cancellation refuses financial inputs or receipts')
     evidence = exp.get('evidence', {})
     before, after = row.get('before', {}), dict(evidence.get('state', ()))
     position_proof = (after.get('state_provenance') or {}).get('position') or {}
+    position_only_waypoint = (kind == 'waypoint' and evidence.get('moved') is True and
+                              after.get('position') is not None and after['position'] != before.get('position') and
+                              position_proof.get('source') == 'save')
     if (evidence.get('at') is not None or evidence.get('node') is not None or
             after.get('at') is not None or after.get('node') is not None or after.get('region_provenance') or
             after.get('regions') or after.get('event_sources') or
             position_proof.get('source') in ('event', 'positioned_event') or
             after.get('position') is not None and (position_proof.get('source') != 'save' or
-                                                  after['position'] != before.get('position')) or
+                                                  after['position'] != before.get('position')) and
+            not position_only_waypoint or
             any(act.position_of(line) is not None for line in evidence.get('lines', ()))):
         raise DecisionRejected('cancellation refuses positioned domain evidence even without a named event')
     if evidence.get('events') or any(re.search(r'\[STATS\]|\[QUEST\]|\[REL\]|>\s*\w+', line)
@@ -184,7 +190,6 @@ def _cancellable_outcome(row):
     for key in ('money', 'inventory'):
         if key in before and key in after and before[key] != after[key]:
             raise DecisionRejected('cancellation refuses resource changes')
-    kind = action.get('kind')
     no_effect_world_miss = (kind in ('target', 'waypoint', 'cell', 'bubble') and
                             exp.get('verdict', {}).get('value') in ('miss', 'unsafe') and
                             evidence.get('moved') is False and not evidence.get('texts') and
@@ -194,7 +199,7 @@ def _cancellable_outcome(row):
     menu = kind == 'key' and label in ('j', 'm', 'i')
     resumed = (kind == 'press' and label == 'resume game' and
                before.get('screen', {}).get('kind') == 'pause' and evidence.get('mode') == 'gameplay')
-    if kind not in ('read', 'wait', 'close') and not menu and not resumed:
+    if kind not in ('read', 'wait', 'close') and not menu and not resumed and not position_only_waypoint:
         raise DecisionRejected('cancellation refuses unclassified domain input')
 
 
@@ -220,8 +225,130 @@ class Decision(Snapshot):
     kind: str
     action: object = None
     correction: object = None
+    belief_update: object = None
     rationale: str = 'model_choice'
     evidence_refs: tuple = ()
+
+
+_BELIEF_ASSESSMENTS = frozenset({'initial', 'progress', 'no_progress', 'contradiction', 'arrived'})
+_BELIEF_LISTS = ('confirmed', 'blocked', 'rejected', 'unknown')
+_SEMANTIC_SURPRISES = frozenset({
+    'wrong_direction', 'no_progress', 'irrelevant_movement', 'missing_progress_evidence', 'stale_route_clue'})
+
+
+def _navigation_owner(task):
+    current = task.stack[-1] if task.stack else task
+    return current if current.goal == 'navigate' else None
+
+
+def _frame_referenced(frame_path, refs):
+    return isinstance(frame_path, str) and bool(frame_path) and any(
+        ref == frame_path or (isinstance(ref, str) and os.path.basename(ref) == os.path.basename(frame_path))
+        for ref in refs)
+
+
+def _bounded_belief_list(update, name):
+    value = update.get(name, ())
+    if not isinstance(value, (list, tuple)) or len(value) > 6:
+        raise DecisionRejected(f'belief {name} must be a list of at most 6 statements')
+    out = []
+    for statement in value:
+        if not isinstance(statement, str) or not statement.strip() or len(statement.strip()) > 240:
+            raise DecisionRejected(f'belief {name} statements must be nonempty and at most 240 characters')
+        out.append(statement.strip())
+    return out
+
+
+def _apply_navigation_belief(task, context, decision, action):
+    """Replace one task-local semantic belief and bind this exact primitive to it."""
+    owner = _navigation_owner(task)
+    if owner is None:
+        if decision.belief_update is not None:
+            raise DecisionRejected('belief_update is valid only for an active navigation task')
+        return action, None
+    terminal_cleanup = (action.get('kind') == 'press' and
+                        str(action.get('label', '')).strip().casefold() == 'zzzz' and
+                        (context.get('screen') or {}).get('kind') == 'popup')
+    if terminal_cleanup:
+        if decision.belief_update is not None:
+            raise DecisionRejected('terminal popup cleanup accepts no navigation belief update')
+        return action, None
+    update = thaw(decision.belief_update or {})
+    if not isinstance(update, dict):
+        raise DecisionRejected('navigation act needs a belief_update object')
+    required = {'goal', 'assessment', 'current', 'next_objective', *_BELIEF_LISTS}
+    optional = {'observed_hour', 'frame_path', 'evidence_refs'}
+    missing = sorted(required - set(update))
+    if missing:
+        raise DecisionRejected('navigation belief missing: ' + ', '.join(missing))
+    if set(update) - required - optional:
+        raise DecisionRejected(
+            'navigation belief has unknown fields: ' + ', '.join(sorted(set(update) - required - optional)))
+    for name in ('goal', 'current', 'next_objective'):
+        value = update.get(name)
+        if not isinstance(value, str) or not value.strip() or len(value.strip()) > 320:
+            raise DecisionRejected(f'belief {name} must be nonempty and at most 320 characters')
+    assessment = update.get('assessment')
+    if assessment not in _BELIEF_ASSESSMENTS:
+        raise DecisionRejected('belief assessment must be initial, progress, no_progress, contradiction, or arrived')
+    observed_hour = update.get('observed_hour')
+    if (observed_hour is not None and
+            (type(observed_hour) not in (int, float) or not 0 <= observed_hour < 24)):
+        raise DecisionRejected('belief observed_hour must be a number from 0 through 23.99')
+    navigation = context.get('navigation') or {}
+    destination = owner.params.get('destination') or owner.params.get('where') or owner.params.get('region')
+    canonical_goal = ((navigation.get('goal') or {}).get('node') or navigation.get('resolved_as') or destination)
+    if not canonical_goal:
+        raise DecisionRejected('active navigation destination is unresolved')
+    frame_path = context.get('frame_path')
+    if not _frame_referenced(frame_path, decision.evidence_refs):
+        raise DecisionRejected('navigation belief needs the current full-scale frame in evidence_refs')
+    if update.get('frame_path') is not None and update['frame_path'] != frame_path:
+        raise DecisionRejected('nested belief frame_path must match the current frame')
+    if update.get('evidence_refs') is not None:
+        nested_refs = update['evidence_refs']
+        if (not isinstance(nested_refs, (list, tuple)) or
+                not _frame_referenced(frame_path, nested_refs) or
+                any(ref not in decision.evidence_refs for ref in nested_refs)):
+            raise DecisionRejected('nested belief evidence_refs must be a subset of top-level current-frame refs')
+    previous = owner.params.get('_navigation_belief') or {}
+    surprise = context.get('surprise') or {}
+    if surprise:
+        if surprise.get('reason') not in _SEMANTIC_SURPRISES:
+            raise DecisionRejected('this surprise cannot be resolved by a navigation replan')
+        if assessment not in ('no_progress', 'contradiction'):
+            raise DecisionRejected('navigation surprise replan needs no_progress or contradiction assessment')
+        if previous.get('next_objective') == update['next_objective'].strip():
+            raise DecisionRejected('navigation surprise replan must change the next objective')
+    if assessment == 'arrived':
+        raise DecisionRejected('arrived belief cannot issue another navigation input')
+    action = dict(action)
+    objective = action.get('objective')
+    if not isinstance(objective, str) or objective.strip() != update['next_objective'].strip():
+        raise DecisionRejected('navigation action objective must exactly match belief next_objective')
+    revision = int(previous.get('revision') or 0) + 1
+    belief = {
+        # Goal identity belongs to the versioned task. The model may phrase its intent naturally, but cannot
+        # replace the canonical destination through a belief update.
+        'goal': str(canonical_goal), 'assessment': assessment,
+        'current': update['current'].strip(),
+        **{name: _bounded_belief_list(update, name) for name in _BELIEF_LISTS},
+        'next_objective': update['next_objective'].strip(), 'revision': revision,
+        'turn_id': context['turn_id'], 'frame_path': frame_path,
+        'evidence_refs': list(decision.evidence_refs),
+    }
+    if observed_hour is not None:
+        belief['observed_hour'] = float(observed_hour)
+    owner.params['_navigation_belief'] = belief
+    if surprise:
+        task.last_surprise = None  # replaced atomically by this evidence-backed replan and its pending intent
+    action['belief_revision'] = revision
+    action['belief_objective'] = belief['next_objective']
+    context['belief'] = belief
+    if context.get('navigation'):
+        context['navigation'] = dict(context['navigation'], belief=belief)
+    task.current_turn = context
+    return action, belief
 
 
 @dataclass(frozen=True)
@@ -269,6 +396,7 @@ class TurnContext(Snapshot):
     memory: object = None
     resources: object = None
     navigation: object = None
+    belief: object = None
     observation_id: int = None
 
     @classmethod
@@ -289,6 +417,7 @@ class TurnContext(Snapshot):
         d.setdefault('memory', None)
         d.setdefault('resources', None)
         d.setdefault('navigation', None)
+        d.setdefault('belief', None)
         d.setdefault('observation_id', None)
         d['recommendation'] = Recommendation(**d['recommendation'])
         if d.get('surprise'):
@@ -332,8 +461,12 @@ def _compact_projection(task, observation, surprise):
               'clues': observation.get('graph_clues', ())}
     resource_keys = ('hour', 'hud_hour', 'light', 'rain', 'can', 'money', 'inventory', 'inventory_complete',
                      'position', 'region', 'scene', 'save_scene', 'game_time', 'log_time', 'save_time',
-                     'state_provenance')
+                     'state_provenance', 'lineage_status', 'lineage_mismatch')
     resources = {key: observation.get(key) for key in resource_keys if key in observation}
+    if resources.get('region'):
+        # The compact model receipt has one semantic location. A save may retain its outer scene while Tara is
+        # visibly/logically inside a nested region (House); keep that raw value only as save_scene provenance.
+        resources['scene'] = resources['region']
     provenance = observation.get('state_provenance') or {}
     resources['provenance'] = {key: provenance[key] for key in resources if key in provenance}
     return view, result, need, memory, resources
@@ -384,8 +517,24 @@ def outcome_surprise(task, intent, e):
             return 'unverified_trade'
     closed = intent.action.get('kind') == 'close' and changed_mode and e.evidence.mode == 'gameplay'
     sleep_event = goal == 'sleep' and 'sleep_transition' in e.evidence.events
+    selected_nav_target = False
+    if intent.action.get('kind') == 'target' and e.evidence.moved:
+        nav_goal = ((before.get('navigation') or {}).get('goal') or {}).get('node')
+        candidate_id = intent.action.get('candidate')
+        selected = next((row for row in before.get('candidates', ()) if row.get('id') == candidate_id), None)
+        selected_nav_target = bool(nav_goal and selected and selected.get('kind') == nav_goal)
+    # A navigation primitive bound to the model's persisted belief is semantically owned by that belief, not by
+    # the advisory graph compass.  Once the immutable outcome proves movement, the next model turn decides whether
+    # that movement advanced or contradicted its objective.  The engine still reports no_progress when no movement
+    # occurred and still enforces explicit region/node/event expectations above.
+    belief = before.get('belief') or ((before.get('navigation') or {}).get('belief')) or {}
+    model_owned_movement = bool(
+        goal == 'navigate' and e.evidence.moved is True and
+        intent.action.get('belief_revision') == belief.get('revision') and
+        intent.action.get('belief_objective') == belief.get('next_objective') and
+        intent.action.get('objective') == belief.get('next_objective'))
     relevant = (matched_event or matched_card or matched_mode or matched_movement or matched_log or changed_card or garden_event or
-                receipt or closed or sleep_event)
+                receipt or closed or sleep_event or selected_nav_target or model_owned_movement)
     if (expected.get('region') and region_matches(after, expected['region']) and
             (not region_matches(before, expected['region']) or
              (after.get('region_provenance') or {}).get('source') == 'positioned_event')):
@@ -398,9 +547,20 @@ def outcome_surprise(task, intent, e):
         old_pos, new_pos = before.get('position'), after.get('position')
         reduction = (destination is not None and old_pos is not None and new_pos is not None and
                      math.dist(new_pos, destination) < math.dist(old_pos, destination) - .01)
-        if not reduction and not relevant:
+        aligned_waypoint = False
+        if walking and e.evidence.moved and before.get('navigation'):
+            from . import navigation
+            try:
+                assessment = navigation.assess(intent.action, before['navigation'])
+                actual_alignment = navigation.movement_alignment(before, after, before['navigation'])
+                aligned_waypoint = bool(assessment.get('allowed') and assessment.get('alignment') in
+                                        ('aligned', 'aligned_approach', 'visible_detour', 'map_postcheck') and
+                                        (actual_alignment is None or actual_alignment.get('allowed')))
+            except (TypeError, ValueError):
+                aligned_waypoint = False
+        if not reduction and not aligned_waypoint and not relevant:
             return 'irrelevant_movement' if e.evidence.moved else 'missing_progress_evidence'
-        relevant = relevant or reduction
+        relevant = relevant or reduction or aligned_waypoint
     if not relevant:
         return 'unexpected_evidence' if e.evidence.events or changed_mode else 'missing_evidence'
     return None
@@ -415,20 +575,16 @@ class TurnLoop:
     Task state, intents, and the turn timeline live in the active run's SQLite rows.
     A persisted context is returned unchanged until consumed, so accept always refers to exact saved data.
     """
-    def __init__(self, store, adapter=None, policy=None, reducer=None, guard=None):
+    def __init__(self, store, adapter=None, policy=None, reducer=None, guard=None, rebind=None):
         from .primitives import GameAdapter
         self.store, self.adapter = store, adapter or GameAdapter()
         self.policy = policy or (lambda task, obs: Recommendation())
         self.reducer = reducer  # evidence-only domain state update; never input or target selection
         self.guard = guard  # optional pure transaction invariant, checked before any primitive input
+        self.rebind = rebind  # recompute task-derived clues after reducer mutations
 
-    def _human_log(self, turn_id, phase, data, logged_at):
-        """Append the readable projection of the canonical turn timeline at the same durable boundary."""
-        if phase not in ('clues', 'decision', 'outcome', 'integration', 'correction', 'vision',
-                         'catalogue', 'cancellation'):
-            return
-        from runtime.run_reports import render_decisions
-        return render_decisions(self.store.db, self.store.run_id, self.store.run_dir)
+    def _rebound(self, task, observation):
+        return self.rebind(task, observation) if observation is not None and self.rebind else observation
 
     def _log(self, task, turn_id, phase, _canonical=True, **data):
         readable = thaw(data)
@@ -441,13 +597,8 @@ class TurnLoop:
                 action = decision.get('action') or task.current_turn.get('recommendation', {}).get('action')
                 if action and action.get('kind') == 'waypoint':
                     readable['waypoint'] = navigation.assess(action, nav)
-        logged_at = time.time()
         if _canonical:
             self.store.append_event(task, turn_id, phase, **readable)
-        try:
-            self._human_log(turn_id, phase, readable, logged_at)
-        except Exception:  # noqa: BLE001 - projections must never change the canonical commit result
-            pass  # Markdown is a best-effort projection; the canonical event is already committed.
 
     def _ensure_intent(self, task, intent, recovered=False):
         """Idempotently make the persisted WAL intent canonical before its outcome can be referenced."""
@@ -467,6 +618,13 @@ class TurnLoop:
         if task.current_turn is not None:
             return TurnContext.from_dict(task.current_turn)
         observation = self.adapter.observe() if observation is None else observation
+        screen_hint = task.params.get('_screen_hint') or {}
+        screen = observation.get('screen') or {}
+        if (screen.get('kind') == 'unknown' and screen_hint.get('kind') == 'gameplay' and
+                screen_hint.get('region') == (observation.get('region') or observation.get('scene')) and
+                task.turn_seq + 1 <= int(screen_hint.get('expires_turn') or -1)):
+            observation = dict(observation, screen=dict(screen, kind='gameplay'),
+                               screen_provenance={'source': 'model_vision', **screen_hint})
         task.turn_seq += 1
         task.revision += 1
         lineage_mismatch = observation.get('lineage_status') == 'save_lineage_mismatch'
@@ -490,8 +648,23 @@ class TurnLoop:
         view, result, need, memory, resources = _compact_projection(task, observation, surprise)
         if surprise or need and need.get('reason') == 'vector_error':
             allowed = ('look', 'read', 'stop') + (('correct',) if task.last_experience else ())
+            current = task.stack[-1] if task.stack else task
+            if (surprise and current.goal == 'navigate' and
+                    surprise.reason in ('wrong_direction', 'no_progress', 'irrelevant_movement',
+                                        'missing_progress_evidence', 'stale_route_clue')):
+                allowed += ('act',)
+        labels = [str(row.get('label', '')).strip().casefold() for row in observation.get('controls', ())]
+        terminal_cleanup = screen.get('kind') == 'popup' and labels.count('zzzz') == 1
+        if terminal_cleanup and 'act' not in allowed:
+            # Involuntary pass-out supersedes the interrupted workflow. The exact singleton control is
+            # independently revalidated by prepare/preflight and is already exempt from navigation beliefs.
+            allowed += ('act',)
+        sleep_required = any(str(reason).startswith('SLEEP_REQUIRED')
+                             for reason in observation.get('interrupts', ()))
+        if sleep_required and task.status == 'active' and 'push' not in allowed:
+            allowed += ('push',)
         if lineage_mismatch:
-            allowed = ('look', 'read', 'stop')
+            allowed = ('look', 'read', 'stop') + (('act',) if terminal_cleanup else ())
         c = TurnContext(task.turn_seq, public_task(task), thaw(task.active),
                         observation.get('screen'), observation.get('frame_path'), 'fresh',
                         observation.get('visible_affordances', ()), observation.get('graph_clues', ()),
@@ -501,6 +674,7 @@ class TurnLoop:
         c = replace(c, view_id=observation.get('view_id'), candidates=observation.get('candidates', ()),
                     controls=observation.get('controls', ()), view=view, result=result, need=need,
                     memory=memory, resources=resources, navigation=observation.get('navigation'),
+                    belief=((observation.get('navigation') or {}).get('belief')),
                     observation_id=observation.get('observation_id'))
         task.current_turn = c.to_dict()
         self.store.save(task)
@@ -509,7 +683,7 @@ class TurnLoop:
                   coverage=c.coverage, transaction=c.transaction, interrupts=c.interrupts,
                   vector_detections=c.vector_detections, vector_status=c.vector_status,
                   view=c.view, result=c.result, need=c.need, memory=c.memory, resources=c.resources,
-                  navigation=c.navigation, region=task.params.get('region'), task_status=task.status,
+                  navigation=c.navigation, belief=c.belief, region=task.params.get('region'), task_status=task.status,
                   surprise=c.surprise, observation_id=c.observation_id)
         self._log(task, c.turn_id, 'recommendation', recommendation=rec)
         return c
@@ -537,10 +711,6 @@ class TurnLoop:
             intent.experience = e.to_dict()
             self.store.record_capture(task, intent, e.to_dict())
         self.store.record_capture(task, intent, e.to_dict())
-        try:
-            self._human_log(intent.turn_id, 'outcome', {'experience': e.to_dict(), 'recovered': recovered}, time.time())
-        except Exception:  # noqa: BLE001 - projections must never change the canonical commit result
-            pass
         result = I.apply(e, store=self.store)
         reconciliation = dict(e.evidence.state).get('observation_reconciliation')
         if reconciliation:
@@ -586,10 +756,6 @@ class TurnLoop:
         task.current_turn = None
         task.revision += 1
         self.store.settle(task, intent, result)
-        try:
-            self._human_log(intent.turn_id, 'integration', {'experience': e.id, 'result': result}, time.time())
-        except (OSError, ValueError, TypeError):
-            pass
         take_outcome = getattr(self.adapter, 'take_outcome_observation', None)
         return take_outcome(e.id) if take_outcome else None
 
@@ -599,7 +765,7 @@ class TurnLoop:
             task = self.store.load()
             cached = task.current_turn is not None
             if task.pending_intent or task.active and task.active.pending_intent:
-                observation = self._finish(task, recovered=True)
+                observation = self._rebound(task, self._finish(task, recovered=True))
                 cached = False
             context = self._context(task, observation)
             if not cached:
@@ -614,6 +780,10 @@ class TurnLoop:
             data = thaw(decision.action or {})
             if set(data) - {'goal', 'params'} or not data.get('goal') or not isinstance(data.get('params', {}), dict):
                 raise DecisionRejected('push needs only goal and declared params')
+            sleep_required = any(str(reason).startswith('SLEEP_REQUIRED')
+                                 for reason in (task.current_turn or {}).get('interrupts', ()))
+            if sleep_required and data['goal'] != 'sleep':
+                raise DecisionRejected('late-clock surprise allows only the sleep subgoal')
             try:
                 data['params'] = validate(data.get('params', {}), data['goal'], phase='subgoal')
             except ValueError as error:
@@ -691,7 +861,14 @@ class TurnLoop:
                 outcomes = self._records(refs)
             except ValueError as error:
                 raise DecisionRejected(f'completion cannot verify canonical evidence: {error}') from None
-            result = verify_completion(task, current, outcomes)
+            navigation = (task.current_turn or {}).get('navigation') or {}
+            graph = navigation.get('graph') or {}
+            if (current.goal in ('navigate', 'enter', 'exit') and
+                    navigation.get('status') == 'arrived' and
+                    graph.get('current_source') == 'visible_affordance' and
+                    not _frame_referenced((task.current_turn or {}).get('frame_path'), decision.evidence_refs)):
+                raise DecisionRejected('visible-affordance completion needs the current full-scale frame evidence')
+            result = verify_completion(task, current, outcomes, context=task.current_turn)
             if not task.stack:
                 task.status = 'complete'
             else:
@@ -728,8 +905,8 @@ class TurnLoop:
         with self.store.locked():
             task = self.store.load()
             if task.pending_intent or task.active and task.active.pending_intent:
-                self._finish(task, recovered=True)
-                self._context(task)
+                observation = self._rebound(task, self._finish(task, recovered=True))
+                self._context(task, observation)
                 raise StaleTurn('pending input reconciled; read the new context')
             if not task.current_turn or turn_id != task.current_turn['turn_id']:
                 raise StaleTurn(f'turn {turn_id} is stale; request context')
@@ -740,6 +917,8 @@ class TurnLoop:
             # No public action/correction/state payload can enter the authoritative reading.
             if decision.kind == 'read' and (decision.action is not None or decision.correction is not None):
                 raise DecisionRejected('read accepts no action, correction or runtime state')
+            if decision.kind not in ('accept', 'act') and decision.belief_update is not None:
+                raise DecisionRejected('belief_update must be atomic with accept or act')
             if decision.kind not in c['allowed_decisions'] and not (decision.kind == 'read' and task.status == 'active'):
                 raise DecisionRejected(f'{decision.kind} unavailable: {c["allowed_decisions"]}')
             self._log(task, turn_id, 'decision', decision=decision)
@@ -751,7 +930,7 @@ class TurnLoop:
             elif decision.kind == 'read':
                 primitives.execute(self.store, task, turn_id, {'kind': 'read'}, {}, self.adapter,
                                    lambda phase, **kw: self._log(task, turn_id, phase, **kw), guard=self.guard)
-                observation = self._finish(task)
+                observation = self._rebound(task, self._finish(task))
                 return self._context(task, observation)
             elif decision.kind == 'catalogue':
                 from .params import catalogue_observation, fields, sequence, boolean
@@ -772,6 +951,119 @@ class TurnLoop:
                 correction = thaw(decision.correction or {})
                 kind, data = correction.get('kind'), correction.get('data', {})
                 e = X.Experience.from_dict(task.last_experience)
+                if kind == 'route_transition':
+                    before, after = dict(e.before.state), dict(e.evidence.state)
+                    navigation = before.get('navigation') or {}
+                    path = ((navigation.get('graph') or {}).get('path') or ())
+                    region = after.get('region') or after.get('scene')
+                    from .navigation import _load_graph
+                    graph = _load_graph(after)
+                    matched = next(((a, b) for a, b in zip(path, path[1:])
+                                    for edge in graph.edges(a, 'nav')
+                                    if edge.get('b') == b and edge.get('transition') == region), None)
+                    if not matched or region == (before.get('region') or before.get('scene')):
+                        raise DecisionRejected('route_transition needs a captured new region matching the resolved path')
+                    current = task.stack[-1] if task.stack and task.stack[-1].goal == 'navigate' else task
+                    current.params['_nav_current'] = matched[1]
+                    current.params['_nav_current_proof'] = {
+                        'source': 'transition', 'experience': e.id, 'region': region}
+                    result = {'applied': 1, 'status': 'route_transition', 'node': matched[1], 'region': region}
+                    self._log(task, turn_id, 'correction', experience=e.id, kind=kind, data=data, result=result)
+                    task.last_surprise = None
+                    task.current_turn = None
+                    self.store.save(task)
+                    return self._context(task)
+                if kind == 'route_step':
+                    before = dict(e.before.state)
+                    navigation = before.get('navigation') or {}
+                    edge = navigation.get('next_edge') or {}
+                    node = data.get('node')
+                    if (node != edge.get('to') or not edge.get('navigation_only') or e.evidence.moved is not True or
+                            not e.action or e.action.kind != 'click' or e.action.what != 'step'):
+                        raise DecisionRejected('route_step needs moved waypoint evidence for the current navigation-only node')
+                    current = task.stack[-1] if task.stack and task.stack[-1].goal == 'navigate' else task
+                    current.params['_nav_current'] = node
+                    current.params['_nav_current_proof'] = {
+                        'source': 'navigation_step', 'experience': e.id,
+                        'region': dict(e.evidence.state).get('region')}
+                    result = {'applied': 1, 'status': 'route_step', 'node': node}
+                    self._log(task, turn_id, 'correction', experience=e.id, kind=kind, data=data, result=result)
+                    task.last_surprise = None
+                    task.current_turn = None
+                    self.store.save(task)
+                    return self._context(task)
+                if kind == 'screen':
+                    frame_path = data.get('frame_path')
+                    region = data.get('region')
+                    frame_referenced = any(
+                        ref == frame_path or (isinstance(ref, str) and isinstance(frame_path, str) and
+                                              os.path.basename(ref) == os.path.basename(frame_path))
+                        for ref in decision.evidence_refs)
+                    if ((c.get('screen') or {}).get('kind') != 'unknown' or data.get('kind') != 'gameplay' or
+                            frame_path != c.get('frame_path') or not isinstance(region, str) or not region or
+                            not frame_referenced):
+                        raise DecisionRejected('screen correction needs current unknown frame, gameplay, region and evidence ref')
+                    task.params['_screen_hint'] = {
+                        'kind': 'gameplay', 'region': region, 'frame_path': frame_path,
+                        'set_turn': turn_id, 'expires_turn': turn_id + 2}
+                    result = {'applied': 1, 'status': 'screen', 'hint': dict(task.params['_screen_hint'])}
+                    self._log(task, turn_id, 'correction', experience=e.id, kind=kind, data=data, result=result)
+                    task.last_surprise = None
+                    task.current_turn = None
+                    self.store.save(task)
+                    return self._context(task)
+                if kind == 'route':
+                    from .navigation import map_route
+                    frame_path = data.get('frame_path')
+                    region = data.get('region')
+                    frames = {e.artifacts.img0, *e.artifacts.frames, c.get('frame_path')} - {None}
+                    navigation = c.get('navigation') or {}
+                    goal = (navigation.get('goal') or {}).get('node')
+                    if (data.get('target') != goal or not isinstance(region, str) or not region or frame_path not in frames or
+                            (c.get('screen') or {}).get('kind') != 'map'):
+                        raise DecisionRejected('route correction needs current map frame, region and exact navigation target')
+                    try:
+                        derived = map_route(data.get('origin_point'), data.get('target_point'))
+                    except ValueError as exc:
+                        raise DecisionRejected(str(exc)) from exc
+                    ttl = data.get('expires_after_turns', 6)
+                    if type(ttl) is not int or not 1 <= ttl <= 12:
+                        raise DecisionRejected('route correction expiry must be 1..12 turns')
+                    owner = _navigation_owner(task)
+                    if owner is None:
+                        raise DecisionRejected('route correction needs an active navigation task')
+                    owner.params['_route_hint'] = {
+                        **derived, 'target': goal, 'region': region,
+                        'frame_path': frame_path, 'set_turn': turn_id, 'expires_turn': turn_id + ttl,
+                        'remaining_steps': ttl, 'source': 'model_map'}
+                    if owner is not task:
+                        task.params.pop('_route_hint', None)  # repair pre-fix corrections on the wrong stack frame
+                    result = {'applied': 1, 'status': 'route', 'route': dict(owner.params['_route_hint'])}
+                    self._log(task, turn_id, 'correction', experience=e.id, kind=kind, data=data, result=result)
+                    task.last_surprise = None
+                    task.current_turn = None
+                    self.store.save(task)
+                    return self._context(task)
+                if kind == 'route_clear':
+                    current = task.stack[-1] if task.stack and task.stack[-1].goal == 'navigate' else task
+                    hint = current.params.get('_route_hint')
+                    reason = data.get('reason')
+                    frame_path = data.get('frame_path')
+                    if (not hint or not isinstance(reason, str) or not reason.strip() or
+                            frame_path != c.get('frame_path') or
+                            not any(ref == frame_path or (isinstance(ref, str) and
+                                    os.path.basename(ref) == os.path.basename(frame_path))
+                                    for ref in decision.evidence_refs)):
+                        raise DecisionRejected(
+                            'route_clear needs active hint, reason, current frame and frame evidence')
+                    removed = current.params.pop('_route_hint')
+                    result = {'applied': 1, 'status': 'route_clear', 'removed': removed,
+                              'reason': reason.strip()}
+                    self._log(task, turn_id, 'correction', experience=e.id, kind=kind, data=data, result=result)
+                    task.last_surprise = None
+                    task.current_turn = None
+                    self.store.save(task)
+                    return self._context(task)
                 if kind == 'blocked_target':
                     active = task.active
                     reason = data.get('reason')
@@ -808,6 +1100,7 @@ class TurnLoop:
                 action = thaw(c['recommendation']['action'] if decision.kind == 'accept' else decision.action)
                 if not action:
                     raise DecisionRejected('no action recommended or supplied')
+                action, belief = _apply_navigation_belief(task, c, decision, action)
                 expected = thaw(c['recommendation'].get('expects') or {}) if decision.kind == 'accept' else action.pop('expects', {})
                 from .params import expectations
                 try:
@@ -816,7 +1109,11 @@ class TurnLoop:
                     raise DecisionRejected(str(error)) from None
                 primitives.execute(self.store, task, turn_id, action, expected, self.adapter,
                                    lambda phase, **kw: self._log(task, turn_id, phase, **kw), guard=self.guard)
-                observation = self._finish(task)
+                if belief:
+                    self._log(task, turn_id, 'belief', belief=belief,
+                              action={'kind': action.get('kind'), 'objective': action.get('objective'),
+                                      'belief_revision': action.get('belief_revision')})
+                observation = self._rebound(task, self._finish(task))
                 return self._context(task, observation)
             task.current_turn = None
             task.revision += 1

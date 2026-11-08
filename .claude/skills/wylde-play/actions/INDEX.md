@@ -15,6 +15,9 @@
 Start a reviewed run, check exact game time, and observe `./wf play <goal> [k=v ...]`. Bare domain aliases also
 return `NEXT` without input. All aliases share the active run's SQLite task row in `runs/wf.sqlite3`; `./wf play`
 resumes it. A different domain does not silently start another task: push a subgoal explicitly.
+`read` and `look` are continuations, not root goals: use `./wf play turn_id=N answer=read` or
+`./wf play turn_id=N answer=look`. Never run `./wf play read ...` / `./wf play look ...`, which requests a different
+root task and is correctly refused while navigation is active.
 Legacy `do`, `py`, `call`, `goto`, `advance`, routes and batching requests are task descriptions; they execute no
 old Python workflow. Continue all tasks through `play` with the exact saved turn ID.
 The same vision-capable gameplay agent owns this entire loop. Do not delegate `NEXT` to a text-only executor or wait
@@ -27,17 +30,61 @@ appearance/navigation clues. `result` is the preceding immutable outcome, `need`
 observe, decide, act, verify and learn rows stay in SQLite and project to `decisions.md`; they are not repeated as
 workflow prose in `NEXT`.
 
-For long-distance navigation, the model first opens the map with canonical guarded
-`{kind:"key",label:"m",expects:{mode:"map"}}`, inspects and learns pin/landmarks/road connections with frame
-provenance, then selects the route. Visible-road-only travel is local approach or fallback after captured
-unavailable/insufficient map evidence. A refused request does not establish that limitation. The model owns every
-map open/read/close and route decision; Python supplies no hidden route schedule. See `navigation.md`.
+For navigation, read `NEXT.navigation.localization` before any image. Stage `vectors` supplies usable current-frame
+landmarks plus the bounded graph slice and means **do not run model vision**. Stage `vision` means there are no
+vectors: inspect the full-scale frame once, identify a unique graph object, create its appearance vector, and refresh
+with a zero-input `read`. At or after 18:00, existing vectors may be read but an evening/dark frame may never create, update,
+calibrate, or retain a vector; defer the exemplar until daylight. For the sleep interrupt only, current-frame model
+vision may localize and choose one visible-road step without persisting a vector. Only
+`map_if_still_unresolved` permits the outdoor map as stage 3. A wrong returned vector
+is repaired as a vector-system defect; it is never silently bypassed with vision. The model updates one task-local
+semantic location, derives the next objective from the graph route, and owns every map open/read/close and route
+decision. Python supplies no hidden route schedule. See `navigation.md`.
+
+After inspecting a map, bind its gross direction before closing it with a task-local correction:
+`{"kind":"correct","correction":{"kind":"route","data":{"target":"Well","origin_point":[620,430],"target_point":[715,490],"region":"Farm","frame_path":"<current-map-frame>","expires_after_turns":6}},"rationale":"map_pin_to_exact_goal","evidence_refs":["<current-map-frame>"]}`.
+`origin_point` is Tara's current pin and `target_point` is the exact current navigation goal, not its broad parent
+region or a remembered earlier landmark. The engine derives compass/range from these points; never copy a compass
+from an earlier map view. Map compass is world/map space, not screen-click space. It remains evidence for the next
+model belief; it does not veto a visible-road action or independently classify semantic progress.
+If a fresh full frame proves that the labelled map target was semantically wrong, stop movement and submit a
+`route_clear` correction with `reason`, the current `frame_path`, and that frame as evidence. Never wait for a known
+bad hint to expire or silently fall back while it remains active.
+The hint overrides the broad scene edge only for its bounded lifetime; when it expires, refresh from a map or newly
+proved landmark. Never view a map, narrate its direction, then continue under the old edge.
+
+Navigation-only graph nodes have no object candidate/event. A successful aligned waypoint advances them
+task-locally. If upgrading code after such a step, use a `route_step` correction naming the exact current edge target;
+it is valid only when the immutable outcome proves a moved waypoint and the target is navigation-only.
 
 ```sh
-./wf play turn_id=7 answer='{"kind":"act","action":{"kind":"waypoint","cell":"F7","walkable":true},"rationale":"visible_road","evidence_refs":["<frame>"]}'
+./wf play turn_id=7 answer='{"kind":"act","belief_update":{"goal":"Well","assessment":"initial","current":"outside house","confirmed":["pale road is visible"],"blocked":[],"rejected":[],"unknown":["garden entrance"],"next_objective":"follow visible road to the next landmark"},"action":{"kind":"waypoint","cell":"F7","walkable":true,"objective":"follow visible road to the next landmark","expects":{"moved":true}},"rationale":"visible_road","evidence_refs":["<frame>"]}'
 ./wf play turn_id=8 answer=accept
 ./wf play turn_id=9 answer='{"kind":"push","action":{"goal":"sleep","params":{}},"rationale":"late_task_gate"}'
 ```
+
+The decision envelope accepts only `kind`, `action`, `correction`, `belief_update`, `rationale`, and `evidence_refs`. Primitive fields
+such as `primitive`, `target`, `cell`, `point`, and `walkable` belong inside `action`; never place them at the top
+level and never invent a `data` wrapper for an act decision.
+`resume` always operates on the top completed/suspended child and accepts no goal selector: submit
+`{"kind":"resume"}` only (plus optional rationale/evidence_refs). Never add `goal`, `action`, or child params.
+Every navigation `act` replaces the complete short-lived belief with exactly `goal`, `assessment` (`initial`,
+`progress`, `no_progress`, `contradiction`, or `arrived`), `current`, the bounded lists `confirmed`, `blocked`,
+`rejected`, `unknown`, and `next_objective`. Put the current full-scale frame in `evidence_refs`; set
+`action.objective` exactly to `next_objective`. A task restart deliberately removes this belief. On a semantic
+navigation surprise, `no_progress` or `contradiction` may atomically replan and act only with a changed objective.
+Use `contradiction` when the preserved outcome/frame disproves the engine's semantic surprise—for example movement
+reached the intended visible detour even though an advisory graph compass called it irrelevant. A proved moved input
+bound to the current belief is thereafter accepted as model-owned movement; the next fresh belief, not the graph,
+classifies whether it was progress.
+The engine normalizes the belief's `goal` to the active task destination; do not spend a turn trying to reproduce an
+internal node spelling when a natural goal statement is clearer.
+If `resources.hour` is null, add optional numeric `observed_hour` from the same current full-scale HUD frame. The
+engine uses that evidence-backed value for the 18:00 cutoff and refuses ordinary navigation when both clock sources
+are unknown.
+Current-frame provenance belongs in top-level `Decision.evidence_refs`. A duplicated `belief_update.frame_path` or
+`belief_update.evidence_refs` is tolerated only when it exactly matches/subsets that canonical top-level evidence;
+the runtime discards the duplicate when persisting belief.
 
 Each `act` or `accept` performs at most one input. Its settling loop supplies the exact final frame for the next
 receipt without a following grab. Read its immutable outcome before choosing again. Allowed primitives:
@@ -45,6 +92,76 @@ receipt without a following grab. Read its immutable outcome before choosing aga
 `press` (one exact visible label), `space` (highlighted world affordance or known dialogue/popup/cutscene),
 `select_card` (one visible card point, or exact visible nonfinancial item `label`), `key` with `j`/`m`/`i` in gameplay, `close` on a recognized closable panel,
 `read` and `wait` (zero input). `look` returns the saved full-scale frame and the same turn. Never use keyboard movement.
+When the game must remain frontmost without input so its clock can advance, use canonical `./wf focus`; macOS
+`open -a` does not reliably switch to the game's Space. A zero-input `play wait` followed by refocusing Warp keeps
+the game frozen and must not be repeated as a time-advance loop.
+Conversely, every settled universal gameplay receipt automatically activates Warp so the game loses focus while the model
+reads/reasons. Never run `./wf focus` as a post-call cleanup: it focuses the game and was the cause of multi-hour HUD
+jumps during zero-input analysis.
+Before selecting a waypoint, compare it with every visible unique-object candidate. Keep at least 96 px away from
+their candidate points so a road step cannot enter an object's approach/interaction zone; deliberately interacting
+with that object uses a target/bubble action instead. Raw vector candidates are appearance hypotheses: inspect them
+against the full frame. A vector-only false positive cannot authoritatively veto model-confirmed obvious walkable
+ground; only an interaction-proved or explicitly confirmed candidate owns an approach exclusion in the runtime guard.
+Tara is not appearance-vector scanned: those guesses duplicated her body and sometimes matched scenery. Keep every
+waypoint 240 px from the confirmed `tara-feet` centre-seeded tracker anchor; it is the sole Tara exclusion used by the
+runtime guard because furniture/wall occlusion can truncate a character box above the visible feet.
+Place a waypoint in the interior centerline of one continuous visible walkable surface, with clearance around the
+point. Never label a path edge, fence or bridge rail, waterline, rock, vegetation border or decorative boundary as
+walkable. Fireplace/chimney masonry is a vertical obstacle, not a stone path: never click its face, hearth, base, or
+shadow. When Tara is occluded by a fireplace or other structure, detour to clearly textured open floor with visible
+clearance around the point; do not click the occluder in an attempt to move through it. At a bend or bridge approach,
+take a short center-of-road `visible_detour` first, then inspect the fresh
+view before selecting the bridge deck.
+For an indoor divider wall, a waypoint before the visible wall end must remain on Tara's current side. First move
+parallel to the wall until the full opening is visibly below/beyond its end; only a later fresh frame may turn across
+the opening. A point on the opposite room floor is not reachable merely because both endpoints look wooden.
+If a waypoint supplies `surface` (`road`, `floor`, `porch`, or `bridge`), it must also supply the current frame's
+visible `surface_box:[x0,y0,x1,y1]`; never send a surface label without its bounds. Keep floor/porch/bridge points at
+least 16 px inside that box and road points at least 48 px inside it.
+When any road is visible, navigation waypoints stay on its centerline; do not cut across grass because the eventual
+map/compass direction points that way. A winding road segment may temporarily point away from the destination and is
+an explicit `visible_detour`. Map/compass evidence chooses only among branches that are actually visible.
+Every road waypoint includes `surface:"road"` and a conservative `surface_box:[x0,y0,x1,y1]` enclosing only the
+continuous visible pale/dirt road patch around that point. Keep the point at least 48 px inside all four bounds;
+if the visible patch is too narrow for that inset, take a different patch or refresh the view instead of guessing.
+At dusk, distinguish the pale/desaturated road texture from darker green grass before drawing the box. Do not draw a
+box across a road/grass boundary, under a fence, or through a semi-transparent tree merely to admit the desired point.
+Compare the graph edge's qualitative compass with the visible road, but resolve disagreement in `belief_update`.
+The graph cannot refuse an otherwise safe visible-road primitive. Use `visible_detour:true` for an intentional short
+step around an obstacle or along a winding road and record the obstacle/road evidence in the belief. After movement,
+classify semantic progress from the fresh frame and outcome; if the route was wrong, replace the belief and change
+`next_objective` atomically with the next action.
+Always read the durable guard verdict before diagnosing a zero-input result.
+An action on turn N produces its outcome/surprise on successor turn N+1. Submit `correct` with the exact current
+`NEXT` turn ID, never the refused action's old ID. If a stale-turn response occurs, request context once and continue
+with the returned current turn. The stale rejection itself is zero-input, but it does **not** prove that an earlier
+in-flight request failed to consume that turn: inspect the latest durable decision/experience before claiming no
+input or retrying. Stale context is not a reason to stop or ask the supervisor.
+
+Every refused or inefficient action is a blocking improvement signal. Freeze game time, identify the exact guard,
+decision rationale and source evidence, then fix the responsible policy, primitive or observation boundary before
+issuing another gameplay input. A `correct` decision records the evidence but is not by itself a fix. Reload changed
+runtime code, resume the same durable task, and verify the fix in that live route. Do not normalize repeated
+zero-input refusals, redundant map opens, stale-view churn, no-displacement clicks or wrong-direction movement as
+ordinary navigation steps. After every movement compare the source/result frames with the committed belief; movement
+that did not advance its semantic `next_objective` must pause input, record `no_progress` or `contradiction`, and
+change the objective before continuing.
+
+When full-scale model vision proves ordinary gameplay but the captured screen is `unknown`, submit a bounded screen
+correction on that exact frame:
+`{"kind":"correct","correction":{"kind":"screen","data":{"kind":"gameplay","region":"House","frame_path":"<current-frame>"}},"rationale":"full_frame_gameplay","evidence_refs":["<current-frame>"]}`.
+It authorizes only two same-region turns and never promotes a recognized modal/card or persists across a restart.
+
+The `Out of time` / exhausted modal means the route failed: after 01:00 the game stops and puts Tara in bed.
+`Zzzz` only acknowledges that already-failed run; it is never recovery, success, or a valid way to reach Bed. An
+active live eval that observes pass-out must finish FAIL even if a later frame shows Bed or the destination.
+After `time_fail` or forced passout, a previously issued click may finish late across the transition. Before any task
+restart or eval start, take two fresh zero-input reads and require the same coherent scene and save position with no
+pending intent or new movement event. A disagreement means the old input is still settling: fail/avoid the eval,
+refresh again, and do not treat the first post-passout Bed frame as a stable start state.
+For a fresh live eval, order is strict: restart the gameplay task first, obtain fresh House+Bed evidence, then start
+the eval. `restart=true` deliberately fails every active eval, so never start an eval and restart its task afterward.
 Menu-key JSON uses `action:{kind:"key",label:"m",expects:{mode:"map"}}` (similarly `j`/`i`), not a `key` field
 or `press` on a HUD letter. The `key:m` shorthand is one guarded input without an implicit expected-mode claim.
 On `verdict=unsafe`, read the exact `guard` check first: it issued zero inputs. Empty after-state/after frames in
@@ -82,6 +199,9 @@ A zero-input `read` uses one fresh coherent snapshot for its outcome and NEXT. I
 that was never issued; an unknown/black snapshot still permits only the existing bounded second observation.
 One frame grants no movement comparison (`moved=null`). Restart recovery captures afresh, and every later
 physical action takes a new pre-input observation before its guards. This receipt never crosses decisions.
+Two fresh rendered before/after frames may prove movement even when the save slot has not autosaved yet. An
+unchanged saved position from the same older save count/game time is a stale hint; it cannot negate current visual
+movement or be reported as authoritative no-move.
 Optional `WF_TIMING_FILE=/tmp/wf-timing.jsonl` records payload-free client/server, capture, clue and persistence
 durations when inherited by that process (set it for daemon startup as well as the client). It issues no input.
 
@@ -117,7 +237,7 @@ completed/resumed child outcomes in the archive. Stale, pre-input, missing, conf
 evidence retains the surprise. Guard-refusal refresh remains observation-only: no moved credit, and other original
 expectations still apply.
 Read its source frame before diagnosing uncertainty. Corrections:
-`revise_decision`, `graph`, `appearance`, `transition`, `blocked_target`, `gap`, `human`; legacy `world` remains accepted.
+`revise_decision`, `route_clear`, `graph`, `appearance`, `transition`, `blocked_target`, `gap`, `human`; legacy `world` remains accepted.
 `human` (and legacy `unresolved`) records a terminal unresolved task and leaves only observation/stop; never use it to
 request clarification that should resume. For a resumable human question, submit no correction, return `need-help`
 with the current turn/evidence, and leave the surprise/task active.
@@ -134,11 +254,12 @@ and leaves the parent frozen. A separate `resume` restores it. Each boundary sur
 reconciled without repeating input. `human` terminally records unresolved ambiguity; `gap` preserves evidence for offline repair.
 Unsupported completion proof is a gap, never permission to mark success from a model assertion.
 
-Check interrupts every turn. A new task after 19:00 requires the pre-approved sleep subgoal before work; rain/darkness
+Check interrupts every turn. At 18:00 or later, stop ordinary gameplay, push/use the pre-approved sleep workflow,
+return home and sleep, or explicitly hand control to the human; runtime refuses ordinary navigation until that workflow owns the route. Rain/darkness also
 requires the documented sleep handoff. Empty-can constraints apply only to garden work that needs water: explicitly
 push `refill`, navigate to the well, choose its fill action, and complete only after `fill_watering_can`; then resume
 the frozen garden interaction. The refill subgoal and unrelated harvest/shop/navigation work do not inherit an
-   empty-can prohibition. Clock/weather safety interrupts still apply. After 23:00 finish the immediate safety step and sleep.
+   empty-can prohibition. Clock/weather safety interrupts still apply.
 For coding or long off-game work, let the game lose focus; unfocus freezes game time. Do not open the Pause menu merely
 for thinking. Use explicit Pause/Resume only when the visible modal itself is part of the model-owned task. Never change
 the user's settings.

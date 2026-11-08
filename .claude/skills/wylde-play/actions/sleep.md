@@ -3,15 +3,17 @@
 > **Summary:** the model enters the house, locates the west bed, interacts and verifies `sleep_transition` in
 > separate turns. `./wf sleep` observes a universal turn; it never runs a bed-navigation workflow.
 
-Prerequisites: sleep authorization (quest scope or the standing new-task-after-19:00 rule), current clock and region,
+Prerequisites: sleep authorization (quest scope or the standing at/after-18:00 rule), current clock and region,
 and a preserved parent interaction via `push:{goal:"sleep"}`. Load [regions.md](regions.md) if outside. Check graph
 placement and Bed appearance samples against the fresh frame. If both clues are missing/stale, look and record the
 named graph/appearance correction or gap before moving again.
 
 Outside click the visible entrance/porch. After entering the bed is west: Tara's pink bed is in the front-left room;
-the purple bed is not hers. Choose one visible target/waypoint. Once the sleep bubble is detected, click that bubble
-with the `bubble` primitive and its fresh point; do not press Space for the initial world interaction. Inspect the
-bedtime prompt. When its affirmative `Yes` bubble is highlighted, confirm in the next turn with the dedicated
+the purple bed is not hers. Choose one visible target/waypoint. Once the named sleep bubble is highlighted, Tara is
+already in interaction range: use the `space` primitive bound to that current highlighted world affordance and expect
+the bedtime card. Do not click across the bed/footboard merely to hit the bubble point. If the sleep bubble is visible
+but not highlighted, approach only by a model-confirmed fully visible walkable road; a bubble never bypasses target
+road safety. Inspect the bedtime prompt. When its affirmative `Yes` bubble is highlighted, confirm in the next turn with the dedicated
 `space` primitive **bound to that current view's exact `Yes` control id**, for example
 `action:{kind:"space",control:"control-0",expects:{events:["sleep_transition"],allowed_events:["advance_day","day_start_intro","complete"]}}`
 (the id is observation-owned;
@@ -26,7 +28,8 @@ continuing it.
 
 Bubble expectations use text, for example `expects:{card:"<verified prompt substring>"}`, or `card:"?"` to read
 an unknown prompt as a gap. Boolean `card:true` is invalid. Supply `visible_road:true` only for a freshly verified
-target/road; the bubble does not bypass that guard. Completion still requires the actual `sleep_transition` event.
+target/road; the bubble does not bypass that guard. A highlighted world bubble uses Space without a road click.
+Completion still requires the actual `sleep_transition` event.
 A highlighted/ready unknown bubble is not automatically sleep: inspect both icon and owner. In the captured
 D210 turn160 room view, `[728,488]` is a green jar/mug bubble over a white-haired NPC by the fridge, while Tara
 stands beside the purple east bed. It is not proved to be a sleep affordance. Tara's pink west bed is bottom-left.

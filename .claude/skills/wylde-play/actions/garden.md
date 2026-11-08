@@ -24,7 +24,7 @@ reopens only matching shortages. After explicit return/resume, inspect and finis
 planting them. Blocked/covered accounting can finish as constrained, which must be reported honestly.
 
 Wrong identity/card/modal, no progress, unexpected event, stale clue or missing proof requires look/correction before
-another input. Rain/darkness/new-task-after-19:00 requires sleep; empty can requires refill. Completion accounts for
+another input. Rain/darkness/at-or-after-18:00 requires sleep or human handoff; empty can requires refill. Completion accounts for
 every bed/hive as covered or explicitly unresolved; successful completion has no remaining constraints.
 
 For a garden task that will sell/buy during shortages, declare its exact sale bounds and category purchase bounds

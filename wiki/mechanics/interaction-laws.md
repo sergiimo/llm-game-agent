@@ -17,13 +17,18 @@ the primary current-frame navigation evidence; graph/routes contextualize them. 
 frame must come from one capture. Every `NEXT` also prints the compact `model_workflow` stages observe → decide →
 vision → act → verify → learn → repeat so omissions are visible without exposing private chain-of-thought.
 
-**Long-distance navigation (user rule):** first issue canonical guarded
-`{kind:"key",label:"m",expects:{mode:"map"}}`, inspect the full-scale map and learn pin/landmarks/road connections
-with source-frame rationale/evidence references before selecting a route. Close it explicitly before world input.
-Visible-road-only travel is local approach or fallback after a correctly issued request/result proves the map
-unavailable/insufficient; record why. A refusal is not unavailability. The model decides routes and each map action;
-Python does not infer a distance threshold or schedule navigation. See the navigation action doc for learning and
-provenance. A HUD map icon or pin-colored scenery alone cannot establish the full paper-map modal.
+**Navigation:** every domain pushes the same generic `navigate` child before using a waypoint; garden is an ordinary
+nested region, not a special route mode. The graph supplies one next edge as compass plus `near|mid|far`. The model
+selects a target or visible-road point from the current full-scale frame in that qualitative sector. That point binds
+one input to one view and never becomes persistent route state. Waypoint motion alone does not advance graph
+position; captured transitions, regions, or positioned-object ancestry do. The paper map is an optional outdoor
+observation when a long segment is unresolved, never a metric coordinate source or automatic route executor. Close
+it explicitly before world input. A HUD map icon or pin-coloured scenery alone cannot establish map mode.
+
+**Clocks:** `hud_hour`, `log_time`, and `save_time` describe different evidence sources. Refresh HUD time with a
+captured frame, log time at the action/outcome boundary, and save time only from a new save snapshot. Do not merge,
+extrapolate, or overwrite one with another. The compatibility `game_time` on an experience means the log/action
+clock, while save-derived fields retain `save_time` in provenance.
 
 Continue with the exact returned turn ID; each command is its own tool call:
 
@@ -91,7 +96,9 @@ Never infer actual node ownership from projection.
 
 ## Explicit nested subgoals and corrections
 
-`push` with `action:{goal,params}` freezes the parent interaction. `suspend` holds a subgoal; `complete` verifies its
+`push` with `action:{goal,params}` freezes the parent interaction. Travel always uses
+`action:{goal:"navigate",params:{destination:"<node or kind>"}}`; this includes travel between garden subregions.
+`suspend` holds a subgoal; `complete` verifies its
 captured domain evidence without restoring the parent. A separate `resume` restores it. Pending intents reconcile
 without repeat at any nesting depth. Sleep requires `sleep_transition`; region travel requires matching captured
 region evidence. Unsupported proof becomes a gap/human resolution, never a model assertion of completion.

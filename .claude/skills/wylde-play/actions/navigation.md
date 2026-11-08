@@ -1,6 +1,6 @@
 # Navigation and foraging
 
-> **Summary:** long-distance navigation uses and learns the map first; visible-road steps serve local approach or a proved map limitation.
+> **Summary:** navigation follows nested graph edges expressed as compass plus near/mid/far; screen points identify one current-frame click only.
 > Every click returns to `play`; no route, search, forage or retry loop runs inside Python.
 
 Prerequisites: read the active goal/transaction, exact clock, current modal and full-scale frame. Tara stays at the
@@ -10,17 +10,16 @@ evidence and are computed from the same frame as bubbles/OCR. Use the graph to s
 expected learned kind is absent or contradicts the graph, inspect the frame with model vision and correct the vector,
 graph or decision explicitly; never silently fall back to a stale route.
 
-The map workflow is outdoors only. When `region=House`, first click the visible interior exit/opening, then the porch
-stairs, then one more outside waypoint until the house interior is gone and the exterior is fully rendered. Only
-then open the map. An indoor `m` request is a guard refusal and issues no input.
+Push a generic `navigate` child before any waypoint, including from garden work. Read its
+`navigation.next_edge.compass` and `.range`; then choose a target or visible-road waypoint in that qualitative sector
+from the current full-scale frame. A point/cell binds the atomic click to that view and is discarded afterward. Do
+not derive, persist, or compare world coordinates, calibrated distances, or dead-reckoned positions. Garden,
+interiors, and outdoors all use the same nested graph path.
 
-**User rule:** before a long-distance trip or searching for an off-screen destination, issue one canonical guarded
-`action:{kind:"key",label:"m",expects:{mode:"map"}}` from proved gameplay. Inspect the full-scale result, locate
-the pin, destination/landmark candidates and road connections, and learn from it before choosing a route. Record
-these observations and their uncertainties in the next versioned decision's rationale/evidence_refs (canonical run
-timeline); retain the map frame. Correct an existing graph edge/location or appearance label only with supported
-source-frame proof, and consolidate verified route knowledge after milestones. Map pixels are not world coordinates
-without calibration. Python does not select routes, decide when a trip is long, schedule map calls or move for you.
+The map workflow is outdoors only and optional when a long segment is visually unresolved. A canonical guarded
+`action:{kind:"key",label:"m",expects:{mode:"map"}}` produces another source frame for model interpretation; it
+does not become a coordinate system or automatic route. Record landmarks/road connectivity as qualitative graph
+evidence. An indoor `m` request is a guard refusal and issues no input.
 
 Close a recognized map in its own turn with `action:{kind:"close",expects:{mode:"gameplay"}}` before any world
 input. The dedicated `close` primitive issues the guarded Escape. Do **not** encode this as `key:m` or `key:esc`:
@@ -51,8 +50,8 @@ clicks; preserve uncertainty rather than click through it.
 `HouseExit` is a structural appearance vector for the complete unrailed wall opening. A valid candidate point lies
 inside that gap between its boundary posts; individual wall, railing, or porch-board patches do not prove the exit.
 
-For measurable travel, state `destination_position:[x,z]` and compare captured before/after positions; a smaller
-distance is progress. A matching expected event, card or region can also provide relevant observation. No move,
+For measurable travel, state the expected compass/range edge and relevant destination region/transition. A matching
+expected event, card, scene, region, or positioned-object ancestry provides progress proof. No move,
 movement away, unrelated movement, wrong region/object/modal, stale route or failed vector match is a surprise.
 Read the captured frame; revise the click, correct the exact named edge/location/kind, record a gap, or ask the human.
 Never retry a stale direction silently. Completion needs captured matching `region` evidence or fresh positioned-object graph ancestry; unsupported or stale
@@ -74,7 +73,7 @@ the current scene/building. Use `expects:{region:"<nested region>"}`, then compl
 that proof. A stored Tara location, nearest-object guess or no-event waypoint never supplies nested arrival.
 
 For a model-selected visible-road waypoint, declare the atomic movement expectation explicitly, for example
-`action:{kind:"waypoint",point:[<x>,<y>],walkable:true,expects:{moved:true}}`. Matching `expects.moved=true` and captured `moved=true` is relevant step evidence. A stationary
+`action:{kind:"waypoint",cell:"F7",walkable:true,expects:{moved:true}}`. Matching `expects.moved=true` and captured `moved=true` is relevant step evidence. A stationary
 waypoint still reports no progress when `expects.moved=false` matches `moved=false`. Absent or mismatched expectations still require the usual conservative
 progress checks. Complete navigation only after captured matching region/ancestry proof; a movement check
 does not complete the region handoff. Read the returned frame before selecting another point.

@@ -303,16 +303,17 @@ class GardenTurns(unittest.TestCase):
         self.assertEqual(len(port.inputs), 1)
         self.assertEqual(c.transaction['crop'], 'Carrot')
 
-    def test_waypoint_is_provisional_navigation_and_allows_first_target_after_restart(self):
-        store, port, call = self.session([event(), event('plant', 'A', ['Inventory', 'Seeds'])])
+    def test_garden_waypoint_is_refused_until_generic_navigation_and_allows_target_after_correction(self):
+        store, port, call = self.session([event('plant', 'A', ['Inventory', 'Seeds'])])
         c = call()
         c = call(turn_id=c.turn_id, decision=Decision('act', action={
             'kind': 'waypoint', 'point': [600, 600], 'walkable': True}))
         self.assertEqual(c.transaction['phase'], 'approach')
         self.assertFalse(c.transaction['provisional'].get('target_selected'))
         self.assertIsNone(c.transaction['actual_node'])
+        self.assertEqual(port.inputs, [], 'garden root cannot bypass the generic navigate child')
         restarted = call()
-        self.assertIsNotNone(restarted.surprise, 'an unproved waypoint cannot count as progress')
+        self.assertIsNotNone(restarted.surprise, 'a garden-root waypoint must be a zero-input refusal')
         c = call(turn_id=restarted.turn_id, decision=Decision('correct', correction={
             'kind': 'revise_decision', 'data': {'reason': 'fresh frame identifies the visible first target'}}))
         inputs_before = len(port.inputs)

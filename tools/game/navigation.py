@@ -32,13 +32,22 @@ def _node(graph, name):
                  if node.id.casefold() == folded or str(node.kind).casefold() == folded), None)
 
 
-def _observed_current(graph, observation):
-    """The deepest explicitly observed region is the route origin; never infer one from numeric proximity."""
+def _observed_current(graph, observation, task=None):
+    """Use explicit region/ancestry proof as route origin; never infer one from numeric proximity."""
+    observed = None
     for candidate in (observation.get('region'), observation.get('scene')):
         key = _node(graph, candidate) if candidate else None
         if key:
-            return key, 'observed_region'
-    return None, None
+            observed = key
+            break
+    params = _field(task, 'params', {}) or {}
+    durable = params.get('_nav_current')
+    proof = params.get('_nav_current_proof') or {}
+    if durable in graph.nodes and proof.get('source') in ('positioned_event', 'transition'):
+        ancestry = graph.chain(durable)
+        if observed is None or observed in ancestry:
+            return durable, proof['source']
+    return (observed, 'observed_region') if observed else (None, None)
 
 
 def _path(graph, start, goal):
@@ -86,7 +95,7 @@ def receipt(task, observation, graph=None):
     goal_receipt = {'node': goal_key, 'scene': scene,
                     'source': goal.extra.get('source'),
                     'enterable': bool(goal.extra.get('enterable'))}
-    current, current_source = _observed_current(graph, observation)
+    current, current_source = _observed_current(graph, observation, task)
     if current is None:
         return dict(base, status='unresolved_graph_position', goal=goal_receipt, next_edge=None,
                     graph={'current_node': None, 'destination': goal_key})
@@ -155,7 +164,13 @@ def advance(task, experience):
     edge = navigation.get('next_edge') or {}
     before_region = before.get('region') or before.get('scene')
     after_region = after.get('region') or after.get('scene')
-    if edge.get('transition') and after_region == edge['transition'] and after_region != before_region:
+    proof = after.get('region_provenance') or {}
+    regions = list(after.get('regions') or ())
+    if (proof.get('source') == 'positioned_event' and
+            (edge.get('to') == proof.get('node') or edge.get('to') in regions)):
+        task.params['_nav_current'] = edge['to']
+        task.params['_nav_current_proof'] = dict(proof)
+    elif edge.get('transition') and after_region == edge['transition'] and after_region != before_region:
         task.params['_nav_current'] = edge['to']
         task.params['_nav_current_proof'] = {'source': 'transition', 'experience': experience.id,
                                              'region': after_region}

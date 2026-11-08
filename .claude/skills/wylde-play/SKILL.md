@@ -37,11 +37,18 @@ Tara is at frame centre. A target needs its entire visible walkable road; otherw
 waypoint. Move only by clicking. Current modal and guard rules apply to each primitive; no blind key loops.
 
 For a navigation turn, read `navigation` before interpreting the frame. It resolves the requested destination to the
-current graph, names the next node/edge and required world compass, and projects a proposed screen waypoint through
-the scene calibration. Inspect the turn's own full-scale `view.path` and choose a clear-road waypoint directly when
-its projected compass agrees with the graph (within one compass sector). State both compasses in the rationale.
-Do not ask the supervisor to choose ordinary waypoint coordinates. Escalate only an unresolved destination/route, a
-real visual ambiguity, or a repeated compass-guard refusal after one fresh-frame correction.
+current nested object graph and names the next node/edge using only compass plus `near|mid|far`. Inspect the turn's
+own full-scale `view.path`; choose a target or visible-road waypoint in the required qualitative sector. The point or
+cell exists only to identify that click in this frame—it is never a persistent route coordinate. State the graph and
+screen compass/range in the rationale. Any domain, including garden and indoors, must `push` a generic `navigate`
+child before issuing waypoints, then complete it from captured transition/region/object-ancestry proof. Escalate only
+an unresolved destination/path, a real visual ambiguity, or a repeated qualitative-guard refusal after one fresh
+frame correction. Do not extend `tools/world/` coordinates or the retired calibrated route stack.
+
+Keep clocks source-specific. `hud_hour` is refreshed from each captured frame for user-facing gates, `log_time` is
+refreshed at the action/outcome boundary and is the canonical action timeline, and `save_time` belongs only to the
+latest save snapshot and its provenance. Never merge them into a synthetic “current game time” or advance one source
+because another changed; refresh that source at its normal observation trigger.
 
 A surprise blocks gameplay until `look`, `correct` or `stop` resolves it. Preserve the active crop/phase/node and
 parent interaction. Pending input reconciles from recorded evidence without repetition. The settle boundary's final

@@ -3,79 +3,46 @@ name: wylde-navigate
 description: Move Tara around Fairhaven in Wylde Flowers by clicking (click-to-move), the map, and recognising arrival. Use when the next step requires going somewhere in the game.
 ---
 
-# Navigating (mouse only, L54)
+# Navigating (mouse only, qualitative graph)
 
-## Click-to-move: the only way to move
-`./wf look` → pick the destination (object or ground point) → `./wf do go:<x>:<y>` (game coords = look coords ÷ 0.4).
-The game pathfinds around fences/objects; Tara stops in front of a clicked object with its bubble shown, then
-`./wf do key:space`. One `go:` per on-screen hop; chain hops with a look between for far places. `go:` returns when
-Tara herself stops (tracker, L52).
-- `ALREADY THERE` → she's at the object: act. `NO MOVE` → not walkable: click a ground point nearer to Tara.
-- **Leaving a building:** click the floor at the doorway (bottom edge of the room).
-- Keyboard walking (`walk:`/`path:`/`route:`/`bubble:`) is disabled in the tool. There is no keyboard fallback.
+Navigation is the same engine workflow everywhere: outdoors, indoors, and garden. The object graph contains nested
+regions and landmarks; `./wf play navigate destination=<Kind>` resolves the observed current region to one coherent
+path and returns only the next edge. Each navigation edge is `compass=N|NE|E|SE|S|SW|W|NW` plus
+`range=near|mid|far`, with optional scene transition. Numeric world positions and calibrated paths are retired as
+route authority. Coordinates in old data are debug/provenance only; do not extend `tools/world/`, `tools/nav/`,
+`goto`, `go-world`, `pos`, `calib`, route files, or coordinate facts.
 
-## Exact position (L62)
-`./wf pos` → `POS <scene> (x, y, z)`: engine world coords from a fresh autosave (the game goes to the background for
-~2.5 s, then comes back). Ground = x/z. `NO NEW SAVE` = nothing changed since the last save, which still holds.
-Use at arrivals or when lost, not every step. `./wf calib` (≈45 s, 8 short hops on open ground, no fences or water
-nearby) teaches the current scene's screen ↔ ground mapping (outdoors it is the same camera everywhere, so a new outdoor scene borrows an existing fit; each indoor area needs its own, L66).
+## One turn
 
-**Navigation learns by itself (self-improvement loop):** every `go:` is remembered; checkpoints (end of `goto`/edge,
-scene change, stuck, `./wf pos`) measure where Tara really is and append a fact to `tools/nav/facts.jsonl`.
-- `./wf pos --learn <name>` = this spot is place `<name>`. `./wf goto <name>` then walks there by calibrated clicks
-  (≈10 s, 1–2 readings, < 0.8 units off; Farm D146: 0.04 and 0.01).
-- **Graph first, map last.** If the map fails once (`map did not open`, `NEED_VISION`), don't retry it: `./wf pos`,
-  then `./wf plan <node>` / `./wf goto <node>` (graph nodes like `House:in` are not in the map's place list).
-  `goto` does this by itself when the map won't open.
-- **Exits are stored only when traced** (calibrated area): an untraced crossing keeps the link without a position.
-  A building door then walks toward the other side's anchor (same coordinates); a scene link prints "needs exploring".
-- **4 layers, coarse → fine:** L4 map (place pins, outdoors only) → L3 graph → L2 calibration → L1 image prints.
-  `goto` plans at the finest layer that knows the place: a learned place = `ARRIVED` (exact); a place known only
-  from the map = `NEAR` (±2–12 units: look, click the last bit, then `./wf pos --learn <name>`); unknown to the graph =
-  the map route, re-planned by the graph after each scene change.
-- **Each scene has its own coordinates** (L65): data lives in `tools/nav/<Scene>/` and `tools/nav/<Scene>/<Building>/`;
-  scenes connect only through learned exits → anchors.
-- **Far places by map = map compass (L72):** `./wf goto <map place>` opens the map once, routes on its roads, then
-  walks 8-unit hops in the route's direction, each ending in an exact reading, and looks at the map again every 3 hops
-  or after a scene change (borders are walked through). Map px are direction + distance only, never exact positions.
-- **Trail + way back (L73):** every walk between two readings is a proven path (both ways), so plans follow where
-  she has really been instead of straight lines into dead ends; a scene she entered can be left the same way back.
-- **Stuck = her position changes < 2 units over 3 moves while not at the goal (user rule, L75)**; the daemon checks it
-  across all calls (L80): a `STUCK …` line in any output = stop and escalate. Applies to
-  manual clicking too: after 3 such moves stop clicking the same way and ask for the next step (`./wf ask-step`).
-  Every stuck episode: report it (agents: in GAPS as `[stuck]` with where/signal/what you tried); the supervisor runs a
-  stuck retro against `retros/stuck-ledger.md` (AGENTS.md rule 7).
-- **Code can't make the next step → `NEED_VISION step` (L74):** the question names the GOAL (place, distance and
-  direction, the task from the open run) and its image shows what the layers know: blue = road, green = where she has
-  walked, red X = walls/refused clicks, yellow arrow + numbered dots = planned direction and next route points,
-  magenta = Tara, white ticks = game coords. Answer the next click toward the goal near her (≤ ~400 px) on open
-  ground, following roads/green that lead there (out of an enclosure first if needed; never fences/hedges/rocks/fenced
-  plots/red X): `./wf teach step X:Y`, then re-run the `goto`. A real move is stored as a proven walk, the blocked way
-  as a wall. `./wf ask-step <place>` asks on purpose.
-- `./wf go-world X Z` = walk to a world point in this scene.
-- **World graph:** nodes = learned places, map places (coarse), scene/building **anchors** (`Farm/LinkTown`, `House:in`,
-  `House:out`) and the **exits** that lead to them; `./wf plan <name>` shows the route (walk / link / replay), `./wf goto
-  <name>` runs it, falling back to the map route. Each crossing teaches a link by itself. Areas: `Farm`, `Farm/House`
-  (indoors = its own area: buildings share the outdoor coords). An area without calibration can't be walked by the graph.
-- **Place fingerprints:** every checkpoint stores an image vector; once a scene's image guesses prove right (≥ 20, 80 %),
-  they replace the 2.5 s reading at trip starts. `learn nav` shows the accuracy.
-- **Walls (L67):** when a walk stops against a barrier, the game log gives her exact position for free; `go-world`
-  then steps sideways (detour) and the detour point becomes a graph node, so the next plan goes around by itself.
-- **Coverage (L67):** `./wf coverage` = matrix of map cells (outdoors) / world cells (indoors): digit = layers present
-  (map pin, reading, confirmed prediction, print), `·` = road without data, `@` = Tara. Every checkpoint fills a missing
-  map pin when she stands on a road. `./wf improve [N]` fills her cell's gaps, then walks to the nearest uncovered road
-  cell, N cells (≈ 1 game hour for 3; outdoors only). If pins are never taken, check `./wf road` (0% on a road =
-  teach this lighting period with `./wf road --calibrate`).
-- `NO MOVE` spots are avoided for 1 game hour. `./wf learn nav` = what each layer knows per area, then calibration,
-  places, edges, blocks, recent facts
-  (delete a bad fact's line to undo it). Edges marked `suspect-wall` need a human decision.
+1. Push a generic `navigate` child whenever another task needs travel, including garden work. A non-navigation task
+   cannot issue a waypoint.
+2. Read `NEXT.navigation.next_edge` and the exact full-scale frame. Tara is at frame centre.
+3. If the named target and its complete walkable road are visible, click the target. Otherwise choose one visible
+   ground cell/point in the requested compass and `near|mid|far` band. A screen point identifies only this frame's
+   click; it is not persisted as a route coordinate.
+4. Submit exactly one `waypoint` or target decision, with frame evidence and both graph/screen qualitative bearings.
+   The guard allows at most one adjacent compass-sector difference and requires the same range band.
+5. Read the settled outcome and fresh frame. Waypoint movement alone never advances the graph. Only captured scene,
+   region, transition, or positioned-object ancestry can prove the next node or complete the child.
 
-## Finding the way
-- `./wf key m` opens the map: the pink pin is Tara and a dotted line marks the current quest route. Close with Esc.
-- World connections: `wiki/overview.md` (Map), `wiki/places/locations.md` (verified landmarks) and
-  `wiki/<Area>.md` → "Connections" (e.g. Town Center → Farm exits top-left by the Blacksmith).
-- Old keyboard routes in `routes/*.txt` are disabled, but their comments still describe landmarks along the way.
+At doors, gaps, bends, occlusion, or an unknown screen, take a shorter visible-road step and observe again. A map is
+an optional current-frame observation for an unresolved long outdoor segment, not a coordinate source or hidden
+route executor. Close it explicitly before world input. Keyboard movement and blind loops remain prohibited.
 
-## Arrival
-Area change = letterbox + location banner bottom-left (sometimes a short camera pan); the log shows `ChangeScene` /
-`OnEnterBuilding` / `OnExitBuilding`. Then `./wf state`.
+## Failure and learning
+
+`unresolved_destination`, `unresolved_graph_position`, or `unresolved_path` means the graph lacks a coherent route;
+inspect the current frame and correct the exact node/edge or record a gap. A qualitative mismatch means the proposed
+click is in the wrong compass/range sector; select a new point from the same fresh frame. `NO MOVE`, irrelevant/away
+movement, a stale vector, wrong region/modal, or an expected exit that is visibly present but produces no transition
+is a surprise: preserve the frame and experience, then revise the decision or add the smallest evidence-backed
+graph/vector correction. Do not silently retry.
+
+The known Farm path is nested like indoors: `House → HouseExit → Farm → Garden → Well`. Garden has no private
+navigation algorithm. A garden transaction freezes while its `navigate` child runs, then resumes after captured
+Garden/Well proof.
+
+For repeated lack of progress, follow AGENTS.md's stuck rule and write the stuck retro. For the stable regression,
+start at a fresh House+Bed clue with `./wf live-eval start bed-to-well`, play through the ordinary navigation turns,
+then run `./wf live-eval finish` and `./wf live-eval report`. Passing requires a newer Garden+Well checkpoint; the
+SQLite report compares performed inputs, no-moves, observations, and toolkit revision.

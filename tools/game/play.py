@@ -482,11 +482,12 @@ def inventory_count(observation, item):
 
 
 def region_matches(state, wanted):
-    """Scene/building evidence or captured positioned-object graph ancestry can prove a named region."""
+    """Scene/building evidence or captured positioned-object graph ancestry can prove a destination."""
     if state.get('region') == wanted:
         return True
     proof = state.get('region_provenance') or {}
-    return (proof.get('source') == 'positioned_event' and wanted in state.get('regions', ()) and
+    return (proof.get('source') == 'positioned_event' and
+            (proof.get('node') == wanted or wanted in state.get('regions', ())) and
             list(proof.get('regions', ())) == list(state.get('regions', ())))
 
 
@@ -530,7 +531,7 @@ def verify_completion(task, current, outcomes):
         return result
     if current.goal in ('navigate', 'enter', 'exit'):
         after = dict(outcomes[-1]['experience']['evidence'].get('state', ())) if outcomes else {}
-        region = params.get('region')
+        region = params.get('region') or params.get('destination') or params.get('where')
         if not region or not region_matches(after, region):
             raise DecisionRejected('region completion needs captured matching region evidence')
         return {'region': region}

@@ -99,7 +99,7 @@ class PlayCase(unittest.TestCase):
         graph.nodes['Garden'] = Node('Garden', 'region', region='Farm')
         scope = self.play()._vector_scope(graph, 'House', learned_kinds={'Bed', 'HouseExit'})
         self.assertEqual(scope['region'], 'House')
-        self.assertEqual(scope['kinds'], ['Bed', 'HouseExit'])
+        self.assertEqual(scope['kinds'], ['Bed', 'HouseExit', 'Tara'])
 
     def test_new_task_reuses_its_vector_observation_in_the_first_next(self):
         observed = mock.Mock(wraps=self.port.observe)

@@ -38,7 +38,9 @@
   never use OCR garbage such as a partial HUD label as proof of a modal.
 - A labelled gap/threshold such as `HouseExit` is a spatial structure, not a bag of wall/board patches. Store the
   full opening crop with state `structure`; detection then correlates its aligned DINO patch grid in one existing
-  frame pass, using the structural-window threshold. The returned point must lie inside the unrailed gap.
+  frame pass. A high relative z-score is insufficient by itself: the structural window must also clear the absolute
+  cosine floor, or ordinary floor/rug patterns can become the best bad match. The returned point must lie inside the
+  unrailed gap. A rejected click remains an immutable experience and `appearance_attempt` fact on that graph node.
 - If navigation appears to “know” an exact location but chooses a worse route, reject that metric inference. Route
   authority is the nested object graph's next `compass` + `near|mid|far` edge; screen coordinates identify one click
   in one frame only. Garden uses the same `navigate` child as a building. A waypoint from a garden/root task without
@@ -48,7 +50,8 @@
   needed by the decision and keep its provenance; never copy save time into the live action clock.
 - For navigation regressions, use `./wf live-eval start bed-to-well` only after a fresh House+Bed clue in an active
   run. Play through the ordinary graph workflow, then `finish` and `report`. The evaluation passes only with a newer
-  Garden+Well clue and stores its checkpoints, input/no-move counts, and revision in SQLite.
+  Garden+Well clue and stores its checkpoints, input/no-move counts, and start/finish revisions in SQLite. Different
+  revisions mean the run exercised hot fixes and should not be presented as a single-revision baseline.
 - A bounded `./wf do go:... --look` may legitimately need more than 25 seconds (pre-check OCR + up to 15 seconds of
   movement tracking + settle/final OCR). The daemon client deadline is 60 seconds as of D4; an exact 25-second
   `outcome unknown after request delivery` indicates an older client. Do not retry the movement blindly: inspect the

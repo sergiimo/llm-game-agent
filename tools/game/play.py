@@ -35,12 +35,14 @@ def _save_money(save):
 
 
 def _vector_scope(graph, *candidates, learned_kinds=None):
-    """Learned appearance kinds visible in the current graph region, including nested landmarks and exits."""
+    """Appearance kinds visible in the region, plus Tara as the global gameplay/movement anchor."""
     region = next((candidate for candidate in candidates if candidate in graph.nodes), None)
     allowed = set(learned_kinds) if learned_kinds is not None else None
     kinds = sorted({node.kind for node in graph.nodes.values()
                     if region and region in graph.chain(node.id) and
                     (allowed is None or node.kind in allowed)})
+    if region:
+        kinds = sorted(set(kinds) | {'Tara'})
     return {'region': region, 'kinds': kinds if region else None}
 
 

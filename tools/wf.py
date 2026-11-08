@@ -1332,15 +1332,16 @@ def live_eval_cmd(args):
 
     store = _run_store()
     evaluations = LiveEvalStore(store.database)
+    def revision():
+        return subprocess.run(
+            ['git', 'rev-parse', '--short', 'HEAD'], cwd=ROOT, capture_output=True,
+            text=True, check=True).stdout.strip()
     sub_ = args[0] if args else 'status'
     if sub_ == 'start' and len(args) == 2:
         run = store.active()
         if not run:
             raise ValueError('live evaluation requires an active run')
-        revision = subprocess.run(
-            ['git', 'rev-parse', '--short', 'HEAD'], cwd=ROOT, capture_output=True,
-            text=True, check=True).stdout.strip()
-        row = evaluations.start(args[1], run['id'], revision)
+        row = evaluations.start(args[1], run['id'], revision())
     elif sub_ == 'status' and len(args) <= 2:
         row = evaluations.active(args[1] if len(args) == 2 else None)
         if not row:
@@ -1352,7 +1353,7 @@ def live_eval_cmd(args):
             if not active:
                 raise ValueError('no active live evaluation')
             eval_id = active['id']
-        row = evaluations.finish(eval_id) if sub_ == 'finish' else evaluations.report(eval_id)
+        row = evaluations.finish(eval_id, revision()) if sub_ == 'finish' else evaluations.report(eval_id)
     elif sub_ == 'compare' and len(args) == 2:
         row = evaluations.compare(args[1])
     else:

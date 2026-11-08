@@ -17,6 +17,7 @@ from . import dino
 
 Z_MIN = 4.5            # default presence threshold (z-score of the peak)
 STRUCTURE_Z_MIN = 3.0  # whole-window search has far fewer candidates than independent patch search
+STRUCTURE_RAW_MIN = 0.35  # live-calibrated floor: relative best-match alone can select unrelated floor/rug windows
 SUP = 4                # peak suppression radius, patches
 MAX_PEAKS = 24         # per kind (a 3x4 bed grid must be countable)
 THRESHOLDS = 'thresholds.json'
@@ -172,17 +173,25 @@ def _standardize(h):
     return out
 
 
+def _structure_zmap(raw):
+    """Score a structural window only when both its relative and absolute similarity are credible."""
+    z = _standardize(raw) * (Z_MIN / STRUCTURE_Z_MIN)
+    return np.where(raw >= STRUCTURE_RAW_MIN, z, -np.inf)
+
+
 def _kind_map(ff, store, kind):
-    """Combined local-patch and explicit whole-window structural maps for one kind."""
+    """Use whole-window layout for structural kinds; otherwise use independent appearance patches."""
     maps = []
-    vecs = kind_vectors(store, kind)
-    if len(vecs):
-        maps.append(_zmap(ff, vecs))
-    for rows, cols, template in structure_templates(store, kind):
+    templates = structure_templates(store, kind)
+    if not templates:
+        vecs = kind_vectors(store, kind)
+        if len(vecs):
+            maps.append(_zmap(ff, vecs))
+    for rows, cols, template in templates:
         raw = _window_cosine_map(ff, template, rows, cols)
         # Rescale to the common detection threshold; this is equivalent to a
         # STRUCTURE_Z_MIN threshold without weakening the kind's patch peaks.
-        maps.append((_standardize(raw) * (Z_MIN / STRUCTURE_Z_MIN), raw))
+        maps.append((_structure_zmap(raw), raw))
     if not maps:
         empty = np.full(ff.shape[:2], -np.inf, np.float32)
         return empty, empty.copy()

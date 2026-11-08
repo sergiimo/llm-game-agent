@@ -38,6 +38,10 @@ movement, a stale vector, wrong region/modal, or an expected exit that is visibl
 is a surprise: preserve the frame and experience, then revise the decision or add the smallest evidence-backed
 graph/vector correction. Do not silently retry.
 
+For a gap/threshold crop labelled `state=structure`, the detector must match the aligned whole window and clear both
+relative and absolute similarity. Never reinterpret a low-absolute structural hit as an object patch. Tara remains in
+every regional vector scope so an OCR-poor world frame can still prove gameplay and visual movement.
+
 The known Farm path is nested like indoors: `House → HouseExit → Farm → Garden → Well`. Garden has no private
 navigation algorithm. A garden transaction freezes while its `navigate` child runs, then resumes after captured
 Garden/Well proof.
@@ -45,4 +49,4 @@ Garden/Well proof.
 For repeated lack of progress, follow AGENTS.md's stuck rule and write the stuck retro. For the stable regression,
 start at a fresh House+Bed clue with `./wf live-eval start bed-to-well`, play through the ordinary navigation turns,
 then run `./wf live-eval finish` and `./wf live-eval report`. Passing requires a newer Garden+Well checkpoint; the
-SQLite report compares performed inputs, no-moves, observations, and toolkit revision.
+SQLite report compares performed inputs, no-moves, observations, and start/finish toolkit revisions.

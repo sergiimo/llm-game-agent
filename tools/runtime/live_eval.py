@@ -116,7 +116,7 @@ class LiveEvalStore:
                                           (evaluation['id'],)).fetchone()[0]
         return {'inputs': inputs, 'no_moves': no_moves, 'observations': observations}
 
-    def finish(self, eval_id):
+    def finish(self, eval_id, revision=None):
         self.checkpoint(eval_id)
         now = time.time()
         with self.database.transaction(immediate=True) as connection:
@@ -133,8 +133,10 @@ class LiveEvalStore:
                 result.update(destination=definition['destination_kind'], scene=proof['scene'],
                               observation_id=proof['observation_id'], checkpoint_id=proof['id'])
             status = 'pass' if proof else 'fail'
-            connection.execute('UPDATE live_evals SET status=?,ended_at=?,result_json=? WHERE id=?',
-                               (status, now, json.dumps(result, sort_keys=True), eval_id))
+            connection.execute(
+                'UPDATE live_evals SET status=?,ended_at=?,finished_revision=?,result_json=? WHERE id=?',
+                (status, now, str(revision) if revision is not None else None,
+                 json.dumps(result, sort_keys=True), eval_id))
         return self.get(eval_id)
 
     def report(self, eval_id):
@@ -145,6 +147,7 @@ class LiveEvalStore:
                 row = connection.execute('SELECT * FROM live_evals WHERE id=?', (eval_id,)).fetchone()
                 result = self._metrics(connection, row)
         return {'id': evaluation['id'], 'scenario': evaluation['scenario'], 'revision': evaluation['revision'],
+                'finished_revision': evaluation.get('finished_revision'),
                 'status': evaluation['status'], **result}
 
     def active(self, scenario=None):

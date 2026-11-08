@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 import numpy as np
 from PIL import Image
@@ -429,6 +430,28 @@ class DetectTests(unittest.TestCase):
         self.assertEqual(np.unravel_index(np.argmax(scores), scores.shape), (2, 3))
         self.assertAlmostEqual(float(scores[2, 3]), 1.0, places=6)
         self.assertLess(float(scores[4, 3]), 0.1)
+
+    def test_structural_map_rejects_a_strong_relative_peak_with_weak_absolute_similarity(self):
+        raw = np.full((5, 7), 0.10, np.float32)
+        raw[2, 3] = 0.31
+        scores = self.D._structure_zmap(raw)
+        self.assertTrue(np.isneginf(scores[2, 3]))
+
+    def test_structural_map_keeps_a_strong_relative_peak_with_absolute_similarity(self):
+        raw = np.full((5, 7), 0.10, np.float32)
+        raw[2, 3] = 0.40
+        scores = self.D._structure_zmap(raw)
+        self.assertGreater(scores[2, 3], self.D.Z_MIN)
+
+    def test_structural_kind_does_not_fall_back_to_independent_patch_matches(self):
+        ff = np.zeros((3, 3, 3), np.float32)
+        ff[:, :, 0] = 1
+        template = np.array([[[1, 0, 0]]], np.float32)
+        with mock.patch.object(self.D, 'structure_templates', return_value=[(1, 1, template)]), \
+                mock.patch.object(self.D, 'kind_vectors', side_effect=AssertionError('patch fallback')):
+            z, raw = self.D._kind_map(ff, object(), 'Exit')
+        self.assertEqual(z.shape, (3, 3))
+        self.assertEqual(raw.shape, (3, 3))
 
     def test_dino_shapes(self):
         from objects import dino

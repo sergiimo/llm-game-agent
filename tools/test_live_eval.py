@@ -71,10 +71,14 @@ class LiveEvalStoreTest(unittest.TestCase):
         self.clue('House', ['Bed'], self.now + 2)
         evaluation = self.store().start('bed-to-well', self.run_id, 'def456')
         self.clue('Garden', ['Well'], self.now + 3)
-        passed = self.store().finish(evaluation['id'])
+        passed = self.store().finish(evaluation['id'], revision='def789')
         self.assertEqual(passed['status'], 'pass')
+        self.assertEqual(passed['finished_revision'], 'def789')
         self.assertEqual(passed['result']['destination'], 'Well')
         self.assertEqual(passed['result']['scene'], 'Garden')
+        report = self.store().report(evaluation['id'])
+        self.assertEqual(report['revision'], 'def456')
+        self.assertEqual(report['finished_revision'], 'def789')
 
     def test_report_is_idempotent_and_counts_persisted_inputs_and_no_moves(self):
         with self.db.transaction(immediate=True) as connection:

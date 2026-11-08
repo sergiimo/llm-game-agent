@@ -252,8 +252,11 @@ CREATE TABLE live_eval_checkpoints (
 CREATE INDEX live_eval_checkpoints_eval ON live_eval_checkpoints(eval_id, id);
 """
 
+V4 = """
+ALTER TABLE live_evals ADD COLUMN finished_revision TEXT;
+"""
 
-MIGRATIONS = ((1, V1), (2, V2), (3, V3))
+MIGRATIONS = ((1, V1), (2, V2), (3, V3), (4, V4))
 
 
 def checksum(sql):

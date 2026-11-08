@@ -37,7 +37,9 @@ class RuntimeDatabase(unittest.TestCase):
         self.assertTrue(required <= tables)
         with db.connect() as conn:
             claim_columns = {row[1] for row in conn.execute('PRAGMA table_info(applied_updates)')}
+            live_eval_columns = {row[1] for row in conn.execute('PRAGMA table_info(live_evals)')}
         self.assertTrue({'claimed_at', 'claim_token'} <= claim_columns)
+        self.assertIn('finished_revision', live_eval_columns)
         self.assertEqual(len(applied), len(MIGRATIONS))
         self.assertEqual(len({row[0] for row in applied}), len(applied))
         self.assertTrue(all(len(row[1]) == 64 for row in applied))

@@ -331,6 +331,133 @@
       "rel": "offers"
     },
     {
+      "a": "House",
+      "b": "HouseExit",
+      "rel": "nav",
+      "compass": "E",
+      "range": "far",
+      "source": "verified_house_layout",
+      "walkable": true
+    },
+    {
+      "a": "HouseExit",
+      "b": "House",
+      "rel": "nav",
+      "compass": "W",
+      "range": "near",
+      "source": "verified_house_layout",
+      "walkable": true
+    },
+    {
+      "a": "HouseExit",
+      "b": "Farm",
+      "rel": "nav",
+      "compass": "S",
+      "range": "near",
+      "transition": "Farm",
+      "source": "verified_house_exit",
+      "walkable": true
+    },
+    {
+      "a": "Farm",
+      "b": "HouseExit",
+      "rel": "nav",
+      "compass": "N",
+      "range": "far",
+      "source": "verified_house_layout",
+      "walkable": true
+    },
+    {
+      "a": "Farm",
+      "b": "Garden",
+      "rel": "nav",
+      "compass": "W",
+      "range": "far",
+      "source": "verified_farm_layout",
+      "walkable": true
+    },
+    {
+      "a": "Garden",
+      "b": "Farm",
+      "rel": "nav",
+      "compass": "E",
+      "range": "far",
+      "source": "verified_farm_layout",
+      "walkable": true
+    },
+    {
+      "a": "Garden",
+      "b": "Well",
+      "rel": "nav",
+      "compass": "NW",
+      "range": "near",
+      "source": "verified_garden_layout",
+      "walkable": true
+    },
+    {
+      "a": "Well",
+      "b": "Garden",
+      "rel": "nav",
+      "compass": "SE",
+      "range": "near",
+      "source": "verified_garden_layout",
+      "walkable": true
+    },
+    {
+      "a": "Farm",
+      "b": "Farm/LinkTown",
+      "rel": "nav",
+      "compass": "SE",
+      "range": "far",
+      "source": "map_graph",
+      "walkable": true
+    },
+    {
+      "a": "Farm/LinkTown",
+      "b": "Farm",
+      "rel": "nav",
+      "compass": "NW",
+      "range": "far",
+      "source": "map_graph",
+      "walkable": true
+    },
+    {
+      "a": "Town",
+      "b": "TownFarmExit",
+      "rel": "nav",
+      "compass": "NW",
+      "range": "far",
+      "source": "map_graph",
+      "walkable": true
+    },
+    {
+      "a": "TownFarmExit",
+      "b": "Town",
+      "rel": "nav",
+      "compass": "SE",
+      "range": "far",
+      "source": "map_graph",
+      "walkable": true
+    },
+    {
+      "a": "Town",
+      "b": "FountainSquare",
+      "rel": "nav",
+      "compass": "S",
+      "range": "far",
+      "source": "verified_location",
+      "walkable": true
+    },
+    {
+      "a": "FountainSquare",
+      "b": "Town",
+      "rel": "nav",
+      "compass": "N",
+      "range": "far",
+      "source": "verified_location",
+      "walkable": true
+    },
+    {
       "a": "TownFarmExit",
       "b": "Farm/LinkTown",
       "rel": "nav",

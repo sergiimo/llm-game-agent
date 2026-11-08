@@ -15,7 +15,8 @@ DYNAMIC_ROOT_FIELDS = {'_refresh_conflicts', 'unnamed'}
 STATIC_ROOT_FIELDS = {'area', 'prefabs', 'nodes', 'edges'}
 STATIC_NODE_FIELDS = {'id', 'type', 'kind', 'region', 'area', 'cover', 'dead_end', 'enterable', 'event_provenance',
                       'exit', 'map', 'navigation_only', 'pos', 'position_source', 'prefab', 'scene', 'signal', 'source'}
-STATIC_EDGE_FIELDS = {'a', 'b', 'rel', 'compass', 'dir', 'distance', 'source', 'walkable', 'valid'}
+STATIC_EDGE_FIELDS = {'a', 'b', 'rel', 'compass', 'dir', 'distance', 'range', 'transition',
+                      'source', 'walkable', 'valid'}
 
 
 def _insert_node_version(connection, profile_id, payload, provenance, observation_id, created_at=None):

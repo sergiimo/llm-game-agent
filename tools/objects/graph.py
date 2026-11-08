@@ -97,6 +97,10 @@ class Graph:
         if rel == 'nav':
             if attrs.get('walkable') is False:
                 raise ValueError('navigation edges are always walkable')
+            if attrs.get('compass') is not None and attrs['compass'] not in COMPASS:
+                raise ValueError('navigation compass must be N, NE, E, SE, S, SW, W or NW')
+            if attrs.get('range') is not None and attrs['range'] not in ('near', 'mid', 'far'):
+                raise ValueError('navigation range must be near, mid or far')
             attrs['walkable'] = True
         if rel == 'toward' and attrs.get('dir') and not attrs.get('compass'):   # user D188: ways keep a compass
             attrs['compass'] = compass(attrs['dir'])

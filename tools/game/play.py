@@ -247,14 +247,16 @@ def guard(task, action):
     from . import garden_policy
     current = domain(task)
     observation = task.get('_observation', {})
+    if action.get('kind') == 'waypoint' and current['goal'] != 'navigate':
+        return 'waypoint requires generic navigation: push a navigate subgoal for the destination region'
     if current['goal'] == 'navigate' and action.get('kind') == 'waypoint':
         from . import navigation
         assessment = navigation.assess(action, observation.get('navigation'))
         if not assessment.get('allowed'):
-            return ('navigation compass mismatch: graph requires '
-                    f'{assessment.get("graph_compass")}, waypoint predicts '
-                    f'{(assessment.get("world") or {}).get("compass")}; '
-                    'choose a waypoint within one compass sector')
+            return ('navigation qualitative mismatch: graph requires '
+                    f'{assessment.get("graph_compass")} {assessment.get("graph_range")}, waypoint is '
+                    f'{assessment.get("screen_compass")} {assessment.get("range")}; '
+                    'choose a waypoint matching the next graph edge')
     sleeping = current['goal'] == 'sleep' or any(row['goal'] == 'sleep' for row in task.get('stack', ()))
     if not sleeping and current['goal'] != 'garden':
         blocked = garden_policy.interrupt(current, observation)

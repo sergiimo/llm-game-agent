@@ -253,6 +253,29 @@ class GraphPersistence(unittest.TestCase):
             with self.assertRaises(ValueError):
                 G.Graph().load(p)
 
+    def test_navigation_edge_rejects_nonqualitative_range(self):
+        with self.assertRaisesRegex(ValueError, 'navigation range'):
+            self.g.add_edge('House', 'Garden', 'nav', compass='W', range=12)
+
+    def test_farm_navigation_topology_reaches_well_without_node_positions(self):
+        from game import navigation
+        graph = G.Graph()
+        graph.load(os.path.join(ROOT, 'tools', 'objects', 'graph', 'Farm.json'))
+        for node in graph.nodes.values():
+            node.extra.pop('pos', None)
+
+        receipt = navigation.receipt(
+            {'goal': 'navigate', 'params': {'destination': 'Well'}},
+            {'scene': 'House', 'region': 'House'}, graph)
+
+        self.assertEqual(receipt['status'], 'resolved')
+        self.assertEqual(receipt['graph']['path'], ['House', 'HouseExit', 'Farm', 'Garden', 'Well'])
+        self.assertEqual(receipt['next_edge']['to'], 'HouseExit')
+        self.assertEqual(receipt['next_edge']['compass'], 'E')
+        self.assertEqual(receipt['next_edge']['range'], 'far')
+        self.assertNotIn('target', receipt['next_edge'])
+        self.assertNotIn('calibration', receipt)
+
 
 class Directions(unittest.TestCase):
     def setUp(self):

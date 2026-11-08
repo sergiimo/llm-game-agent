@@ -294,8 +294,7 @@ class CapturedAcceptance(PlayCase):
         with open(path) as stream:
             return json.load(stream)
 
-    def test_enter_house_wrong_bed_route_requires_vision_then_graph_or_vector_correction(self):
-        # Removing outcome comparison would accept this captured no-move and allow another guessed click.
+    def test_sleep_waypoint_requires_navigation_then_preserves_vision_correction_path(self):
         fixture = self.fixture('enter-house-sleep')
         from game import learn
         from objects.graph import Graph
@@ -321,8 +320,10 @@ class CapturedAcceptance(PlayCase):
                  {'kind': 'waypoint', 'point': old['action']['pt'], 'walkable': True}},
                  store=self.store, adapter=self.port)
             self.assertIsNotNone(c.surprise)
-            self.assertEqual(c.surprise.reason, 'no_progress')
-            self.assertEqual(len(self.port.inputs), 1)
+            self.assertEqual(c.last_outcome['verdict']['value'], 'unsafe')
+            guard = next(check for check in c.surprise.checks if check['field'] == 'guard')
+            self.assertIn('push a navigate subgoal', guard['got'])
+            self.assertEqual(len(self.port.inputs), 0)
             with self.assertRaises(turn.DecisionRejected):
                 self.play().turn(answer={'turn_id': c.turn_id, 'kind': 'act', 'action': {'kind': 'space'}},
                                  store=self.store, adapter=self.port)
@@ -333,7 +334,7 @@ class CapturedAcceptance(PlayCase):
                  {'kind': 'gap', 'data': {'invariant': 'Bed graph/vector clue absent; model vision required',
                                         'owner': 'navigation'}}}, store=self.store, adapter=self.port)
             self.assertIsNone(c.surprise)
-            self.assertEqual(len(self.port.inputs), 1)
+            self.assertEqual(len(self.port.inputs), 0)
             self.assertEqual(len(I.gaps()), 1)
             from runtime.run_store import RunStore
             timeline = RunStore(self.store.db).events(self.store.run_id)
@@ -1056,7 +1057,7 @@ class CapturedCancellation(PlayCase):
     def test_proven_no_effect_world_misses_can_cancel_an_obsolete_child(self):
         from game import experience as X
         c = self.play().turn('work', store=self.store, adapter=self.port)
-        c = self.choose(c, 'push', action={'goal': 'sleep', 'params': {}})
+        c = self.choose(c, 'push', action={'goal': 'navigate', 'params': {'region': 'Garden'}})
         self.port.capture = lambda intent, before, expected: primitives.experience(
             intent, before, expected, X.Evidence(mode='gameplay', moved=False))
         c = self.choose(c, 'act', action={'kind': 'waypoint', 'point': [820, 700],
@@ -2154,7 +2155,7 @@ class ReadLatency(PlayCase):
         # A physical action uses the persisted receipt plus a cheap preflight grab, not another full observation.
         grabs.reset_mock()
         after_action = self.play().turn(answer={'turn_id': fresh.turn_id, 'kind': 'act', 'action':
-                                      {'kind': 'waypoint', 'point': [900, 650], 'walkable': True}},
+                                      {'kind': 'target', 'point': [900, 650], 'visible_road': True}},
                                       store=self.store, adapter=adapter)
         self.assertEqual(grabs.call_count, 2, 'cheap preflight plus fake settle fallback; no pre-action perception')
         self.assertEqual(inputs.call_count, 1)
@@ -2715,6 +2716,30 @@ class BoundaryValidation(PlayCase):
         self.assertTrue(all(check.ok for check in checks))
         self.assertEqual(expects['allowed_events'], ['advance_day', 'complete', 'day_start_intro'])
 
+    def test_qualitative_navigation_range_rejects_a_nearby_point_for_a_far_edge(self):
+        from game import navigation
+        receipt = {'next_edge': {'compass': 'E', 'range': 'far'}}
+        nearby = navigation.assess({'kind': 'waypoint', 'point': [1070, 740]}, receipt)
+        far = navigation.assess({'kind': 'waypoint', 'point': [1650, 540]}, receipt)
+        self.assertFalse(nearby['allowed'])
+        self.assertEqual(nearby['range'], 'mid')
+        self.assertEqual(nearby['alignment'], 'range_mismatch')
+        self.assertTrue(far['allowed'])
+        self.assertEqual(far['screen_compass'], 'E')
+        self.assertEqual(far['range'], 'far')
+        self.assertNotIn('world', far)
+
+    def test_waypoint_under_garden_requires_a_generic_navigation_child(self):
+        c = self.play().turn('garden', {'region': 'Garden', 'chores': ['water']},
+                             store=self.store, adapter=self.port)
+        c = self.play().turn(answer={'turn_id': c.turn_id, 'kind': 'act', 'action': {
+            'kind': 'waypoint', 'point': [1070, 740], 'walkable': True, 'expects': {'moved': True}}},
+            store=self.store, adapter=self.port)
+        self.assertEqual(self.port.inputs, [])
+        self.assertIsNotNone(c.surprise)
+        guard = next(check for check in c.surprise.checks if check['field'] == 'guard')
+        self.assertIn('push a navigate subgoal', guard['got'])
+
     def test_measured_movement_toward_goal_is_progress(self):
         from game import experience as X
         self.port.snapshot['position'] = [0., 0.]
@@ -2937,14 +2962,18 @@ class ReviewRoundOne(PlayCase):
         snapshot = dict(self.port.snapshot, hour=9., can='empty', position=[0., 0.],
                         visible_affordances=[{'kind': 'fill_can', 'point': [1100, 600], 'highlighted': True}])
         adapter, inputs = self.real_adapter(snapshot, X.Evidence(mode='gameplay', moved=True,
-                                                                 state=(('position', [3., 0.]),)))
+            state=(('position', [3., 0.]), ('region', 'Garden'))))
         self.store.create(S.TaskState('garden-root', 'garden', params={'chores': ['water']},
                                       active=S.Interaction('parent-bed', phase='water')))
         c = self.play().turn(store=self.store, adapter=adapter)
         c = self.choose(c, adapter, 'push', action={'goal': 'refill', 'params': {'destination_position': [10., 0.]}})
-        c = self.choose(c, adapter, 'act', action={'kind': 'waypoint', 'point': [1100, 600], 'walkable': True})
+        c = self.choose(c, adapter, 'push', action={'goal': 'navigate', 'params': {'region': 'Garden'}})
+        c = self.choose(c, adapter, 'act', action={'kind': 'waypoint', 'point': [1100, 600], 'walkable': True,
+                                                   'expects': {'moved': True, 'region': 'Garden'}})
         self.assertEqual(len(inputs), 1, 'empty can must not block its own resolving navigation')
         self.assertIsNone(c.surprise)
+        c = self.choose(c, adapter, 'complete')
+        c = self.choose(c, adapter, 'resume')
         adapter.capture.side_effect = lambda intent, old, expected: primitives.experience(intent, old, expected,
             X.Evidence(mode='gameplay', events=('fill_watering_can',), state=(('can', 'full'),)))
         c = self.choose(c, adapter, 'act', action={'kind': 'space', 'expects': {'events': ['fill_watering_can']}})

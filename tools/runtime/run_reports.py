@@ -61,27 +61,21 @@ def _decision_lines(row):
         lines = [prefix + f'Decision: {kind}{rendered}' + (f' — {rationale}.' if rationale else '.') + _ref(row)]
         navigation = row.get('navigation') or {}
         next_edge = navigation.get('next_edge') or {}
-        position = navigation.get('position') or {}
         if navigation:
-            pos = position.get('value')
-            here = f' @ ({pos[0]:.2f}, {pos[1]:.2f})' if isinstance(pos, list) and len(pos) == 2 else ''
             goal = (navigation.get('goal') or {}).get('node') or navigation.get('resolved_as') or 'unresolved'
             edge = (f'{next_edge.get("from")} --{next_edge.get("compass") or "?"}--> {next_edge.get("to")}'
                     if next_edge.get('from') and next_edge.get('to') else
                     f'next {next_edge.get("to") or "unresolved"}')
-            lines.append(prefix + f'Graph: {navigation.get("scene") or "unknown"}{here} → {goal}; '
-                         f'required {next_edge.get("compass") or "unknown"}; {edge}; '
-                         f'edge {next_edge.get("relation") or "unknown"}; '
-                         f'position source {position.get("source") or "unknown"}.')
+            required = ' '.join(str(value) for value in
+                                (next_edge.get('compass'), next_edge.get('range')) if value) or 'unknown'
+            lines.append(prefix + f'Graph: {navigation.get("scene") or "unknown"} → {goal}; '
+                         f'required {required}; {edge}; edge {next_edge.get("relation") or "unknown"}.')
         waypoint = row.get('waypoint')
         if waypoint:
-            world = waypoint.get('world') or {}
-            delta = world.get('delta')
-            delta_text = (f' Δ({delta[0]:+.2f},{delta[1]:+.2f})'
-                          if isinstance(delta, list) and len(delta) == 2 else '')
-            lines.append(prefix + f'Waypoint: screen {waypoint.get("screen_compass") or "unknown"}; '
-                         f'world {world.get("compass") or "unknown"}{delta_text}; '
-                         f'graph {waypoint.get("graph_compass") or "unknown"}; '
+            lines.append(prefix + f'Waypoint: screen {waypoint.get("screen_compass") or "unknown"} '
+                         f'{waypoint.get("range") or "unknown"}; graph '
+                         f'{waypoint.get("graph_compass") or "unknown"} '
+                         f'{waypoint.get("graph_range") or "unknown"}; '
                          f'alignment {waypoint.get("alignment") or "unknown"}.')
         return lines
     if phase == 'intent':

@@ -198,12 +198,9 @@ class Turns(unittest.TestCase):
         port = Port()
         port.snapshot.update(scene='Town', region='Town', position=[0.0, 0.0], navigation={
             'status': 'resolved', 'requested': 'supermarket', 'scene': 'Town',
-            'position': {'value': [0.0, 0.0], 'source': 'save'},
-            'goal': {'node': 'Town:fountain-square', 'position': [10.0, -10.0], 'source': 'arrived'},
+            'goal': {'node': 'Town:fountain-square', 'source': 'verified_location'},
             'next_edge': {'from': 'Blacksmith', 'to': 'TownHall', 'relation': 'nav', 'compass': 'E',
-                          'distance': 14.14, 'source': 'arrived'},
-            'calibration': {'available': True, 'H': [[1, 0, 0], [0, -1, 0], [0, 0, 1]],
-                            'samples': 6, 'error': 0.05, 'source': 'Town'}})
+                          'range': 'far', 'source': 'verified_location'}})
         loop = turn.TurnLoop(store, port, play.recommend, reducer=play.reduce, guard=play.guard)
 
         context = loop.context()
@@ -217,15 +214,17 @@ class Turns(unittest.TestCase):
         rows = self.events(store)
         decision = next(row for row in rows if row['phase'] == 'decision' and row['turn_id'] == context.turn_id)
         self.assertEqual(decision['navigation']['next_edge']['compass'], 'E')
-        self.assertEqual(decision['waypoint']['world']['compass'], 'NW')
+        self.assertEqual(decision['waypoint']['screen_compass'], 'NW')
+        self.assertEqual(decision['waypoint']['range'], 'far')
+        self.assertNotIn('world', decision['waypoint'])
         self.assertEqual(decision['waypoint']['alignment'], 'mismatch')
         with open(os.path.join(self.tmp.name, 'decisions.md')) as stream:
             readable = stream.read()
         self.assertIn('Graph: Town', readable)
         self.assertIn('Town:fountain-square', readable)
-        self.assertIn('required E', readable)
+        self.assertIn('required E far', readable)
         self.assertIn('Blacksmith --E--> TownHall', readable)
-        self.assertIn('Waypoint: screen NW; world NW', readable)
+        self.assertIn('Waypoint: screen NW far; graph E far', readable)
         self.assertIn('alignment mismatch', readable)
 
     def test_every_physical_action_preflights_its_persisted_turn_without_full_reobserve(self):

@@ -271,7 +271,7 @@ class GraphPersistence(unittest.TestCase):
         self.assertEqual(receipt['status'], 'resolved')
         self.assertEqual(receipt['graph']['path'], ['House', 'HouseExit', 'Farm', 'Garden', 'Well'])
         self.assertEqual(receipt['next_edge']['to'], 'HouseExit')
-        self.assertEqual(receipt['next_edge']['compass'], 'E')
+        self.assertEqual(receipt['next_edge']['compass'], 'S')
         self.assertEqual(receipt['next_edge']['range'], 'far')
         self.assertNotIn('target', receipt['next_edge'])
         self.assertNotIn('calibration', receipt)

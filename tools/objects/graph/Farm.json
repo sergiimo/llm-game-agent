@@ -334,18 +334,18 @@
       "a": "House",
       "b": "HouseExit",
       "rel": "nav",
-      "compass": "E",
+      "compass": "S",
       "range": "far",
-      "source": "verified_house_layout",
+      "source": "live D6 turn 4: structural HouseExit at screen S far ([913,933])",
       "walkable": true
     },
     {
       "a": "HouseExit",
       "b": "House",
       "rel": "nav",
-      "compass": "W",
+      "compass": "N",
       "range": "near",
-      "source": "verified_house_layout",
+      "source": "reverse of live D6 House to HouseExit edge",
       "walkable": true
     },
     {

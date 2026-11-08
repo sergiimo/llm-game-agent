@@ -1326,6 +1326,40 @@ def bench_cmd(args):
     sys.exit(bench_cmd.__doc__)
 
 
+def live_eval_cmd(args):
+    """wf live-eval start bed-to-well | status [scenario] | finish [id] | report [id] | compare scenario."""
+    from runtime.live_eval import LiveEvalStore
+
+    store = _run_store()
+    evaluations = LiveEvalStore(store.database)
+    sub_ = args[0] if args else 'status'
+    if sub_ == 'start' and len(args) == 2:
+        run = store.active()
+        if not run:
+            raise ValueError('live evaluation requires an active run')
+        revision = subprocess.run(
+            ['git', 'rev-parse', '--short', 'HEAD'], cwd=ROOT, capture_output=True,
+            text=True, check=True).stdout.strip()
+        row = evaluations.start(args[1], run['id'], revision)
+    elif sub_ == 'status' and len(args) <= 2:
+        row = evaluations.active(args[1] if len(args) == 2 else None)
+        if not row:
+            raise ValueError('no active live evaluation')
+    elif sub_ in ('finish', 'report') and len(args) <= 2:
+        eval_id = args[1] if len(args) == 2 else None
+        if eval_id is None:
+            active = evaluations.active()
+            if not active:
+                raise ValueError('no active live evaluation')
+            eval_id = active['id']
+        row = evaluations.finish(eval_id) if sub_ == 'finish' else evaluations.report(eval_id)
+    elif sub_ == 'compare' and len(args) == 2:
+        row = evaluations.compare(args[1])
+    else:
+        raise SystemExit(live_eval_cmd.__doc__)
+    print(json.dumps(row, ensure_ascii=False, indent=1, sort_keys=True))
+
+
 def objects_cmd(args):
     """wf objects list [kind] | add <kind> x0 y0 x1 y1 [state] | remove <kind> <id> | detect [kind...] | find <kind> (= detect <kind>) |
     eval [frames_dir] | calibrate [frames_dir] | reembed: appearance-based objects
@@ -1623,7 +1657,7 @@ PLAY_COMMANDS = frozenset({'play', 'garden', 'sleep', 'forage', 'achieve', 'py',
 
 OBSERVATION_COMMANDS = frozenset({'status', 'shot', 'ocr', 'find', 'hud', 'state', 'bubble', 'look', 'until',
     'save-template', 'wiki', 'run', 'coverage', 'tara-box', 'world', 'gaps', 'bench', 'objects', 'graph',
-    'eval', 'record', 'routines', 'learn', 'actions', 'tips', 'log', 'save', 'wait', 'serve'})
+    'live-eval', 'eval', 'record', 'routines', 'learn', 'actions', 'tips', 'log', 'save', 'wait', 'serve'})
 
 
 def game_cmd(kind, args):
@@ -4219,6 +4253,8 @@ def main(argv=None):
     p.add_argument('args', nargs='*')
     p = sub.add_parser('bench', help='benchmark runs: wf bench start A|B|C | report [run dir] | compare [A|B|C]')
     p.add_argument('args', nargs='*')
+    p = sub.add_parser('live-eval', help='SQLite live navigation evaluation: start, status, finish, report, compare')
+    p.add_argument('args', nargs='*')
     p = sub.add_parser('objects', help='object examples + detection: wf objects list | add <kind> x0 y0 x1 y1 [state] | detect [kind..] | find <kind> | eval [dir] | calibrate [dir] | reembed')
     p.add_argument('args', nargs='*')
     p = sub.add_parser('graph', help='object graph: show [region] | map-seed | map-heatmap')
@@ -4311,6 +4347,8 @@ def main(argv=None):
         return gaps_cmd(a.args)
     if a.cmd == 'bench':  # bookkeeping: no focus, no game input (review #1)
         return bench_cmd(a.args)
+    if a.cmd == 'live-eval':  # persisted eval bookkeeping: no focus and no direct game input
+        return live_eval_cmd(a.args)
     if a.cmd == 'objects':
         return objects_cmd(a.args)
     if a.cmd == 'graph':

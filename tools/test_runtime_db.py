@@ -26,6 +26,7 @@ class RuntimeDatabase(unittest.TestCase):
             'task_state', 'run_events', 'observations', 'intents', 'experiences', 'applied_updates',
             'gap_bundles', 'gap_experiences', 'world_nodes', 'world_facts', 'world_edges', 'legacy_imports',
             'world_node_versions', 'world_edge_versions',
+            'live_evals', 'live_eval_checkpoints',
         }
         db = self.database()
         with db.connect() as conn:

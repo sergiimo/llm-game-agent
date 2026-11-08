@@ -222,7 +222,38 @@ SELECT profile_id,a,b,rel,payload_json,provenance_json,observation_id,experience
 """
 
 
-MIGRATIONS = ((1, V1), (2, V2))
+V3 = """
+CREATE TABLE live_evals (
+    id TEXT PRIMARY KEY,
+    scenario TEXT NOT NULL,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    revision TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('active','pass','fail')),
+    start_event_id INTEGER NOT NULL REFERENCES run_events(id),
+    start_observation_id INTEGER REFERENCES observations(id),
+    start_scene TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    ended_at REAL,
+    result_json TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX live_evals_scenario_created ON live_evals(scenario, created_at, id);
+
+CREATE TABLE live_eval_checkpoints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    eval_id TEXT NOT NULL REFERENCES live_evals(id) ON DELETE CASCADE,
+    source_event_id INTEGER NOT NULL REFERENCES run_events(id),
+    observation_id INTEGER REFERENCES observations(id),
+    scene TEXT,
+    destination_visible INTEGER NOT NULL DEFAULT 0,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    created_at REAL NOT NULL,
+    UNIQUE(eval_id, source_event_id)
+);
+CREATE INDEX live_eval_checkpoints_eval ON live_eval_checkpoints(eval_id, id);
+"""
+
+
+MIGRATIONS = ((1, V1), (2, V2), (3, V3))
 
 
 def checksum(sql):

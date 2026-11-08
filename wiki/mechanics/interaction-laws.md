@@ -95,6 +95,10 @@ Never infer actual node ownership from projection.
 captured domain evidence without restoring the parent. A separate `resume` restores it. Pending intents reconcile
 without repeat at any nesting depth. Sleep requires `sleep_transition`; region travel requires matching captured
 region evidence. Unsupported proof becomes a gap/human resolution, never a model assertion of completion.
+Completing a root retains its durable receipt and allows only observation or `stop`. A run's root task id is
+immutable: after stopping a completed root, close the run and start a new run for a different root. Workflows that
+belong to one planned task must instead share a parent chosen at task creation and use explicit children; a completed
+root is not a parent beneath which the next workflow should be pushed or a slot that can be replaced in place.
 
 A shop task/subgoal names item, bounded quantity and max_spend; the root task supplies
 `authorization:{purchases:[{item,quantity,max_spend}]}`. A purchasing action supplies `purchase:{item,quantity,price}`

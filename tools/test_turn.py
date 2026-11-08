@@ -104,6 +104,21 @@ class Turns(unittest.TestCase):
         self.assertEqual(cached.observation_freshness, 'cached')
         self.assertEqual(cached.view, c.view)
 
+    def test_read_keeps_fresh_resources_instead_of_overlaying_the_cached_turn(self):
+        self.port.preflight = lambda action, observation: action
+        self.port.snapshot.update(game_time='D5 3:30:00 PM', money=42, position=[13.2, -23.2],
+                                  state_provenance={'money': {'save_count': 395}})
+        cached = self.loop.context()
+        self.port.snapshot = dict(self.port.snapshot, game_time='D5 6:40:00 PM', money=41,
+                                  position=[14.3, -21.6],
+                                  state_provenance={'money': {'save_count': 396}})
+        self.loop.decide(cached.turn_id, turn.Decision('read'))
+        before = dict(self.store.load().last_experience['before']['state'])
+        self.assertEqual(before['game_time'], 'D5 6:40:00 PM')
+        self.assertEqual(before['money'], 41)
+        self.assertEqual(before['position'], [14.3, -21.6])
+        self.assertEqual(before['state_provenance']['money']['save_count'], 396)
+
     def test_required_vision_blocks_act_and_accept(self):
         self.port.snapshot['vector_status'] = {'status': 'error', 'error': 'detector offline'}
         c = self.loop.context()

@@ -2162,6 +2162,13 @@ class ReadLatency(PlayCase):
         self.assertEqual(after_action.frame_path, outcome['artifacts']['frames'][-1])
         self.assertEqual(dict(outcome['evidence']['state'])['frame_path'], after_action.frame_path)
 
+    def test_current_save_time_is_not_overwritten_by_an_older_log_stamp(self):
+        adapter, _, _, _ = self.native_adapter()
+        adapter.clue_provider = lambda frame_context: {
+            'game_time': 'D211 6:40:00 PM', 'graph_clues': []}
+        snapshot = adapter.observe()
+        self.assertEqual(snapshot['game_time'], 'D211 6:40:00 PM')
+
     def test_native_read_preserves_black_guard_and_one_bounded_reobservation(self):
         from PIL import Image
         adapter, grabs, waits, inputs = self.native_adapter()
@@ -2595,6 +2602,14 @@ class Subgoals(PlayCase):
         self.assertEqual(restarted.task['stack'][-1]['status'], 'complete')
         self.assertEqual(len(self.port.inputs), 1)
 
+    def test_sleep_subgoal_allows_normal_day_change_coevents(self):
+        c = self.push(self.start(), 'sleep')
+        self.outcome(('sleep_transition', 'advance_day', 'day_start_intro', 'complete'))
+        c = self.choose(c, 'act', action={
+            'kind': 'press', 'label': 'Sleep', 'expects': {'events': ['sleep_transition']}})
+        self.assertIsNone(c.surprise)
+        self.assertEqual(self.store.load().last_experience['verdict']['value'], 'hit')
+
     def test_shop_quantity_and_spend_require_task_authorization(self):
         for auth, purchase in [({}, {'item': 'TulipSeed', 'quantity': 2, 'price': 20}),
                               ({'purchases': [{'item': 'TulipSeed', 'quantity': 1, 'max_spend': 20}]},
@@ -2671,6 +2686,30 @@ class BoundaryValidation(PlayCase):
         for mode in ('pause', 'unknown', 'menu'):
             with self.assertRaises(ValueError):
                 adapter.prepare({'kind': 'key', 'label': 'j'}, {'screen': {'kind': mode}})
+
+    def test_sleep_confirmation_space_is_bound_to_the_current_yes_control(self):
+        adapter = primitives.GameAdapter()
+        observation = {'screen': {'kind': 'card', 'texts': ['Yes', 'Not yet']},
+                       'view_id': 'sleep-view', 'controls': [
+                           {'id': 'control-0', 'view_id': 'sleep-view', 'label': 'Yes', 'point': [1092, 426]},
+                           {'id': 'control-1', 'view_id': 'sleep-view', 'label': 'Not yet', 'point': [1160, 564]}]}
+        prepared = adapter.prepare({'kind': 'space', 'control': 'control-0'}, observation)
+        self.assertEqual(prepared['command'], 'key:space')
+        self.assertEqual(prepared['label'], 'Yes')
+        with self.assertRaisesRegex(ValueError, 'current affirmative control'):
+            adapter.prepare({'kind': 'space'}, observation)
+        with self.assertRaisesRegex(ValueError, 'current affirmative control'):
+            adapter.prepare({'kind': 'space', 'control': 'control-1'}, observation)
+        with self.assertRaisesRegex(ValueError, 'current affirmative control'):
+            adapter.prepare({'kind': 'space', 'control': 'control-1', 'label': 'Yes'}, observation)
+
+    def test_sleep_transition_allows_its_normal_day_change_events(self):
+        from game import experience as X
+        expects = primitives.goal_expectations('sleep', {'events': ['sleep_transition']})
+        checks = primitives.verification_checks(
+            expects, X.Evidence(events=('sleep_transition', 'advance_day', 'day_start_intro', 'complete')))
+        self.assertTrue(all(check.ok for check in checks))
+        self.assertEqual(expects['allowed_events'], ['advance_day', 'complete', 'day_start_intro'])
 
     def test_measured_movement_toward_goal_is_progress(self):
         from game import experience as X
@@ -2766,6 +2805,7 @@ class BoundaryValidation(PlayCase):
         self.assertTrue(data['inventory_complete'])
         self.assertEqual(data['money'], 95)
         self.assertEqual(data['region'], 'Farm')
+        self.assertEqual(data['game_time'], 'D210 9:00:00 AM')
         self.assertEqual(data['state_provenance']['inventory']['save_count'], 7)
         self.assertEqual(data['state_provenance']['inventory']['source'], 'save')
 
@@ -3019,6 +3059,21 @@ class ReviewRoundOne(PlayCase):
 class TradeReview(PlayCase):
     real_adapter = ReviewRoundOne.real_adapter
     choose = ReviewRoundOne.choose
+
+    def test_bound_sell_control_cannot_use_a_spoofed_buy_label_and_purchase_authorization(self):
+        from game import experience as X
+        self.port.snapshot.update(inventory={'SeedA': 0}, inventory_complete=True, money=20)
+        snapshot = dict(self.port.snapshot, view_id='shop-view',
+                        screen={'kind': 'shop', 'texts': ['Buy', 'Sell']}, controls=[
+                            {'id': 'control-sell', 'view_id': 'shop-view', 'label': 'Sell', 'point': [1200, 700]}])
+        adapter, inputs = self.real_adapter(snapshot, X.Evidence(mode='shop'))
+        c = self.play().turn('shop', {'trade': 'buy', 'item': 'SeedA', 'quantity': 1, 'max_spend': 10,
+            'authorization': {'purchases': [{'item': 'SeedA', 'quantity': 1, 'max_spend': 10}]}},
+            store=self.store, adapter=adapter)
+        c = self.choose(c, adapter, 'act', action={'kind': 'press', 'control': 'control-sell', 'label': 'Buy',
+            'purchase': {'item': 'SeedA', 'quantity': 1, 'price': 10}})
+        self.assertEqual(inputs, [])
+        self.assertIsNotNone(c.surprise)
 
     def test_observed_sale_surface_blocks_coordinates_without_sale_authority_under_other_goal(self):
         from game import experience as X

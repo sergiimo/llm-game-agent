@@ -11,10 +11,16 @@ named graph/appearance correction or gap before moving again.
 Outside click the visible entrance/porch. After entering the bed is west: Tara's pink bed is in the front-left room;
 the purple bed is not hers. Choose one visible target/waypoint. Once the sleep bubble is detected, click that bubble
 with the `bubble` primitive and its fresh point; do not press Space for the initial world interaction. Inspect the
-bedtime prompt. When its affirmative `Yes` bubble is highlighted, confirm with the dedicated `space` primitive in
-the next turn; do not click `Yes`, look it up as text, or use `select_card`. Expected evidence includes the prompt
+bedtime prompt. When its affirmative `Yes` bubble is highlighted, confirm in the next turn with the dedicated
+`space` primitive **bound to that current view's exact `Yes` control id**, for example
+`action:{kind:"space",control:"control-0",expects:{events:["sleep_transition"],allowed_events:["advance_day","day_start_intro","complete"]}}`
+(the id is observation-owned;
+never reuse the example). Bare Space and a `Not yet` control are guard refusals on a card. Do not click `Yes`, look it
+up as fresh text, or use `select_card`. Expected evidence includes the prompt
 event (`sleep5` in the captured D212 interaction) and then `sleep_transition`; the latter is the completion proof.
 `advance_day`, `day_start_intro`, and `complete` are normal accompanying sleep-transition events, not contradictions.
+The engine supplies that known co-event allowance for a sleep goal even if the caller omits it; keep it explicit in
+the model decision so the evidence contract remains readable.
 Morning/spawn/day-change events support the next-day observation. Inspect each dialogue/cutscene before explicitly
 continuing it.
 

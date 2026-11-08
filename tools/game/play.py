@@ -75,8 +75,9 @@ def _clues(store, frame_context=None):
         hour, light = observe.clock()
     player = save.get('gameState', {}).get('player', {})
     money, money_field = _save_money(save)
+    save_stamp = world.save_time(save)
     save_proof = {'source': 'save', 'path': path, 'save_count': save.get('saveCount'),
-                  'game_time': world.save_time(save)}
+                  'game_time': save_stamp}
     scene, region = world.scene_context(lines, save.get('currentScene'), since=world.save_time(save))
     vector_scope = _vector_scope(graph, region, scene, save.get('currentScene'))
     point = save.get('currentPlayerPosition') or {}
@@ -93,6 +94,7 @@ def _clues(store, frame_context=None):
             'inventory': world.inventory(save, lines),
             'inventory_complete': isinstance(player.get('inventory', {}).get('items'), list),
             'money': money, 'region': region, 'scene': scene, 'save_scene': save.get('currentScene'),
+            'game_time': save_stamp,
             'observation_id': coherent.observation_id if coherent is not None else None,
             'vector_scope': vector_scope,
             'map_pin': frame_context.get('map_pin') if frame_context.get('screen') == 'map' else None,

@@ -39,6 +39,17 @@ def verification_checks(expects, evidence):
     return checks
 
 
+def goal_expectations(goal, expects):
+    """Add deterministic co-events that belong to a goal's declared completion event."""
+    expects = dict(expects)
+    events = expects.get('events')
+    if goal == 'sleep' and events != '?' and 'sleep_transition' in (events or ()):
+        allowed = set(expects.get('allowed_events') or ())
+        allowed.update(('advance_day', 'complete', 'day_start_intro'))
+        expects['allowed_events'] = sorted(allowed)
+    return expects
+
+
 def experience(intent, before, expects, evidence, frames=()):
     from . import integrate
     from . import learn, world
@@ -89,7 +100,9 @@ def experience(intent, before, expects, evidence, frames=()):
 def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     """Leave a durable pending intent if input/capture crashes. Never retry an uncertain input."""
     from .params import expectations
-    expects = expectations(expects)  # validate before observation, ownership, WAL intent or physical input
+    current_goal = task.stack[-1].goal if task.stack else task.goal
+    expects = goal_expectations(current_goal, expectations(expects))
+    # Validate before observation, ownership, WAL intent or physical input; goal profiles only add known co-events.
     action = dict(action)
     # The raw-click spelling has the same world-target semantics as target. Normalize before guards,
     # ownership bookkeeping, preparation, and intent persistence so no alias can evade the invariant.
@@ -99,11 +112,14 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     leased = hasattr(adapter, 'preflight')
     before = (adapter.observe() if action.get('kind') == 'read' or source_view is None or not leased
               else dict(source_view))
-    if source_view is not None and leased:
+    if source_view is not None and leased and action.get('kind') != 'read':
         before.update(source_view.get('resources') or {})
     source_view = source_view or before
     refusal = None
     try:
+        resolver = getattr(adapter, 'resolve_selection', None)
+        if resolver:
+            action = resolver(action, source_view)
         # The canonical observation has no input or resource metadata to authorize. Metadata-bearing
         # act/read aliases still take the complete ordinary guard path.
         if guard and not (action == {'kind': 'read'} and not expects):
@@ -312,7 +328,7 @@ class GameAdapter:
         clues.setdefault('interrupts', [])
         stamp = getattr(core.WF, 'game_stamp', None)
         if stamp is not None:
-            clues['game_time'] = stamp()
+            clues.setdefault('game_time', stamp())
         self._latest_observation = clues
         return clues
 
@@ -321,11 +337,9 @@ class GameAdapter:
         receipt, self._captured_outcome = self._captured_outcome, None
         return receipt[1] if receipt and receipt[0] == experience_id else None
 
-    def prepare(self, action, observation):
-        """Resolve only the model-selected control. Guards may refuse, never close menus or choose another target."""
-        from . import core, observe
-        kind = action.get('kind')
-        screen = (observation.get('screen') or {}).get('kind', 'unknown')
+    def resolve_selection(self, action, observation):
+        """Bind current-view candidate/control identity before any semantic authorization guard."""
+        action = dict(action)
         if action.get('view_id') and action['view_id'] != observation.get('view_id'):
             raise ValueError('stale view: decision does not match the observed frame')
         if action.get('candidate'):
@@ -340,7 +354,15 @@ class GameAdapter:
             if len(matches) != 1:
                 raise ValueError('control missing or stale for this view')
             action['point'] = list(matches[0]['point'])
-            action.setdefault('label', matches[0].get('label'))
+            action['label'] = matches[0].get('label')
+        return action
+
+    def prepare(self, action, observation):
+        """Resolve only the model-selected control. Guards may refuse, never close menus or choose another target."""
+        from . import core, observe
+        action = self.resolve_selection(action, observation)
+        kind = action.get('kind')
+        screen = (observation.get('screen') or {}).get('kind', 'unknown')
         if kind in ('wait', 'read'):
             return action
         if kind in ('click', 'target', 'cell', 'bubble', 'waypoint'):
@@ -361,7 +383,10 @@ class GameAdapter:
             action['point'] = [round(p) for p in point]
             action['command'] = f'click:{action["point"][0]}:{action["point"][1]}'
         elif kind == 'space':
-            if screen not in ('gameplay', 'dialogue', 'popup', 'cutscene'):
+            if screen == 'card':
+                if not action.get('control') or str(action.get('label', '')).strip().casefold() != 'yes':
+                    raise ValueError('Space on a card requires the current affirmative control')
+            elif screen not in ('gameplay', 'dialogue', 'popup', 'cutscene'):
                 raise ValueError(f'Space blocked by {screen}; choose its named control')
             if screen == 'gameplay' and not any(a.get('highlighted') for a in observation.get('visible_affordances', ())):
                 raise ValueError('Space requires a visible highlighted affordance')

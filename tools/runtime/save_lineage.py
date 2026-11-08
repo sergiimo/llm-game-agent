@@ -47,7 +47,12 @@ def monotonic_log_times(stamps):
             out = []  # Player.log kept an older save profile before a large backward day reset.
         value = raw
         if out:
-            while value + 12 * 3600 < out[-1]:
+            previous_clock, current_clock = out[-1] % 86400, value % 86400
+            # Before AdvanceDay the engine can briefly log an after-midnight clock under yesterday's day number.
+            # That wrap is a late-night -> overnight transition. Day-start generation is different: it can emit
+            # tomorrow's forecast at the prior evening clock and then reset the already-incremented day to 07:00.
+            if (value + 12 * 3600 < out[-1] and previous_clock >= 20 * 3600 and
+                    current_clock < 4 * 3600):
                 value += 86400
         out.append(value)
         previous_raw = raw

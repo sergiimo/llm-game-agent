@@ -26,6 +26,10 @@ Every `NEXT` is receipt-first: `view` identifies the exact settled full-scale fr
 vector candidates; `result` summarizes the preceding immutable experience; `need` makes required vision explicit;
 `memory` is the bounded current-region graph projection; `resources` contains relevant save/log facts. Choose the
 next primitive from this receipt. Detailed observe/act/verify/learn events remain in the run log for retros.
+`complete` proves a root but intentionally leaves its durable record selected. A run owns one immutable root task id:
+after its allowed zero-input `stop`, close that run and start a new run for an unrelated root. If several workflows
+belong to one planned task, choose their durable parent up front and use explicit children; do not try to replace a
+root in place or push a new workflow beneath an already-complete root.
 
 Game files first: `./wf log` for live events; `./wf save` for exact but potentially stale autosave facts; `./wf state`
 for screen/HUD text. A `look` decision returns the saved 1920×1080 frame without input; read it for uncertainty.

@@ -22,6 +22,14 @@
   until closing/last entry to cover all remaining navigation and transaction budgets plus 15 game minutes. With
   `focus-mode front`, activate Codex during off-game reasoning; otherwise an agent round trip can consume most of a
   shop window. Do not open Pause just for analysis.
+- The bedtime `Yes`/`Not yet` choice is classified as a card. Its affirmative action is dedicated Space bound to the
+  exact current-view `Yes` control id. Bare Space remains refused, as does binding Space to `Not yet`; do not replace
+  the documented confirmation with an unbound key or coordinate click. A successful sleep normally emits
+  `sleep_transition`, `advance_day`, `day_start_intro`, and `complete`; the latter three are allowed co-events, not a
+  mismatch, and the next fresh save read must still prove the new day coherently.
+- Day-start generation may log the new day's forecast at the prior evening clock, then reset the same explicit day
+  to 07:00. This is not the pre-AdvanceDay midnight wrap and must not be shifted forward another day; otherwise a
+  valid D6 save is falsely compared against D7 and fails closed with `no_coherent_profile`.
 - A full paper map whose pin is not colour-detected is still a map when the labelled paper/cloud header appearance
   vector matches. The header proves the modal; the pink pin only localises Tara. Do not downgrade such a frame to
   gameplay or issue a world click through it.

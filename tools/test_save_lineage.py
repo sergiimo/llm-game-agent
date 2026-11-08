@@ -40,6 +40,19 @@ class SaveLineage(unittest.TestCase):
             5 * 86400 + 11 * 3600 + 30 * 60,
         ])
 
+    def test_every_entry_after_midnight_keeps_the_inferred_day_until_day_catches_up(self):
+        from runtime.save_lineage import monotonic_log_times
+        stamps = [5 * 86400 + 23 * 3600 + 59 * 60,
+                  5 * 86400 + 60,
+                  5 * 86400 + 2 * 60,
+                  6 * 86400 + 3 * 60]
+        self.assertEqual(monotonic_log_times(stamps), [
+            5 * 86400 + 23 * 3600 + 59 * 60,
+            6 * 86400 + 60,
+            6 * 86400 + 2 * 60,
+            6 * 86400 + 3 * 60,
+        ])
+
     def test_evening_forecast_then_morning_day_start_keeps_explicit_new_day(self):
         from runtime.save_lineage import monotonic_log_times
         stamps = [6 * 86400 + 19 * 3600 + 16 * 60,

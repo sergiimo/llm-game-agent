@@ -48,5 +48,7 @@ Garden/Well proof.
 
 For repeated lack of progress, follow AGENTS.md's stuck rule and write the stuck retro. For the stable regression,
 start at a fresh House+Bed clue with `./wf live-eval start bed-to-well`, play through the ordinary navigation turns,
-then run `./wf live-eval finish` and `./wf live-eval report`. Passing requires a newer Garden+Well checkpoint; the
-SQLite report compares performed inputs, no-moves, observations, and start/finish toolkit revisions.
+then run `./wf live-eval finish` and `./wf live-eval report <id>`. Fresh start and destination proof require coherent
+current visual evidence (or a positioned Well interaction at the destination); static graph membership is not proof.
+Finalization is immutable. The SQLite report compares issued physical inputs, observations, no-moves, wrong transitions,
+surprises, elapsed time when available, and start/finish toolkit revisions.

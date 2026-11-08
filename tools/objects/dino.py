@@ -31,7 +31,10 @@ def _load():
             warnings.filterwarnings('ignore')
             _dev = 'mps' if torch.backends.mps.is_available() else 'cpu'
             with open(os.devnull, 'w') as dn, contextlib.redirect_stdout(dn), contextlib.redirect_stderr(dn):
-                m = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14', verbose=False)
+                cached = os.path.join(torch.hub.get_dir(), 'facebookresearch_dinov2_main')
+                m = (torch.hub.load(cached, 'dinov2_vits14', source='local', verbose=False)
+                     if os.path.isdir(cached) else
+                     torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14', verbose=False))
             _model = m.eval().to(_dev)
         return _model
 

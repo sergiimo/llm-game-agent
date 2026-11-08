@@ -7,7 +7,7 @@ from unittest import mock
 
 from game import experience as X
 from game import navigation, play, world
-from game.task_state import TaskState
+from game.task_state import Subgoal, TaskState
 import nav
 from objects import graph as OG
 
@@ -112,6 +112,23 @@ class NavigationReceipts(unittest.TestCase):
         navigation.advance(self.task, self.experience(before, after))
         self.assertEqual(self.task.params['_nav_current'], 'Garden')
         self.assertEqual(self.task.params['_nav_current_proof'], proof)
+
+    def test_nested_navigate_progress_is_stored_on_the_active_child_and_used_by_next_receipt(self):
+        task = TaskState('route', 'garden', params={'region': 'Garden'},
+                         stack=[Subgoal('navigate', {'destination': 'Well'})])
+        proof = {'source': 'positioned_event', 'node': 'Well', 'regions': ['Farm', 'Garden']}
+        before = {'scene': 'Farm', 'region': 'Farm', 'navigation': {
+            'next_edge': {'from': 'Farm', 'to': 'Garden'}}}
+        after = {'scene': 'Farm', 'region': 'Farm', 'regions': ['Farm', 'Garden'],
+                 'region_provenance': proof}
+
+        navigation.advance(task, self.experience(before, after))
+
+        self.assertNotIn('_nav_current', task.params)
+        self.assertEqual(task.stack[-1].params['_nav_current'], 'Garden')
+        result = navigation.receipt(task.stack[-1], {'scene': 'Farm', 'region': 'Farm'}, self.graph)
+        self.assertEqual(result['graph']['current_node'], 'Garden')
+        self.assertEqual(result['next_edge']['to'], 'Well')
 
     def test_waypoint_motion_alone_never_advances_graph_node(self):
         before = {'scene': 'Farm', 'region': 'Farm', 'navigation': {

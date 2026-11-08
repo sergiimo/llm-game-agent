@@ -49,9 +49,11 @@
   `log_time` from the action/event boundary, and `save_time` from the latest autosave snapshot. Refresh the source
   needed by the decision and keep its provenance; never copy save time into the live action clock.
 - For navigation regressions, use `./wf live-eval start bed-to-well` only after a fresh House+Bed clue in an active
-  run. Play through the ordinary graph workflow, then `finish` and `report`. The evaluation passes only with a newer
-  Garden+Well clue and stores its checkpoints, input/no-move counts, and start/finish revisions in SQLite. Different
-  revisions mean the run exercised hot fixes and should not be presented as a single-revision baseline.
+  run. “Fresh” means a coherent same-run observation with current visual Bed evidence, not a Bed row in static graph
+  knowledge. Play through the ordinary graph workflow, then `finish` and `report <id>`. The evaluation passes only
+  with newer current visual Garden+Well evidence or a positioned Well interaction, and stores immutable checkpoints,
+  bounded gameplay metrics, and start/finish revisions in SQLite. Different revisions mean the run exercised hot fixes
+  and should not be presented as a single-revision baseline.
 - A bounded `./wf do go:... --look` may legitimately need more than 25 seconds (pre-check OCR + up to 15 seconds of
   movement tracking + settle/final OCR). The daemon client deadline is 60 seconds as of D4; an exact 25-second
   `outcome unknown after request delivery` indicates an older client. Do not retry the movement blindly: inspect the

@@ -336,7 +336,7 @@
       "rel": "nav",
       "compass": "S",
       "range": "far",
-      "source": "live D6 turn 4: structural HouseExit at screen S far ([913,933])",
+      "source": "verified house layout: the full exit gap is S/SE far from the bed area",
       "walkable": true
     },
     {
@@ -345,7 +345,7 @@
       "rel": "nav",
       "compass": "N",
       "range": "near",
-      "source": "reverse of live D6 House to HouseExit edge",
+      "source": "reverse of verified House to HouseExit edge",
       "walkable": true
     },
     {

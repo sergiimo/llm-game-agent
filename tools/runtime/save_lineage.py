@@ -41,11 +41,15 @@ def _coherent(candidate, log_epoch, tolerance=6 * 3600):
 
 def monotonic_log_times(stamps):
     """Return the latest profile epoch, normalizing its pre-day-change midnight wrap."""
-    out, previous_raw = [], None
+    out, previous_raw, inferred_offset = [], None, 0
     for raw in stamps:
         if previous_raw is not None and raw < previous_raw - 2 * 86400:
             out = []  # Player.log kept an older save profile before a large backward day reset.
-        value = raw
+            inferred_offset = 0
+        # Once an explicit day stamp reaches the inferred timeline, it owns the day again.
+        if inferred_offset and out and raw >= out[-1]:
+            inferred_offset = 0
+        value = raw + inferred_offset
         if out:
             previous_clock, current_clock = out[-1] % 86400, value % 86400
             # Before AdvanceDay the engine can briefly log an after-midnight clock under yesterday's day number.
@@ -53,7 +57,8 @@ def monotonic_log_times(stamps):
             # tomorrow's forecast at the prior evening clock and then reset the already-incremented day to 07:00.
             if (value + 12 * 3600 < out[-1] and previous_clock >= 20 * 3600 and
                     current_clock < 4 * 3600):
-                value += 86400
+                inferred_offset += 86400
+                value = raw + inferred_offset
         out.append(value)
         previous_raw = raw
     return out

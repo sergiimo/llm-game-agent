@@ -166,11 +166,12 @@ def advance(task, experience):
     after_region = after.get('region') or after.get('scene')
     proof = after.get('region_provenance') or {}
     regions = list(after.get('regions') or ())
+    owner = task.stack[-1] if task.stack and task.stack[-1].goal == 'navigate' else task
     if (proof.get('source') == 'positioned_event' and
             (edge.get('to') == proof.get('node') or edge.get('to') in regions)):
-        task.params['_nav_current'] = edge['to']
-        task.params['_nav_current_proof'] = dict(proof)
+        owner.params['_nav_current'] = edge['to']
+        owner.params['_nav_current_proof'] = dict(proof)
     elif edge.get('transition') and after_region == edge['transition'] and after_region != before_region:
-        task.params['_nav_current'] = edge['to']
-        task.params['_nav_current_proof'] = {'source': 'transition', 'experience': experience.id,
-                                             'region': after_region}
+        owner.params['_nav_current'] = edge['to']
+        owner.params['_nav_current_proof'] = {'source': 'transition', 'experience': experience.id,
+                                              'region': after_region}

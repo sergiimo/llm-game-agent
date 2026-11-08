@@ -22,17 +22,18 @@ class LiveEvalStoreTest(unittest.TestCase):
         self.run_id = self.runs.start('live-route', 'bed to well', os.path.join(self.tmp.name, 'run'))
         self.now = time.time()
 
-    def clue(self, scene, kinds, created_at):
+    def clue(self, scene, kinds, created_at, *, status='coherent', graph_kinds=(), event_at=None):
         with self.db.transaction(immediate=True) as connection:
             observation_id = connection.execute(
                 "INSERT INTO observations(run_id,status,scene,payload_json,created_at) "
-                "VALUES (?,'coherent',?,'{}',?)", (self.run_id, scene, created_at)).lastrowid
+                "VALUES (?,?,?,?,?)", (self.run_id, status, scene, '{}', created_at)).lastrowid
         return self.runs.append_event('turn', {
             'view': {'scene': scene, 'candidates': [
                 {'id': f'candidate-{index}', 'kind': kind, 'point': [1000 + index, 600]}
                 for index, kind in enumerate(kinds)]},
+            'graph_clues': [{'id': kind, 'kind': kind, 'node': kind} for kind in graph_kinds],
             'resources': {'region': scene}, 'observation_id': observation_id,
-        }, phase='clues', t=created_at, run_id=self.run_id)
+        }, phase='clues', t=created_at if event_at is None else event_at, run_id=self.run_id)
 
     def store(self):
         from runtime.live_eval import LiveEvalStore
@@ -47,6 +48,21 @@ class LiveEvalStoreTest(unittest.TestCase):
         self.assertEqual(row['scenario'], 'bed-to-well')
         self.assertEqual(row['status'], 'active')
         self.assertEqual(row['start_scene'], 'House')
+
+    def test_start_rejects_stale_or_incoherent_observation_and_static_bed_knowledge(self):
+        stale = self.now - 24 * 3600
+        self.clue('House', ['Bed'], stale)
+        with self.assertRaisesRegex(ValueError, 'fresh.*House.*Bed'):
+            self.store().start('bed-to-well', self.run_id, 'stale')
+        self.clue('House', ['Bed'], stale, event_at=self.now)
+        with self.assertRaisesRegex(ValueError, 'fresh.*House.*Bed'):
+            self.store().start('bed-to-well', self.run_id, 'stale-observation')
+        self.clue('House', ['Bed'], self.now, status='save_lineage_mismatch')
+        with self.assertRaisesRegex(ValueError, 'fresh.*House.*Bed'):
+            self.store().start('bed-to-well', self.run_id, 'mismatch')
+        self.clue('House', [], self.now + 1, graph_kinds=['Bed'])
+        with self.assertRaisesRegex(ValueError, 'fresh.*House.*Bed'):
+            self.store().start('bed-to-well', self.run_id, 'static')
 
     def test_checkpoint_is_immutable_and_idempotent_for_one_clue_event(self):
         self.clue('House', ['Bed'], self.now)
@@ -80,6 +96,48 @@ class LiveEvalStoreTest(unittest.TestCase):
         self.assertEqual(report['revision'], 'def456')
         self.assertEqual(report['finished_revision'], 'def789')
 
+    def test_static_graph_membership_cannot_prove_destination_visibility(self):
+        self.clue('House', ['Bed'], self.now)
+        evaluation = self.store().start('bed-to-well', self.run_id, 'abc123')
+        self.clue('Garden', [], self.now + 1, graph_kinds=['Well'])
+        finished = self.store().finish(evaluation['id'])
+        self.assertEqual(finished['status'], 'fail')
+
+    def test_fresh_positioned_interaction_can_prove_destination_without_visual_candidate(self):
+        self.clue('House', ['Bed'], self.now)
+        evaluation = self.store().start('bed-to-well', self.run_id, 'abc123')
+        with self.db.transaction(immediate=True) as connection:
+            connection.execute(
+                "INSERT INTO experiences(id,run_id,turn_id,observation_id,payload_json,created_at) "
+                "VALUES (?,?,?,?,?,?)", ('positioned-well', self.run_id, 2,
+                evaluation['start_observation_id'], json.dumps({'evidence': {'state': [
+                    ['region', 'Garden'], ['regions', ['Farm', 'Garden']],
+                    ['region_provenance', {'source': 'positioned_event', 'node': 'Well',
+                                           'regions': ['Farm', 'Garden']}]]}}), evaluation['created_at']))
+        finished = self.store().finish(evaluation['id'])
+        self.assertEqual(finished['status'], 'pass')
+        self.assertEqual(finished['result']['scene'], 'Garden')
+        self.assertEqual(finished['result']['destination'], 'Well')
+
+    def test_finished_evaluation_is_immutable_when_later_gameplay_adds_destination_proof(self):
+        self.clue('House', ['Bed'], self.now)
+        evaluation = self.store().start('bed-to-well', self.run_id, 'abc123')
+        first = self.store().finish(evaluation['id'], revision='first')
+        with self.db.connect() as connection:
+            checkpoints = connection.execute(
+                'SELECT count(*) FROM live_eval_checkpoints WHERE eval_id=?',
+                (evaluation['id'],)).fetchone()[0]
+        self.clue('Garden', ['Well'], self.now + 1)
+        second = self.store().finish(evaluation['id'], revision='second')
+        with self.db.connect() as connection:
+            later_checkpoints = connection.execute(
+                'SELECT count(*) FROM live_eval_checkpoints WHERE eval_id=?',
+                (evaluation['id'],)).fetchone()[0]
+        self.assertEqual(second, first)
+        self.assertEqual(second['status'], 'fail')
+        self.assertEqual(second['finished_revision'], 'first')
+        self.assertEqual(later_checkpoints, checkpoints)
+
     def test_report_is_idempotent_and_counts_persisted_inputs_and_no_moves(self):
         with self.db.transaction(immediate=True) as connection:
             connection.execute(
@@ -87,21 +145,36 @@ class LiveEvalStoreTest(unittest.TestCase):
                 "VALUES (?,1,'performed','{}',?,?)", (self.run_id, self.now - 2, self.now - 2))
         self.clue('House', ['Bed'], self.now)
         evaluation = self.store().start('bed-to-well', self.run_id, 'abc123')
+        within = evaluation['created_at']
         with self.db.transaction(immediate=True) as connection:
-            connection.execute(
-                "INSERT INTO intents(run_id,turn_id,status,payload_json,created_at,updated_at) "
-                "VALUES (?,2,'performed','{}',?,?)", (self.run_id, self.now + 1, self.now + 1))
+            for turn_id, payload in enumerate((
+                    {'action': {'kind': 'read'}, 'provenance': {'preparation': 'prepared', 'refusal': None}},
+                    {'action': {'kind': 'waypoint'}, 'provenance': {'preparation': 'refused', 'refusal': 'guard'}},
+                    {'action': {'kind': 'waypoint'}, 'provenance': {'preparation': 'prepared', 'refusal': None}}), 2):
+                connection.execute(
+                    "INSERT INTO intents(run_id,turn_id,status,payload_json,created_at,updated_at) "
+                    "VALUES (?,?,'settled',?,?,?)",
+                    (self.run_id, turn_id, json.dumps(payload), within, within))
             connection.execute(
                 "INSERT INTO experiences(id,run_id,turn_id,payload_json,created_at) VALUES (?,?,?,?,?)",
-                ('no-move', self.run_id, 2, json.dumps({'evidence': {'moved': False},
-                                                       'verdict': {'value': 'miss'}}), self.now + 1))
-        self.clue('Garden', ['Well'], self.now + 2)
+                ('no-move', self.run_id, 4, json.dumps({
+                    'action': {'kind': 'waypoint'},
+                    'before': {'state': [['navigation', {'next_edge': {'transition': 'Garden'}}]]},
+                    'evidence': {'moved': False, 'state': [['region', 'Farm']]},
+                    'verdict': {'value': 'miss'}, 'discrepancy': {'kind': 'mismatch'}}), within))
+        self.clue('Farm', [], within)
+        self.clue('Garden', ['Well'], within)
         self.store().finish(evaluation['id'])
         first = self.store().report(evaluation['id'])
         second = self.store().report(evaluation['id'])
         self.assertEqual(first, second)
         self.assertEqual(first['inputs'], 1)
         self.assertEqual(first['no_moves'], 1)
+        self.assertEqual(first['observations'], 3)
+        self.assertEqual(first['wrong_transitions'], 1)
+        self.assertEqual(first['surprises'], 1)
+        self.assertGreaterEqual(first['elapsed_real_seconds'], 0)
+        self.assertIn('elapsed_game_seconds', first)
         with self.db.connect() as connection:
             count = connection.execute('SELECT count(*) FROM live_evals').fetchone()[0]
         self.assertEqual(count, 1)

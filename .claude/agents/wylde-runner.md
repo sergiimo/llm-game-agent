@@ -17,6 +17,9 @@ model correction/gap choices. Stop at the assigned call budget and pause safely.
 recover from an issue; return its experience ID/frame/task state to the supervisor for a focused fix.
 
 ## Tools you may use (text only)
+- For an assigned navigation turn, follow `.claude/skills/wylde-navigate/SKILL.md` and use
+  `./wf play navigate destination=<node-or-kind>` with one explicit returned-turn decision. Its compass +
+  `near|mid|far` edge is authoritative; `go:`/`goto`/world coordinates are not a route plan.
 - `./wf state`: one line `mode | clock | money | bubble@x,y | text…`. Modes: gameplay, dialogue, popup,
   cutscene, overlay.
 - `./wf do <actions…>`: run actions, wait for the screen to settle, print one state line. Actions: `key:space`,

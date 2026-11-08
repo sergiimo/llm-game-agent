@@ -62,10 +62,11 @@ done-signal, constraints) before dispatching.
 quest and runner, unless the user explicitly overrides it. In Codex collaboration this is `gpt-6-luna` with low
 reasoning; in Claude agent definitions it is `haiku`. Never inherit the supervisor's more expensive model by default.
 
-**Fast-start rule (user, 2026-11-01): routine navigation must not become an analysis phase.** When the target has a
-known map place, the runner resumes, runs one direct map route (`./wf goto <place>`), then invokes the verified game
-function. The supervisor's fresh preflight is passed in the manifest so the child does not repeat it. Do not add local
-object-search, screenshots, or route deliberation before trying the direct map route once.
+**Fast-start rule (user, 2026-11-01): routine navigation must not become an analysis phase.** Start/resume the generic
+`./wf play navigate destination=<node-or-kind>` workflow and act from its one next graph edge. The edge is compass plus
+`near|mid|far`; the model inspects the supplied full-scale frame and chooses one matching visible-road click. Do not
+run retired `goto`/calibration/coordinate routes first. The supervisor's fresh preflight is passed in the manifest so
+the child does not repeat it.
 
 The child should finish the quest from the manifest alone. Before dispatching, complete the quest file:
 - `## Quest brief` fields: Why · Steps (▶️ current) · How-to · Where · Progress signal · Done when · Next · Tips ·

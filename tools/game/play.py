@@ -94,7 +94,7 @@ def _clues(store, frame_context=None):
             'inventory': world.inventory(save, lines),
             'inventory_complete': isinstance(player.get('inventory', {}).get('items'), list),
             'money': money, 'region': region, 'scene': scene, 'save_scene': save.get('currentScene'),
-            'game_time': save_stamp,
+            'hud_hour': hour, 'save_time': save_stamp,
             'observation_id': coherent.observation_id if coherent is not None else None,
             'vector_scope': vector_scope,
             'map_pin': frame_context.get('map_pin') if frame_context.get('screen') == 'map' else None,

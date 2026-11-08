@@ -106,15 +106,21 @@ class Turns(unittest.TestCase):
 
     def test_read_keeps_fresh_resources_instead_of_overlaying_the_cached_turn(self):
         self.port.preflight = lambda action, observation: action
-        self.port.snapshot.update(game_time='D5 3:30:00 PM', money=42, position=[13.2, -23.2],
+        self.port.snapshot.update(game_time='D5 3:30:00 PM', log_time='D5 3:30:00 PM',
+                                  save_time='D5 3:20:00 PM', hud_hour=15.5,
+                                  money=42, position=[13.2, -23.2],
                                   state_provenance={'money': {'save_count': 395}})
         cached = self.loop.context()
-        self.port.snapshot = dict(self.port.snapshot, game_time='D5 6:40:00 PM', money=41,
+        self.port.snapshot = dict(self.port.snapshot, game_time='D5 6:40:00 PM', log_time='D5 6:40:00 PM',
+                                  save_time='D5 6:30:00 PM', hud_hour=18 + 2 / 3, money=41,
                                   position=[14.3, -21.6],
                                   state_provenance={'money': {'save_count': 396}})
         self.loop.decide(cached.turn_id, turn.Decision('read'))
         before = dict(self.store.load().last_experience['before']['state'])
         self.assertEqual(before['game_time'], 'D5 6:40:00 PM')
+        self.assertEqual(before['log_time'], 'D5 6:40:00 PM')
+        self.assertEqual(before['save_time'], 'D5 6:30:00 PM')
+        self.assertEqual(before['hud_hour'], 18 + 2 / 3)
         self.assertEqual(before['money'], 41)
         self.assertEqual(before['position'], [14.3, -21.6])
         self.assertEqual(before['state_provenance']['money']['save_count'], 396)

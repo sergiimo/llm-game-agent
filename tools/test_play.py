@@ -2162,12 +2162,16 @@ class ReadLatency(PlayCase):
         self.assertEqual(after_action.frame_path, outcome['artifacts']['frames'][-1])
         self.assertEqual(dict(outcome['evidence']['state'])['frame_path'], after_action.frame_path)
 
-    def test_current_save_time_is_not_overwritten_by_an_older_log_stamp(self):
+    def test_save_time_never_replaces_the_live_log_action_time(self):
         adapter, _, _, _ = self.native_adapter()
         adapter.clue_provider = lambda frame_context: {
-            'game_time': 'D211 6:40:00 PM', 'graph_clues': []}
+            'save_time': 'D211 6:40:00 PM', 'graph_clues': []}
         snapshot = adapter.observe()
-        self.assertEqual(snapshot['game_time'], 'D211 6:40:00 PM')
+        self.assertEqual(snapshot['save_time'], 'D211 6:40:00 PM')
+        self.assertEqual(snapshot['log_time'], 'D211 12:25:04 PM')
+        self.assertEqual(snapshot['game_time'], snapshot['log_time'])
+        self.assertNotEqual(snapshot['game_time'], snapshot['save_time'])
+        self.assertIn('hud_hour', snapshot)
 
     def test_native_read_preserves_black_guard_and_one_bounded_reobservation(self):
         from PIL import Image
@@ -2805,7 +2809,8 @@ class BoundaryValidation(PlayCase):
         self.assertTrue(data['inventory_complete'])
         self.assertEqual(data['money'], 95)
         self.assertEqual(data['region'], 'Farm')
-        self.assertEqual(data['game_time'], 'D210 9:00:00 AM')
+        self.assertEqual(data['save_time'], 'D210 9:00:00 AM')
+        self.assertNotIn('game_time', data)
         self.assertEqual(data['state_provenance']['inventory']['save_count'], 7)
         self.assertEqual(data['state_provenance']['inventory']['source'], 'save')
 

@@ -330,8 +330,9 @@ def _compact_projection(task, observation, surprise):
                 'frame': view['path']}
     memory = {'revision': observation.get('memory_revision'),
               'clues': observation.get('graph_clues', ())}
-    resource_keys = ('hour', 'light', 'rain', 'can', 'money', 'inventory', 'inventory_complete',
-                     'position', 'region', 'scene', 'save_scene', 'game_time', 'state_provenance')
+    resource_keys = ('hour', 'hud_hour', 'light', 'rain', 'can', 'money', 'inventory', 'inventory_complete',
+                     'position', 'region', 'scene', 'save_scene', 'game_time', 'log_time', 'save_time',
+                     'state_provenance')
     resources = {key: observation.get(key) for key in resource_keys if key in observation}
     provenance = observation.get('state_provenance') or {}
     resources['provenance'] = {key: provenance[key] for key in resources if key in provenance}

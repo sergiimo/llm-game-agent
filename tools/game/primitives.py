@@ -326,9 +326,14 @@ class GameAdapter:
                              for i, row in enumerate(s.controls)]
         clues.setdefault('graph_clues', [])
         clues.setdefault('interrupts', [])
+        # These clocks describe different evidence sources.  The log stamp is the action timeline; a save stamp
+        # belongs only to the save-derived snapshot/provenance and must never silently replace it.
+        clues.setdefault('hud_hour', hour)
         stamp = getattr(core.WF, 'game_stamp', None)
         if stamp is not None:
-            clues.setdefault('game_time', stamp())
+            log_time = stamp()
+            clues['log_time'] = log_time
+            clues['game_time'] = log_time  # compatibility for experience/world consumers: always the action clock
         self._latest_observation = clues
         return clues
 

@@ -73,7 +73,10 @@ Never infer actual node ownership from projection.
    not. Collect ready non-flower crops and ready honey; preserve flowers unless authorized. Water after planting
    unless raining. A plant plus drop icon needs interaction evidence to distinguish dry from wilted.
 5. **The model handles surprises.** Read the preserved frame before diagnosing uncertain evidence. Choose a graph,
-   appearance, transition, gap, human or stop correction (`integrate.correct`); code never patches itself.
+   appearance, transition, gap or stop correction (`integrate.correct`); code never patches itself. A `human` or
+   legacy `unresolved` correction immediately sets task status unresolved and leaves only look/stop; it is an
+   intentional terminal classification, not a resumable question. To ask a
+   human and resume later, submit no correction/stop, return `need-help`, and preserve the active surprise/task.
    If the model chose the wrong primitive (for example a world bubble while Collect is already open), choose
    `correct` with `{"kind":"revise_decision","data":{"reason":"<mistaken choice>"}}`. This records the decision
    revision and clears the surprise without learning, a gap, an input or a task/transaction reset. The next normal

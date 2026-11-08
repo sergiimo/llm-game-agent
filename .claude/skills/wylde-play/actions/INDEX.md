@@ -118,6 +118,9 @@ evidence retains the surprise. Guard-refusal refresh remains observation-only: n
 expectations still apply.
 Read its source frame before diagnosing uncertainty. Corrections:
 `revise_decision`, `graph`, `appearance`, `transition`, `blocked_target`, `gap`, `human`; legacy `world` remains accepted.
+`human` (and legacy `unresolved`) records a terminal unresolved task and leaves only observation/stop; never use it to
+request clarification that should resume. For a resumable human question, submit no correction, return `need-help`
+with the current turn/evidence, and leave the surprise/task active.
 Graph corrections name one existing node (`state` or `placement`) or exact `edge:{a,b,rel}` plus `values`. Appearance
 corrections name one kind and `op:sample` with a bounded `box`, or `op:reembed`. Keep the captured `frame_path`, rationale
 and evidence references. Public appearance ops are only `sample` and `reembed`; legacy `proven_look`, `relabel` and `badge` model corrections
@@ -128,7 +131,7 @@ must be corrected or reported before reuse. Movement needs a satisfied positive 
 
 `push` freezes the parent interaction; `suspend` explicitly holds a subgoal. `complete` requires captured domain proof
 and leaves the parent frozen. A separate `resume` restores it. Each boundary survives restart; a pending intent is
-reconciled without repeating input. `human` records unresolved ambiguity; `gap` preserves evidence for offline repair.
+reconciled without repeating input. `human` terminally records unresolved ambiguity; `gap` preserves evidence for offline repair.
 Unsupported completion proof is a gap, never permission to mark success from a model assertion.
 
 Check interrupts every turn. A new task after 19:00 requires the pre-approved sleep subgoal before work; rain/darkness

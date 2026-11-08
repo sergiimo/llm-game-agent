@@ -61,7 +61,8 @@ to the human; never patch runtime code while playing. Purchases require explicit
 matching inventory/money proof. Do not change settings, sell valuables or choose major story actions without scope.
 `stop` is a terminal durable-task decision, not the spelling of “return to my parent.” A vision request, call-budget
 handoff, missing manifest fact, or genuine ambiguity leaves the task active and returns `need-help` with its turn,
-frame and experience; resume the same owner after the supervisor resolves it.
+frame and experience; submit no correction while waiting, then resume the same owner after the supervisor resolves it.
+`human`/`unresolved` correction is instead an intentional terminal classification and does not support normal resume.
 
 The canonical chronological timeline, observations, intents and immutable experiences live in `runs/wf.sqlite3`;
 the same loop boundary regenerates timestamped human-readable `decisions.md` and `progress.md` projections. Never

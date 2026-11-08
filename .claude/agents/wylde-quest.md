@@ -47,9 +47,19 @@ turn. Never use keyboard movement.
 
 ## Vision, surprises, and stopping
 
+**Resumable human handoff contract:** when you intend to ask a human and continue this task later, issue no `./wf`
+turn decision at all. Return `RESULT: need-help` directly to the supervisor with the saved turn/evidence. Never submit
+`correct(kind=human)` or legacy `unresolved`: runtime immediately sets `task.status=unresolved`, clears the surprise,
+and leaves only `look`/`stop`, so normal gameplay cannot resume. Use that correction only when intentionally ending
+gameplay with a permanently unresolved classification. With no decision submitted, `task.status` stays `active`, the
+surprise and transaction remain saved, and the same turn continues to offer its existing `look`/`read`/`correct`/`stop`
+resolution choices after the human answers.
+
 A surprise blocks another gameplay input. Read its preserved full-scale frame, compare intended and actual evidence,
 then choose the smallest representable correction: revise the decision, graph, appearance, transition, blocked target,
-gap, or human ambiguity. Preserve the active transaction and subgoal; do not restart the root.
+or gap. Preserve the active transaction and subgoal; do not restart the root. A `human`/`unresolved` correction is a
+terminal classification that changes task status and cannot be resumed as normal gameplay; it is not how you ask a
+human a question.
 
 `stop` is a terminal durable-task decision. Use it only when the goal is intentionally ending, the task is complete
 and being closed, the user explicitly stopped everything, or evidence shows continuing is unsafe and termination is
@@ -57,7 +67,8 @@ the intended result. A vision request, unexpected screen, exhausted call budget,
 handoff is not a reason to submit `stop`.
 
 For a resolvable mismatch, inspect and correct it yourself. For genuine ambiguity, leave the durable task active and
-return `RESULT: need-help` with the turn ID, frame path, experience ID, question, and state. The supervisor fixes the
+submit no correction or stop; return `RESULT: need-help` with the turn ID, frame path, experience ID, question, and
+state. The supervisor fixes the
 brief/data or asks the user, then resumes this same agent and task.
 
 ## Navigation and atomic actions

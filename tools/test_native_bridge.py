@@ -9,6 +9,7 @@ import unittest
 from unittest import mock
 
 import wf
+import owner_timing
 from game import experience as X, native_bridge, primitives, task_state as S, turn
 from runtime.run_store import RunStore
 from test_turn import Port
@@ -156,12 +157,59 @@ class NativeBridgeContracts(unittest.TestCase):
         receipt = {'turn_id': 7, 'frame_path': 'frame-7.jpg',
                    'image': {'path': 'frame-7.jpg', 'mime_type': 'image/jpeg'}}
         with mock.patch.object(native_bridge, 'observe', return_value=receipt) as observe, \
+                mock.patch.object(native_bridge, '_current_store', return_value=self.store), \
                 contextlib.redirect_stdout(io.StringIO()) as out:
             wf.main(['native', 'observe', 'goal=navigate', 'destination=Well'])
 
         observe.assert_called_once_with('navigate', {'destination': 'Well'})
         result = json.loads(out.getvalue())
         self.assertEqual(result['content'][1]['path'], 'frame-7.jpg')
+
+    def test_native_tool_persists_call_and_receipt_boundaries(self):
+        native_tools = importlib.import_module('native_tools')
+        receipt = {'turn_id': 7, 'frame_path': 'frame-7.jpg',
+                   'image': {'path': 'frame-7.jpg', 'mime_type': 'image/jpeg'},
+                   'result': {'experience': 'exp-6', 'status': 'hit'}}
+        with mock.patch.object(native_bridge, '_current_store', return_value=self.store), \
+                mock.patch.object(native_bridge, 'observe', return_value=receipt):
+            native_tools.invoke('observe', ['goal=navigate'])
+
+        rows = [row for row in RunStore(self.store.db).events(self.store.run_id)
+                if str(row.get('phase', '')).startswith('bridge.')]
+        self.assertEqual([row['phase'] for row in rows],
+                         ['bridge.call_received', 'bridge.receipt_ready'])
+        ready = rows[1]
+        self.assertEqual(ready['turn_id'], 7)
+        self.assertEqual(ready['owner'], 'chatgpt_native_computer_use')
+        self.assertEqual(ready['transport'], 'wf_daemon_argv_v1')
+        self.assertEqual(ready['experience_id'], 'exp-6')
+        self.assertGreater(ready['output_bytes'], 0)
+        self.assertGreaterEqual(ready['packaging_seconds'], 0)
+
+    def test_owner_timing_recognizes_named_native_action_and_reports_receipt_cycles(self):
+        rows = [
+            {'timestamp': '2026-11-09T10:00:00Z', 'type': 'response_item',
+             'payload': {'type': 'function_call_output'}},
+            {'timestamp': '2026-11-09T10:00:01Z', 'type': 'response_item',
+             'payload': {'type': 'reasoning'}},
+            {'timestamp': '2026-11-09T10:00:02Z', 'type': 'response_item',
+             'payload': {'type': 'function_call', 'name': 'wf_act', 'call_id': 'native-1',
+                         'arguments': json.dumps({'turn_id': 7, 'action': {'kind': 'waypoint'}})}},
+        ]
+        extracted = list(owner_timing.boundaries(rows))
+        self.assertEqual(extracted[0][0], 7)
+        self.assertEqual(extracted[0][1]['tool_name'], 'wf_act')
+
+        cycles = owner_timing.bridge_cycles([
+            {'t': 10.0, 'turn_id': 6, 'payload_json': json.dumps({'operation': 'observe'})},
+            {'t': 13.5, 'turn_id': 7, 'payload_json': json.dumps({'operation': 'act'})},
+            {'t': 18.0, 'turn_id': 8, 'payload_json': json.dumps({'operation': 'act'})},
+        ])
+        self.assertEqual([row['seconds'] for row in cycles['cycles']], [3.5, 4.5])
+        self.assertEqual(cycles['p50'], 4.0)
+        self.assertEqual(cycles['p95'], 4.5)
+        self.assertEqual(cycles['over_3_seconds'], 2)
+        self.assertEqual(cycles['over_4_seconds'], 1)
 
 
 if __name__ == '__main__':

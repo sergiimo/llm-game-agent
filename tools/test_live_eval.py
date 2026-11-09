@@ -151,6 +151,23 @@ class LiveEvalStoreTest(unittest.TestCase):
         finished = self.store().finish(evaluation['id'])
         self.assertEqual(finished['status'], 'fail')
 
+    def test_well_to_bed_requires_fresh_bed_endpoint_not_static_graph_knowledge(self):
+        self.clue('Farm', ['Well'], self.now)
+        evaluation = self.store().start('well-to-bed', self.run_id, 'reverse-a')
+        self.clue('House', [], self.now + 1, graph_kinds=['Bed'])
+        failed = self.store().finish(evaluation['id'])
+        self.assertEqual(failed['status'], 'fail')
+
+        self.run_id = self.runs.start(
+            'live-route-reverse', 'well to bed', os.path.join(self.tmp.name, 'run-reverse'))
+        self.clue('Farm', ['Well'], self.now + 2)
+        evaluation = self.store().start('well-to-bed', self.run_id, 'reverse-b')
+        self.clue('House', ['Bed'], self.now + 3)
+        passed = self.store().finish(evaluation['id'])
+        self.assertEqual(passed['status'], 'pass')
+        self.assertEqual(passed['result']['scene'], 'House')
+        self.assertEqual(passed['result']['destination'], 'Bed')
+
     def test_fresh_positioned_interaction_can_prove_destination_without_visual_candidate(self):
         self.clue('House', ['Bed'], self.now)
         evaluation = self.store().start('bed-to-well', self.run_id, 'abc123')

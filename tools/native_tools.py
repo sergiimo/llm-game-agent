@@ -1,7 +1,10 @@
 """Host-facing native gameplay tool schemas and result packaging."""
 import json
+import time
+import uuid
 
 from game import native_bridge
+from runtime.run_store import RunStore
 
 
 SCHEMAS = {
@@ -37,25 +40,78 @@ def _values(args):
     return values
 
 
+OWNER = 'chatgpt_native_computer_use'
+TRANSPORT = 'wf_daemon_argv_v1'
+
+
+def _event(store, phase, payload, *, turn_id=None, stamp=None):
+    RunStore(store.db).append_event('timing', payload, phase=phase, turn_id=turn_id,
+                                    run_id=store.run_id, t=stamp)
+
+
+def _ready(store, operation, call_id, started, request_turn_id, receipt):
+    package_started = time.time()
+    result = package(receipt)
+    ready = time.time()
+    encoded = json.dumps(result, separators=(',', ':')).encode()
+    outcome = receipt.get('result') or {}
+    _event(store, 'bridge.receipt_ready', {
+        'call_id': call_id, 'operation': operation, 'owner': OWNER, 'transport': TRANSPORT,
+        'call_received_at': started, 'receipt_ready_at': ready,
+        'request_turn_id': request_turn_id, 'next_turn_id': receipt.get('turn_id'),
+        'experience_id': outcome.get('experience'), 'outcome_status': outcome.get('status'),
+        'packaging_seconds': round(max(0.0, ready - package_started), 6),
+        'output_bytes': len(encoded),
+    }, turn_id=receipt.get('turn_id'), stamp=ready)
+    return result
+
+
 def invoke(operation, args):
     values = _values(args)
-    if operation == 'observe':
-        goal = values.pop('goal', None)
-        params = values.pop('params', None) or values
-        return package(native_bridge.observe(goal, params or None))
-    if operation == 'act':
-        allowed = {'turn_id', 'action', 'objective', 'location'}
-        if set(values) - allowed or 'turn_id' not in values or 'action' not in values:
-            raise ValueError('native act needs turn_id and action, with optional objective/location')
-        return package(native_bridge.act(values['turn_id'], values['action'],
-                                         values.get('objective'), values.get('location')))
-    if operation == 'note':
-        allowed = {'turn_id', 'finding', 'evidence_ids'}
-        if set(values) != allowed:
-            raise ValueError('native note needs turn_id, finding and evidence_ids')
-        result = native_bridge.note(values['turn_id'], values['finding'], values['evidence_ids'])
-        return {'content': [{'type': 'text', 'text': json.dumps(result, separators=(',', ':'))}]}
-    raise ValueError(f'unknown native operation: {operation!r}')
+    store = native_bridge._current_store()
+    started, call_id = time.time(), uuid.uuid4().hex
+    request_turn_id = values.get('turn_id') if type(values.get('turn_id')) is int else None
+    _event(store, 'bridge.call_received', {
+        'call_id': call_id, 'operation': operation, 'owner': OWNER, 'transport': TRANSPORT,
+        'call_received_at': started, 'request_turn_id': request_turn_id,
+    }, turn_id=request_turn_id, stamp=started)
+    try:
+        if operation == 'observe':
+            goal = values.pop('goal', None)
+            params = values.pop('params', None) or values
+            receipt = native_bridge.observe(goal, params or None)
+            return _ready(store, operation, call_id, started, request_turn_id, receipt)
+        if operation == 'act':
+            allowed = {'turn_id', 'action', 'objective', 'location'}
+            if set(values) - allowed or 'turn_id' not in values or 'action' not in values:
+                raise ValueError('native act needs turn_id and action, with optional objective/location')
+            receipt = native_bridge.act(values['turn_id'], values['action'],
+                                        values.get('objective'), values.get('location'))
+            return _ready(store, operation, call_id, started, request_turn_id, receipt)
+        if operation == 'note':
+            allowed = {'turn_id', 'finding', 'evidence_ids'}
+            if set(values) != allowed:
+                raise ValueError('native note needs turn_id, finding and evidence_ids')
+            result = native_bridge.note(values['turn_id'], values['finding'], values['evidence_ids'])
+            ready = time.time()
+            packaged = {'content': [{'type': 'text', 'text': json.dumps(result, separators=(',', ':'))}]}
+            _event(store, 'bridge.receipt_ready', {
+                'call_id': call_id, 'operation': operation, 'owner': OWNER, 'transport': TRANSPORT,
+                'call_received_at': started, 'receipt_ready_at': ready,
+                'request_turn_id': request_turn_id, 'next_turn_id': request_turn_id,
+                'packaging_seconds': 0.0,
+                'output_bytes': len(json.dumps(packaged, separators=(',', ':')).encode()),
+            }, turn_id=request_turn_id, stamp=ready)
+            return packaged
+        raise ValueError(f'unknown native operation: {operation!r}')
+    except Exception as error:
+        failed = time.time()
+        _event(store, 'bridge.call_failed', {
+            'call_id': call_id, 'operation': operation, 'owner': OWNER, 'transport': TRANSPORT,
+            'call_received_at': started, 'failed_at': failed, 'request_turn_id': request_turn_id,
+            'error_type': type(error).__name__,
+        }, turn_id=request_turn_id, stamp=failed)
+        raise
 
 
 def cli(operation, args):

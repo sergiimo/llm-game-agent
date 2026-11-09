@@ -8,6 +8,8 @@ SCENARIOS = {
     'bed-to-well': {'start_scene': 'House', 'start_kind': 'Bed',
                     # Garden is a nested object-graph region inside the Farm Unity scene, not its own scene.
                     'destination_scene': 'Farm', 'destination_kind': 'Well'},
+    'well-to-bed': {'start_scene': 'Farm', 'start_kind': 'Well',
+                    'destination_scene': 'House', 'destination_kind': 'Bed'},
 }
 FRESH_SECONDS = 300
 

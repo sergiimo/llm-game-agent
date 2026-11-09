@@ -10,6 +10,8 @@ from pathlib import Path
 import re
 import shlex
 import sqlite3
+import math
+import statistics
 
 
 def stamp(row):
@@ -64,15 +66,102 @@ def boundaries(rows):
                 first_output = stamp(row)
         elif kind in ('custom_tool_call', 'function_call'):
             code = payload.get('input', payload.get('arguments', ''))
-            matches = re.findall(r'\bturn_id=(\d+)\b', code)
+            tool_name = payload.get('name')
+            matches = []
+            if tool_name in ('wf_act', 'wf_observe', 'wf_note'):
+                try:
+                    arguments = json.loads(code) if isinstance(code, str) else code
+                    if type(arguments.get('turn_id')) is int:
+                        matches = [str(arguments['turn_id'])]
+                except (TypeError, ValueError, AttributeError):
+                    matches = []
+            elif isinstance(code, str):
+                matches = re.findall(r'\bturn_id=(\d+)\b', code)
             if len(matches) == 1 and previous_result is not None:
                 yield int(matches[0]), {
                     'call_id': payload.get('call_id'),
+                    'tool_name': tool_name or kind,
                     'host_tool_result_at': previous_result,
                     'first_observable_model_output_at': first_output,
                     'tool_call_emitted_at': stamp(row),
-                    'call_parts_characters': call_parts(code),
+                    'call_parts_characters': call_parts(code) if isinstance(code, str) else None,
                 }
+
+
+def bridge_cycles(rows):
+    """Summarize consecutive native receipt-ready events without inventing model subdivisions."""
+    ready = []
+    for row in rows:
+        payload = row.get('payload')
+        if payload is None:
+            payload = json.loads(row.get('payload_json') or '{}')
+        ready.append({'t': float(row['t']), 'turn_id': row.get('turn_id'), **payload})
+    ready.sort(key=lambda row: row['t'])
+    cycles = []
+    for previous, current in zip(ready, ready[1:]):
+        cycles.append({
+            'from_turn_id': previous.get('turn_id'), 'turn_id': current.get('turn_id'),
+            'operation': current.get('operation'),
+            'seconds': round(max(0.0, current['t'] - previous['t']), 6),
+            'output_bytes': current.get('output_bytes'),
+            'outcome_status': current.get('outcome_status'),
+        })
+    seconds = [row['seconds'] for row in cycles]
+    if not seconds:
+        return {'cycles': [], 'count': 0, 'p50': None, 'p95': None, 'max': None,
+                'over_3_seconds': 0, 'over_4_seconds': 0}
+    ordered = sorted(seconds)
+    return {
+        'cycles': cycles, 'count': len(seconds),
+        'p50': round(statistics.median(ordered), 6),
+        'p95': round(ordered[max(0, math.ceil(.95 * len(ordered)) - 1)], 6),
+        'max': round(max(ordered), 6),
+        'over_3_seconds': sum(value > 3 for value in ordered),
+        'over_4_seconds': sum(value > 4 for value in ordered),
+    }
+
+
+def phase_stats(rows):
+    grouped = {}
+    for phase, encoded in rows:
+        payload = json.loads(encoded or '{}')
+        seconds = payload.get('seconds')
+        if type(seconds) not in (int, float):
+            continue
+        grouped.setdefault(phase, []).append(float(seconds))
+    return {phase: {
+        'count': len(values), 'p50': round(statistics.median(values), 6),
+        'p95': round(sorted(values)[max(0, math.ceil(.95 * len(values)) - 1)], 6),
+        'max': round(max(values), 6),
+    } for phase, values in sorted(grouped.items())}
+
+
+def bridge_report(db, run_id=None):
+    with sqlite3.connect(Path(db).resolve().as_uri() + '?mode=ro', uri=True) as connection:
+        connection.row_factory = sqlite3.Row
+        if run_id is None:
+            active = connection.execute('SELECT run_id FROM active_run').fetchone()
+            if not active:
+                raise ValueError('no active run')
+            run_id = active['run_id']
+        ready = connection.execute(
+            "SELECT t,turn_id,payload_json FROM run_events WHERE run_id=? "
+            "AND phase='bridge.receipt_ready' ORDER BY id", (run_id,)).fetchall()
+        result = bridge_cycles([dict(row) for row in ready])
+        if ready:
+            phases = connection.execute(
+                "SELECT phase,payload_json FROM run_events WHERE run_id=? AND type='timing' "
+                "AND phase LIKE 'turn.%' AND t>=? AND t<=? ORDER BY id",
+                (run_id, ready[0]['t'], ready[-1]['t'])).fetchall()
+            result['engine_phases'] = phase_stats(phases)
+            result['route_wall_seconds'] = round(ready[-1]['t'] - ready[0]['t'], 6)
+        else:
+            result['engine_phases'] = {}
+            result['route_wall_seconds'] = None
+        result.update(run_id=run_id, owner='chatgpt_native_computer_use',
+                      transport='wf_daemon_argv_v1',
+                      model_subdivisions='unmeasured unless a native host trace is supplied')
+        return result
 
 
 def partition(boundary, cycle):
@@ -90,12 +179,20 @@ def partition(boundary, cycle):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--session', type=Path, required=True)
+    parser.add_argument('--session', type=Path)
     parser.add_argument('--db', type=Path, default=Path(__file__).resolve().parents[1] / 'runs/wf.sqlite3')
-    parser.add_argument('--turns', nargs=2, type=int, required=True, metavar=('FIRST', 'LAST'))
+    parser.add_argument('--turns', nargs=2, type=int, metavar=('FIRST', 'LAST'))
+    parser.add_argument('--bridge', action='store_true', help='Report native receipt-to-receipt cycles from SQLite')
+    parser.add_argument('--run-id')
     parser.add_argument('--write', action='store_true')
     parser.add_argument('--call-parts', action='store_true', help='Estimate generation shares by emitted characters')
     args = parser.parse_args()
+    if args.bridge:
+        print(json.dumps(bridge_report(args.db, args.run_id), indent=2, sort_keys=True))
+        if args.session is None:
+            return
+    if args.session is None or args.turns is None:
+        parser.error('--session and --turns are required unless only --bridge is requested')
     with args.session.open() as stream:
         extracted = list(boundaries(json.loads(line) for line in stream))
     with sqlite3.connect(args.db.resolve().as_uri() + '?mode=ro', uri=True) as connection:

@@ -166,5 +166,10 @@ the attempt incomplete. No late autonomous recovery to force a benchmark pass.
   Record any proposed changes to R3/R7 explicitly. Keep the current production defaults until a verdict supports
   replacing them. Commit only this trial's completed changes if requested; never sweep the dirty branch into it.
 
-**Current status:** plan only. No native host connection, engine code change, gameplay input or benchmark run has
-been performed by writing this plan.
+**Current status (2026-11-09): Task 1 blocked at the required native-host gate.** This Mac exposes ChatGPT
+26.1103.31037 (`com.openai.codex`) and its Codex-controlled CUA/MCP services, but no Dot/native-agent surface that
+can register and invoke `wf_observe`. Computer Use also refuses to control the host ChatGPT app itself. Registering
+a Codex MCP server would test the explicitly excluded Codex-wrapper architecture, so Tasks 2–5 have not started.
+The probe issued zero game inputs; a read-only run-status check restarted the stale daemon after Python changes.
+Proceed only after attaching a genuine native-owner tool surface, or explicitly switch the experiment to the
+dedicated API owner described as the fallback in Task 5.

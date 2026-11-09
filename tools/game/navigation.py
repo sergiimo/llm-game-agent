@@ -89,6 +89,12 @@ def _observed_current(graph, observation, task=None):
         ancestry = graph.chain(durable)
         if observed is None or observed in ancestry:
             return durable, proof['source']
+    position_node = observation.get('position_node')
+    position_proof = observation.get('position_node_provenance') or {}
+    if position_node in graph.nodes and position_proof.get('source') == 'sleep_spawn':
+        ancestry = graph.chain(position_node)
+        if observed is None or observed in ancestry:
+            return position_node, 'sleep_spawn'
     # A fresh candidate alone is only an appearance hint. Candidate + an affordance that the same unique node
     # offers is local interaction proof (for example Well + fill_can, Bed + sleep), strong enough to start the
     # qualitative route at that nested node without borrowing any last-task state.
@@ -198,20 +204,44 @@ def _vector_landmarks(graph, observation):
     return landmarks
 
 
-def _localization(graph, observation, params, current=None, steps=()):
+EXACT_GRAPH_SOURCES = frozenset({'sleep_spawn', 'navigation_step', 'transition', 'positioned_event'})
+
+
+def _localization(graph, observation, params, current=None, steps=(), current_source=None):
     landmarks = _vector_landmarks(graph, observation)
     belief = params.get('_navigation_belief') or {}
+    exact = current is not None and current_source in EXACT_GRAPH_SOURCES
     base = {
-        'current': 'unknown',
+        'current': current if exact else 'unknown',
         'likely_region': current,
         'prior_hint': belief.get('current'),
         'landmarks': landmarks,
         'graph_slice': _route_slice(graph, steps),
     }
+    if exact:
+        return dict(base, stage='graph', next='follow_graph_route')
     if landmarks:
         return dict(base, stage='vectors', next='localize_from_vectors_and_graph')
     return dict(base, stage='vision', next='identify_unique_object_and_create_vector',
                 after_vision='map_if_still_unresolved')
+
+
+def _map_anchor(graph, goal_key):
+    """Nearest goal/ancestor explicitly represented on the illustrated map."""
+    for node_id in reversed(graph.chain(goal_key)):
+        node = graph.nodes[node_id]
+        marker = node.extra.get('map')
+        if isinstance(marker, dict) and marker.get('kind'):
+            return {'node': node_id, 'kind': marker['kind'], 'label': marker.get('label'),
+                    'exact': node_id == goal_key}
+    return None
+
+
+def map_target(navigation):
+    """Map-bindable node for a navigation receipt; unique unmarked subobjects use their labeled ancestor."""
+    goal = (navigation or {}).get('goal') or {}
+    anchor = goal.get('map_anchor') or {}
+    return anchor.get('node') or goal.get('node')
 
 
 def receipt(task, observation, graph=None):
@@ -239,12 +269,15 @@ def receipt(task, observation, graph=None):
     goal_receipt = {'node': goal_key, 'scene': scene,
                     'source': goal.extra.get('source'),
                     'enterable': bool(goal.extra.get('enterable'))}
+    map_anchor = _map_anchor(graph, goal_key)
+    if map_anchor:
+        goal_receipt['map_anchor'] = map_anchor
     current, current_source = _observed_current(graph, observation, task)
     if current is None:
         return dict(base, status='unresolved_graph_position', goal=goal_receipt, next_edge=None,
                     graph={'current_node': None, 'destination': goal_key})
     steps = _path(graph, current, goal_key)
-    base['localization'] = _localization(graph, observation, params, current, steps)
+    base['localization'] = _localization(graph, observation, params, current, steps, current_source)
     if steps is None:
         return dict(base, status='unresolved_path', goal=goal_receipt, next_edge=None)
     if len(steps) == 1:

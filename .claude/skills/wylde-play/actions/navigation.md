@@ -8,6 +8,13 @@ Prerequisites: read the active goal/transaction, exact clock, current modal and
 `prior_hint`, current-frame `landmarks`, and `graph_slice`. Each landmark supplies `landmark_from_tara` and the
 inverse `tara_from_landmark`; the route is in `graph_slice.route_edges`.
 
+A fresh `position_node` with `source=sleep_spawn` is exact event-owned graph localization. Indoors, prefer that
+stable graph origin over appearance inference: `Bed → House/BedroomPassage → HouseExit`. Each indoor navigation edge
+must have compass/range in both directions. A later proved navigation step replaces the spawn origin.
+When that exact indoor origin or a proved navigation-only node resolves the next structural edge, the runtime skips
+the optional appearance-vector pass. Follow the graph and current visible floor; vectors resume when localization or
+target identity is actually unresolved.
+
 Use the localization cascade exactly:
 
 1. At stage `vectors`, localize Tara from the returned vector landmarks plus graph relations and **do not run a
@@ -16,9 +23,13 @@ Use the localization cascade exactly:
    visual semantic localization, not road-safety inspection.
    A returned localization vector is usable evidence. A wrong returned vector is a vector-system defect: stop route
    continuation and fix its label/detection/calibration rather than silently bypassing it with vision.
+   Use `navigation.localization.landmarks`, not the uncollapsed `view.candidates`, to count semantic landmarks.
+   Several raw patch candidates of one graph-unique kind are one observation; the localization packet exposes only
+   its strongest hit. A landmark does not need to overlap Tara: `landmark_from_tara` plus `tara_from_landmark` is the
+   intended relative-position evidence.
 2. At stage `vision`, and only because the current frame has no vectors, read the full-scale image at `view.path`.
-   **At or after 18:00, stop before vector creation:** evening/darkness is not valid appearance-training evidence. Existing
-   vectors may still localize, but do not create, update, calibrate, or keep any vector from the dark frame. Defer the
+   **At or after 18:00, stop before vector work:** evening/darkness is not valid appearance evidence. The runtime skips
+   the optional vector pass outside daylight; do not create, update, calibrate, or keep any vector from the dark frame. Defer the
    missing exemplar until daylight. For the return-home/sleep interrupt only, use current-frame model vision as
    ephemeral localization and choose one visible-road step without persisting a vector. Stop safely only when the
    dark frame does not show enough road/landmark evidence for that one step.
@@ -38,6 +49,9 @@ Use the localization cascade exactly:
    provenance, then submit a zero-input `read` on the saved turn so detection reruns. The receipt names this step
    `identify_unique_object_and_create_vector`. Keep it only when that immediate reread returns the correct landmark
    and no stronger false peak; otherwise remove or region-disable it.
+   A `walk`/waypoint click is route evidence only: even if Tara crosses a building trigger after walking, never learn
+   an appearance crop around that ground point. Only an explicit `target` click made while the full target and road
+   are visible, or a bounded provenance-bearing appearance correction, may add an object appearance sample.
 3. Only when stage 2 leaves localization unresolved, use the outdoor map. The receipt names this fallback
    `map_if_still_unresolved`; it is stage 3, never the first localization step.
 
@@ -65,6 +79,22 @@ model-selected map route and reassess. Reopen/compare the map when localization 
 Visible-road-only navigation is for local approach, or a fallback **after** a correctly issued map request/result
 proves it unavailable or insufficient; record that limitation. Invalid/refused map requests prove neither. Do not
 replace map learning with a long chain of guessed waypoints.
+
+Bind only a map target that the graph marks as explicitly represented on the illustrated map. If the exact goal is
+an unmarked nested object (for example `Well`), `navigation.goal.map_anchor` names the nearest labeled ancestor
+(`Garden`/`MapGarden`). Label that ancestor as `target_point` and submit the route correction with
+`target:"Garden"`; never invent an exact Well point from a generic farm illustration. The resulting map compass is
+map/world-space evidence, not a screen bearing. After closing the map, choose a visible road branch only when current
+landmarks or preserved junction history establish that branch's topology. If no branch can be related to the map
+anchor, backtrack to the last proved junction or report the map as insufficient; do not translate `E` on the map into
+an arbitrary east/northeast screen click. Once the labeled ancestor is reached, local vectors/model vision locate the
+unmarked subobject.
+
+When returning over a road just traversed successfully, the exact reverse of that proved screen-road segment is
+stronger local evidence than a coarse scene edge or a projected map compass. Select a short point visibly on the
+centreline of the current road segment. A point at a road edge, under a tree, beyond a bend, or merely inside a broad
+model-described surface box is not a walkable waypoint. If the centreline cannot be seen through the bend or
+occlusion, stop at the last visible centreline point and inspect the settled frame; never extrapolate through it.
 
 Choose a target click only when both the target and its entire walkable road from the centre are visible. On a long,
 clear road, choose the **farthest safe walkable point** along that road whose entire path remains visible; this avoids
@@ -133,3 +163,8 @@ If the source outcome says `unsafe` / `world input blocked by unknown`, the guar
 observation can resolve that refusal, but movement from an earlier action cannot credit it. Inspect the fresh full-size
 frame before choosing any next input; keep the vision need/surprise when proof remains missing. Do not replay the refused
 or uncertain point automatically.
+
+A cinematic may be letterboxed. Black bars above and below a clearly rendered central scene are not a black capture.
+Use the receipt's `capture_validity` plus the entire full-scale frame: if `capture_validity=rendered` and the central
+viewport visibly contains game art/characters, treat it as the reported cutscene and continue model-owned inspection.
+Only a frame whose gameplay viewport itself lacks rendered content is black.

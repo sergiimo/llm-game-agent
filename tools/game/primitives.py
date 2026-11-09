@@ -14,6 +14,23 @@ from .task_state import Intent, Interaction, freeze
 from runtime.timing import measure
 
 
+OPERATIONAL_BEFORE_KEYS = frozenset({
+    'capture_validity', 'frame_path', 'view_id', 'region', 'scene', 'save_scene', 'position',
+    'position_node', 'position_node_provenance', 'game_time', 'log_time', 'save_time', 'hour', 'hud_hour',
+    'light', 'rain', 'can', 'money', 'inventory', 'inventory_complete', 'state_provenance', 'lineage_status',
+    'lineage_mismatch', 'observation_id', 'profile_id', 'slot_id', 'log_epoch_id', 'navigation', 'belief',
+    'candidates', 'controls', 'vector_status', 'vector_detections', 'tara_feet', 'interrupts',
+})
+
+
+def _operational_before(before):
+    """Bounded input snapshot; verbose model/history projections remain addressable in SQLite by ID."""
+    out = {key: before[key] for key in OPERATIONAL_BEFORE_KEYS if key in before}
+    out['screen'] = dict(before.get('screen') or {})
+    out['visible_affordances'] = list(before.get('visible_affordances') or ())
+    return out
+
+
 def _affordances(rows):
     """Use the experience boundary's established flat bubble schema in both observations and outcomes."""
     return tuple((a['kind'], int(a['point'][0]), int(a['point'][1]), bool(a.get('drop')), bool(a.get('ready')),
@@ -66,6 +83,19 @@ def _saved_position_moved(before, after, freshness_seconds=15 * 60):
             bp['save_count'] <= ap['save_count'] or bt < at):
         return None
     return math.dist(a, b) >= .5
+
+
+def _frame_movement(before, after):
+    """Tri-state camera evidence: True moved, False stable, None changed but correlation is ambiguous."""
+    from . import observe
+    changed = observe.view_changed(before, after)
+    if not changed:
+        return False
+    shift = observe.view_shift(before, after)
+    if shift is None:
+        return None
+    distance = sum(float(axis) ** 2 for axis in shift) ** .5
+    return True if distance > 12 else None
 
 
 def goal_expectations(goal, expects):
@@ -139,8 +169,11 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
         action['kind'] = 'target'
     source_view = task.current_turn
     leased = hasattr(adapter, 'preflight')
-    before = (adapter.observe() if action.get('kind') == 'read' or source_view is None or not leased
-              else dict(source_view))
+    if action.get('kind') == 'read' or source_view is None or not leased:
+        with measure('turn.source_observe', turn_id=turn_id, component='gameplay'):
+            before = adapter.observe()
+    else:
+        before = dict(source_view)
     if source_view is not None and leased and action.get('kind') != 'read':
         before.update(source_view.get('resources') or {})
     source_view = source_view or before
@@ -148,16 +181,20 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     try:
         resolver = getattr(adapter, 'resolve_selection', None)
         if resolver:
-            action = resolver(action, source_view)
+            with measure('turn.resolve_selection', turn_id=turn_id, component='gameplay'):
+                action = resolver(action, source_view)
         # The canonical observation has no input or resource metadata to authorize. Metadata-bearing
         # act/read aliases still take the complete ordinary guard path.
         if guard and not (action == {'kind': 'read'} and not expects):
-            refusal = guard(task.snapshot(_observation=before), freeze(action))
+            with measure('turn.guard', turn_id=turn_id, component='gameplay'):
+                refusal = guard(task.snapshot(_observation=before), freeze(action))
             if refusal:
                 raise ValueError(refusal)
         if action.get('kind') not in ('read', 'wait') and leased:
-            adapter.preflight(action, source_view)
-        prepared = adapter.prepare(dict(action), source_view)
+            with measure('turn.preflight', turn_id=turn_id, component='gameplay'):
+                adapter.preflight(action, source_view)
+        with measure('turn.prepare', turn_id=turn_id, component='gameplay'):
+            prepared = adapter.prepare(dict(action), source_view)
     except ValueError as ex:
         prepared, refusal = dict(action), str(ex)
     administrative = (action.get('kind') == 'press' and str(action.get('label', '')).casefold() == 'resume game' or
@@ -177,7 +214,7 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
     owner = task if administrative else task.active
     if task.pending_intent is not None or task.active and task.active.pending_intent is not None:
         raise ValueError('pending intent must be reconciled before input')
-    intent = Intent(turn_id, prepared, adapter.mark(), time.time(), before, expects, provenance={
+    intent = Intent(turn_id, prepared, adapter.mark(), time.time(), _operational_before(before), expects, provenance={
         'boundary': 'primitives.execute/v1',
         'adapter': f'{type(adapter).__module__}.{type(adapter).__qualname__}',
         'preparation': 'refused' if refusal else 'prepared', 'refusal': refusal})
@@ -186,7 +223,8 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
         for key, ledger in (('purchase', '_purchase_intents'), ('sale', '_sale_intents')):
             if action.get(key):
                 task.params.setdefault(ledger, []).append(dict(action[key], turn_id=turn_id))
-    store.begin_intent(task, intent)
+    with measure('turn.persist_intent', turn_id=turn_id, component='gameplay'):
+        store.begin_intent(task, intent)
     log('intent', intent=intent, _canonical=False)
     # In-memory fast path for the normal same-process finish. A crash before this assignment leaves the
     # durable WAL unmarked, so recovery safely re-establishes the canonical intent before its outcome.
@@ -203,7 +241,8 @@ def execute(store, task, turn_id, action, expects, adapter, log, guard=None):
             release()
         return
     if prepared['kind'] not in ('wait', 'read'):
-        adapter.perform(prepared)
+        with measure('turn.perform', turn_id=turn_id, component='gameplay', primitive=prepared['kind']):
+            adapter.perform(prepared)
     # TurnLoop._finish captures and persists the result, including zero-input observations.
 
 
@@ -320,7 +359,14 @@ class GameAdapter:
         vector_kinds = (None if requested_kinds is None else
                         [kind for kind in requested_kinds if kind != 'Tara'])
         vector_requested = vector_kinds is None or bool(vector_kinds)
-        if valid and s.kind in ('gameplay', 'unknown') and isinstance(scope, dict) and vector_requested:
+        daylight = frame_context.get('light') in (None, 'day')
+        nav = clues.get('navigation') or {}
+        nav_graph = nav.get('graph') or {}
+        exact_graph_route = bool(
+            isinstance(scope, dict) and nav_graph.get('current_node') and
+            nav_graph.get('current_source') in ('sleep_spawn', 'navigation_step', 'transition', 'positioned_event'))
+        if (valid and s.kind in ('gameplay', 'unknown') and isinstance(scope, dict) and vector_requested and
+                daylight and not exact_graph_route):
             effective = {'searched': [], 'disabled': [], 'untrained': list(vector_kinds or ())}
             try:
                 if self._vector_store is None:
@@ -338,6 +384,14 @@ class GameAdapter:
                 vector_status = {'status': 'error', 'region': scope.get('region'),
                                  **effective,
                                  'error': f'{type(error).__name__}: {error}'}
+        elif (valid and s.kind in ('gameplay', 'unknown') and isinstance(scope, dict) and vector_requested and
+              not daylight):
+            vector_status = {'status': 'skipped_dark', 'region': scope.get('region'),
+                             'searched': [], 'disabled': [], 'untrained': list(vector_kinds or ()), 'hits': 0}
+        elif (valid and s.kind in ('gameplay', 'unknown') and isinstance(scope, dict) and vector_requested and
+              exact_graph_route):
+            vector_status = {'status': 'skipped_exact_graph', 'region': scope.get('region'),
+                             'searched': [], 'disabled': [], 'untrained': list(vector_kinds or ()), 'hits': 0}
         clues.update(screen={'kind': s.kind, 'texts': s.texts}, frame_path=path,
                      capture_validity='rendered' if valid else 'black',
                      visible_affordances=[{'kind': a.kind, 'point': list(a.pt), 'drop': a.drop, 'ready': a.ready,
@@ -408,7 +462,13 @@ class GameAdapter:
         if kind in ('wait', 'read'):
             return action
         if kind in ('click', 'target', 'cell', 'bubble', 'waypoint'):
-            if screen != 'gameplay':
+            # `unknown` means the lightweight classifier found no positive modal signature; it is not a positive
+            # modal observation. A model-confirmed visible waypoint/target already supplies the semantic world proof
+            # for this turn. Known pause/card/menu states remain irreducible mechanical blockers.
+            model_confirmed_world = (screen == 'unknown' and
+                                     (kind == 'waypoint' and action.get('walkable') is True or
+                                      kind == 'target' and action.get('visible_road') is True))
+            if screen != 'gameplay' and not model_confirmed_world:
                 raise ValueError(f'world input blocked by {screen}')
             point = action.get('point')
             if point is None and type(action.get('x')) in (int, float) and type(action.get('y')) in (int, float):
@@ -431,19 +491,13 @@ class GameAdapter:
                     if len(surface_words) != 1:
                         raise ValueError('waypoint surface must be road, floor, porch or bridge')
                     surface = action['surface'] = surface_words[0]
-                    if (not isinstance(surface_box, (list, tuple)) or len(surface_box) != 4 or
-                            any(type(value) not in (int, float) for value in surface_box)):
-                        raise ValueError('waypoint surface needs visible [x0,y0,x1,y1] bounds')
-                    x0, y0, x1, y1 = surface_box
-                    if not (x0 < x1 and y0 < y1 and x0 <= point[0] <= x1 and y0 <= point[1] <= y1):
-                        raise ValueError('waypoint must be inside its model-confirmed surface bounds')
-                tara_hits = [row for row in observation.get('candidates', ())
-                             if row.get('kind') == 'Tara' and row.get('point')
-                             and row.get('source') == 'tracker' and row.get('confirmed') is True]
-                if any(sum((float(point[i]) - float(row['point'][i])) ** 2 for i in (0, 1)) <
-                       240 ** 2
-                       for row in tara_hits):
-                    raise ValueError('waypoint must clear confirmed Tara tracker anchor by 240 px')
+                    if surface_box is not None:
+                        if (not isinstance(surface_box, (list, tuple)) or len(surface_box) != 4 or
+                                any(type(value) not in (int, float) for value in surface_box)):
+                            raise ValueError('waypoint surface bounds must be [x0,y0,x1,y1] when supplied')
+                        x0, y0, x1, y1 = surface_box
+                        if not (x0 < x1 and y0 < y1 and x0 <= point[0] <= x1 and y0 <= point[1] <= y1):
+                            raise ValueError('waypoint must be inside its supplied surface bounds')
                 unique_kinds = {str(row.get('kind')) for row in observation.get('graph_clues', ())
                                 if row.get('type') == 'unique' and row.get('kind') and row.get('kind') != 'Tara'}
                 approach_radii = {str(row.get('kind')): float(row.get('approach_radius', 96))
@@ -555,16 +609,20 @@ class GameAdapter:
         # focus returns. Acquire focus before the final lease image so that transition is refused before run_action
         # (live D5 market trip, outcome ad2dbba00c1b6a97).
         settled_frame = None
+        world_input = action.get('kind') in ('click', 'target', 'cell', 'bubble', 'waypoint')
         focus = getattr(core.WF, 'ensure_front', None)
+        changed_focus = False
         if focus:
             changed_focus = bool(focus())
             self._focused = True
-            if changed_focus:
+            if changed_focus and not world_input:
                 settle = getattr(core.WF, 'wait_settle', None)
                 if settle:
                     settled = settle()
                     frame = getattr(settled, 'frame', None)
                     settled_frame = frame if isinstance(frame, Image.Image) else None
+        if world_input and not changed_focus:
+            return action
         try:
             with Image.open(old_path) as old:
                 now = settled_frame if settled_frame is not None else current
@@ -577,16 +635,13 @@ class GameAdapter:
                 # World scenes contain localized animation (NPCs, fire, clocks).  A single animated tile does not
                 # invalidate a visible-road decision when the coarse camera view is unchanged.  UI actions remain
                 # strict because even a small newly appeared control/modal can redirect them.
-                world_input = action.get('kind') in ('click', 'target', 'cell', 'bubble', 'waypoint')
                 if changed and world_input:
                     from . import screen
                     source_world = (observation.get('screen') or {}).get('kind') == 'gameplay'
                     live_kind = screen.read(image=now, world_visible=source_world).kind
-                    shift = observe.view_shift(old, now) if live_kind == 'gameplay' else None
-                    if shift is not None and sum(float(axis) ** 2 for axis in shift) ** .5 <= 12:
-                        # Day/night tint and ambient animation may change many pixels while the walkable geometry
-                        # stays fixed. A near-zero correlated scene shift keeps a coordinate lease valid.
-                        changed = False
+                    # Camera motion and ambient world changes are semantic evidence for the model, not an engine
+                    # veto. Only a positively recognized modal makes a world click mechanically unsafe.
+                    changed = live_kind != 'gameplay'
                 if not changed and not world_input:
                     from PIL import ImageChops, ImageStat
                     diff = ImageChops.difference(old.convert('RGB'), now.convert('RGB'))
@@ -659,16 +714,6 @@ class GameAdapter:
             settle_frame = settle_frame if isinstance(settle_frame, Image.Image) else None
             after = before if same_read else self.observe(image=settle_frame)
             samples = [after]
-            if after['screen']['kind'] == 'unknown':
-                # Pixel stability alone does not establish a readable modal (live Resume had scenery OCR
-                # while the following coherent observation read gameplay). Take one bounded settling read,
-                # preserve both sources, and let the ordinary verifier judge the final observation.
-                settled = core.WF.wait_settle()
-                settle_frame = getattr(settled, 'frame', None)
-                after = self.observe(image=settle_frame if isinstance(settle_frame, Image.Image) else None)
-                samples.append(after)
-                after = dict(after, observation_samples=[{k: sample.get(k) for k in
-                    ('frame_path', 'screen', 'capture_validity', 'game_time')} for sample in samples])
             lines = core.log_text(intent.log_mark).splitlines()
             at = next((p for p in map(act.position_of, lines) if p), None)
             # Canonical identity is assigned by integration's positioned-event consumer, not target=kind.
@@ -680,12 +725,7 @@ class GameAdapter:
                 from PIL import Image
                 with Image.open(before['frame_path']) as a, Image.open(after['frame_path']) as b:
                     if a.convert('L').getextrema()[1] > 20 and b.convert('L').getextrema()[1] > 20:
-                        changed = observe.view_changed(a, b)
-                        shift = observe.view_shift(a, b) if changed else (0., 0.)
-                        if shift is not None:
-                            moved = sum(float(axis) ** 2 for axis in shift) ** .5 > 12
-                        else:
-                            moved = changed
+                        moved = _frame_movement(a, b)
             if _saved_position_moved(before, after):
                 # Camera follow can produce a near-zero correlated image shift even when Tara moved. A fresh,
                 # click-local save delta is stronger positive evidence than image geometry. Bridged stale saves

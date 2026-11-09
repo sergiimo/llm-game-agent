@@ -103,6 +103,19 @@ class SaveLineage(unittest.TestCase):
 
         self.assertIs(select_profile([save], live_log), save)
 
+    def test_time_fail_bridge_accepts_a_previous_day_24_hour_save_stamp(self):
+        # The game serializes 00:50 after forced passout as D18 24:50. Numeric normalization therefore places the
+        # save on D19 already, even though its own uninterrupted log still proves the D18 -> D19 transition.
+        save = SaveCandidate('root', '/root/196.local', '196', 'same', 579,
+                             18 * 86400 + 24 * 3600 + 50 * 60, 'Farm', {})
+        live_log = LogEpoch('log', 18 * 86400, 19 * 86400 + 11 * 3600 + 30 * 60, lines=(
+            '[D18 2:00:01 AM] > advance_day me=Player target=null',
+            '[D18 2:00:30 AM] [TIME] Day 19',
+            '[D19 11:30:00 AM] > day_start_intro_late me=Player target=null',
+        ), scene='House')
+
+        self.assertIs(select_profile([save], live_log), save)
+
     def test_captured_d4_town_then_d219_farm_fails_closed(self):
         fixture = os.path.join(os.path.dirname(__file__), 'fixtures', 'play',
                                'save-lineage-d4-town-vs-d219-farm.json')
@@ -178,6 +191,25 @@ class SaveLineage(unittest.TestCase):
             self.assertEqual(mismatch.status, 'save_lineage_mismatch')
             self.assertEqual(mismatch.allowed_decisions, ('look', 'read', 'stop'))
             self.assertEqual(mismatch.mismatch['reason'], 'pinned_profile_missing')
+
+    def test_observation_provider_rescans_one_transient_empty_slot_rotation(self):
+        from types import SimpleNamespace
+        from unittest import mock
+        from game import core, play
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, 'wf.sqlite3'))
+            run_id = RunStore(db).start('lineage', 'test', directory)
+            root = candidate('root', 4)
+            log = LogEpoch('log', root.game_time, root.game_time)
+            ObservationStore(db).capture(run_id, [root], log)
+            candidates = mock.Mock(side_effect=[[], [root]])
+            raw = SimpleNamespace(save_candidates=candidates, log_epoch=lambda: log)
+            with mock.patch.object(core, 'WF', raw):
+                provider = play._observation_provider(SimpleNamespace(db=db, run_id=run_id))
+                observed = provider({'frame_path': 'frame.jpg', 'view_id': 'view-1'})
+
+            self.assertEqual(observed.status, 'coherent')
+            self.assertEqual(candidates.call_count, 2)
 
     def test_adapter_stops_before_clues_or_vectors_on_a_mismatch(self):
         from PIL import Image

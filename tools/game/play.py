@@ -34,14 +34,26 @@ def _save_money(save):
     return int(value), field
 
 
-def _vector_scope(graph, *candidates, learned_kinds=None):
-    """World-object appearance kinds visible in the region; Tara uses the centre-seeded feet tracker."""
+def _vector_scope(graph, *candidates, learned_kinds=None, relevant_nodes=()):
+    """World-object appearance kinds visible in the region plus the exact active nested destination.
+
+    A region's immediate children keep the routine scan bounded.  The named destination is the one justified
+    exception: a Well inside Garden can be visible while Tara is still scoped to Farm, and omitting its already
+    learned vector discards the strongest task-relevant landmark in the current frame.
+    """
     region = next((candidate for candidate in candidates if candidate in graph.nodes), None)
     allowed = set(learned_kinds) if learned_kinds is not None else None
-    kinds = sorted({node.kind for node in graph.nodes.values()
-                    if region and node.region == region and
-                    node.kind != 'Tara' and
-                    (allowed is None or node.kind in allowed)})
+    selected = {node.kind for node in graph.nodes.values()
+                if region and node.region == region and node.type == 'unique' and node.kind != 'Tara' and
+                (allowed is None or node.kind in allowed)}
+    for reference in relevant_nodes or ():
+        matches = ([graph.nodes[reference]] if reference in graph.nodes else
+                   [node for node in graph.nodes.values() if node.kind == reference])
+        if len(matches) == 1 and region in graph.chain(matches[0].id):
+            node = matches[0]
+            if node.type == 'unique' and node.kind != 'Tara' and (allowed is None or node.kind in allowed):
+                selected.add(node.kind)
+    kinds = sorted(selected)
     return {'region': region, 'kinds': kinds if region else None}
 
 
@@ -114,9 +126,14 @@ def _clues(store, frame_context=None):
                   'game_time': save_stamp}
     scene, region = world.scene_context(lines, save.get('currentScene'), since=world.save_time(save))
     region = world.graph_scope(lines, graph, scene, region)
-    vector_scope = _vector_scope(graph, region, scene, save.get('currentScene'))
-    point = save.get('currentPlayerPosition') or {}
     task_state = store.load() if store.exists() else None
+    declaration = _declaration(task_state) if task_state else {'params': {}}
+    nav_params = declaration.get('params') or {}
+    relevant_nodes = tuple(value for value in (
+        nav_params.get('destination'), nav_params.get('region'), nav_params.get('where')) if value)
+    position_node = world.graph_position_anchor(lines, graph, scene)
+    vector_scope = _vector_scope(graph, region, scene, save.get('currentScene'), relevant_nodes=relevant_nodes)
+    point = save.get('currentPlayerPosition') or {}
     active_node = task_state.active.actual_node if task_state and task_state.active else None
     data = {'graph_clues': snapshot.project_graph(
                 graph, region, frame_context.get('candidates', ()), active_node),
@@ -136,6 +153,9 @@ def _clues(store, frame_context=None):
             'state_provenance': {'inventory': save_proof, 'money': dict(save_proof, field=money_field),
                                  'position': save_proof, 'save_scene': save_proof,
                                  'region': {'source': 'scene_log'}}}
+    if position_node:
+        data['position_node'] = position_node
+        data['position_node_provenance'] = {'source': 'sleep_spawn', 'node': position_node}
     if 'x' in point and 'z' in point:
         data['position'] = [point['x'], point['z']]
     if task_state and _declaration(task_state)['goal'] == 'navigate':
@@ -178,7 +198,12 @@ def _observation_provider(store):
     observations = ObservationStore(store.db)
 
     def capture(frame_context, validate_only=False):
-        return observations.capture(store.run_id, candidates(), epoch(),
+        current_candidates = candidates()
+        if not current_candidates:
+            # Unity rotates autosave files by removing/replacing slots. One immediate rescan absorbs the brief
+            # no-decodable-file window without relaxing pinned-profile or timeline validation.
+            current_candidates = candidates()
+        return observations.capture(store.run_id, current_candidates, epoch(),
                                     frame_path=frame_context.get('frame_path'),
                                     view_id=frame_context.get('view_id'))
     return capture
@@ -253,6 +278,13 @@ def recommend(task, observation):
                            f'ok={row.get("ok")}' for row in verdict.get('checks', ())[:3])
         reasons.append(f'latest outcome {latest["id"]}: verdict={verdict["value"]}' +
                        (f'; {checks}' if checks else ''))
+    latest_action = latest.get('action') or {}
+    latest_prediction = latest.get('prediction') or {}
+    latest_evidence = latest.get('evidence') or {}
+    if (latest_action.get('kind') == 'click' and latest_action.get('what') == 'step' and
+            latest_prediction.get('moved') is True and latest_evidence.get('moved') is None):
+        reasons.append('camera movement is unresolved, not a proved no-move: choose one zero-input read so a fresh '
+                       'autosave can reconcile the prior waypoint before revising its direction')
     surprise = task.get('last_surprise') or {}
     actual = surprise.get('actual') or {}
     guard = next((check for check in surprise.get('checks', ()) if check.get('field') == 'guard'), None)
@@ -276,11 +308,21 @@ def recommend(task, observation):
         reasons.append(f'confirmed interaction has a missing appearance sample for {names}: use model vision on the '
                        'proven source frame, then a provenance-bearing appearance correction with its bounded box')
     if (observation.get('screen') or {}).get('kind') == 'map':
-        reasons.append('recognized map: label Tara pin as origin_point and the exact navigation goal as target_point; '
-                       'persist both with target, region, current map frame and expiry so the engine derives '
-                       'direction/range; then use the '
-                       'close primitive, not key:m or key:esc. Viewing a map without binding its direction does not '
-                       'change navigation')
+        nav_goal = (observation.get('navigation') or {}).get('goal') or {}
+        anchor = nav_goal.get('map_anchor') or {}
+        if anchor and not anchor.get('exact'):
+            reasons.append(
+                f'recognized map: label Tara pin as origin_point and the map-labeled {anchor.get("node")} '
+                f'({anchor.get("kind")}) as target_point; persist target={anchor.get("node")}, region, current map '
+                f'frame and expiry. The ultimate {nav_goal.get("node")} goal has no explicit map marker: do not '
+                f'invent an exact {nav_goal.get("node")} point from the illustration. After reaching the labeled '
+                'ancestor, use local vectors/model vision for the subobject; then use the close primitive, not '
+                'key:m or key:esc')
+        else:
+            reasons.append('recognized map: label Tara pin as origin_point and the exact navigation goal as '
+                           'target_point; persist both with target, region, current map frame and expiry so the '
+                           'engine derives direction/range; then use the close primitive, not key:m or key:esc. '
+                           'Viewing a map without binding its direction does not change navigation')
     elif (observation.get('navigation') or {}).get('status') == 'route_hint_expired':
         reasons.append('task-local map route expired: refresh from the map or a newly proved landmark before input; '
                        'do not fall back to the broad scene edge')
@@ -318,7 +360,7 @@ def guard(task, action):
     if action.get('kind') == 'waypoint' and current['goal'] != 'navigate':
         return 'waypoint requires generic navigation: push a navigate subgoal for the destination region'
     sleeping = current['goal'] == 'sleep' or any(row['goal'] == 'sleep' for row in task.get('stack', ()))
-    if current['goal'] == 'navigate' and action.get('kind') not in ('wait', 'read', 'close'):
+    if current['goal'] == 'navigate' and action.get('kind') in ('waypoint', 'target', 'cell', 'bubble'):
         belief = current.get('params', {}).get('_navigation_belief') or {}
         if (action.get('belief_revision') != belief.get('revision') or
                 action.get('belief_objective') != belief.get('next_objective') or
@@ -605,6 +647,11 @@ def verify_completion(task, current, outcomes, context=None):
         region = params.get('region') or params.get('destination') or params.get('where')
         if region and region_matches(after, region):
             return {'region': region}
+        from objects.graph import node_of_line
+        event_nodes = {node_of_line(line) for row in outcomes
+                       for line in row['experience']['evidence'].get('lines', ())}
+        if region and region in event_nodes:
+            return {'node': region, 'region': after.get('region'), 'source': 'positioned_event'}
         # Task-derived navigation is rebound after integrating a zero-input read.  Its persisted successor context
         # can therefore contain fresher arrival proof than the read experience's pre-rebind state projection.
         context = context or {}
@@ -708,7 +755,7 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
             with open(os.path.join(os.path.dirname(__file__), 'kinds.json')) as f:
                 params['flowers'] = json.load(f).get('_lists', {}).get('flowers', [])
         obs = initial_observation = adapter.observe()
-        params['_started_late'] = obs.get('hour') is not None and obs['hour'] >= 19
+        params['_started_late'] = obs.get('hour') is not None and obs['hour'] >= 18
         params['_trade_start_money'] = obs.get('money')
         params['_trade_start_money_provenance'] = obs.get('state_provenance', {}).get('money')
         graph = learn.MEMORY.get('graph')
@@ -756,6 +803,8 @@ def _model_receipt(context):
     navigation = raw.get('navigation')
     view = dict(raw.get('view') or {})
     view['candidates'] = [_model_candidate(dict(row)) for row in view.get('candidates', ())[:8]]
+    view['controls'] = [{key: row[key] for key in ('id', 'label', 'point', 'view_id') if key in row}
+                        for row in view.get('controls', ())[:8]]
     memory = dict(raw.get('memory') or {})
     if navigation:
         memory = {'revision': memory.get('revision')}
@@ -767,6 +816,50 @@ def _model_receipt(context):
     for row in raw.get('vector_detections', ())[:8]:
         row = dict(row)
         vectors.append({name: row[name] for name in ('kind', 'point', 'score') if name in row})
+    task = dict(raw.get('task') or {})
+    if task.get('goal') == 'navigate' and navigation:
+        nav = dict(navigation)
+        graph = dict(nav.get('graph') or {})
+        localization = dict(nav.get('localization') or {})
+        navigation = {
+            'goal': {key: value for key, value in dict(nav.get('goal') or {}).items()
+                     if key in ('node', 'scene', 'enterable')},
+            'graph': {key: graph.get(key) for key in
+                      ('current_node', 'current_source', 'destination', 'path') if graph.get(key) is not None},
+            'next_edge': {key: value for key, value in dict(nav.get('next_edge') or {}).items()
+                          if key in ('from', 'to', 'compass', 'range', 'walkable')},
+            'localization': {key: localization.get(key) for key in
+                             ('stage', 'current', 'likely_region', 'next', 'landmarks', 'graph_slice')
+                             if localization.get(key) not in (None, [], {})},
+        }
+        view = {key: view.get(key) for key in ('path', 'mode', 'scene', 'clock', 'candidates', 'controls', 'bubbles')
+                if view.get(key) not in (None, [], {})}
+        resources = dict(raw.get('resources') or {})
+        result = dict(raw.get('result') or {})
+        belief = dict(raw.get('belief') or {})
+        recommendation = dict(raw.get('recommendation') or {})
+        return {
+            'navigation': navigation,
+            'turn_id': raw.get('turn_id'),
+            'task': {key: task.get(key) for key in ('task_id', 'goal', 'status')},
+            'view': view,
+            'result': {key: result.get(key) for key in ('experience', 'status', 'events')
+                       if result.get(key) not in (None, [], {})},
+            'resources': {key: resources.get(key) for key in
+                          ('game_time', 'scene', 'region', 'rain', 'light') if resources.get(key) is not None},
+            'belief': {key: belief.get(key) for key in ('current', 'next_objective', 'assessment')
+                       if belief.get(key) is not None},
+            'recommendation': {'reasons': list(recommendation.get('reasons') or ())[:2]},
+            'surprise': surprise,
+            'interrupts': raw.get('interrupts', ()),
+            'vector_detections': vectors,
+            'vector_status': raw.get('vector_status'),
+            'screen': raw.get('screen'),
+            'frame_path': raw.get('frame_path'),
+            'observation_freshness': raw.get('observation_freshness'),
+            'input_limits': {'frame': [0, 0, 1920, 1080],
+                             'world_click_excludes': [[0, 0, 520, 230], [1440, 0, 1920, 230]]},
+        }
     # Navigation is deliberately first: even a downstream display cap preserves localization and the route edge.
     return {
         'navigation': navigation,

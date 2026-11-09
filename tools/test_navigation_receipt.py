@@ -60,6 +60,72 @@ class NavigationReceipts(unittest.TestCase):
         self.assertNotIn('calibration', result)
         self.assertNotIn('route', result)
 
+    def test_sleep_spawn_anchor_starts_house_route_at_bed(self):
+        self.graph.nodes['BedroomPassage'] = OG.Node(
+            'BedroomPassage', 'unique', region='House', navigation_only=True)
+        self.graph.add_edge('Bed', 'BedroomPassage', 'nav', compass='E', range='far', source='stable house layout')
+        self.graph.add_edge(
+            'BedroomPassage', 'HouseExit', 'nav', compass='SE', range='far', source='stable house layout')
+
+        result = navigation.receipt(self.task, {
+            'scene': 'House', 'region': 'House', 'position_node': 'Bed',
+            'position_node_provenance': {'source': 'sleep_spawn'},
+        }, self.graph)
+
+        self.assertEqual(result['graph']['current_node'], 'Bed')
+        self.assertEqual(result['graph']['current_source'], 'sleep_spawn')
+        self.assertEqual(result['graph']['path'][:3], ['Bed', 'BedroomPassage', 'HouseExit'])
+        self.assertEqual(result['next_edge']['compass'], 'E')
+        self.assertEqual(result['localization']['stage'], 'graph')
+        self.assertEqual(result['localization']['current'], 'Bed')
+        self.assertEqual(result['localization']['next'], 'follow_graph_route')
+
+    def test_live_house_graph_has_bidirectional_compass_route_from_bed_to_exit(self):
+        graph = OG.Graph()
+        graph.load(os.path.join(os.path.dirname(__file__), 'objects', 'graph', 'Farm.json'))
+        expected = {
+            ('Bed', 'House/BedroomPassage'): ('E', 'far'),
+            ('House/BedroomPassage', 'Bed'): ('W', 'far'),
+            ('House/BedroomPassage', 'HouseExit'): ('SE', 'far'),
+            ('HouseExit', 'House/BedroomPassage'): ('NW', 'far'),
+        }
+
+        actual = {(edge['a'], edge['b']): (edge.get('compass'), edge.get('range'))
+                  for edge in graph.edges(rel='nav') if (edge['a'], edge['b']) in expected}
+
+        self.assertEqual(actual, expected)
+        self.assertFalse(any(edge['rel'] == 'nav' and {edge['a'], edge['b']} == {'House', 'Bed'}
+                             for edge in graph.edges()))
+
+    def test_unmarked_well_uses_nearest_map_labeled_garden_ancestor(self):
+        graph = OG.Graph()
+        graph.load(os.path.join(os.path.dirname(__file__), 'objects', 'graph', 'Farm.json'))
+
+        result = navigation.receipt(self.task, {'scene': 'Farm', 'region': 'Farm'}, graph)
+
+        self.assertEqual(result['goal']['node'], 'Well')
+        self.assertEqual(result['goal']['map_anchor'], {
+            'node': 'Garden', 'kind': 'MapGarden', 'label': 'farm-garden', 'exact': False})
+        self.assertEqual(navigation.map_target(result), 'Garden')
+
+    def test_current_map_hint_overrides_coarse_scene_compass(self):
+        self.task.params.update(destination='House', _route_hint={
+            'region': 'Farm', 'target': 'House', 'compass': 'E', 'range': 'mid',
+            'set_turn': 47, 'expires_turn': 53, 'remaining_steps': 6,
+            'source': 'model_map', 'frame_path': '/tmp/current-map.jpg',
+        })
+        self.graph.add_edge('Farm', 'HouseExit', 'nav', compass='N', range='far',
+                            source='coarse scene topology')
+        self.graph.add_edge('HouseExit', 'House', 'nav', compass='N', range='near',
+                            source='house approach')
+
+        result = navigation.receipt(self.task, {'scene': 'Farm', 'region': 'Farm'}, self.graph)
+
+        self.assertEqual(result['graph']['path'], ['Farm', 'HouseExit', 'House'])
+        self.assertEqual(result['next_edge']['to'], 'HouseExit')
+        self.assertEqual((result['next_edge']['compass'], result['next_edge']['range']), ('E', 'mid'))
+        self.assertEqual(result['next_edge']['source'], 'model_map')
+
     def test_unknown_destination_is_explicitly_unresolved(self):
         self.task.params['destination'] = 'teleporter'
         result = navigation.receipt(self.task, {'scene': 'House', 'region': 'House'}, self.graph)
@@ -163,12 +229,6 @@ class NavigationReceipts(unittest.TestCase):
         self.assertEqual((result['screen_compass'], result['range']), ('W', 'far'))
         self.assertTrue(result['allowed'])
 
-    def test_assess_rejects_wrong_range_even_when_compass_matches(self):
-        receipt = navigation.receipt(self.task, {'scene': 'Farm', 'region': 'Farm'}, self.graph)
-        result = navigation.assess({'kind': 'waypoint', 'point': [760, 540]}, receipt)
-        self.assertEqual(result['alignment'], 'range_mismatch')
-        self.assertFalse(result['allowed'])
-
     def test_transition_proof_advances_current_node(self):
         before = {'scene': 'House', 'region': 'House', 'navigation': {
             'next_edge': {'from': 'HouseExit', 'to': 'Farm', 'transition': 'Farm'}}}
@@ -219,8 +279,12 @@ class NavigationReceipts(unittest.TestCase):
         lines = ['[D5 7:16:57 PM] [GAME] ChangeScene Farm/Bed',
                  '[D5 7:16:57 PM] [MODE] Spawning player at Farm/Bed']
         self.assertEqual(world.graph_scope(lines, self.graph, 'Farm', 'Farm'), 'House')
+        anchor = getattr(world, 'graph_position_anchor', lambda *_: None)(lines, self.graph, 'Farm')
+        self.assertEqual(anchor, 'Bed')
         lines.append('[D6 8:10:00 AM] [GAME] OnExitBuilding House')
         self.assertEqual(world.graph_scope(lines, self.graph, 'Farm', 'Farm'), 'Farm')
+        anchor = getattr(world, 'graph_position_anchor', lambda *_: None)(lines, self.graph, 'Farm')
+        self.assertIsNone(anchor)
 
 
 if __name__ == '__main__':

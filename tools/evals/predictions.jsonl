@@ -2359,3 +2359,13 @@
 {"t": 1794071379.667, "id": "p1794071379666-0", "outcome": {"kind": "GardenBed", "moved": false, "reached": null}, "hit": true}
 {"t": 1794071422.659, "id": "p1794071422658-0", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1104, 540], "here": null, "exp": "41d86c3a78f08806"}}
 {"t": 1794071422.659, "id": "p1794071422658-0", "outcome": {"kind": "GardenBed", "moved": false, "reached": null}, "hit": true}
+{"t": 1794205124.407, "id": "i7c7f519a8b8ec906f7da", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [963, 434], "here": null, "exp": "bacc77416c05ee71"}}
+{"t": 1794205124.407, "id": "i7c7f519a8b8ec906f7da", "outcome": {"kind": null, "moved": null, "reached": null}, "hit": false}
+{"t": 1794205157.33, "id": "ic10bf7255d65012bb020", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [960, 434], "here": null, "exp": "89b73f1a7eb9ce16"}}
+{"t": 1794205157.33, "id": "ic10bf7255d65012bb020", "outcome": {"kind": null, "moved": null, "reached": null}, "hit": false}
+{"t": 1794205510.597, "id": "i61fc8ede4763bb48c8a1", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [1175, 444], "here": null, "exp": "ba8e6cc4377aebc9"}}
+{"t": 1794205510.597, "id": "i61fc8ede4763bb48c8a1", "outcome": {"kind": null, "moved": null, "reached": null}, "hit": false}
+{"t": 1794206067.973, "id": "i13b97931212226311b6e", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [962, 434], "here": null, "exp": "fb380a08b6959c9d"}}
+{"t": 1794206067.973, "id": "i13b97931212226311b6e", "outcome": {"kind": null, "moved": null, "reached": null}, "hit": false}
+{"t": 1794206097.051, "id": "if8da41d61669a853e72f", "component": "vision", "what": "answer", "value": null, "ctx": {"pt": [962, 434], "here": null, "exp": "63aa6c5d76fab531"}}
+{"t": 1794206097.051, "id": "if8da41d61669a853e72f", "outcome": {"kind": null, "moved": null, "reached": null}, "hit": false}

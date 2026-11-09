@@ -41,10 +41,13 @@
   path. They run incrementally, asynchronously, or only when the gameplay agent requests them.
 - Latency does not grow with run history.
 
-## R4. Terminal supervisor retro
+## R4. Five-turn and terminal supervisor retro
 
-- The gameplay agent returns control to the supervisor only for a genuine `BLOCKED` result or a finished task.
-- After either terminal handoff, the supervisor runs the retro skill.
+- After each 5 gameplay turns, and again at a genuine `BLOCKED` result or finished task, the supervisor runs a retro.
+- Gameplay freezes during that retro. The supervisor applies the identified system fixes, then restarts/resumes the
+  same acceptance task. A task is done only when its acceptance proof passes and the final retro is clean.
+- A recoverable problem inside a batch remains owned by the gameplay agent; the 5-turn boundary does not create a
+  per-turn supervisor loop.
 - The retro reviews the canonical SQLite run history and the run's Markdown files.
 - The retro checks the completed block for violations of every requirement in this file, including ownership,
   unnecessary refusals/escalations, state growth, and per-turn/per-tool latency.
@@ -72,13 +75,18 @@
 - The model derives the next objective from that current semantic location plus graph connectivity, then selects one
   current-frame visible road or target that serves the objective.
 - A task restart begins with unknown current location. Historical location is never silently promoted from hint to
-  fact, and screen coordinates are never durable location state.
+  fact, and screen coordinates are never durable location state. A fresh confirmed sleep/new-day spawn is the
+  exception: it establishes exact graph node `Bed`; after every sleep the gameplay task restarts from this fresh
+  evidence rather than carrying its pre-sleep belief.
+- In the stable House layout, `Bed` is west of the entry route. Indoor navigation is graph-primary:
+  `Bed → House/BedroomPassage → HouseExit`, with compass/range on both directions of every edge.
 - Localization uses this strict cascade: (1) existing vectors plus graph; (2) only when no vectors are present, model
   vision on the current full-scale screenshot, creating a vector for an identifiable unique graph object and then
   localizing from it; (3) only if localization remains unresolved, observe the outdoor map, update the same semantic
   belief, close the map, and then move.
-- At or after 18:00, ordinary gameplay stops: immediately begin the return-home/sleep workflow or explicitly hand
-  control to the human. Existing vectors remain readable but no vector may be created, updated, calibrated, or retained
+- Tara must be at Bed by 18:00. Begin the return-home/sleep workflow early enough to meet that deadline. At or after
+  18:00, do not start or continue an autonomous recovery route; explicitly hand control to the human. Existing
+  vectors remain readable but no vector may be created, updated, calibrated, or retained
   from the dark frame. Defer that learning until daylight. When existing vectors do not localize the dark scene,
   current-frame model vision may localize and choose one visible-road step, but only for the active return-home/sleep
   objective and without persisting the observation as a vector.

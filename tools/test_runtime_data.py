@@ -16,6 +16,28 @@ import wfc
 from game import badges, core, icons, items, plan
 
 
+class TimingPersistence(unittest.TestCase):
+    def test_measured_turn_subaction_is_persisted_with_turn_attribution(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        from runtime import timing
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, 'wf.sqlite3')
+            store = RunStore(Database(path))
+            run_id = store.start('timing', 'measure it', os.path.join(directory, 'run'))
+            with mock.patch.dict(os.environ, {'WF_TIMING_DB': '1', 'WF_DB': path}), \
+                    timing.scope(turn_id=7, component='gameplay'):
+                with timing.measure('turn.test', operation='capture'):
+                    pass
+                with timing.measure('task.serialize', _persist_db=False):
+                    pass
+            rows = [row for row in store.events(run_id) if row['type'] == 'timing']
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]['turn_id'], rows[0]['phase']), (7, 'turn.test'))
+        self.assertEqual(rows[0]['operation'], 'capture')
+        self.assertGreaterEqual(rows[0]['seconds'], 0)
+
+
 class RevisionedWorldSnapshot(unittest.TestCase):
     def test_unchanged_revisions_do_not_reload_or_refresh_the_graph(self):
         from game import snapshot
@@ -85,6 +107,72 @@ class LiveLogEpoch(unittest.TestCase):
 
 
 class ClientDelivery(unittest.TestCase):
+    def test_front_focus_mode_leaves_lease_to_persistent_controller(self):
+        launch = mock.Mock(side_effect=AssertionError('client must not start a focus helper'))
+        with mock.patch.object(wfc.os.path, 'exists', side_effect=lambda path: path == wfc.FRONT_FLAG):
+            self.assertFalse(wfc.freeze_after_gameplay_receipt(['play'], run=launch))
+        launch.assert_not_called()
+
+    def test_persistent_controller_focus_lease_expires_or_is_cancelled(self):
+        import wf
+        timers = []
+
+        class Timer:
+            daemon = False
+            def __init__(self, delay, callback):
+                self.delay, self.callback = delay, callback
+                timers.append(self)
+            def start(self):
+                pass
+
+        stabilize = mock.Mock(return_value=True)
+        with mock.patch.object(wf, 'keep_front', return_value=True):
+            self.assertTrue(wf.arm_focus_lease(timer_factory=Timer, stabilize=stabilize))
+            self.assertEqual(timers[-1].delay, 60.0)
+            timers[-1].callback()
+            stabilize.assert_called_once()
+            stabilize.reset_mock()
+            self.assertTrue(wf.arm_focus_lease(timer_factory=Timer, stabilize=stabilize))
+            wf.cancel_focus_lease()
+            timers[-1].callback()
+            stabilize.assert_not_called()
+
+    def test_focus_handoff_survives_game_focus_bounce(self):
+        import wf
+        class Clock:
+            value = 0.0
+            def __call__(self):
+                self.value += 0.5
+                return self.value
+        sequence = iter(['game', 'dev.warp.Warp-Stable', 'game'] +
+                        ['dev.warp.Warp-Stable'] * 8)
+        launch = mock.Mock(return_value=mock.Mock(returncode=0))
+        self.assertTrue(wf.stabilize_warp_focus(
+            run=launch, sleep=mock.Mock(), monotonic=Clock(),
+            frontmost=lambda: next(sequence, 'dev.warp.Warp-Stable')))
+        self.assertGreaterEqual(launch.call_count, 2)
+
+    def test_controller_warmup_loads_ocr_and_vector_models_off_turn_path(self):
+        import wf
+        frame, ocr_read, vector_features = object(), mock.Mock(), mock.Mock()
+        self.assertEqual(wf.warm_controller_models(frame, ocr_read=ocr_read,
+                                                    vector_features=vector_features),
+                         {'ocr': True, 'vectors': True})
+        ocr_read.assert_called_once_with(frame)
+        vector_features.assert_called_once_with(frame)
+
+    def test_controller_lock_allows_only_one_daemon_process(self):
+        import wf
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, 'controller.lock')
+            first = wf.acquire_controller_lock(path)
+            self.assertIsNotNone(first)
+            self.assertIsNone(wf.acquire_controller_lock(path))
+            first.close()
+            replacement = wf.acquire_controller_lock(path)
+            self.assertIsNotNone(replacement)
+            replacement.close()
+
     def test_server_receipt_reports_physical_input_issuance(self):
         import wf
         envelope = getattr(wf, 'response_envelope', lambda *_args: {})
@@ -106,7 +194,7 @@ class ClientDelivery(unittest.TestCase):
             wf.key('space')
         self.assertEqual(counter[0], before + 1)
 
-    def test_zero_input_gameplay_receipt_skips_focus_stabilization(self):
+    def test_zero_input_gameplay_receipt_also_arms_focus_lease(self):
         with mock.patch.object(wfc, 'parent_cmdline', return_value=''), \
              mock.patch.object(wfc, 'log_call', return_value=None), \
              mock.patch.object(wfc.os.path, 'exists', return_value=True), \
@@ -116,7 +204,7 @@ class ClientDelivery(unittest.TestCase):
              mock.patch.object(sys, 'argv', ['wfc', 'play']):
             self.assertEqual(wfc.main(), 0)
 
-        freeze.assert_not_called()
+        freeze.assert_called_once_with(['play'])
 
     def test_default_deadline_allows_bounded_game_action_response(self):
         response = json.dumps({'out': 'gameplay\n', 'code': 0}).encode() + b'\n'
@@ -146,13 +234,17 @@ class ClientDelivery(unittest.TestCase):
                     endpoint.sendall.side_effect = OSError('partial send')
                 else:
                     endpoint.recv.return_value = b'' if response == 'eof' else b'invalid json\n'
+                def allow_focus_lease_only(command, *args, **kwargs):
+                    if '--expire-front-lease' in command:
+                        return mock.Mock()
+                    raise AssertionError('uncertain request resent')
                 with mock.patch.object(wfc, 'SOCK', os.path.join(directory, 'wf.sock')), \
                      mock.patch.object(wfc.socket, 'socket', return_value=endpoint), \
                      mock.patch.object(wfc, 'parent_cmdline', return_value=''), \
                      mock.patch.object(wfc, 'code_mtimes', return_value=[]), \
                      mock.patch.object(wfc, 'log_call', return_value=None), \
                      mock.patch.object(wfc.os.path, 'exists', return_value=True), \
-                     mock.patch.object(wfc.subprocess, 'Popen', side_effect=AssertionError('uncertain request resent')), \
+                     mock.patch.object(wfc.subprocess, 'Popen', side_effect=allow_focus_lease_only), \
                      mock.patch.object(wfc.os, 'execv', side_effect=AssertionError('uncertain request fell back')), \
                      mock.patch.object(sys, 'argv', ['wfc', 'play', 'turn_id=188', 'answer={"kind":"read"}']), \
                      contextlib.redirect_stderr(io.StringIO()) as error:
@@ -286,6 +378,20 @@ class StopLocalAutomation(unittest.TestCase):
             self.assertEqual(wfc.main(), 1)
         self.assertIn('STOP FAILED: watcher still running', error.getvalue())
 
+    def test_stale_daemon_restart_waits_for_all_old_controllers_to_stop(self):
+        with mock.patch.object(wfc, 'parent_cmdline', return_value=''), \
+             mock.patch.object(wfc, 'log_call', return_value=None), \
+             mock.patch.object(wfc.os.path, 'exists', return_value=True), \
+             mock.patch.object(wfc.os.path, 'getmtime', return_value=1), \
+             mock.patch.object(wfc, 'code_mtimes', return_value=[2]), \
+             mock.patch.object(wfc, 'stop_local_automation', return_value=(['controller', 'watcher'], [])) as stop, \
+             mock.patch.object(wfc, 'via_daemon', return_value=(0, False)), \
+             mock.patch.object(wfc, 'freeze_after_gameplay_receipt'), \
+             mock.patch.object(sys, 'argv', ['wfc', 'status']), \
+             contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(wfc.main(), 0)
+        stop.assert_called_once_with()
+
 
 class HotData(unittest.TestCase):
     def setUp(self):
@@ -365,6 +471,35 @@ class HotData(unittest.TestCase):
         self.assertEqual((rows[-1]['start'], rows[-1]['end']), (100, 200))
         self.assertFalse((self.root / 'run.current').exists())
         self.assertFalse((self.root / 'run' / 'log.jsonl').exists())
+
+    def test_gameplay_call_persists_model_deliberation_since_previous_receipt(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        database = self.root / 'wf.sqlite3'
+        store = RunStore(Database(database))
+        run_id = store.start('test', 'deliberation timing', self.root / 'run')
+        (self.root / 'actions_done.log').write_text('100.00\t102.00\n')
+        with mock.patch.object(wfc, 'SOCK', str(self.root / 'wf.sock')), \
+                mock.patch.dict(os.environ, WF_DB=str(database)), mock.patch('time.time', return_value=110):
+            self.assertEqual(wfc.log_call(['play', 'turn_id=7', 'answer=read']), 110)
+        rows = [row for row in store.events(run_id) if row['type'] == 'timing']
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]['phase'], rows[0]['turn_id']), ('model.deliberation', 7))
+        self.assertEqual(rows[0]['seconds'], 8)
+        self.assertEqual(rows[0]['budget_seconds'], 3)
+        self.assertEqual(rows[0]['status'], 'violation')
+
+    def test_task_restart_does_not_charge_human_handoff_as_model_deliberation(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        database = self.root / 'wf.sqlite3'
+        store = RunStore(Database(database))
+        run_id = store.start('test', 'resume timing', self.root / 'run')
+        (self.root / 'actions_done.log').write_text('100.00\t102.00\n')
+        with mock.patch.object(wfc, 'SOCK', str(self.root / 'wf.sock')), \
+                mock.patch.dict(os.environ, WF_DB=str(database)), mock.patch('time.time', return_value=1000):
+            wfc.log_call(['play', 'navigate', 'destination=Well', 'restart=true'])
+        self.assertFalse([row for row in store.events(run_id) if row['type'] == 'timing'])
 
     def test_completed_command_survives_sqlite_accounting_failure(self):
         database = self.root / 'wf.sqlite3'

@@ -131,6 +131,24 @@ def graph_scope(lines, graph, scene, default=None):
     return scope if current_scene == scene else (default or scene)
 
 
+def graph_position_anchor(lines, graph, scene):
+    """Return the exact current spawn node until explicit exit/scene evidence clears it."""
+    current_scene, anchor_node = scene, None
+    for line in lines:
+        change = re.search(r'\bChangeScene (\w+)(?:/(\w+))?', line)
+        exited = re.search(r'\bOnExitBuilding (\w+)', line)
+        if change:
+            current_scene, anchor_node = change[1], None
+            anchor = change[2]
+            matches = [node for node in graph.nodes.values()
+                       if anchor and (node.id == anchor or str(node.kind) == anchor)]
+            if len(matches) == 1 and current_scene in graph.chain(matches[0].id):
+                anchor_node = matches[0].id
+        elif exited:
+            anchor_node = None
+    return anchor_node if current_scene == scene else None
+
+
 def positioned_sources(lines, scene=None, scope=None):
     return [{'line': line, 'scene': source_scene, 'scope': source_scope}
             for line, source_scene, source_scope in scene_lines(lines, scene, scope) if _EVENT.search(line)]

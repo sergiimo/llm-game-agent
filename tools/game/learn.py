@@ -308,7 +308,7 @@ def answer_kind(c):
     return None
 
 
-def learn_answer(c, img0, here=None, exp=None):
+def learn_answer(c, img0, here=None, exp=None, learn_appearance=True):
     """A vision click answer -> (1) the look at the point stored as the proven kind (detection finds it next time),
     (2) the direction from `here` to the area its event reached (graph), (3) an eval record. The kind or None."""
     import math
@@ -317,7 +317,7 @@ def learn_answer(c, img0, here=None, exp=None):
     hx, hy = ANSWER_BOX
     box = (max(0, x - hx), max(0, y - hy), x + hx, y + hy)
     stored = (relabel(img0, box, kind, f'exp-{exp}-answer') if exp else relabel(img0, box, kind)) \
-        if kind and img0 is not None and not _mostly_black(img0, box) else False
+        if learn_appearance and kind and img0 is not None and not _mostly_black(img0, box) else False
     reached = None
     g = MEMORY['graph']
     if g is not None and c.at:

@@ -82,6 +82,55 @@ class LiveEvalStore:
             "SELECT id,t,payload_json FROM run_events WHERE run_id=? AND type='turn' AND phase='clues' "
             "ORDER BY id DESC LIMIT 1", (run_id,)).fetchone()
 
+    @staticmethod
+    def _active_task_id(connection, run_id):
+        row = connection.execute('SELECT payload_json FROM task_state WHERE run_id=?', (run_id,)).fetchone()
+        if not row:
+            return None
+        try:
+            payload = json.loads(row['payload_json'])
+        except (TypeError, ValueError):
+            return None
+        return payload.get('task_id') if payload.get('status') == 'active' else None
+
+    @classmethod
+    def _task_start_clue(cls, connection, run_id, latest, definition):
+        """Return an immutable start clue from the still-active gameplay task.
+
+        The command that opens an eval is bookkeeping and may run after the first route input.  A task restart has
+        already established the evaluation boundary, so forcing Tara to walk back to Bed would corrupt the route we
+        intend to measure.  Only a coherent, contemporaneous gameplay clue whose graph position was established by
+        the sleep transition may be used retroactively; ordinary/static graph membership is deliberately rejected.
+        """
+        latest_payload = cls._payload(latest)
+        task_id = latest_payload.get('task_id')
+        if not task_id or task_id != cls._active_task_id(connection, run_id):
+            return None
+        rows = connection.execute(
+            "SELECT id,t,payload_json FROM run_events WHERE run_id=? AND type='turn' AND phase='clues' "
+            "AND json_extract(payload_json,'$.task_id')=? AND id<=? ORDER BY id DESC",
+            (run_id, task_id, latest['id'])).fetchall()
+        for clue in rows:
+            payload = cls._payload(clue)
+            navigation = payload.get('navigation') or {}
+            graph = navigation.get('graph') or {}
+            if (cls._scene(payload) != definition['start_scene'] or
+                    (payload.get('view') or {}).get('mode') != 'gameplay' or
+                    graph.get('current_node') != definition['start_kind'] or
+                    graph.get('current_source') not in ('sleep_spawn', 'positioned_event')):
+                continue
+            observation, contemporaneous = cls._observation(
+                connection, run_id, clue, payload, float(clue['t']))
+            if not contemporaneous:
+                continue
+            intervening = rows[:rows.index(clue)]
+            if any('out of time' in ' / '.join(
+                    str(text).casefold() for text in ((cls._payload(row).get('screen') or {}).get('texts') or ()))
+                   for row in intervening):
+                return None
+            return clue, payload, observation
+        return None
+
     def start(self, scenario, run_id, revision):
         definition = SCENARIOS.get(scenario)
         if not definition:
@@ -99,13 +148,20 @@ class LiveEvalStore:
             scene, kinds = self._scene(payload), self._kinds(payload)
             if (not fresh or scene != definition['start_scene'] or
                     definition['start_kind'] not in kinds):
-                raise ValueError(f'{scenario} requires a fresh {definition["start_scene"]} '
-                                 f'{definition["start_kind"]} observation')
+                task_start = self._task_start_clue(connection, run_id, clue, definition)
+                if not task_start:
+                    raise ValueError(f'{scenario} requires a fresh {definition["start_scene"]} '
+                                     f'{definition["start_kind"]} observation')
+                clue, payload, observation = task_start
+                scene = self._scene(payload)
+                started_at = float(clue['t'])
+            else:
+                started_at = now
             observation_id = observation['id']
             connection.execute(
                 "INSERT INTO live_evals(id,scenario,run_id,revision,status,start_event_id,start_observation_id,"
                 "start_scene,created_at) VALUES (?,?,?,?, 'active',?,?,?,?)",
-                (eval_id, scenario, run_id, str(revision), clue['id'], observation_id, scene, now))
+                (eval_id, scenario, run_id, str(revision), clue['id'], observation_id, scene, started_at))
         self.checkpoint(eval_id)
         return self.get(eval_id)
 

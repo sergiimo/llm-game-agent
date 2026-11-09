@@ -51,11 +51,43 @@ def hud(pt):
     return any(x0 <= pt[0] < x1 and y0 <= pt[1] < y1 for x0, y0, x1, y1 in HUD)
 
 
+def _profile_axis_shift(a, b, scale):
+    """Return a strong nonzero 1-D camera shift, rejecting periodic or unchanged profiles."""
+    import numpy as np
+    if len(a) != len(b) or len(a) < 16:
+        return None
+    limit = int(len(a) * .45)
+    scores = []
+    for lag in range(-limit, limit + 1):
+        if lag >= 0:
+            x, y = a[lag:], b[:len(b) - lag]
+        else:
+            x, y = a[:len(a) + lag], b[-lag:]
+        x, y = x - x.mean(), y - y.mean()
+        denom = np.linalg.norm(x) * np.linalg.norm(y)
+        scores.append((float(x @ y / denom) if denom else 0., lag))
+    zero = next(score for score, lag in scores if lag == 0)
+    candidates = [(score, lag) for score, lag in scores if abs(lag) > 3]
+    best, lag = max(candidates, default=(0., 0))
+    # Smooth profiles produce a small cluster around the same displacement. Compare against the best
+    # genuinely different peak so repeated fence/rail spacing cannot manufacture a movement vector.
+    rival = max((score for score, other in candidates if abs(other - lag) > 5), default=-1.)
+    if best < .55 or best < zero + .05 or best < rival + .04:
+        return None
+    return float(lag * scale)
+
+
 def view_shift(a, b, size=(480, 270)):
     """Her movement between two frames in 1920-frame px (dx right, dy down): the camera follows her, so the scene
     shifts the opposite way; phase correlation on small grey copies. None when unsure (flat frames, no clear peak)."""
     import numpy as np
     try:
+        # Callers normally supply the canonical 1920x1080 frame; tests and older captures may be scaled copies.
+        # Normalize first so the returned displacement always uses canonical frame pixels.
+        if a.size != (W_, H_):
+            a = a.resize((W_, H_))
+        if b.size != (W_, H_):
+            b = b.resize((W_, H_))
         # Fixed HUD elements dominate full-frame phase correlation and create a false zero-shift peak even while
         # the gameplay camera pans substantially. Correlate only the rendered world interior; modal callers are
         # screened before reaching this function.
@@ -80,7 +112,23 @@ def view_shift(a, b, size=(480, 270)):
         if ix > size[0] // 2:
             ix -= size[0]
         kx, ky = (box[2] - box[0]) / size[0], (box[3] - box[1]) / size[1]
-        return (float(ix * kx), float(iy * ky))  # scene moved by (-ix, -iy): she moved (+ix, +iy)
+        shift = (float(ix * kx), float(iy * ky))
+        if d(shift, (0., 0.)) <= 12:
+            # Tara is fixed at screen centre. On repeated farmhouse/fence geometry her sprite can make the
+            # global phase peak look stationary even while the camera pans. Axis projections excluding the
+            # central actor band recover only a strong, unique translation; animation/local changes stay zero.
+            top, bottom = int(size[1] * .26), int(size[1] * .76)
+            left, right = int(size[0] * .42), int(size[0] * .58)
+            x_shift = _profile_axis_shift(
+                np.concatenate((x[:top], x[bottom:]), axis=0).mean(axis=0),
+                np.concatenate((y[:top], y[bottom:]), axis=0).mean(axis=0), kx)
+            y_shift = _profile_axis_shift(
+                np.concatenate((x[:, :left], x[:, right:]), axis=1).mean(axis=1),
+                np.concatenate((y[:, :left], y[:, right:]), axis=1).mean(axis=1), ky)
+            if x_shift is not None or y_shift is not None:
+                shift = (x_shift if x_shift is not None else shift[0],
+                         y_shift if y_shift is not None else shift[1])
+        return shift  # scene moved by (-ix, -iy): she moved (+ix,+iy)
     except Exception:   # noqa: BLE001
         return None
 

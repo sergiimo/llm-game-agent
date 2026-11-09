@@ -10,12 +10,14 @@ Session start: read `AGENTS.md`, the relevant Wiki/Docs router, and `./wf run st
 The supervisor owns one current goal and a reviewed run plan; gameplay children use the user's cheapest-model rule.
 One primary gameplay child owns the complete loop for that goal. It does not delegate returned turns to a text-only
 runner; an optional exact-command helper may only return a receipt to this owner.
-Check permissions, exact clock and current save/log before starting. At 18:00 or later, ordinary gameplay stops:
-the pre-approved return-home/sleep workflow takes ownership, or the agent explicitly hands control to the human.
-Universal gameplay receipts automatically return focus
-to Warp and verify it remains frontmost through the game's background-save focus bounce, so model reasoning consumes
-no game time; the next input focuses the game again. Never open the Pause menu
-for coding, documentation, or thinking.
+Check permissions, exact clock and current save/log before starting. Tara must be at Bed by 18:00, so begin the
+return-home/sleep workflow early enough to meet that deadline. At 18:00 or later, stop and hand control to the human;
+do not begin or continue an autonomous recovery route.
+In `focus-mode front`, a settled gameplay receipt grants a sixty-second foreground lease so its exact final frame is
+directly actionable on the next turn. Starting the next gameplay call cancels that lease. If the model misses the
+sixty-second lease, the persistent controller returns focus to Warp and freezes game time; the next turn must read and resolve
+the resulting exact Pause modal instead of issuing a stale-frame waypoint. Background mode returns focus immediately.
+Never open the Pause menu deliberately for coding, documentation, or thinking.
 
 **Daemon discipline:** live gameplay uses one persistent `./wf` controller daemon. Never set `WF_NO_DAEMON=1` or
 start parallel diagnostic `wf` helpers while a request is pending; on macOS each helper can independently trigger
@@ -56,9 +58,8 @@ Keep clocks source-specific. `hud_hour` is refreshed from each captured frame fo
 refreshed at the action/outcome boundary and is the canonical action timeline, and `save_time` belongs only to the
 latest save snapshot and its provenance. Never merge them into a synthetic “current game time” or advance one source
 because another changed; refresh that source at its normal observation trigger. Every settled action receipt carries
-a newly captured HUD clock. At or after 18:00 its interrupt replaces ordinary objectives with return-home/sleep;
-do not spend another input on the prior objective. If the agent does not own that sleep route, stop and explicitly
-hand control to the human.
+a newly captured HUD clock. Before 18:00, the Bed deadline replaces ordinary objectives early enough to finish the
+return route. At or after 18:00, issue no autonomous movement; stop and explicitly hand control to the human.
 When a cutscene/transition intentionally hides the HUD, the hard cutoff may use that receipt's independently refreshed
 coherent `log_time`; this is a source fallback, not a merged synthetic clock. A black frame still cannot authorize a
 visual or positional action.
@@ -82,3 +83,7 @@ Only explicit `ChangeScene … to X`, `currentScene=X`, or coherent save/event e
 After milestones update verified quest steps/status, run `python3 -I tools/gen_quests.py`, and update
 current `runs/<task>/plan.md` and log. Record surprises in `docs/troubleshooting/INDEX.md` and fix their one canonical doc/tool/skill in the same pass.
 Completion is evidence-backed coverage/proof; constrained work is reported as constrained. Filling doc gaps beats winning.
+
+After each 5 gameplay turns, freeze input and return a checkpoint to the supervisor for a requirements retro. Apply
+the resulting fixes before continuing. Repeat until the acceptance proof passes and the final retro is clean. After
+every confirmed sleep/new-day transition, restart the gameplay task; do not resume its pre-sleep operational belief.

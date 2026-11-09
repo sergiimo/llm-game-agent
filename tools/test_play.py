@@ -103,7 +103,20 @@ class PlayCase(unittest.TestCase):
         self.assertEqual(scope['kinds'], ['Bed', 'HouseExit'])
         farm_scope = self.play()._vector_scope(
             graph, 'Farm', learned_kinds={'Tara', 'Bed', 'Garden', 'HouseDoor'})
-        self.assertEqual(farm_scope['kinds'], ['Garden', 'HouseDoor'])
+        self.assertEqual(farm_scope['kinds'], ['HouseDoor'])
+
+    def test_vector_scope_adds_only_the_nested_active_destination(self):
+        from objects.graph import Graph, Node
+        graph = Graph()
+        graph.nodes['Farm'] = Node('Farm', 'region')
+        graph.nodes['Garden'] = Node('Garden', 'region', region='Farm')
+        graph.nodes['Well'] = Node('Well', 'unique', region='Garden')
+        graph.nodes['GardenBed'] = Node('GardenBed', 'group', region='Garden')
+        graph.nodes['House'] = Node('House', 'region', region='Farm')
+        graph.nodes['Bed'] = Node('Bed', 'unique', region='House')
+        scope = self.play()._vector_scope(
+            graph, 'Farm', learned_kinds={'Garden', 'Well', 'GardenBed', 'Bed'}, relevant_nodes=('Well',))
+        self.assertEqual(scope, {'region': 'Farm', 'kinds': ['Well']})
 
     def test_new_task_reuses_its_vector_observation_in_the_first_next(self):
         observed = mock.Mock(wraps=self.port.observe)
@@ -1873,6 +1886,34 @@ class MapModalProof(PlayCase):
         self.assertIsNone(c.recommendation.action, 'the model still decides after inspecting the map')
         self.assertEqual(self.port.inputs, [])
 
+    def test_map_guidance_binds_labeled_ancestor_not_unmarked_subobject(self):
+        task = {'goal': 'navigate', 'params': {'destination': 'Well'}, 'stack': []}
+        observation = {
+            'screen': {'kind': 'map'}, 'region': 'Farm',
+            'navigation': {'goal': {'node': 'Well', 'map_anchor': {
+                'node': 'Garden', 'kind': 'MapGarden', 'label': 'farm-garden', 'exact': False}}},
+        }
+
+        guidance = ' '.join(self.play().recommend(task, observation).reasons)
+
+        self.assertIn('map-labeled Garden', guidance)
+        self.assertIn('not invent an exact Well point', guidance)
+
+    def test_compact_result_surfaces_verified_movement_reconciliation(self):
+        task = S.TaskState('route', 'navigate', params={'destination': 'Well'})
+        task.last_experience = {
+            'id': 'fresh-read', 'verdict': {'value': 'unknown'},
+            'evidence': {'events': [], 'state': [[
+                'observation_reconciliation',
+                {'result': 'verified_movement', 'source_experience': 'uncertain-waypoint'},
+            ]]},
+        }
+
+        _view, result, _need, _memory, _resources = turn._compact_projection(task, {}, None)
+
+        self.assertEqual(result['status'], 'verified_movement')
+        self.assertEqual(result['source_experience'], 'uncertain-waypoint')
+
     def test_true_captured_map_panel_remains_map_and_blocks_world_input(self):
         observation = self.observe_image('map', wf.map_pin(self.image('map')))
         self.assertEqual(observation['screen']['kind'], 'map')
@@ -2418,6 +2459,13 @@ class ReadLatency(PlayCase):
 
 
 class Play(PlayCase):
+    def test_task_started_at_six_pm_is_marked_late(self):
+        self.port.snapshot['hour'] = 18.0
+
+        self.play().turn('navigate', params={'destination': 'Well'}, store=self.store, adapter=self.port)
+
+        self.assertTrue(self.store.load().params['_started_late'])
+
     def test_six_pm_interrupt_requires_sleep_or_human_handoff(self):
         reason = self.play()._clock_interrupt({'goal': 'navigate', 'stack': []}, {'hour': 18.0})
 
@@ -2773,6 +2821,14 @@ class BoundaryValidation(PlayCase):
             with self.assertRaises(ValueError):
                 adapter.prepare({'kind': 'key', 'label': 'j'}, {'screen': {'kind': mode}})
 
+    def test_model_confirmed_visible_waypoint_is_allowed_on_semantically_unknown_world_frame(self):
+        adapter = primitives.GameAdapter()
+        prepared = adapter.prepare(
+            {'kind': 'waypoint', 'point': [960, 800], 'walkable': True,
+             'surface': 'road', 'surface_box': [850, 700, 1100, 900]},
+            {'screen': {'kind': 'unknown'}, 'graph_clues': [], 'candidates': []})
+        self.assertEqual(prepared['command'], 'click:960:800')
+
     def test_sleep_confirmation_space_is_bound_to_the_current_yes_control(self):
         adapter = primitives.GameAdapter()
         observation = {'screen': {'kind': 'card', 'texts': ['Yes', 'Not yet']},
@@ -3014,6 +3070,27 @@ class BoundaryValidation(PlayCase):
         self.assertTrue(any(row.get('edge', {}).get('b') == 'Bed' for row in data['graph_clues']))
         self.assertTrue(any('SLEEP_REQUIRED' in reason for reason in data.get('interrupts', ())))
 
+    def test_production_clues_expose_sleep_spawn_as_bed_position_node(self):
+        from game import observe
+        from objects.graph import Graph, Node
+        from types import SimpleNamespace
+        graph = Graph()
+        graph.nodes['Farm'] = Node('Farm', 'region', 'Farm')
+        graph.nodes['House'] = Node('House', 'region', 'House', region='Farm')
+        graph.nodes['Bed'] = Node('Bed', 'unique', 'Bed', region='House')
+        lines = ['[D18 7:00:00 AM] [GAME] ChangeScene Farm/Bed',
+                 '[D18 7:00:00 AM] [MODE] Spawning player at Farm/Bed']
+        save = {'currentScene': 'Farm', 'gameState': {'player': {}, 'time': {
+            'day': 18, 'timeOfDay': {'totalSeconds': 7 * 3600}}}}
+        raw = SimpleNamespace(read_save=lambda: ('save.json', save), today_log=lambda: (lines, 18),
+                              current_scene=lambda: 'Farm')
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(engine, '_open_graph', return_value=graph), \
+                mock.patch.object(observe, 'clock', return_value=(7., 'day')):
+            data = self.play()._clues(self.store)
+
+        self.assertEqual(data.get('position_node'), 'Bed')
+        self.assertEqual((data.get('position_node_provenance') or {}).get('source'), 'sleep_spawn')
+
     def test_shop_does_not_allow_coordinate_purchase_without_authorization(self):
         task = S.TaskState('shop', 'shop', params={})
         self.store.create(task)
@@ -3041,6 +3118,21 @@ class ReviewRoundOne(PlayCase):
     def choose(self, c, adapter, kind, **data):
         return self.play().turn(answer={'turn_id': c.turn_id, 'kind': kind, **data},
                                 store=self.store, adapter=adapter)
+
+    def test_positioned_destination_event_proves_navigation_completion(self):
+        task = S.TaskState('well-route', 'navigate', params={'destination': 'Well'})
+        experience = {
+            'verdict': {'value': 'unknown'},
+            'evidence': {
+                'events': ['fill_watering_can'],
+                'lines': ['[D20 5:30:00 PM] > fill_watering_can me=Player target=Well'],
+                'state': [['region', 'Farm']],
+            },
+        }
+
+        result = self.play().verify_completion(task, task, [{'experience': experience}])
+
+        self.assertEqual(result, {'node': 'Well', 'region': 'Farm', 'source': 'positioned_event'})
 
     def test_observed_purchase_surface_protects_coordinates_under_any_declared_goal(self):
         from game import experience as X

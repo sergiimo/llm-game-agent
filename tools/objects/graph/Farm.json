@@ -348,6 +348,24 @@
       "walkable": true
     },
     {
+      "a": "Bed",
+      "b": "House/BedroomPassage",
+      "rel": "nav",
+      "compass": "E",
+      "range": "far",
+      "source": "verified stable farmhouse layout: wake Bed is west of the entry route",
+      "walkable": true
+    },
+    {
+      "a": "House/BedroomPassage",
+      "b": "Bed",
+      "rel": "nav",
+      "compass": "W",
+      "range": "far",
+      "source": "reverse of verified Bed to bedroom passage edge",
+      "walkable": true
+    },
+    {
       "a": "House/BedroomPassage",
       "b": "HouseExit",
       "rel": "nav",
@@ -358,29 +376,20 @@
     },
     {
       "a": "HouseExit",
+      "b": "House/BedroomPassage",
+      "rel": "nav",
+      "compass": "NW",
+      "range": "far",
+      "source": "reverse of verified bedroom passage to HouseExit edge",
+      "walkable": true
+    },
+    {
+      "a": "HouseExit",
       "b": "House",
       "rel": "nav",
       "compass": "N",
       "range": "near",
       "source": "reverse of verified House to HouseExit edge",
-      "walkable": true
-    },
-    {
-      "a": "House",
-      "b": "Bed",
-      "rel": "nav",
-      "compass": "N",
-      "range": "far",
-      "source": "verified farmhouse layout: bed area is north of the entry passage",
-      "walkable": true
-    },
-    {
-      "a": "Bed",
-      "b": "House",
-      "rel": "nav",
-      "compass": "S",
-      "range": "far",
-      "source": "reverse of verified House to Bed edge",
       "walkable": true
     },
     {
@@ -399,7 +408,7 @@
       "rel": "nav",
       "compass": "N",
       "range": "far",
-      "source": "verified_house_layout",
+      "source": "coarse Farm topology near the farmhouse; current landmark or map bearing overrides it",
       "walkable": true
     },
     {

@@ -1,0 +1,34 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+DATABASE=${TAIL_RUN_DB:-"$SCRIPT_DIR/runs/wf.sqlite3"}
+
+if [ ! -f "$DATABASE" ]; then
+    echo "tail-run: database not found: $DATABASE" >&2
+    exit 1
+fi
+
+RUN_DIR=$(sqlite3 -noheader "$DATABASE" '
+SELECT directory
+FROM runs
+WHERE id = COALESCE(
+    (SELECT run_id FROM active_run WHERE singleton = 1),
+    (SELECT id FROM runs ORDER BY created_at DESC, id DESC LIMIT 1)
+)
+LIMIT 1;
+')
+
+if [ -z "$RUN_DIR" ]; then
+    echo "tail-run: no runs found in $DATABASE" >&2
+    exit 1
+fi
+
+DECISIONS="$RUN_DIR/decisions.md"
+if [ ! -f "$DECISIONS" ]; then
+    echo "tail-run: decisions file not found: $DECISIONS" >&2
+    exit 1
+fi
+
+echo "tail-run: following $DECISIONS" >&2
+exec tail -n 10 -f "$DECISIONS"

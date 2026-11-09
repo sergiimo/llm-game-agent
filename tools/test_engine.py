@@ -1837,7 +1837,7 @@ class VisionAnswers(Base):
     def test_an_answer_proven_by_an_event_stores_the_look_as_that_kind(self):
         f = self.use(FakeGame([obj('a', pos=(NX[0], NZ[0]), zone='near', bubble=(1400, 700), body=(1400, 700),
                                    stage='growing', watered=True, wilted=False)], GAME))
-        act.click((1400, 700), 'point')   # vision's cell on the bed: the click interacts (plant_growing)
+        act.click((1400, 700), 'object')  # model explicitly identified the visible bed as the target
         self.assertEqual(self.stored, [((1310, 630, 1490, 770), 'GardenBed')])
         hits = [r for r in self.recs() if r.get('hit') is True]
         self.assertTrue(any(r.get('component') == 'vision' for r in self.recs()) and hits, self.recs())
@@ -1845,7 +1845,7 @@ class VisionAnswers(Base):
     def test_an_answer_whose_bubble_appears_under_it_names_the_kind(self):
         f = self.use(FakeGame([obj('a', pos=(NX[0], NZ[0]), zone='far', bubble=(1000, 600), body=(1000, 640),
                                    stage='empty', watered=False, wilted=False)], GAME))
-        act.click((1000, 640), 'point')   # walks there; the bed's bubble shows next to the answered point
+        act.click((1000, 640), 'object')  # model explicitly identified the visible bed as the target
         self.assertEqual([k for _, k in self.stored], ['GardenBed'])
 
     def test_entering_the_house_stores_the_door(self):
@@ -1853,8 +1853,16 @@ class VisionAnswers(Base):
         run = f.run_action
         f.run_action = lambda a: (f.log.append('[D187 1:10:12 PM] [TRIGGER] OnEnterBuilding House')
                                   if a.startswith('click') else None, run(a))[1]
-        act.click((1835, 380), 'point')
+        act.click((1835, 380), 'object')
         self.assertEqual([k for _, k in self.stored], ['HouseDoor'])
+
+    def test_walk_waypoint_crossing_house_trigger_does_not_store_the_ground_as_door(self):
+        f = self.use(FakeGame([], GAME))
+        run = f.run_action
+        f.run_action = lambda a: (f.log.append('[D187 1:10:12 PM] [TRIGGER] OnEnterBuilding House')
+                                  if a.startswith('click') else None, run(a))[1]
+        act.click((1835, 380), 'point')
+        self.assertEqual(self.stored, [])
 
     def test_free_ground_that_walks_stores_nothing_but_is_recorded(self):
         f = self.use(FakeGame([], GAME))
@@ -2503,6 +2511,27 @@ class TowardTheTarget(EngineBase):
         b = np.roll(a, (12, -30), axis=(0, 1))   # the scene moved 30 px left, 12 down (at 960x540)
         dx, dy = observe.view_shift(Image.fromarray(a), Image.fromarray(b))
         self.assertLess(abs(dx - 60) + abs(dy + 24), 8, (dx, dy))   # her move in 1920-frame px: right 60, up 24
+
+    def test_view_shift_ignores_fixed_tara_peak_over_repeating_camera_pan(self):
+        """A centred actor and repeated fence rails must not hide a large camera-follow movement."""
+        from PIL import Image, ImageDraw
+        before = Image.new('L', (1920, 1080), 100)
+        draw = ImageDraw.Draw(before)
+        draw.rectangle((0, 0, 1920, 560), fill=55)
+        for x in range(0, 1920, 140):
+            draw.rectangle((x, 200, x + 60, 520), fill=180)
+        for y in (560, 660, 800, 940):
+            draw.rectangle((0, y, 1920, y + 36), fill=210)
+        for x in range(0, 1920, 100):
+            draw.rectangle((x, 640, x + 16, 860), fill=230)
+        after = Image.new('L', before.size, 100)
+        after.paste(before, (0, -240))
+        for frame in (before, after):
+            ImageDraw.Draw(frame).ellipse((800, 380, 1120, 700), fill=20)  # Tara remains at screen centre
+
+        dx, dy = observe.view_shift(before, after)
+
+        self.assertGreater(abs(dy), 200, (dx, dy))
 
 
 class PauseWhileAsking(EngineBase):

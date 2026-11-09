@@ -118,7 +118,7 @@ def click(pt, what='point', before=None, here=None, predict=None, goal=None, con
     _not_paused(W)
     before = O.scan() if before is None else before
     x, y = round(pt[0]), round(pt[1])
-    img0 = W.grab() if what in ('bubble', 'point') or (context or {}).get('det_box') else None   # to learn from
+    img0 = W.grab() if what in ('bubble', 'point', 'object') or (context or {}).get('det_box') else None  # to learn from
     mark = W.log_mark()
     W.run_action(f'click:{x}:{y}')
     t0, imgs = time.monotonic(), []

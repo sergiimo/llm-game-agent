@@ -20,6 +20,7 @@ import math
 import os
 import subprocess
 import sys
+import threading
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from runtime.timing import measure
 from runtime.db import Database
@@ -1850,7 +1851,7 @@ class SettleResult:
     frame: object
 
 
-def wait_settle(before=None, timeout=3.0, interval=0.1, still=1.5, min_wait=0.25):
+def wait_settle(before=None, timeout=1.5, interval=0.1, still=3.0, min_wait=0.25):
     """After an action: wait until the frame stops changing (2 consecutive still polls) or `timeout`.
 
     Idle animations (grass, NPC idle) give diffs ~0.2-0.5, so `still` tolerates them. `before` is unused but kept
@@ -4579,6 +4580,100 @@ def _dispatch_input(a):
 # ---------------------------------------------------------------- warm daemon
 
 SOCK = os.path.join(SHOT_DIR, 'wf.sock')
+CONTROLLER_LOCK = os.path.join(SHOT_DIR, 'wf-controller.lock')
+FOCUS_LEASE_COMMANDS = frozenset({'play', 'achieve', 'garden', 'sleep', 'forage'})
+_FOCUS_LEASE_LOCK = threading.Lock()
+_FOCUS_LEASE_TOKEN = [None]
+
+
+def acquire_controller_lock(path=CONTROLLER_LOCK):
+    """Hold one OS-level daemon lease; an unlinked socket must never permit a second controller."""
+    import fcntl
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    stream = open(path, 'a+')
+    try:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        stream.close()
+        return None
+    return stream
+
+
+def cancel_focus_lease():
+    with _FOCUS_LEASE_LOCK:
+        _FOCUS_LEASE_TOKEN[0] = None
+
+
+def stabilize_warp_focus(run=subprocess.run, sleep=time.sleep, monotonic=time.monotonic,
+                         frontmost=None, current=lambda: True):
+    """Hold Warp through Unity's delayed focus reclaim; stop if a newer gameplay call cancels the lease."""
+    if frontmost is None:
+        from AppKit import NSWorkspace
+        from Foundation import NSDate, NSRunLoop
+        def frontmost():
+            NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(0.01))
+            app = NSWorkspace.sharedWorkspace().frontmostApplication()
+            return app.bundleIdentifier() if app is not None else None
+    warp = 'dev.warp.Warp-Stable'
+    deadline, stable_since = monotonic() + 8.0, None
+    while current() and monotonic() < deadline:
+        now = monotonic()
+        if frontmost() == warp:
+            stable_since = stable_since or now
+            if now - stable_since >= 3.0:
+                return True
+        else:
+            stable_since = None
+            run(['open', '-b', warp], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        sleep(0.1)
+    return False
+
+
+def arm_focus_lease(delay=60.0, timer_factory=threading.Timer, stabilize=stabilize_warp_focus):
+    """Freeze a slow front-mode model turn without starting another permission-bearing helper."""
+    if not keep_front():
+        return False
+    token = object()
+    with _FOCUS_LEASE_LOCK:
+        _FOCUS_LEASE_TOKEN[0] = token
+
+    def expire():
+        with _FOCUS_LEASE_LOCK:
+            if _FOCUS_LEASE_TOKEN[0] is not token:
+                return
+        def current():
+            with _FOCUS_LEASE_LOCK:
+                return _FOCUS_LEASE_TOKEN[0] is token
+        stabilize(current=current)
+        with _FOCUS_LEASE_LOCK:
+            if _FOCUS_LEASE_TOKEN[0] is token:
+                _FOCUS_LEASE_TOKEN[0] = None
+
+    timer = timer_factory(delay, expire)
+    timer.daemon = True
+    timer.start()
+    return True
+
+
+def warm_controller_models(frame, ocr_read=None, vector_features=None):
+    """Pay first-use OCR and DINO model costs before the daemon advertises a ready socket."""
+    if ocr_read is None:
+        ocr_read = ocr
+    if vector_features is None:
+        from objects.dino import frame_features
+        vector_features = frame_features
+    result = {'ocr': False, 'vectors': False}
+    try:
+        ocr_read(frame)
+        result['ocr'] = True
+    except BaseException:
+        pass
+    try:
+        vector_features(frame)
+        result['vectors'] = True
+    except BaseException:
+        pass
+    return result
 
 
 def serve():
@@ -4587,6 +4682,10 @@ def serve():
     import io
     import socket
     os.makedirs(SHOT_DIR, exist_ok=True)
+    controller_lock = acquire_controller_lock()
+    if controller_lock is None:
+        print('wf controller already running')
+        return 1
     # Background processes get App-Napped (throttled ~2x); opt out for the daemon's lifetime.
     from Foundation import NSProcessInfo
     _activity = NSProcessInfo.processInfo().beginActivityWithOptions_reason_(  # noqa: F841 (keep reference)
@@ -4596,7 +4695,7 @@ def serve():
     # Do not publish the socket until warmup is complete. A published socket means requests may be delivered; if OCR
     # warmup then exceeds the client deadline, the caller must treat an entirely read-only request as outcome-unknown.
     try:
-        ocr(screenshot(os.path.join(SHOT_DIR, 'warm.png')))
+        warm_controller_models(screenshot(os.path.join(SHOT_DIR, 'warm.png')))
     except BaseException:
         pass
     srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -4615,6 +4714,8 @@ def serve():
                 argv = json.loads(data.decode())
             except ValueError:
                 continue
+            if argv and argv[0] in FOCUS_LEASE_COMMANDS:
+                cancel_focus_lease()
             buf = io.StringIO()
             code = 0
             moves0 = MOVES[0]
@@ -4655,6 +4756,8 @@ def serve():
                     conn.sendall(response)
             except OSError:
                 pass
+            if argv and argv[0] in FOCUS_LEASE_COMMANDS:
+                arm_focus_lease()
 
 
 def response_envelope(output, code, inputs_before):

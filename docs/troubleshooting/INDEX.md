@@ -7,15 +7,18 @@
 - Repeated “Warp would like to access data from other apps” prompts mean separate helper processes are reading the
   game container. Keep one persistent `wf` daemon; do not use `WF_NO_DAEMON=1` during live play. For persistent macOS
   approval, enable Warp under System Settings → Privacy & Security → Full Disk Access, then reopen Warp after the run.
+- The daemon holds an OS singleton lock in addition to its socket. A stale-code restart must verify every old
+  controller has exited before unlink/rebind; otherwise two processes can hold different Unix socket inodes at the
+  same pathname and one may hang capture or repeat macOS data-access prompts.
 - Run game-touching `./wf` commands outside restricted sandboxes so Quartz, AppKit, and CGEvent can reach the WindowServer.
 - The app ignores the game's black secondary window and captures the non-black game window through Quartz.
-- Universal gameplay receipts activate Warp before returning so the game clock freezes during model reasoning even
-  when persistent `focus-mode front` is selected. If a receipt leaves the game frontmost, treat that as a timing
-  failure and stop ordinary input; do not run `./wf focus` as cleanup because it advances the clock. Never open the
-  in-game Pause menu merely for thinking.
-- A one-shot Warp activation is insufficient: Wylde Flowers can reclaim focus when its ~2-second background save
-  finishes. Receipt cleanup must observe the frontmost bundle through that bounce and require Warp to remain stable
-  for 3 seconds; otherwise hours can elapse during the next model decision despite an apparent focus handoff.
+- In `focus-mode front`, the persistent controller gives each settled gameplay receipt a sixty-second foreground
+  lease. A next gameplay call cancels it; expiry activates Warp and freezes a slow model turn without starting a new
+  permission-bearing helper. The following turn must read/resolve the exact Pause modal, never send a stale-frame
+  waypoint. Lease expiry verifies Warp stays frontmost for three seconds through Unity's delayed focus bounce; a
+  one-shot `open -b` is insufficient. SQLite `model.deliberation` measures the receipt-to-next-call gap and marks
+  anything over three seconds a requirement violation. A fresh `restart=true` excludes the prior human handoff from
+  that metric. Background mode hands focus back immediately.
 - Use `./wf log` and `./wf save` before screenshots: they are authoritative quest, inventory, time, and event evidence.
 - Runtime integrity: `sqlite3 runs/wf.sqlite3 'PRAGMA integrity_check;'` must print `ok`. Back up consistently with
   `sqlite3 runs/wf.sqlite3 ".backup 'runs/wf-backup.sqlite3'"` while the daemon is stopped.
@@ -61,6 +64,9 @@
   partial crop. Scale is stable per scene but viewing angle varies, so store a few clean angle exemplars at the same
   calibrated scale instead of growing one crop indefinitely. Use separate scene/state templates when stable views differ. Never relabel a broad house crop as
   `HouseDoor`; use a matching contextual landmark kind. Multiple hits for one unique node collapse to the strongest.
+- Navigation decisions consume the deduplicated `navigation.localization.landmarks`, not every raw patch in
+  `view.candidates`. Multiple Stove patches still form one Stove landmark; its relative direction to Tara is the
+  localization evidence even when the landmark is elsewhere in the room.
 - A labelled gap/threshold such as `HouseExit` is a spatial structure, not a bag of wall/board patches. Store the
   full opening crop with state `structure`; detection then correlates its aligned DINO patch grid in one existing
   frame pass. A high relative z-score is insufficient by itself: the structural window must also clear the absolute
@@ -73,9 +79,10 @@
 - Apparent clock disagreement is not repaired by choosing one timestamp. `hud_hour` comes from the current frame,
   `log_time` from the action/event boundary, and `save_time` from the latest autosave snapshot. Refresh the source
   needed by the decision and keep its provenance; never copy save time into the live action clock.
-- For navigation regressions, use `./wf live-eval start bed-to-well` only after a fresh House+Bed clue in an active
-  run. “Fresh” means a coherent same-run observation with current visual Bed evidence, not a Bed row in static graph
-  knowledge. Play through the ordinary graph workflow, then `finish` and `report <id>`. The evaluation passes only
+- For navigation regressions, use `./wf live-eval start bed-to-well` after restarting the task at a fresh House+Bed
+  clue. If bookkeeping starts late, it may bind to the immutable coherent `sleep_spawn` Bed clue from that exact
+  still-active task and include inputs since that event; another task or static Bed graph row remains invalid. Play
+  through the ordinary graph workflow, then `finish` and `report <id>`. The evaluation passes only
   with newer current visual Garden+Well evidence or a positioned Well interaction, and stores immutable checkpoints,
   bounded gameplay metrics, and start/finish revisions in SQLite. Different revisions mean the run exercised hot fixes
   and should not be presented as a single-revision baseline.

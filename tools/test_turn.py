@@ -747,7 +747,45 @@ class Turns(unittest.TestCase):
         self.assertEqual(snapshot['vector_status']['status'], 'error')
         self.assertIn('model unavailable', snapshot['vector_status']['error'])
 
-    def test_waypoint_uses_only_confirmed_tara_tracker_for_clearance(self):
+    def test_dark_observation_skips_the_optional_vector_pass(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act, observe
+        image = Image.new('RGB', (1920, 1080), '#302d48')
+        raw = SimpleNamespace(grab=lambda: image,
+                              classify=lambda frame: {'mode': 'gameplay', 'text': []},
+                              find_bubbles=lambda frame: [], game_hour=lambda frame: 23.0,
+                              light_period=lambda hour: 'night')
+        clues = lambda: {'region': 'Farm', 'vector_scope': {'region': 'Farm', 'kinds': ['HouseDoor']}}
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name), \
+                mock.patch.object(observe, 'detect_frame', side_effect=AssertionError('dark vector pass ran')):
+            snapshot = primitives.GameAdapter(clues).observe()
+        self.assertEqual(snapshot['vector_detections'], [])
+        self.assertEqual(snapshot['vector_status']['status'], 'skipped_dark')
+
+    def test_exact_indoor_graph_route_skips_the_optional_vector_pass(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act, observe
+        image = Image.new('RGB', (1920, 1080), '#657d55')
+        raw = SimpleNamespace(grab=lambda: image,
+                              classify=lambda frame: {'mode': 'gameplay', 'text': []},
+                              find_bubbles=lambda frame: [], game_hour=lambda frame: 9.0,
+                              light_period=lambda hour: 'day')
+        clues = lambda: {
+            'region': 'House', 'vector_scope': {'region': 'House', 'kinds': ['HouseExit']},
+            'navigation': {
+                'graph': {'current_node': 'House/BedroomPassage', 'current_source': 'navigation_step'},
+                'next_edge': {'to': 'HouseExit', 'navigation_only': False},
+            },
+        }
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name), \
+                mock.patch.object(observe, 'detect_frame', side_effect=AssertionError('exact graph vector pass ran')):
+            snapshot = primitives.GameAdapter(clues).observe()
+        self.assertEqual(snapshot['vector_detections'], [])
+        self.assertEqual(snapshot['vector_status']['status'], 'skipped_exact_graph')
+
+    def test_waypoint_does_not_need_an_arbitrary_tracker_clearance(self):
         adapter = primitives.GameAdapter()
         observation = dict(self.port.snapshot, candidates=[
             {'id': 'vector-0', 'kind': 'Tara', 'point': [400, 400], 'source': 'vector'},
@@ -759,9 +797,34 @@ class Turns(unittest.TestCase):
             {'kind': 'waypoint', 'point': [450, 400], 'walkable': True}, observation)
 
         self.assertEqual(prepared['command'], 'click:450:400')
-        with self.assertRaisesRegex(ValueError, 'tracker anchor'):
-            adapter.prepare(
-                {'kind': 'waypoint', 'point': [960, 800], 'walkable': True}, observation)
+        short = adapter.prepare(
+            {'kind': 'waypoint', 'point': [960, 800], 'walkable': True}, observation)
+        self.assertEqual(short['command'], 'click:960:800')
+
+    def test_changed_frame_with_zero_camera_correlation_is_unknown_not_no_move(self):
+        with mock.patch('game.observe.view_changed', return_value=True), \
+                mock.patch('game.observe.view_shift', return_value=(0.0, 0.0)):
+            self.assertIsNone(primitives._frame_movement(mock.Mock(), mock.Mock()))
+
+    def test_stable_frame_is_a_proved_no_move(self):
+        with mock.patch('game.observe.view_changed', return_value=False):
+            self.assertIs(primitives._frame_movement(mock.Mock(), mock.Mock()), False)
+
+    def test_intent_before_omits_recursive_model_and_history_projections(self):
+        compact = primitives._operational_before({
+            'screen': {'kind': 'gameplay'}, 'frame_path': 'fresh.jpg', 'game_time': 'D19 4:00:00 PM',
+            'navigation': {'next_edge': {'to': 'HouseExit'}}, 'belief': {'revision': 2},
+            'last_outcome': {'before': {'last_outcome': {'blob': 'x' * 50_000}}},
+            'task': {'current_turn': {'blob': 'x' * 50_000}}, 'memory': {'clues': ['verbose']},
+            'recommendation': {'reasons': ['verbose']}, 'graph_clues': [{'blob': 'x' * 50_000}],
+            'visible_affordances': [{'kind': 'sleep', 'point': [900, 500]}],
+        })
+
+        self.assertEqual(compact['frame_path'], 'fresh.jpg')
+        self.assertEqual(compact['navigation']['next_edge']['to'], 'HouseExit')
+        self.assertEqual(compact['visible_affordances'][0]['kind'], 'sleep')
+        self.assertFalse({'last_outcome', 'task', 'memory', 'recommendation', 'graph_clues'} & compact.keys())
+        self.assertLess(len(json.dumps(compact)), 2000)
 
     def test_click_accepts_equivalent_xy_coordinate_form(self):
         adapter = primitives.GameAdapter()

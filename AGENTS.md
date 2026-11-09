@@ -2,6 +2,11 @@
 
 **Goal:** minimal, sufficient docs so agents can pass the quests. Current phase: testing; **filling gaps beats winning**.
 
+## Workflow skills
+
+Use Superpowers workflows only for large or complex requests. For small, well-scoped changes and straightforward
+questions, work directly without invoking Superpowers planning, brainstorming, or implementation workflows.
+
 This repo is a toolkit for an AI agent to **play Wylde Flowers** (Apple Arcade macOS build, running full-screen,
 UI language **English** since D4 (L48); older docs quote Russian UI strings, see `docs/ui/glossary.md`) and a **world model** of the game.
 

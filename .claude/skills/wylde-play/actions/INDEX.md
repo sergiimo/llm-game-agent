@@ -95,17 +95,20 @@ receipt without a following grab. Read its immutable outcome before choosing aga
 When the game must remain frontmost without input so its clock can advance, use canonical `./wf focus`; macOS
 `open -a` does not reliably switch to the game's Space. A zero-input `play wait` followed by refocusing Warp keeps
 the game frozen and must not be repeated as a time-advance loop.
-Conversely, every settled universal gameplay receipt automatically activates Warp so the game loses focus while the model
-reads/reasons. Never run `./wf focus` as a post-call cleanup: it focuses the game and was the cause of multi-hour HUD
-jumps during zero-input analysis.
+In `focus-mode front`, settled universal gameplay receipts keep the game focused for a sixty-second action lease.
+Reuse the captured final frame and start the next call inside that lease to avoid a Pause/Resume input. When the lease
+expires, the persistent controller freezes game time in Warp; never send the stale waypoint—read and resolve the exact Pause modal.
+Background mode activates Warp immediately. Never run `./wf focus` as post-call cleanup: it focuses the game and was
+the cause of multi-hour HUD jumps during zero-input analysis.
 Before selecting a waypoint, compare it with every visible unique-object candidate. Keep at least 96 px away from
 their candidate points so a road step cannot enter an object's approach/interaction zone; deliberately interacting
 with that object uses a target/bubble action instead. Raw vector candidates are appearance hypotheses: inspect them
 against the full frame. A vector-only false positive cannot authoritatively veto model-confirmed obvious walkable
 ground; only an interaction-proved or explicitly confirmed candidate owns an approach exclusion in the runtime guard.
-Tara is not appearance-vector scanned: those guesses duplicated her body and sometimes matched scenery. Keep every
-waypoint 240 px from the confirmed `tara-feet` centre-seeded tracker anchor; it is the sole Tara exclusion used by the
-runtime guard because furniture/wall occlusion can truncate a character box above the visible feet.
+Tara is not appearance-vector scanned: those guesses duplicated her body and sometimes matched scenery. The tracker
+anchor identifies Tara for the model but does not impose an arbitrary minimum waypoint distance. At a bend or tight
+interior, a short model-confirmed centreline step may be closer than 240 px; its visible surface and clearance, not a
+fixed radius, determine whether it is usable.
 Place a waypoint in the interior centerline of one continuous visible walkable surface, with clearance around the
 point. Never label a path edge, fence or bridge rail, waterline, rock, vegetation border or decorative boundary as
 walkable. Fireplace/chimney masonry is a vertical obstacle, not a stone path: never click its face, hearth, base, or
@@ -117,14 +120,14 @@ For an indoor divider wall, a waypoint before the visible wall end must remain o
 parallel to the wall until the full opening is visibly below/beyond its end; only a later fresh frame may turn across
 the opening. A point on the opposite room floor is not reachable merely because both endpoints look wooden.
 If a waypoint supplies `surface` (`road`, `floor`, `porch`, or `bridge`), it must also supply the current frame's
-visible `surface_box:[x0,y0,x1,y1]`; never send a surface label without its bounds. Keep floor/porch/bridge points at
-least 16 px inside that box and road points at least 48 px inside it.
+visible `surface_box:[x0,y0,x1,y1]`; never send a surface label without its bounds. The point must be inside that
+model-confirmed continuous surface; Python adds no arbitrary inset beyond the model's visible-clearance judgment.
 When any road is visible, navigation waypoints stay on its centerline; do not cut across grass because the eventual
 map/compass direction points that way. A winding road segment may temporarily point away from the destination and is
 an explicit `visible_detour`. Map/compass evidence chooses only among branches that are actually visible.
 Every road waypoint includes `surface:"road"` and a conservative `surface_box:[x0,y0,x1,y1]` enclosing only the
-continuous visible pale/dirt road patch around that point. Keep the point at least 48 px inside all four bounds;
-if the visible patch is too narrow for that inset, take a different patch or refresh the view instead of guessing.
+continuous visible pale/dirt road patch around that point. Keep the point visibly clear of the boundary; if the
+patch is too narrow to judge safely, take a different patch or refresh the view instead of guessing.
 At dusk, distinguish the pale/desaturated road texture from darker green grass before drawing the box. Do not draw a
 box across a road/grass boundary, under a fence, or through a semi-transparent tree merely to admit the desired point.
 Compare the graph edge's qualitative compass with the visible road, but resolve disagreement in `belief_update`.
@@ -160,13 +163,23 @@ After `time_fail` or forced passout, a previously issued click may finish late a
 restart or eval start, take two fresh zero-input reads and require the same coherent scene and save position with no
 pending intent or new movement event. A disagreement means the old input is still settling: fail/avoid the eval,
 refresh again, and do not treat the first post-passout Bed frame as a stable start state.
+If the 18:00 sleep interrupt has not reached the House by 23:00, stop and hand control to the human. Do not spend the
+remaining night exploring another road branch: avoiding forced passout outranks autonomous route completion.
 For a fresh live eval, order is strict: restart the gameplay task first, obtain fresh House+Bed evidence, then start
 the eval. `restart=true` deliberately fails every active eval, so never start an eval and restart its task afterward.
+If the eval command is delayed until after the first inputs of that same restarted task, `live-eval start` binds to
+the task's immutable coherent House/Bed `sleep_spawn` clue and counts every input after it. Do not backtrack to Bed or
+manufacture a new visual Bed candidate. The fallback is valid only while that exact task remains active; an older
+task's spawn, static graph membership, cutscene frame, or post-passout state is rejected.
 Menu-key JSON uses `action:{kind:"key",label:"m",expects:{mode:"map"}}` (similarly `j`/`i`), not a `key` field
 or `press` on a HUD letter. The `key:m` shorthand is one guarded input without an implicit expected-mode claim.
 On `verdict=unsafe`, read the exact `guard` check first: it issued zero inputs. Empty after-state/after frames in
 that refusal are not a capture failure; `artifacts.img0` is the before frame and the NEXT frame is a later read.
 Record the actual refusal reason before correcting the model decision. An intended mode never proves an attempt ran.
+An exact fresh `pause` screen with one `Resume Game` control is a recoverable modal owned by the same gameplay agent,
+not a supervisor block. Resolve any older movement surprise from its immutable evidence, then press that exact current
+control with expected gameplay mode and continue the existing task. Never escalate merely because a focus handoff
+materialized the standard pause menu.
 For every surprise, authoritative `evidence.mode`, `evidence.events`, and `evidence.texts` outrank a visual narrative:
 if they show a dialogue/event, the interaction occurred even when the model expected a different proof shape. Never
 write a correction claiming “did not open” or “no input” while those fields prove the opposite.

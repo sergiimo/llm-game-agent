@@ -22,18 +22,35 @@ class LiveEvalStoreTest(unittest.TestCase):
         self.run_id = self.runs.start('live-route', 'bed to well', os.path.join(self.tmp.name, 'run'))
         self.now = time.time()
 
-    def clue(self, scene, kinds, created_at, *, status='coherent', graph_kinds=(), event_at=None):
+    def clue(self, scene, kinds, created_at, *, status='coherent', graph_kinds=(), event_at=None,
+             task_id=None, current_node=None, current_source=None, mode='gameplay'):
         with self.db.transaction(immediate=True) as connection:
             observation_id = connection.execute(
                 "INSERT INTO observations(run_id,status,scene,payload_json,created_at) "
                 "VALUES (?,?,?,?,?)", (self.run_id, status, scene, '{}', created_at)).lastrowid
-        return self.runs.append_event('turn', {
+        payload = {
             'view': {'scene': scene, 'candidates': [
                 {'id': f'candidate-{index}', 'kind': kind, 'point': [1000 + index, 600]}
-                for index, kind in enumerate(kinds)]},
+                for index, kind in enumerate(kinds)], 'mode': mode},
             'graph_clues': [{'id': kind, 'kind': kind, 'node': kind} for kind in graph_kinds],
             'resources': {'region': scene}, 'observation_id': observation_id,
-        }, phase='clues', t=created_at if event_at is None else event_at, run_id=self.run_id)
+        }
+        if task_id is not None:
+            payload['task_id'] = task_id
+        if current_node is not None:
+            payload['navigation'] = {'graph': {'current_node': current_node,
+                                               'current_source': current_source}}
+        return self.runs.append_event('turn', payload, phase='clues',
+                                      t=created_at if event_at is None else event_at,
+                                      run_id=self.run_id)
+
+    def active_task(self, task_id):
+        with self.db.transaction(immediate=True) as connection:
+            connection.execute(
+                "INSERT INTO task_state(run_id,revision,payload_json,updated_at) VALUES (?,?,?,?) "
+                "ON CONFLICT(run_id) DO UPDATE SET revision=excluded.revision,"
+                "payload_json=excluded.payload_json,updated_at=excluded.updated_at",
+                (self.run_id, 1, json.dumps({'task_id': task_id, 'status': 'active'}), self.now))
 
     def store(self):
         from runtime.live_eval import LiveEvalStore
@@ -64,6 +81,37 @@ class LiveEvalStoreTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'fresh.*House.*Bed'):
             self.store().start('bed-to-well', self.run_id, 'static')
 
+    def test_start_can_bind_to_same_active_tasks_immutable_sleep_spawn(self):
+        task_id = 'same-restarted-task'
+        self.active_task(task_id)
+        start = self.clue('House', [], self.now - 600, task_id=task_id,
+                          current_node='Bed', current_source='sleep_spawn')
+        with self.db.transaction(immediate=True) as connection:
+            connection.execute(
+                "INSERT INTO intents(run_id,turn_id,status,payload_json,created_at,updated_at) "
+                "VALUES (?,1,'settled',?,?,?)",
+                (self.run_id, json.dumps({'action': {'kind': 'waypoint'},
+                                          'provenance': {'preparation': 'prepared'}}),
+                 self.now - 500, self.now - 500))
+        self.clue('House', [], self.now, task_id=task_id,
+                  current_node='House/BedroomPassage', current_source='navigation_step')
+
+        evaluation = self.store().start('bed-to-well', self.run_id, 'retroactive')
+
+        self.assertEqual(evaluation['start_event_id'], start)
+        self.assertEqual(evaluation['created_at'], self.now - 600)
+        self.assertEqual(self.store().report(evaluation['id'])['inputs'], 1)
+
+    def test_start_does_not_reuse_sleep_spawn_from_an_old_task(self):
+        self.active_task('new-task')
+        self.clue('House', [], self.now - 10, task_id='old-task',
+                  current_node='Bed', current_source='sleep_spawn')
+        self.clue('House', [], self.now, task_id='new-task',
+                  current_node='House/BedroomPassage', current_source='navigation_step')
+
+        with self.assertRaisesRegex(ValueError, 'fresh.*House.*Bed'):
+            self.store().start('bed-to-well', self.run_id, 'wrong-task')
+
     def test_checkpoint_is_immutable_and_idempotent_for_one_clue_event(self):
         self.clue('House', ['Bed'], self.now)
         evaluation = self.store().start('bed-to-well', self.run_id, 'abc123')
@@ -86,12 +134,12 @@ class LiveEvalStoreTest(unittest.TestCase):
         self.run_id = other_run
         self.clue('House', ['Bed'], self.now + 2)
         evaluation = self.store().start('bed-to-well', self.run_id, 'def456')
-        self.clue('Garden', ['Well'], self.now + 3)
+        self.clue('Farm', ['Well'], self.now + 3)
         passed = self.store().finish(evaluation['id'], revision='def789')
         self.assertEqual(passed['status'], 'pass')
         self.assertEqual(passed['finished_revision'], 'def789')
         self.assertEqual(passed['result']['destination'], 'Well')
-        self.assertEqual(passed['result']['scene'], 'Garden')
+        self.assertEqual(passed['result']['scene'], 'Farm')
         report = self.store().report(evaluation['id'])
         self.assertEqual(report['revision'], 'def456')
         self.assertEqual(report['finished_revision'], 'def789')
@@ -99,7 +147,7 @@ class LiveEvalStoreTest(unittest.TestCase):
     def test_static_graph_membership_cannot_prove_destination_visibility(self):
         self.clue('House', ['Bed'], self.now)
         evaluation = self.store().start('bed-to-well', self.run_id, 'abc123')
-        self.clue('Garden', [], self.now + 1, graph_kinds=['Well'])
+        self.clue('Farm', [], self.now + 1, graph_kinds=['Well'])
         finished = self.store().finish(evaluation['id'])
         self.assertEqual(finished['status'], 'fail')
 
@@ -116,7 +164,7 @@ class LiveEvalStoreTest(unittest.TestCase):
                                            'regions': ['Farm', 'Garden']}]]}}), evaluation['created_at']))
         finished = self.store().finish(evaluation['id'])
         self.assertEqual(finished['status'], 'pass')
-        self.assertEqual(finished['result']['scene'], 'Garden')
+        self.assertEqual(finished['result']['scene'], 'Farm')
         self.assertEqual(finished['result']['destination'], 'Well')
 
     def test_finished_evaluation_is_immutable_when_later_gameplay_adds_destination_proof(self):
@@ -127,7 +175,7 @@ class LiveEvalStoreTest(unittest.TestCase):
             checkpoints = connection.execute(
                 'SELECT count(*) FROM live_eval_checkpoints WHERE eval_id=?',
                 (evaluation['id'],)).fetchone()[0]
-        self.clue('Garden', ['Well'], self.now + 1)
+        self.clue('Farm', ['Well'], self.now + 1)
         second = self.store().finish(evaluation['id'], revision='second')
         with self.db.connect() as connection:
             later_checkpoints = connection.execute(
@@ -163,7 +211,7 @@ class LiveEvalStoreTest(unittest.TestCase):
                     'evidence': {'moved': False, 'state': [['region', 'Farm']]},
                     'verdict': {'value': 'miss'}, 'discrepancy': {'kind': 'mismatch'}}), within))
         self.clue('Farm', [], within)
-        self.clue('Garden', ['Well'], within)
+        self.clue('Farm', ['Well'], within)
         self.store().finish(evaluation['id'])
         first = self.store().report(evaluation['id'])
         second = self.store().report(evaluation['id'])
@@ -197,7 +245,7 @@ class LiveEvalCLITest(unittest.TestCase):
         self.assertEqual(started['status'], 'active')
         status = self.command('status', 'bed-to-well')
         self.assertEqual(status['id'], started['id'])
-        self.clue('Garden', ['Well'], self.now + 1)
+        self.clue('Farm', ['Well'], self.now + 1)
         finished = self.command('finish', started['id'])
         self.assertEqual(finished['status'], 'pass')
         report = self.command('report', started['id'])

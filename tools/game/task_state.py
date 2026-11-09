@@ -202,7 +202,9 @@ class TaskStore:
 
     @staticmethod
     def _encode(task):
-        with measure('task.serialize'):
+        # `_encode` runs while the caller may hold SQLite's write transaction. Persisting this nested diagnostic
+        # through a second connection would wait for its own lock and turn observation into a five-second stall.
+        with measure('task.serialize', _persist_db=False):
             return json.dumps(task, default=json_record, sort_keys=True, separators=(',', ':'))
 
     def exists(self):

@@ -21,16 +21,22 @@ LOCAL_AUTOMATION = (
     ('watcher', r'tools/runwatch\.py .*--follow'),
 )
 
-# Model-owned gameplay returns a settled receipt and then reasons before the next call.  Wylde Flowers advances
-# its clock whenever it remains frontmost, so freeze that reasoning interval even when the user's persistent
-# focus-mode is `front`.  The next input focuses the game again; this does not change the saved focus-mode setting.
+# Model-owned gameplay returns a settled receipt and then reasons before the next call. In focus-mode front the
+# settled frame gets a three-second action lease; a persistent helper freezes slower reasoning before game time runs
+# away. The next input cancels a still-current lease and focuses the game as needed.
 GAMEPLAY_RECEIPTS = frozenset({'play', 'achieve', 'garden', 'sleep', 'forage'})
+FRONT_FLAG = os.path.join(os.environ.get('WF_SHOT_DIR', os.path.join(ROOT, '.shots')), 'keep_front')
 
 
 def freeze_after_gameplay_receipt(argv, run=subprocess.run, sleep=time.sleep, monotonic=time.monotonic):
-    """Keep Warp frontmost through the game's background-save bounce after a gameplay receipt."""
+    """Arm front mode's short action lease, or freeze background mode immediately."""
+    # `focus-mode front` is an explicit user choice: the settled gameplay frame must remain actionable for the next
+    # model turn. Forcing Warp forward here made Unity open Pause, so every waypoint consumed a failed attempt and a
+    # Resume input. Background/off-game work still gets the freeze below.
     if not argv or argv[0] not in GAMEPLAY_RECEIPTS:
         return False
+    if os.path.exists(FRONT_FLAG):
+        return False  # the persistent controller daemon owns front-mode's three-second lease
     try:
         from AppKit import NSWorkspace
         from Foundation import NSDate, NSRunLoop
@@ -116,7 +122,26 @@ def log_call(argv):
         try:
             import time
             t = round(time.time(), 2)
-            with open(os.path.join(os.path.dirname(SOCK), 'actions.log'), 'a') as f:
+            shots = os.path.dirname(SOCK)
+            if argv[0] in GAMEPLAY_RECEIPTS and 'restart=true' not in argv:
+                try:
+                    with open(os.path.join(shots, 'actions_done.log')) as completed:
+                        last = next(line for line in reversed(completed.readlines()) if line.strip())
+                    previous_end = float(last.split('\t', 1)[1])
+                    seconds = round(max(0.0, t - previous_end), 6)
+                    turn = next((int(value) for arg in argv
+                                 if (match := re.match(r'turn_id=(\d+)$', arg))
+                                 for value in (match.group(1),)), None)
+                    path = os.environ.get('WF_DB', os.path.join(ROOT, 'runs', 'wf.sqlite3'))
+                    if os.path.exists(path):
+                        RunStore(Database(path)).append_event(
+                            'timing', {'seconds': seconds, 'budget_seconds': 3,
+                                       'status': 'ok' if seconds <= 3 else 'violation',
+                                       'command': argv[0]}, turn_id=turn,
+                            phase='model.deliberation', t=t)
+                except (OSError, ValueError, StopIteration):
+                    pass
+            with open(os.path.join(shots, 'actions.log'), 'a') as f:
                 f.write(f"{t:.2f}\t{' '.join(argv)}\n")
             return t
         except Exception:  # noqa: BLE001 - call accounting must not replace an already-known delivery result
@@ -249,15 +274,16 @@ def main():
         try:
             if os.path.exists(SOCK) and stale(os.path.getmtime(SOCK), code_mtimes()):
                 print('wf: code changed since the daemon started: restarting it', file=sys.stderr)
-                subprocess.run(['pkill', '-f', 'tools/wf.py serve'])
-                os.remove(SOCK)
+                _attempted, errors = stop_local_automation()
+                if errors:
+                    print(f'RESTART FAILED: {"; ".join(errors)}', file=sys.stderr)
+                    return 1
         except OSError:
             pass
         try:
             delivered = via_daemon(argv, with_meta=True)
             code, input_issued = delivered if isinstance(delivered, tuple) else (delivered, True)
-            if input_issued:
-                freeze_after_gameplay_receipt(argv)
+            freeze_after_gameplay_receipt(argv)
             log_end(start, argv)
             return code
         except DeliveryUnknown as error:
@@ -276,8 +302,7 @@ def main():
                 try:
                     delivered = via_daemon(argv, with_meta=True)
                     code, input_issued = delivered if isinstance(delivered, tuple) else (delivered, True)
-                    if input_issued:
-                        freeze_after_gameplay_receipt(argv)
+                    freeze_after_gameplay_receipt(argv)
                     log_end(start, argv)
                     return code
                 except DeliveryUnknown as error:

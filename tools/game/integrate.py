@@ -221,8 +221,12 @@ def propose(e):
             label = _badge_proof(e)
             if label:   # wave 1 learns from what the click proved (user D189)
                 memory.append(X.Update('memory', 'badge', {'label': label}))
-        if e.action.what == 'point':
-            memory.append(X.Update('memory', 'answer_look', {'here': ctx.get('here')}))
+        if e.action.what in ('point', 'object'):
+            # A waypoint can cross a trigger after Tara walks to it, but that does not prove the clicked pixels are
+            # the triggered object.  Keep its useful route evidence while reserving appearance learning for the
+            # model's explicit `target` answer, where it asserted that the full object was actually visible.
+            memory.append(X.Update('memory', 'answer_look', {
+                'here': ctx.get('here'), 'appearance': e.action.what == 'object'}))
         if ctx.get('det_box') and e.evidence.node and e.evidence.node != ctx.get('target'):
             memory.append(X.Update('memory', 'relabel', {'box': list(ctx['det_box']), 'node': e.evidence.node}))
         if ctx.get('toward'):
@@ -585,7 +589,8 @@ def _run(u, e, img0, store=None):
                 return None
             return (f'bubble:{label}' if W.learn_bubble(W.bubble_crop(img, point), label, bubble.kind) else None)
         if u.op == 'answer_look':
-            return LN.learn_answer(_ns(e), img, u.args.get('here'), exp=e.id)
+            return LN.learn_answer(_ns(e), img, u.args.get('here'), exp=e.id,
+                                   learn_appearance=u.args.get('appearance', True))
         if u.op == 'badge':   # the clicked bubble's 140-px crop -> its corner is an example of the label
             from . import badges
             if img is None or not e.action.pt:

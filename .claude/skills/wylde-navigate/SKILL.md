@@ -28,6 +28,10 @@ route authority. Coordinates in old data are debug/provenance only; do not exten
 At doors, gaps, bends, occlusion, or an unknown screen, take a shorter visible-road step and observe again. A map is
 an optional current-frame observation for an unresolved long outdoor segment, not a coordinate source or hidden
 route executor. Close it explicitly before world input. Keyboard movement and blind loops remain prohibited.
+When an exact goal has no explicit map marker, bind only `navigation.goal.map_anchor` (the nearest labeled ancestor)
+and locate the subobject locally after reaching that ancestor. Map compass is world-space, not screen-space: select a
+screen branch only from visible landmark/junction topology, otherwise backtrack to the last proved junction rather
+than guessing a same-named screen direction.
 
 ## Failure and learning
 
@@ -52,3 +56,6 @@ then run `./wf live-eval finish` and `./wf live-eval report <id>`. Fresh start a
 current visual evidence (or a positioned Well interaction at the destination); static graph membership is not proof.
 Finalization is immutable. The SQLite report compares issued physical inputs, observations, no-moves, wrong transitions,
 surprises, elapsed time when available, and start/finish toolkit revisions.
+When bookkeeping starts late, the command may bind to the immutable coherent `sleep_spawn` Bed clue of the same still-
+active restarted task and include its already-issued inputs. Never walk backward to recreate a Bed candidate; task ID
+and spawn provenance are the boundary, and evidence from any older task remains invalid.

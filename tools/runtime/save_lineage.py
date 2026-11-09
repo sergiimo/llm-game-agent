@@ -44,7 +44,9 @@ def _day_start_bridge(candidate, log_epoch):
     if candidate.game_time is None or log_epoch.last_time is None:
         return False
     candidate_day, log_day = candidate.game_time // 86400, log_epoch.last_time // 86400
-    if (log_day != candidate_day + 1 or candidate.game_time > log_epoch.last_time or
+    day_delta = log_day - candidate_day
+    wrapped_previous_day_stamp = day_delta == 0 and candidate.game_time % 86400 < 4 * 3600
+    if ((day_delta != 1 and not wrapped_previous_day_stamp) or candidate.game_time > log_epoch.last_time or
             log_epoch.last_time - candidate.game_time > 24 * 3600):
         return False
     # A normal bedtime emits day_start_intro; involuntary 02:00 exhaustion emits

@@ -476,6 +476,34 @@ class GardenTurns(unittest.TestCase):
         with self.assertRaises(ValueError):
             ask.garden_decision('maybe')
 
+    def test_decision_parser_normalizes_top_level_observed_hour_into_navigation_belief(self):
+        from game import ask
+        decision = ask.garden_decision({
+            'kind': 'act', 'action': {'kind': 'waypoint'},
+            'belief_update': {'goal': 'Well'}, 'observed_hour': 7,
+        })
+
+        self.assertEqual(decision.belief_update['observed_hour'], 7)
+
+    def test_decision_parser_hoists_structured_rationale_evidence(self):
+        from game import ask
+        decision = ask.garden_decision({
+            'kind': 'act',
+            'action': {'kind': 'waypoint'},
+            'belief_update': {
+                'goal': 'Well',
+                'frame_path': 'fresh.jpg',
+                'evidence_refs': ['fresh.jpg'],
+            },
+            'rationale': {
+                'category': 'visible_road_progress',
+                'evidence_refs': ['fresh.jpg'],
+            },
+        })
+
+        self.assertEqual(decision.rationale, 'visible_road_progress')
+        self.assertEqual(decision.evidence_refs, ('fresh.jpg',))
+
     def test_policy_handles_interrupts_empty_beds_hives_and_protected_flowers(self):
         from game import garden_policy as p
         active = {'phase': 'inspect', 'crop': 'Tulip', 'provisional': {'point': [850, 540]}}

@@ -31,9 +31,27 @@ def garden_decision(answer):
     from .turn import Decision
     def structured(value):
         value = dict(value)
+        rationale_refs = ()
+        if isinstance(value.get('rationale'), dict):
+            rationale = dict(value['rationale'])
+            rationale_refs = tuple(rationale.get('evidence_refs') or ())
+            value['rationale'] = str(rationale.get('category') or rationale.get('reason') or '').strip()
+        if not value.get('evidence_refs'):
+            belief = value.get('belief_update')
+            belief_refs = tuple(belief.get('evidence_refs') or ()) if isinstance(belief, dict) else ()
+            supplied_refs = rationale_refs or belief_refs
+            if supplied_refs:
+                value['evidence_refs'] = supplied_refs
         if value.get('kind') == 'push' and value.get('action') is None and 'goal' in value:
             action = {'goal': value.pop('goal'), 'params': value.pop('params', {})}
             value['action'] = action
+        if 'observed_hour' in value and isinstance(value.get('belief_update'), dict):
+            observed_hour = value.pop('observed_hour')
+            belief = dict(value['belief_update'])
+            if 'observed_hour' in belief and belief['observed_hour'] != observed_hour:
+                raise ValueError('invalid decision envelope: conflicting observed_hour values')
+            belief['observed_hour'] = observed_hour
+            value['belief_update'] = belief
         try:
             return Decision(**value)
         except TypeError as error:

@@ -57,6 +57,26 @@ def _action(raw, objective=None):
 
 def _receipt(context):
     receipt = play._model_receipt(context)
+    raw = context.to_dict() if hasattr(context, 'to_dict') else dict(context)
+    latest = raw.get('last_outcome') or {}
+    evidence = latest.get('evidence') or {}
+    action = latest.get('action') or {}
+    task = raw.get('task') or {}
+    if task.get('goal') == 'navigate' and action.get('what') == 'step' and evidence.get('moved') is True:
+        try:
+            before = dict((latest.get('before') or {}).get('state') or ())
+            after = dict(evidence.get('state') or ())
+        except (TypeError, ValueError):
+            before, after = {}, {}
+        semantic = bool(
+            evidence.get('events') or evidence.get('at') is not None or evidence.get('node') is not None or
+            (after.get('region') or after.get('scene')) != (before.get('region') or before.get('scene')) or
+            (after.get('region_provenance') or {}).get('source') == 'positioned_event')
+        result = dict(receipt.get('result') or {})
+        result['semantic_progress'] = 'verified' if semantic else 'unverified'
+        if not semantic and result.get('status') == 'hit':
+            result['status'] = 'moved'
+        receipt['result'] = result
     path = receipt.get('frame_path') or (receipt.get('view') or {}).get('path')
     receipt['image'] = {'path': path, 'mime_type': 'image/jpeg'} if path else None
     return receipt

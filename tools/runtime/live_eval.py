@@ -110,9 +110,10 @@ class LiveEvalStore:
             return None
         rows = connection.execute(
             "SELECT id,t,payload_json FROM run_events WHERE run_id=? AND type='turn' AND phase='clues' "
-            "AND json_extract(payload_json,'$.task_id')=? AND id<=? ORDER BY id DESC",
+            "AND json_extract(payload_json,'$.task_id')=? AND id<=? ORDER BY id",
             (run_id, task_id, latest['id'])).fetchall()
-        for clue in rows:
+        candidates = []
+        for index, clue in enumerate(rows):
             payload = cls._payload(clue)
             navigation = payload.get('navigation') or {}
             graph = navigation.get('graph') or {}
@@ -125,13 +126,20 @@ class LiveEvalStore:
                 connection, run_id, clue, payload, float(clue['t']))
             if not contemporaneous:
                 continue
-            intervening = rows[:rows.index(clue)]
-            if any('out of time' in ' / '.join(
-                    str(text).casefold() for text in ((cls._payload(row).get('screen') or {}).get('texts') or ()))
-                   for row in intervening):
-                return None
-            return clue, payload, observation
-        return None
+            candidates.append((index, clue, payload, observation, graph.get('current_source')))
+        if not candidates:
+            return None
+        # A sleep spawn is a one-time task-start fact. Navigation clues may keep projecting it after Tara walks,
+        # so bind the first coherent spawn, never the latest copy. Positioned endpoints are event-owned and may use
+        # the latest matching proof.
+        sleep = next((row for row in candidates if row[4] == 'sleep_spawn'), None)
+        index, clue, payload, observation, _source = sleep or candidates[-1]
+        intervening = rows[index + 1:]
+        if any('out of time' in ' / '.join(
+                str(text).casefold() for text in ((cls._payload(row).get('screen') or {}).get('texts') or ()))
+               for row in intervening):
+            return None
+        return clue, payload, observation
 
     def start(self, scenario, run_id, revision):
         definition = SCENARIOS.get(scenario)

@@ -166,8 +166,11 @@ the attempt incomplete. No late autonomous recovery to force a benchmark pass.
   Record any proposed changes to R3/R7 explicitly. Keep the current production defaults until a verdict supports
   replacing them. Commit only this trial's completed changes if requested; never sweep the dirty branch into it.
 
-**Current status (2026-11-09): Task 1 passed after correcting the owner-boundary interpretation.** The owner is this
-ChatGPT host's native Computer Use loop, which calls the local engine through host tools; the engine does not call a
-model API. Zero-input turn 59 delivered matching context and the full-size preserved frame to the owner. It correctly
-identified the farmhouse Bed region and next semantic edge, while flagging that the stored `E far` compass conflicts
-with the visible left/down passage. Continue with Task 2; preserve that disagreement as trial evidence.
+**Current status (2026-11-09): reduced live trial failed semantic navigation.** At the user's direction, Tasks 4–5
+were cut to the minimum ReAct proof instead of two round trips. Native observe/act/next-image transport worked and
+three inputs produced verified physical movement, but Tara never left the House and the graph position remained
+`Bed`. The bridge incorrectly rendered those movement-only outcomes as `hit`; it now reports `moved` plus
+`semantic_progress: unverified`. One ordinary measured cycle was 9.845s (about 3.017s measured engine work), failing
+both 3s and 4s targets. A later interval included development/user pause and is not a routine-cycle sample. The trial
+also found stale `sleep_spawn` reuse in eval start and a stale 12:18 receipt that discovered 20:28 only after input;
+both attempts and the late-clock violation remain recorded. No production promotion; no model API was introduced.

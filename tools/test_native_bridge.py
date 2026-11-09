@@ -80,6 +80,8 @@ class NativeBridgeContracts(unittest.TestCase):
         self.assertEqual(self.port.inputs[0]['kind'], 'waypoint')
         self.assertTrue(self.port.inputs[0]['walkable'])
         self.assertEqual(self.store.load().last_experience['prediction']['moved'], True)
+        self.assertEqual(receipt['result']['status'], 'moved')
+        self.assertEqual(receipt['result']['semantic_progress'], 'unverified')
         self.assertEqual(receipt['frame_path'], 'after.jpg')
         self.assertEqual(receipt['view']['id'], 'view-after')
         observed.assert_called_once_with()

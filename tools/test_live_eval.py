@@ -102,6 +102,27 @@ class LiveEvalStoreTest(unittest.TestCase):
         self.assertEqual(evaluation['created_at'], self.now - 600)
         self.assertEqual(self.store().report(evaluation['id'])['inputs'], 1)
 
+    def test_persisted_sleep_spawn_after_movement_binds_the_original_bed_clue(self):
+        task_id = 'stale-sleep-source'
+        self.active_task(task_id)
+        original = self.clue('House', [], self.now - 20, task_id=task_id,
+                             current_node='Bed', current_source='sleep_spawn')
+        with self.db.transaction(immediate=True) as connection:
+            connection.execute(
+                "INSERT INTO intents(run_id,turn_id,status,payload_json,created_at,updated_at) "
+                "VALUES (?,1,'settled',?,?,?)",
+                (self.run_id, json.dumps({'action': {'kind': 'waypoint'},
+                                          'provenance': {'preparation': 'prepared'}}),
+                 self.now - 10, self.now - 10))
+        later = self.clue('House', [], self.now, task_id=task_id,
+                          current_node='Bed', current_source='sleep_spawn')
+
+        evaluation = self.store().start('bed-to-well', self.run_id, 'stale-source')
+
+        self.assertNotEqual(later, original)
+        self.assertEqual(evaluation['start_event_id'], original)
+        self.assertEqual(evaluation['created_at'], self.now - 20)
+
     def test_start_does_not_reuse_sleep_spawn_from_an_old_task(self):
         self.active_task('new-task')
         self.clue('House', [], self.now - 10, task_id='old-task',

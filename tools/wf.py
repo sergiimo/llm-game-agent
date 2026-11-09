@@ -1697,6 +1697,18 @@ def game_cmd(kind, args):
     return 0
 
 
+def native_cmd(operation, args):
+    """Dispatch compact native-owner data through the same bound game runtime."""
+    import game
+    game.bind(sys.modules[__name__])
+    import native_tools
+    try:
+        return native_tools.cli(operation, args)
+    except (ValueError, game.Failed) as error:
+        print(f'FAILED: {error}')
+        return 1
+
+
 def turn_command(a):
     """Route registered gameplay aliases; return False only for observation/one-input safety controls."""
     if a.cmd == 'route' and (a.list or not a.name):
@@ -4286,6 +4298,9 @@ def main(argv=None):
     p.add_argument('args', nargs='*')
     p = sub.add_parser('play', help='universal model-owned turn: [goal] [k=v] [restart=true] [turn_id=N answer=Decision-JSON]')
     p.add_argument('args', nargs='*')
+    p = sub.add_parser('native', help='compact native owner bridge: observe|act|note key=value ...')
+    p.add_argument('operation', choices=('observe', 'act', 'note'))
+    p.add_argument('args', nargs='*')
     p = sub.add_parser('achieve', help='the engine (L138): wf achieve <goal|json> [k=v ...] [answer=X]; goals in '
                                        'tools/game/goals.json, e.g. wf achieve plant seed=Tulip region=GardenSouth')
     p.add_argument('args', nargs='+')
@@ -4372,6 +4387,8 @@ def main(argv=None):
         return bench_cmd(a.args)
     if a.cmd == 'live-eval':  # persisted eval bookkeeping: no focus and no direct game input
         return live_eval_cmd(a.args)
+    if a.cmd == 'native':
+        return native_cmd(a.operation, a.args)
     if a.cmd == 'objects':
         return objects_cmd(a.args)
     if a.cmd == 'graph':

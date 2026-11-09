@@ -24,7 +24,7 @@ LOCAL_AUTOMATION = (
 # Model-owned gameplay returns a settled receipt and then reasons before the next call. In focus-mode front the
 # settled frame gets a three-second action lease; a persistent helper freezes slower reasoning before game time runs
 # away. The next input cancels a still-current lease and focuses the game as needed.
-GAMEPLAY_RECEIPTS = frozenset({'play', 'achieve', 'garden', 'sleep', 'forage'})
+GAMEPLAY_RECEIPTS = frozenset({'play', 'native', 'achieve', 'garden', 'sleep', 'forage'})
 FRONT_FLAG = os.path.join(os.environ.get('WF_SHOT_DIR', os.path.join(ROOT, '.shots')), 'keep_front')
 
 

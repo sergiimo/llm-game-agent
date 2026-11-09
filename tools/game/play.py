@@ -835,7 +835,7 @@ def _model_receipt(context):
                              ('stage', 'current', 'likely_region', 'next', 'landmarks', 'graph_slice')
                              if localization.get(key) not in (None, [], {})},
         }
-        view = {key: view.get(key) for key in ('path', 'mode', 'scene', 'clock', 'candidates', 'controls', 'bubbles')
+        view = {key: view.get(key) for key in ('id', 'path', 'mode', 'scene', 'clock', 'candidates', 'controls', 'bubbles')
                 if view.get(key) not in (None, [], {})}
         resources = dict(raw.get('resources') or {})
         result = dict(raw.get('result') or {})

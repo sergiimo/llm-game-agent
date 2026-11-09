@@ -11,6 +11,12 @@
   delayed evidence, and replanning.
 - The supervisor dispatches the goal, authority, and limits once. It receives control only when the task is done or
   the gameplay agent reaches a genuine full block that cannot be resolved with its tools or evidence.
+- When control returns for a block or failed acceptance boundary, the supervisor must determine why from the
+  canonical evidence, take every safe in-scope action needed to remove the cause, and resume the same live
+  verification. Reporting the symptom, stopping at diagnosis, or handing an actionable unblock back to the human is
+  a requirement violation.
+- The supervisor asks the human only when unblocking requires new authority, an external-state change, or a material
+  product/gameplay choice. It must name that exact dependency and preserve the resumable task state.
 - There is no per-turn, per-refusal, or per-correction supervisor handoff.
 
 ## R2. Minimal model-owned state and consistency
@@ -36,17 +42,20 @@
 - Every sub-action and tool call within a turn is measured separately.
 - Timing measurements are persisted in the canonical SQLite run data and exposed in the run logs, with enough
   attribution to identify which sub-action or tool consumed the budget.
+- The time between a returned gameplay context and the next command is an external model/tool gap, not inferred model
+  latency. Model request start, first response, decision-ready, command receipt, socket dispatch, and returned-context
+  boundaries are reported separately; unavailable host-only boundaries are explicitly `unmeasured`.
 - A turn exceeding 3 seconds is a requirement violation even if the gameplay action ultimately succeeds.
 - Full-history report generation, graph rebuilds, broad vector scans, and other projections are not on the critical
   path. They run incrementally, asynchronously, or only when the gameplay agent requests them.
 - Latency does not grow with run history.
 
-## R4. Five-turn and terminal supervisor retro
+## R4. Ten-turn and terminal supervisor retro
 
-- After each 5 gameplay turns, and again at a genuine `BLOCKED` result or finished task, the supervisor runs a retro.
+- After each 10 gameplay turns, and again at a genuine `BLOCKED` result or finished task, the supervisor runs a retro.
 - Gameplay freezes during that retro. The supervisor applies the identified system fixes, then restarts/resumes the
   same acceptance task. A task is done only when its acceptance proof passes and the final retro is clean.
-- A recoverable problem inside a batch remains owned by the gameplay agent; the 5-turn boundary does not create a
+- A recoverable problem inside a batch remains owned by the gameplay agent; the 10-turn boundary does not create a
   per-turn supervisor loop.
 - The retro reviews the canonical SQLite run history and the run's Markdown files.
 - The retro checks the completed block for violations of every requirement in this file, including ownership,
@@ -105,6 +114,25 @@
 - A visually plausible landmark must not be treated as the destination route merely from appearance. The failed
   Farm-to-Town pattern—graph says south-east while the model invents `north toward the bridge`—is a requirement
   violation, not a valid visible detour.
+
+## R7. Replaceable image interpretation
+
+- Keep the existing screenshot-driven, model-owned gameplay loop. Computer Use is not a runtime dependency for
+  observation, navigation, or input.
+- Each turn has one canonical full-scale captured frame. All vector detection, localization, model vision, action
+  selection, and post-action verification refer to that frame and its immutable provenance; no image backend owns a
+  separate gameplay loop or independently captures a competing frame.
+- Separate frame capture from image interpretation. An image backend consumes the canonical frame plus a bounded
+  request (for example scene/region and requested object kinds) and returns normalized detections with kind, point or
+  box, confidence, backend identity/version, and source-frame provenance.
+- The current vector/DINO implementation remains the default backend. A future Jev backend must be replaceable at
+  this interpretation boundary without changing task state, graph semantics, decision envelopes, action primitives,
+  SQLite run records, or supervisor/gameplay ownership.
+- Backend-specific embeddings, indexes, crops, caches, and diagnostics remain backend-local. Durable graph and run
+  data store normalized facts and provenance, not backend-internal representations.
+- Backend replacement must preserve the live-first acceptance tests and the 3-second turn budget. It may be enabled
+  per run or compared in shadow mode before becoming the default; fallback must be explicit and recorded rather than
+  silently mixing incompatible detections.
 
 ## Conflicts and precedence
 

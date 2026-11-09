@@ -10,6 +10,10 @@ description: Use when reviewing or writing a retrospective for a Wylde Flowers r
 A retro is an evidence audit, not a confident story. Separate facts, inferences, unknowns, and containment; recommend
 the smallest change supported by the run.
 
+Every human-readable retro belongs to exactly one task and is written as `runs/<task>/retro-N.md`. Never create or
+update a top-level `retros/` directory or a repository-wide Markdown ledger. Cross-run recurrence is queried from
+`runs/wf.sqlite3` and compared with prior run-local retros; SQLite remains the canonical structured history.
+
 ## Before analysis
 
 - If the user stopped the run, first follow `wylde-supervise`'s terminal stop protocol. Do not start the daemon again.
@@ -19,21 +23,36 @@ the smallest change supported by the run.
 
 ## Gather the evidence
 
-Read `plan.md`, `log.jsonl`, `progress.md`, `decisions.md`, `watch.md`, `experiences.jsonl`, and the relevant preserved
-full-size frames. If `watch.md` is missing or stale, generate it without the daemon:
+Read the run's rows from `runs/wf.sqlite3`, then `plan.md`, `progress.md`, `decisions.md`, `watch.md`, prior
+`retro-*.md`, and the relevant preserved full-size frames. Retired run-local JSON/JSONL files are not evidence
+sources for new retros. If `watch.md` is missing or stale, generate it without the daemon:
 
 ```sh
 .venv/bin/python tools/runwatch.py runs/<task>/ --report
 ```
 
-Use `log.jsonl` as the canonical timeline; other artifacts are claims to check against it. Report HUD/OCR, game-log,
-and save time separately. A disagreement is a tracing gap, not a value to average.
+Use ordered SQLite `run_events`, intents, observations, and experiences as the canonical timeline; Markdown artifacts
+are projections or human claims to check against it. Report HUD/OCR, game-log, and save time separately. A
+disagreement is a tracing gap, not a value to average.
+
+For a Codex gameplay owner with an available local session trace, split external decision gaps using
+`.venv/bin/python tools/owner_timing.py --session <owner-rollout.jsonl> --turns <first> <last> --write`.
+It joins explicit tool call/result timestamps to SQLite and stores `model.owner_breakdown` timing events.
+Report receipt-to-host-result, result-to-first-observable-model-output, first-output-to-tool-call, and call-to-command
+separately. The middle two form an estimated model cycle including host/queue overhead; first observable output
+is not a first-token timestamp. Request queue, image prefill, reasoning and generation cannot be separately timed
+without additional host telemetry. Keep those fields unmeasured. Inspect metadata/timestamps only, not private
+reasoning content, and avoid inferring pure API latency from the gap.
+Optional `--call-parts` reports emitted text sizes and proportional generation-time estimates in separate
+`model.call_generation_estimate` rows. These are not measured field-level timings; state the uniform-character-rate
+assumption and validate any proposed savings with actual before/after owner-cycle timings.
 
 ## Classify before writing
 
 Choose every applicable type: safety, budget, performance, docs/manifest, user-stop, or stuck. Call it **stuck** only
 when the trace contains the canonical stuck event or proves the configured no-progress threshold. Zero moves, zero
-clicks, a timeout, or a budget overrun is not stuck and does not enter `retros/stuck-ledger.md`.
+clicks, a timeout, or a budget overrun is not stuck. Record a formal stuck episode in the current run's retro and
+canonical SQLite events; compare recurrence by querying prior runs, never by maintaining a separate Markdown ledger.
 
 ## Build the explanation
 
@@ -65,7 +84,7 @@ Credit a user correction or stop to the user, not agent safety. Inspect test ass
 6. **Fixes:** one row per independent invariant with priority, smallest implementation, reason, acceptance test, and
    order. Do not split one invariant into several P0 architecture proposals.
 7. **Retry gate:** the exact evidence required before repeating the gameplay task.
-8. **Record updates:** per-run retro, shared docs/TODO for durable gaps, and stuck ledger only for formal stuck.
+8. **Record updates:** current run's `retro-N.md`, canonical SQLite events, and shared docs/TODO for durable gaps.
 
 Include system improvement suggestions for the user. Defer broader redesigns unless evidence shows the minimal
 boundary cannot work.

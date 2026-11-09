@@ -264,7 +264,7 @@ perception memory, world representation, transition knowledge, tests and agent i
 | Perception and vector memory | [tools/game/observe.py](tools/game/observe.py), [tools/objects/](tools/objects), [tools/game/icons.py](tools/game/icons.py) |
 | Evidence and learning | [tools/game/act.py](tools/game/act.py), [learn.py](tools/game/learn.py), [ask.py](tools/game/ask.py) |
 | Control plane | [tools/wf.py](tools/wf.py), [tools/wfc.py](tools/wfc.py) |
-| Code factory | [tools/runwatch.py](tools/runwatch.py), [tools/evals/](tools/evals), [tools/bench/](tools/bench), [retros/](retros) |
+| Code factory | [tools/runwatch.py](tools/runwatch.py), [tools/evals/](tools/evals), [tools/bench/](tools/bench), run-local `runs/<task>/retro-N.md` |
 | Shared knowledge | [docs/](docs/INDEX.md), [docs/architecture/self-improvement.md](docs/architecture/self-improvement.md), [AGENTS.md](AGENTS.md), [.claude/](.claude) |
 
 ## Try it

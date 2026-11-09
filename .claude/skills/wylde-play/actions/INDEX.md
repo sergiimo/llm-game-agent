@@ -227,8 +227,10 @@ For a journal hint, open `j`, inspect the quest, press visible `Show Hint`, read
 Inventory use/crafting similarly needs a visible item/control, explicit resource authorization, and its item/event
 change as proof. Do not turn a historical action recipe into a batch of keys.
 
-A surprise permits `look`, zero-input `read`, `correct`, `stop`. Open the preserved `view.path` with model vision
-before diagnosing uncertain evidence; `look` records that vision but does not invoke it. `stop` is terminal, not a
+A navigation no-progress or wrong-direction surprise permits one atomic replanned `act` with a replacement belief
+and changed objective, as described above. Use the preserved outcome image and explicit `expects:{moved:true}`.
+Other surprises use `look`, zero-input `read`, `correct`, or `stop`. Open the preserved `view.path` with model vision
+before diagnosing uncertain evidence; opening the saved image directly needs no `look` turn. `stop` is terminal, not a
 handoff for vision, exhausted budget, or missing context—return `need-help` with the durable task still active instead.
 `answer='{"kind":"read"}'` takes a fresh coherent
 frame and authoritative save observation even for a pre-upgrade saved turn; it accepts no action/correction/runtime

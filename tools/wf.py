@@ -1204,8 +1204,8 @@ def run_cmd(sub_, args):
             f', {st["game_min"]} game min' if st['game_min'] is not None else '')
         if sub_ == 'escalate':
             k = 1 + sum(1 for f in os.listdir(d) if f.startswith('retro-'))
-            msg += (f'\nESCALATED: return RESULT: escalate step {n}. Supervisor: stuck retro (read '
-                    f'retros/stuck-ledger.md first) → {os.path.relpath(d, ROOT)}/retro-{k}.md → fix plan.md from step {n}')
+            msg += (f'\nESCALATED: return RESULT: escalate step {n}. Supervisor: query prior SQLite stuck events '
+                    f'and run-local retros → {os.path.relpath(d, ROOT)}/retro-{k}.md → fix plan.md from step {n}')
         print(msg)
     elif sub_ == 'waits':
         from game import track
@@ -1729,6 +1729,7 @@ def run_report(path):
     mmss = lambda t: time.strftime('%M:%S', time.gmtime(t - t0))
     calls = [e for e in ev if e['type'] == 'call']
     acts = [e for e in ev if e['type'] == 'activity']
+    model_cycles = [e for e in ev if e['type'] == 'timing' and e.get('phase') == 'model.external_cycle']
     in_call = sum(e['end'] - e['start'] for e in calls)
     gaps = sum(max(0, b['start'] - a['end']) for a, b in zip(calls, calls[1:]))
     active = sum(e['end'] - e['start'] for e in acts if e.get('moved'))
@@ -1739,7 +1740,15 @@ def run_report(path):
     print(f"result: {end['result'] + (' ' + end['text'] if end.get('text') else '') if end else 'OPEN'}")
     dur = lambda s: f'{int(s // 60)}:{int(s % 60):02d}'
     print(f'time {dur(t1 - t0)} · {len(calls)} ./wf calls · in calls {dur(in_call)} · '
-          f'between calls (agent thinking) {dur(gaps)} · Tara active {dur(active)}')
+          f'between calls (external model/tool gap) {dur(gaps)} · Tara active {dur(active)}')
+    if model_cycles:
+        api_waits = [e['model_api_wait_seconds'] for e in model_cycles if 'model_api_wait_seconds' in e]
+        api_text = (f'{sum(api_waits):.3f}s across {len(api_waits)}/{len(model_cycles)} cycles'
+                    if api_waits else 'unmeasured')
+        dispatch_delays = [e['dispatch_delay_seconds'] for e in calls if 'dispatch_delay_seconds' in e]
+        dispatch_text = (f'{sum(dispatch_delays) / len(dispatch_delays):.3f}s'
+                         if dispatch_delays else 'unmeasured')
+        print(f'timing: model API wait: {api_text} · client dispatch delay avg {dispatch_text}')
     for k in ('attempt', 'issue', 'gap', 'decision'):
         n = sum(1 for e in ev if e['type'] == k)
         if n:

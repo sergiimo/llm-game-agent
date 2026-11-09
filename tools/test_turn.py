@@ -785,6 +785,25 @@ class Turns(unittest.TestCase):
         self.assertEqual(snapshot['vector_detections'], [])
         self.assertEqual(snapshot['vector_status']['status'], 'skipped_exact_graph')
 
+    def test_post_action_observation_skips_the_optional_vector_rescan(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        from game import act, observe
+        image = Image.new('RGB', (1920, 1080), '#657d55')
+        raw = SimpleNamespace(grab=lambda: image,
+                              classify=lambda frame: {'mode': 'gameplay', 'text': []},
+                              find_bubbles=lambda frame: [], game_hour=lambda frame: 9.0,
+                              light_period=lambda hour: 'day')
+        clues = lambda: {'region': 'Farm', 'vector_scope': {
+            'region': 'Farm', 'kinds': ['HouseDoor', 'Well']}}
+        with mock.patch.object(core, 'WF', raw), mock.patch.object(act, 'frames_dir', return_value=self.tmp.name), \
+                mock.patch.object(observe, 'detect_frame', side_effect=AssertionError('post-action vector pass ran')):
+            snapshot = primitives.GameAdapter(clues).observe(vector_mode='post_action')
+        self.assertEqual(snapshot['vector_detections'], [])
+        self.assertEqual(snapshot['vector_status'], {
+            'status': 'skipped_post_action', 'region': 'Farm',
+            'searched': [], 'disabled': [], 'untrained': ['HouseDoor', 'Well'], 'hits': 0})
+
     def test_waypoint_does_not_need_an_arbitrary_tracker_clearance(self):
         adapter = primitives.GameAdapter()
         observation = dict(self.port.snapshot, candidates=[

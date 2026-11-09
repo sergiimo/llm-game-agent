@@ -3,6 +3,9 @@
 > **Summary:** Evals, benchmarks, run logs, and verification live under `tools/evals`, `tools/bench`, and task-local `runs/` directories.
 
 - Run offline tests with `.venv/bin/python tools/test_<area>.py`.
+- Proposed native-agent experiment (plan only):
+  [native owner trial](../superpowers/plans/2026-11-09-native-owner-trial.md). Starts with a native-to-engine
+  integration gate, then live Bed → Well → Bed trials measuring flexibility, reliability and a four-second cycle target.
 - Run task reports with `./wf run status` and `./wf run report`.
 - Run the persisted bed-to-well navigation evaluation inside an active gameplay run:
   `./wf live-eval start bed-to-well`, play normally, then

@@ -125,6 +125,21 @@ class PlayCase(unittest.TestCase):
         self.assertEqual(context.turn_id, 1)
         observed.assert_called_once_with()
 
+    def test_explicit_restart_preserves_navigation_destination_but_drops_operational_belief(self):
+        context = self.play().turn('navigate', {'destination': 'Well'}, store=self.store, adapter=self.port)
+        task = self.store.load()
+        task.params['_navigation_belief'] = {
+            'revision': 4, 'current': 'stale porch', 'next_objective': 'stale step'}
+        self.store.save(task)
+
+        restarted = self.play().turn('navigate', {'restart': True}, store=self.store, adapter=self.port)
+
+        self.assertNotEqual(restarted.task['task_id'], context.task['task_id'])
+        self.assertEqual(restarted.task['params']['destination'], 'Well')
+        self.assertNotIn('_navigation_belief', restarted.task['params'])
+        self.assertEqual(restarted.navigation['goal']['node'], 'Well')
+        self.assertEqual(self.port.inputs, [])
+
     def test_lineage_mismatch_skips_policy_and_allows_only_observation_or_stop(self):
         self.port.snapshot.update(lineage_status='save_lineage_mismatch', observation_id=17,
                                   lineage_mismatch={'reason': 'profile_changed'})

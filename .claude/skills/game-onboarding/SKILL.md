@@ -32,8 +32,8 @@ These are the owner's intents. They outrank defaults below.
 4. **Learn from surprises:** anything unexpected → a learnings entry **and** an update of the relevant docs/skills.
 5. **Be fast and cheap:** optimise screen checks and navigation (lower resolution, text-first state, fewer calls,
    warm processes); use a **faster model** for mechanical loops.
-6. **Retrospect:** periodically analyse how it went and what slowed it (`/retro`: save to `retros/<timestamp>.md`,
-   apply the suggestions, record what was and wasn't applied).
+6. **Retrospect:** periodically analyse how it went and what slowed it (`/retro`: save to the current task's
+   `runs/<task>/retro-N.md`, apply the suggestions, record what was and wasn't applied).
 7. **Keep the game in the background**; bring it forward only to act. Never let in-game time burn while the agent
    works on other things.
 8. **This skill = how to discover, not what was discovered.** Keep it game-agnostic; game facts live in the project.

@@ -727,6 +727,9 @@ def turn(goal=None, params=None, answer=None, store=None, adapter=None):
     expired = existing if restart else None
     if restart and existing:
         goal = goal or existing.goal
+        durable_params = {key: value for key, value in existing.params.items()
+                          if not str(key).startswith('_')}
+        raw_params = {**durable_params, **raw_params}
         existing = None
     schema_goal = goal if goal is not None else _declaration(existing)['goal'] if existing else None
     goal, params = _normalize(goal, validate(raw_params, schema_goal))

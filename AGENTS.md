@@ -38,7 +38,7 @@ Every detail file starts with a `> **Summary:**` line, so `head -8` is often eno
 | `.claude/skills/wylde-supervise/` | **How to play:** supervisor loop (main conversation) → one `wylde-quest` per goal |
 | `.claude/agents/wylde-quest.md` | Primary gameplay agent (cheapest model): owns one goal's complete model-owned turn/vision/correction loop |
 | `.claude/agents/wylde-runner.md` | Optional exact-command helper only; never owns, interprets, or stops a gameplay turn |
-| `retros/` | Retrospectives (`/retro`) |
+| `runs/<task>/retro-N.md` | Human-readable retros for that task; structured cross-run history remains in SQLite |
 | `tools/gen_quests.py`, `gen_world_tables.py`, `build_reference.py`, `wikiclean.py` | Regenerate quests/world/reference (verified steps are preserved) |
 
 ## Setup facts (see docs/troubleshooting/INDEX.md L1–L5)
@@ -93,8 +93,9 @@ hits a gap stops safely and returns `need-help`; the parent fixes the docs/brief
    by the supervisor, shown to the user, followed by the agent step by step (`./wf run step N start|done`, timestamps in
    `runs/<task>/progress.md`). A step over its budget or stuck → `./wf run escalate N` → stuck retro → plan fixed from step N.
    **Stuck = Tara's position changes < 2 units over 3 moves while not at the goal (L75).** Every stuck episode gets a
-   **stuck retro**: read `retros/stuck-ledger.md` first (did earlier fixes hold?), add a row, save the retro in
-   `retros/`; a cause that repeats gets a tool fix. Every retro must include **System improvement suggestions for the
+   **stuck retro**: query prior stuck events in `runs/wf.sqlite3`, read relevant prior `runs/*/retro-*.md`, and save
+   the retro as `runs/<task>/retro-N.md`; a cause that repeats gets a tool fix. Never create a top-level `retros/`
+   folder or global Markdown ledger. Every retro must include **System improvement suggestions for the
    user**: prioritized fixes, why each matters, a concrete implementation direction, an acceptance test, and a
    recommended implementation order. Return those suggestions in the final user-facing retro summary. Aim: fewer
    stuck episodes per trip.

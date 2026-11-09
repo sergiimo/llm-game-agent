@@ -76,6 +76,11 @@
   authority is the nested object graph's next `compass` + `near|mid|far` edge; screen coordinates identify one click
   in one frame only. Garden uses the same `navigate` child as a building. A waypoint from a garden/root task without
   that child is correctly refused with zero input.
+- Repeated `turn.perform=ok` plus `moved=false` does not by itself prove the mouse actuator stopped. Compare with one
+  short waypoint on Tara's current continuous surface. In the D22 river-road pocket, four visually clear road points
+  were unreachable while a nearby grass point moved immediately: the model had validated the destination patches,
+  not a continuous path across the grass/road boundary. The cursor is parked over the HUD immediately after a click,
+  so a human may not see its brief motion. Treat three issued no-move waypoints as formal stuck and freeze input.
 - Apparent clock disagreement is not repaired by choosing one timestamp. `hud_hour` comes from the current frame,
   `log_time` from the action/event boundary, and `save_time` from the latest autosave snapshot. Refresh the source
   needed by the decision and keep its provenance; never copy save time into the live action clock.

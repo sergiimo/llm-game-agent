@@ -181,8 +181,8 @@ stop always uses and verifies both ownership boundaries.
 
 ## 3a. When the child escalates (`RESULT: escalate step N`)
 1. `./wf run status` (`runs/<task>/progress.md`: generated step timestamps and budget use) + `./wf run report`.
-2. **Stuck retro** (AGENTS.md rule 7): read `retros/stuck-ledger.md` first, score earlier fixes, add the row, write
-   `runs/<task>/retro-<k>.md`, apply the fix (tool/doc).
+2. **Stuck retro** (AGENTS.md rule 7): query prior stuck events in `runs/wf.sqlite3` and read relevant prior
+   `runs/*/retro-*.md`, score earlier fixes, write `runs/<task>/retro-<k>.md`, and apply the fix (tool/doc).
 3. Fix `plan.md` from step N (rewrite the steps, keep the done ones), `./wf run plan`, show the user the changed
    steps, then resume the same child: "Plan revised from step N: re-read plan.md, `./wf run step N start`".
 
@@ -219,8 +219,8 @@ copy observed hits/pickups into `docs/operations/actions.md` Expect where they d
 | `[tool]` | `docs/troubleshooting/INDEX.md` row + `tools/TODO.md`; fix now if cheap and blocking |
 | `[agent]` | edit `.claude/agents/wylde-quest.md` / `wylde-runner.md` |
 | `[user]` | each user correction is a gap in brief/docs/agent → apply the matching fix above |
-**Stuck retro (AGENTS.md rule 7):** any `[stuck]` gap or stuck episode you saw → `/retro` scoped to it: read
-`retros/stuck-ledger.md` first, score the earlier fixes (held or not), add the row, apply the fix.
+**Stuck retro (AGENTS.md rule 7):** any `[stuck]` gap or stuck episode you saw → `/retro` scoped to it: query
+SQLite and relevant prior run-local retros, score earlier fixes (held or not), write this run's retro, and apply the fix.
 Also clean the quest file's attempt log if it has stale/wrong values. Log the run in `docs/agent-runs.md`.
 Every ~5 goals, or when costs trend up, run `/retro` over `docs/agent-runs.md`.
 

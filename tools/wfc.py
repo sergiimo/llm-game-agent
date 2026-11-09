@@ -67,11 +67,13 @@ class DeliveryUnknown(RuntimeError):
     """The daemon may have accepted this request. Never automatically resend or execute it locally."""
 
 
-def via_daemon(argv, timeout=60., with_meta=False):
+def via_daemon(argv, timeout=60., with_meta=False, trace=None):
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     deadline = time.monotonic() + timeout
     delivered = False
     received = 0
+    if trace is not None:
+        trace['client_request_started_at'] = time.time()
     def remaining():
         seconds = deadline - time.monotonic()
         if seconds <= 0:
@@ -85,6 +87,8 @@ def via_daemon(argv, timeout=60., with_meta=False):
             remaining()
             delivered = True  # even a partial send can have reached the server
             s.sendall(json.dumps(argv).encode() + b'\n')
+            if trace is not None:
+                trace['command_dispatched_at'] = time.time()
         chunks = []
         with measure('client.receive', command=argv[0] if argv else ''):
             while True:
@@ -103,6 +107,8 @@ def via_daemon(argv, timeout=60., with_meta=False):
                 raise ValueError('invalid daemon response envelope')
         with measure('client.output', bytes=len(res['out'])):
             sys.stdout.write(res['out'])
+        if trace is not None:
+            trace['context_ready_at'] = time.time()
         result = (res['code'], bool(res.get('input_issued', True)))
         return result if with_meta else result[0]
     except (OSError, ValueError, EOFError) as error:
@@ -116,29 +122,58 @@ def via_daemon(argv, timeout=60., with_meta=False):
 
 def log_call(argv):
     """Append each call to .shots/actions.log (`<unix time>\t<args>`); tools/record.py shows it as a caption.
-    Returns the start time (None if not logged); log_end() then writes `<start>\t<end>` to actions_done.log."""
+    Returns the start time (None if not logged); log_end() writes start, end, and context-ready time."""
     if argv and argv[0] not in ('stop', 'status', 'log', 'save', 'wiki', 'tips', 'actions', 'run', 'learn', 'routines',
                                 'eval', 'bench', 'objects', 'graph', '-h', '--help'):
         try:
             import time
             t = round(time.time(), 2)
             shots = os.path.dirname(SOCK)
-            if argv[0] in GAMEPLAY_RECEIPTS and 'restart=true' not in argv:
+            turn = next((int(value) for arg in argv
+                         if (match := re.match(r'turn_id=(\d+)$', arg))
+                         for value in (match.group(1),)), None)
+            if argv[0] in GAMEPLAY_RECEIPTS and turn is not None and 'restart=true' not in argv:
                 try:
                     with open(os.path.join(shots, 'actions_done.log')) as completed:
-                        last = next(line for line in reversed(completed.readlines()) if line.strip())
-                    previous_end = float(last.split('\t', 1)[1])
-                    seconds = round(max(0.0, t - previous_end), 6)
-                    turn = next((int(value) for arg in argv
-                                 if (match := re.match(r'turn_id=(\d+)$', arg))
-                                 for value in (match.group(1),)), None)
+                        last = next(line for line in reversed(completed.readlines())
+                                    if len(line.rstrip('\n').split('\t')) >= 4
+                                    and line.rstrip('\n').split('\t')[3] in GAMEPLAY_RECEIPTS)
+                    completed_fields = last.rstrip('\n').split('\t')
+                    context_ready = float(completed_fields[2])
+                    seconds = round(max(0.0, t - context_ready), 6)
+                    def host_timestamp(name):
+                        value = os.environ.get(name)
+                        return float(value) if value not in (None, '') else None
+
+                    request_started = host_timestamp('WF_MODEL_REQUEST_STARTED_AT')
+                    first_response = host_timestamp('WF_MODEL_FIRST_RESPONSE_AT')
+                    decision_ready = host_timestamp('WF_MODEL_DECISION_READY_AT') or t
+                    unmeasured = []
+                    if request_started is None:
+                        unmeasured.append('model_request_start')
+                    if first_response is None:
+                        unmeasured.append('model_first_response')
+                    payload = {
+                        'seconds': seconds,
+                        'budget_seconds': 3,
+                        'status': 'ok' if seconds <= 3 else 'violation',
+                        'command': argv[0],
+                        'context_ready_at': context_ready,
+                        'model_request_started_at': request_started,
+                        'model_first_response_at': first_response,
+                        'decision_ready_at': decision_ready,
+                        'decision_received_at': t,
+                        'unmeasured': unmeasured,
+                    }
+                    if request_started is not None and first_response is not None:
+                        payload['model_api_wait_seconds'] = round(max(0.0, first_response - request_started), 6)
+                    if first_response is not None:
+                        payload['response_to_decision_seconds'] = round(max(0.0, decision_ready - first_response), 6)
+                    payload['decision_to_command_seconds'] = round(max(0.0, t - decision_ready), 6)
                     path = os.environ.get('WF_DB', os.path.join(ROOT, 'runs', 'wf.sqlite3'))
                     if os.path.exists(path):
                         RunStore(Database(path)).append_event(
-                            'timing', {'seconds': seconds, 'budget_seconds': 3,
-                                       'status': 'ok' if seconds <= 3 else 'violation',
-                                       'command': argv[0]}, turn_id=turn,
-                            phase='model.deliberation', t=t)
+                            'timing', payload, turn_id=turn, phase='model.external_cycle', t=t)
                 except (OSError, ValueError, StopIteration):
                     pass
             with open(os.path.join(shots, 'actions.log'), 'a') as f:
@@ -149,8 +184,8 @@ def log_call(argv):
     return None
 
 
-def log_end(start, argv, delivery=None):
-    """Call end time, so tools/idle.py can split still time into 'command running' vs 'agent thinking';
+def log_end(start, argv, delivery=None, trace=None):
+    """Call end time, so tools/idle.py can split still time into command-running vs external gaps;
     also one `call` event in the active SQLite run without importing the game or starting its daemon."""
     if start is not None:
         try:
@@ -158,10 +193,18 @@ def log_end(start, argv, delivery=None):
             end = time.time()
             shots = os.path.dirname(SOCK)
             with open(os.path.join(shots, 'actions_done.log'), 'a') as f:
-                f.write(f'{start:.2f}\t{end:.2f}\n')
+                context_ready = (trace or {}).get('context_ready_at', end)
+                command = argv[0] if argv else ''
+                f.write(f'{start:.2f}\t{end:.2f}\t{context_ready:.6f}\t{command}\n')
             row = {'start': start, 'end': round(end, 2), 'cmd': ' '.join(argv)}
             if delivery:
                 row['delivery'] = delivery
+            if trace:
+                row.update(trace)
+                request_started = trace.get('client_request_started_at')
+                dispatched = trace.get('command_dispatched_at')
+                if request_started is not None and dispatched is not None:
+                    row['dispatch_delay_seconds'] = round(max(0.0, dispatched - request_started), 6)
             path = os.environ.get('WF_DB', os.path.join(ROOT, 'runs', 'wf.sqlite3'))
             if os.path.exists(path):
                 RunStore(Database(path)).append_event('call', row, t=end)
@@ -261,6 +304,7 @@ def main():
         print(msg, file=sys.stderr)
         return 2
     start = log_call(argv)
+    trace = {}
     if argv and argv[0] in ('-h', '--help'):
         os.execv(PY, [PY, WF] + argv)
     if argv and argv[0] == 'stop':
@@ -281,14 +325,14 @@ def main():
         except OSError:
             pass
         try:
-            delivered = via_daemon(argv, with_meta=True)
+            delivered = via_daemon(argv, with_meta=True, trace=trace)
             code, input_issued = delivered if isinstance(delivered, tuple) else (delivered, True)
             freeze_after_gameplay_receipt(argv)
-            log_end(start, argv)
+            log_end(start, argv, trace=trace)
             return code
         except DeliveryUnknown as error:
             freeze_after_gameplay_receipt(argv)
-            log_end(start, argv, delivery='unknown')
+            log_end(start, argv, delivery='unknown', trace=trace)
             print(f'ERROR: {error}', file=sys.stderr)
             return 1
         except (OSError, ValueError):
@@ -300,14 +344,14 @@ def main():
             for _ in range(60):
                 time.sleep(0.25)
                 try:
-                    delivered = via_daemon(argv, with_meta=True)
+                    delivered = via_daemon(argv, with_meta=True, trace=trace)
                     code, input_issued = delivered if isinstance(delivered, tuple) else (delivered, True)
                     freeze_after_gameplay_receipt(argv)
-                    log_end(start, argv)
+                    log_end(start, argv, trace=trace)
                     return code
                 except DeliveryUnknown as error:
                     freeze_after_gameplay_receipt(argv)
-                    log_end(start, argv, delivery='unknown')
+                    log_end(start, argv, delivery='unknown', trace=trace)
                     print(f'ERROR: {error}', file=sys.stderr)
                     return 1
                 except (OSError, ValueError):

@@ -64,8 +64,11 @@ When a cutscene/transition intentionally hides the HUD, the hard cutoff may use 
 coherent `log_time`; this is a source fallback, not a merged synthetic clock. A black frame still cannot authorize a
 visual or positional action.
 
-A surprise blocks gameplay until `look`, `correct` or `stop` resolves it. Preserve the active crop/phase/node and
-parent interaction. Pending input reconciles from recorded evidence without repetition. The settle boundary's final
+A navigation no-progress or wrong-direction surprise is handled in one `act`: inspect the returned frame, replace
+the short-lived belief, change `next_objective`, and choose one visible safe step. Include `expects:{moved:true}`
+on every waypoint. Use a separate correction turn when actual graph/vector/transition data needs correction or
+the prior decision itself needs revision. Preserve the active crop/phase/node and parent interaction.
+Pending input reconciles from recorded evidence without repetition. The settle boundary's final
 full frame is the next view; do not capture again merely to decide. Corrections update named
 graph/vector/transition data with provenance, revise a decision, mark a constraint, record a gap, or report ambiguity
 to the human; never patch runtime code while playing. Purchases require explicit root-task quantity/spend bounds and
@@ -84,6 +87,17 @@ After milestones update verified quest steps/status, run `python3 -I tools/gen_q
 current `runs/<task>/plan.md` and log. Record surprises in `docs/troubleshooting/INDEX.md` and fix their one canonical doc/tool/skill in the same pass.
 Completion is evidence-backed coverage/proof; constrained work is reported as constrained. Filling doc gaps beats winning.
 
-After each 5 gameplay turns, freeze input and return a checkpoint to the supervisor for a requirements retro. Apply
+After each 10 gameplay turns, freeze input and return a checkpoint to the supervisor for a requirements retro. Apply
 the resulting fixes before continuing. Repeat until the acceptance proof passes and the final retro is clean. After
 every confirmed sleep/new-day transition, restart the gameplay task; do not resume its pre-sleep operational belief.
+
+## Fast receipt handling
+
+When the tool host supports composing calls, return the `NEXT` text and its existing full-scale `frame_path` image
+in one tool result. Run exactly one `./wf` command, parse its returned `NEXT`, then open that saved frame and emit
+it in the same tool execution. This adds no game command or capture. On Codex, `functions.exec` can sequentially
+call `tools.exec_command`, `text(result.output)`, then `tools.view_image` and `image(result.image_url)`.
+Read that image before the next decision. A separate `answer=look` is unnecessary merely to open the saved frame.
+Keep decision text concise: one current semantic location, one objective, concrete supporting evidence, and one
+primitive. Review performance from SQLite at the batch boundary; run-wide reporting is off the turn path.
+The ten-turn live experiment on 2026-11-09 proved this delivery works but did not establish a decision-latency win.

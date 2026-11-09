@@ -42,8 +42,9 @@ Repeat this loop yourself:
    A zero-input correction also creates a successor context and may capture a new frame of the same-looking screen;
    discard the correction's source frame lease and use only the successor `view.path` for the next decision.
 5. Run one `./wf` command in one tool call. Read the returned immutable outcome before deciding again.
-   The receipt automatically activates Warp so the game loses focus and its clock freezes during frame
-   reading/reasoning. Never call `./wf focus` for this; that command brings the game forward and advances time.
+   When supported, return `NEXT` and its saved full-scale screenshot in the same tool result (see play skill's
+   Fast receipt handling). Read that returned image directly. In front focus mode the foreground lease allows
+   game time to run between calls; let the game lose focus during off-game work. Never call `./wf focus` as cleanup.
 6. Continue until the plan's evidence proves completion or one of the handoff conditions below applies.
 
 Use concise rationale categories and evidence references in Decision JSON. The SQLite run event stream is the
@@ -101,11 +102,12 @@ brief/data or asks the user, then resumes this same agent and task.
 - When receipt `resources.hour` is null, read the visible HUD clock from that same full-scale frame and include numeric
   `belief_update.observed_hour` (for example `20.0`). Ordinary navigation fails closed without either clock source;
   at 18.0 or later push/use the sleep workflow or hand control to the human.
-- Full-frame cells are a fixed 24 x 16 screen grid: letters `A` through `X` run left to right and row numbers `1`
-  through `16` run top to bottom. Tara is at about `M8`/`M9`; therefore a south waypoint must use a larger row
-  number, not an earlier letter. Check the chosen cell against the receipt's reported screen compass/range.
+- On an unmarked screenshot, use explicit `point:[x,y]` in the canonical 1920×1080 frame. Compare it with Tara's
+  visible feet before sending: larger x is right/east, larger y is down/south. Use letter/number cells only when the
+  displayed image contains the labelled 24×16 grid. Check the point against the visible road and intended direction.
 - A frame point/cell belongs only to that view. Never persist screen coordinates, derive metric world routes, use
   dead reckoning, or extend the retired coordinate model.
+- Every waypoint declares `expects:{moved:true}` so its outcome explicitly verifies displacement.
 - Click a target only when it and its entire walkable road from Tara at frame centre are visible. Otherwise select one
   safe visible-ground waypoint and inspect the returned frame.
 - No move, wrong/irrelevant movement, or a stale route requires a replacement belief and changed next objective

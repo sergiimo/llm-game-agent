@@ -8,6 +8,11 @@ Prerequisites: read the active goal/transaction, exact clock, current modal and
 `prior_hint`, current-frame `landmarks`, and `graph_slice`. Each landmark supplies `landmark_from_tara` and the
 inverse `tara_from_landmark`; the route is in `graph_slice.route_edges`.
 
+On the ordinary unmarked full-scale screenshot, select `point:[x,y]` directly in its 1920×1080 pixel frame.
+Use letter/number cells only when the displayed image actually has the labelled grid. Before sending the action,
+compare the chosen point with Tara's visible feet: increasing x is right/east and increasing y is down/south.
+In the turn-48 live failure, the model described southeast but `L7` resolved to `[920,439]`, north of Tara.
+
 A fresh `position_node` with `source=sleep_spawn` is exact event-owned graph localization. Indoors, prefer that
 stable graph origin over appearance inference: `Bed → House/BedroomPassage → HouseExit`. Each indoor navigation edge
 must have compass/range in both directions. A later proved navigation step replaces the spawn origin.
@@ -107,6 +112,13 @@ also accepted as one guarded menu-key input, but carries no automatic prediction
 JSON. Reading the map never implies an automatic open/close sequence. A guard refusal with no after frames proves
 no attempt reached the game; it does not prove a missing/unavailable map or focus failure. If a correctly issued
 request fails, inspect and record its outcome before choosing the bounded local fallback.
+
+The destination patch is not the path. Before a waypoint, trace one continuous visible walkable surface from Tara's
+feet to the point. If Tara is on grass and the desired road is separated by rocks, bushes, a bank, an edge, or an
+unclear surface boundary, do not click the road merely because its own patch is clear. First choose a short waypoint
+on Tara's current continuous surface toward the visible opening, then reassess from the settled frame. Three issued
+waypoints with `moved=false` while the goal remains unmet are formal stuck evidence: freeze input and return the
+checkpoint for a stuck retro; zero-input reads do not reset that count.
 
 Map mode requires the large paper-framed layout plus either the labelled paper/cloud-header appearance vector or
 the map pin. The header vector proves that the modal is open; the pink pin localises Tara when its current palette is

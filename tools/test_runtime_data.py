@@ -276,6 +276,22 @@ class ClientDelivery(unittest.TestCase):
             self.assertEqual(wfc.via_daemon(['play']), 0)
         self.assertEqual(result.getvalue(), output)
 
+    def test_daemon_call_exposes_dispatch_and_context_ready_boundaries(self):
+        response = json.dumps({'out': 'NEXT\n', 'code': 0}).encode() + b'\n'
+        endpoint = mock.MagicMock()
+        endpoint.__enter__.return_value = endpoint
+        endpoint.recv.return_value = response
+        trace = {}
+        with mock.patch.object(wfc.socket, 'socket', return_value=endpoint), \
+                mock.patch('time.time', side_effect=[100.0, 100.25, 101.5]), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(wfc.via_daemon(['play'], trace=trace), 0)
+        self.assertEqual(trace, {
+            'client_request_started_at': 100.0,
+            'command_dispatched_at': 100.25,
+            'context_ready_at': 101.5,
+        })
+
     def test_response_deadline_covers_slow_dribble_not_each_chunk_separately(self):
         clock = [0.]
         endpoint = mock.MagicMock()
@@ -472,22 +488,158 @@ class HotData(unittest.TestCase):
         self.assertFalse((self.root / 'run.current').exists())
         self.assertFalse((self.root / 'run' / 'log.jsonl').exists())
 
-    def test_gameplay_call_persists_model_deliberation_since_previous_receipt(self):
+    def test_completed_call_persists_client_dispatch_boundaries(self):
         from runtime.db import Database
         from runtime.run_store import RunStore
         database = self.root / 'wf.sqlite3'
         store = RunStore(Database(database))
-        run_id = store.start('test', 'deliberation timing', self.root / 'run')
-        (self.root / 'actions_done.log').write_text('100.00\t102.00\n')
+        run_id = store.start('test', 'dispatch timing', self.root / 'run')
+        trace = {
+            'client_request_started_at': 100.0,
+            'command_dispatched_at': 100.25,
+            'context_ready_at': 101.5,
+        }
+        with mock.patch.object(wfc, 'SOCK', str(self.root / 'wf.sock')), \
+                mock.patch.dict(os.environ, WF_DB=str(database)), mock.patch('time.time', return_value=102):
+            wfc.log_end(100, ['play', 'turn_id=3'], trace=trace)
+        row = next(row for row in store.events(run_id) if row['type'] == 'call')
+        self.assertEqual(row['client_request_started_at'], 100.0)
+        self.assertEqual(row['command_dispatched_at'], 100.25)
+        self.assertEqual(row['context_ready_at'], 101.5)
+        self.assertEqual(row['dispatch_delay_seconds'], 0.25)
+
+    def test_next_model_cycle_starts_when_context_was_ready_not_when_accounting_finished(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        database = self.root / 'wf.sqlite3'
+        store = RunStore(Database(database))
+        run_id = store.start('test', 'context boundary', self.root / 'run')
+        trace = {
+            'client_request_started_at': 100.0,
+            'command_dispatched_at': 100.25,
+            'context_ready_at': 101.5,
+        }
+        environment = {'WF_DB': str(database)}
+        with mock.patch.object(wfc, 'SOCK', str(self.root / 'wf.sock')), \
+                mock.patch.dict(os.environ, environment), mock.patch('time.time', return_value=102):
+            wfc.log_end(100, ['play'], trace=trace)
+        with mock.patch.object(wfc, 'SOCK', str(self.root / 'wf.sock')), \
+                mock.patch.dict(os.environ, environment), mock.patch('time.time', return_value=110):
+            wfc.log_call(['play', 'turn_id=4', 'answer=read'])
+        row = next(row for row in store.events(run_id)
+                   if row['type'] == 'timing' and row['phase'] == 'model.external_cycle')
+        self.assertEqual(row['context_ready_at'], 101.5)
+        self.assertEqual(row['seconds'], 8.5)
+
+    def test_gameplay_call_persists_external_model_cycle_without_claiming_api_latency(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        database = self.root / 'wf.sqlite3'
+        store = RunStore(Database(database))
+        run_id = store.start('test', 'model cycle timing', self.root / 'run')
+        (self.root / 'actions_done.log').write_text('100.00\t102.00\t102.000000\tplay\n')
         with mock.patch.object(wfc, 'SOCK', str(self.root / 'wf.sock')), \
                 mock.patch.dict(os.environ, WF_DB=str(database)), mock.patch('time.time', return_value=110):
             self.assertEqual(wfc.log_call(['play', 'turn_id=7', 'answer=read']), 110)
         rows = [row for row in store.events(run_id) if row['type'] == 'timing']
         self.assertEqual(len(rows), 1)
-        self.assertEqual((rows[0]['phase'], rows[0]['turn_id']), ('model.deliberation', 7))
+        self.assertEqual((rows[0]['phase'], rows[0]['turn_id']), ('model.external_cycle', 7))
         self.assertEqual(rows[0]['seconds'], 8)
+        self.assertEqual(rows[0]['context_ready_at'], 102)
+        self.assertEqual(rows[0]['decision_received_at'], 110)
+        self.assertIsNone(rows[0]['model_request_started_at'])
+        self.assertIsNone(rows[0]['model_first_response_at'])
+        self.assertEqual(rows[0]['unmeasured'], ['model_request_start', 'model_first_response'])
         self.assertEqual(rows[0]['budget_seconds'], 3)
         self.assertEqual(rows[0]['status'], 'violation')
+
+    def test_external_cycle_uses_last_gameplay_receipt_across_intervening_observations(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        database = self.root / 'wf.sqlite3'
+        store = RunStore(Database(database))
+        run_id = store.start('test', 'gameplay receipt timing', self.root / 'run')
+        (self.root / 'actions_done.log').write_text(
+            '100.00\t101.00\t100.750000\tplay\n'
+            '102.00\t103.00\t102.900000\tstate\n')
+        with mock.patch.object(wfc, 'SOCK', str(self.root / 'wf.sock')), \
+                mock.patch.dict(os.environ, WF_DB=str(database)), mock.patch('time.time', return_value=110):
+            wfc.log_call(['play', 'turn_id=7', 'answer=read'])
+        row = next(row for row in store.events(run_id) if row['type'] == 'timing')
+        self.assertEqual(row['context_ready_at'], 100.75)
+        self.assertEqual(row['seconds'], 9.25)
+
+    def test_initial_gameplay_observation_is_not_a_model_decision_cycle(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        database = self.root / 'wf.sqlite3'
+        store = RunStore(Database(database))
+        run_id = store.start('test', 'initial observation timing', self.root / 'run')
+        (self.root / 'actions_done.log').write_text('100.00\t102.00\t102.000000\tplay\n')
+        with mock.patch.object(wfc, 'SOCK', str(self.root / 'wf.sock')), \
+                mock.patch.dict(os.environ, WF_DB=str(database)), mock.patch('time.time', return_value=110):
+            wfc.log_call(['play'])
+        self.assertFalse([row for row in store.events(run_id) if row['type'] == 'timing'])
+
+    def test_host_model_timestamps_split_api_wait_from_decision_work(self):
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        database = self.root / 'wf.sqlite3'
+        store = RunStore(Database(database))
+        run_id = store.start('test', 'host model timing', self.root / 'run')
+        (self.root / 'actions_done.log').write_text('100.00\t102.00\t102.000000\tplay\n')
+        environment = {
+            'WF_DB': str(database),
+            'WF_MODEL_REQUEST_STARTED_AT': '103.25',
+            'WF_MODEL_FIRST_RESPONSE_AT': '108.5',
+            'WF_MODEL_DECISION_READY_AT': '109.75',
+        }
+        with mock.patch.object(wfc, 'SOCK', str(self.root / 'wf.sock')), \
+                mock.patch.dict(os.environ, environment, clear=False), mock.patch('time.time', return_value=110):
+            wfc.log_call(['play', 'turn_id=9', 'answer=read'])
+        row = next(row for row in store.events(run_id) if row['type'] == 'timing')
+        self.assertEqual(row['phase'], 'model.external_cycle')
+        self.assertEqual(row['model_request_started_at'], 103.25)
+        self.assertEqual(row['model_first_response_at'], 108.5)
+        self.assertEqual(row['decision_ready_at'], 109.75)
+        self.assertEqual(row['model_api_wait_seconds'], 5.25)
+        self.assertEqual(row['response_to_decision_seconds'], 1.25)
+        self.assertEqual(row['decision_to_command_seconds'], 0.25)
+        self.assertEqual(row['unmeasured'], [])
+
+    def test_run_report_distinguishes_external_gap_from_measured_model_api_wait(self):
+        import wf
+        from runtime.db import Database
+        from runtime.run_store import RunStore
+        database = self.root / 'wf.sqlite3'
+        store = RunStore(Database(database))
+        run_dir = self.root / 'run'
+        run_dir.mkdir()
+        run_id = store.start('test', 'timing report', run_dir)
+        store.append_event('call', {'start': 100, 'end': 102, 'cmd': 'play'}, t=102)
+        store.append_event('timing', {
+            'seconds': 8,
+            'context_ready_at': 102,
+            'decision_received_at': 110,
+            'model_request_started_at': None,
+            'model_first_response_at': None,
+            'unmeasured': ['model_request_start', 'model_first_response'],
+        }, turn_id=1, phase='model.external_cycle', t=110)
+        store.append_event('call', {
+            'start': 110,
+            'end': 112,
+            'cmd': 'play turn_id=1 answer=read',
+            'dispatch_delay_seconds': 0.25,
+        }, t=112)
+        with mock.patch.dict(os.environ, WF_DB=str(database)), \
+                mock.patch('runtime.run_reports.render_decisions'), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            wf.run_report(run_id)
+        report = output.getvalue()
+        self.assertIn('between calls (external model/tool gap) 0:08', report)
+        self.assertIn('model API wait: unmeasured', report)
+        self.assertIn('client dispatch delay avg 0.250s', report)
+        self.assertNotIn('agent thinking', report)
 
     def test_task_restart_does_not_charge_human_handoff_as_model_deliberation(self):
         from runtime.db import Database

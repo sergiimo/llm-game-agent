@@ -284,7 +284,7 @@ class GameAdapter:
         from . import core
         return core.WF.log_mark()
 
-    def observe(self, image=None):
+    def observe(self, image=None, *, vector_mode='full'):
         from . import act, core, observe, screen
         if image is None:
             with measure('observe.grab'):
@@ -365,8 +365,9 @@ class GameAdapter:
         exact_graph_route = bool(
             isinstance(scope, dict) and nav_graph.get('current_node') and
             nav_graph.get('current_source') in ('sleep_spawn', 'navigation_step', 'transition', 'positioned_event'))
+        post_action = vector_mode == 'post_action'
         if (valid and s.kind in ('gameplay', 'unknown') and isinstance(scope, dict) and vector_requested and
-                daylight and not exact_graph_route):
+                daylight and not exact_graph_route and not post_action):
             effective = {'searched': [], 'disabled': [], 'untrained': list(vector_kinds or ())}
             try:
                 if self._vector_store is None:
@@ -391,6 +392,10 @@ class GameAdapter:
         elif (valid and s.kind in ('gameplay', 'unknown') and isinstance(scope, dict) and vector_requested and
               exact_graph_route):
             vector_status = {'status': 'skipped_exact_graph', 'region': scope.get('region'),
+                             'searched': [], 'disabled': [], 'untrained': list(vector_kinds or ()), 'hits': 0}
+        elif (valid and s.kind in ('gameplay', 'unknown') and isinstance(scope, dict) and vector_requested and
+              post_action):
+            vector_status = {'status': 'skipped_post_action', 'region': scope.get('region'),
                              'searched': [], 'disabled': [], 'untrained': list(vector_kinds or ()), 'hits': 0}
         clues.update(screen={'kind': s.kind, 'texts': s.texts}, frame_path=path,
                      capture_validity='rendered' if valid else 'black',
@@ -712,7 +717,7 @@ class GameAdapter:
             settle_frame = getattr(settled, 'frame', None)
             from PIL import Image
             settle_frame = settle_frame if isinstance(settle_frame, Image.Image) else None
-            after = before if same_read else self.observe(image=settle_frame)
+            after = before if same_read else self.observe(image=settle_frame, vector_mode='post_action')
             samples = [after]
             lines = core.log_text(intent.log_mark).splitlines()
             at = next((p for p in map(act.position_of, lines) if p), None)

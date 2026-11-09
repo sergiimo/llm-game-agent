@@ -5,7 +5,7 @@ event (hit, pickup, dialogue, scene change; <video>.events.tsv from the recorder
 on-screen actions (a swing) barely change the pixels, so events cover them. Everything else is STILL, attributed to what the agent was doing at that moment, from .shots/actions.log (call start) +
 .shots/actions_done.log (call end, written by tools/wfc.py):
   in a call   -> the command was running but nothing moved (fixed waits, settle/OCR overhead, blocked moves)
-  between     -> the agent (model) was deciding: no command running
+  between     -> external model/tool gap: no command running (not isolated model API latency)
 
   .venv/bin/python tools/idle.py recordings/play-XXXX.mp4 [--transcript <agent .jsonl>] [--still 1.0] [--min 2]
 --transcript recovers call end times from a Claude Code agent transcript (runs recorded before actions_done.log).

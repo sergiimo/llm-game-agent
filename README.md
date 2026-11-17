@@ -18,12 +18,12 @@ before continuing. When something unexpected happens, the agent revisits its und
 
 ## Memory, navigation and perception
 
-![World memory, a navigation path, and a perception-cost pyramid: graph, vectors, model vision](docs/media/world-graph.png)
+![World memory, a navigation path, and a perception-cost pyramid: graph, visual embeddings, model vision](docs/media/world-graph.png)
 
 Three complementary layers help the agent interpret its surroundings:
 
 - **Graph:** what exists, how places connect, and which landmarks to look for.
-- **Vectors:** what familiar objects and interaction prompts look like.
+- **Visual embeddings:** recognise familiar objects and interaction prompts by their appearance.
 - **Model vision:** how to interpret unfamiliar or conflicting evidence.
 
 The pyramid shows a conceptual order of perception cost. The model still chooses actions throughout the loop.
@@ -62,6 +62,20 @@ The project records observations, decisions, actions, outcomes and corrections. 
 - Did a correction solve the failure without breaking other behaviour?
 
 A click being delivered is not proof of success. A moving character is not proof of useful progress.
+
+## Stack and purpose
+
+| Technology | Purpose |
+|---|---|
+| **Python** | Connect perception, memory, actions and verification in the gameplay loop. |
+| **LLM/VLM agent** | Interpret the task and screenshots, choose actions and recover from surprises. The model is supplied by the host agent environment. |
+| **DINOv2 + PyTorch** | Extract visual embeddings for recognising objects and landmarks. |
+| **Apple Vision** | Read on-screen text and generate visual feature prints for prompts and icons. |
+| **NumPy** | Compare visual embeddings against stored examples and process detection scores. |
+| **NetworkX** | Represent and query relationships between places and objects. |
+| **SQLite** | Persist tasks, observations, action history and world-state updates. |
+| **Quartz + PyObjC** | Capture the game window and send mouse and keyboard input. |
+| **Pillow** | Prepare screenshots and object crops for perception and review. |
 
 ## Status
 

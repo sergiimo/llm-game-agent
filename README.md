@@ -9,6 +9,12 @@ for additional evidence.
 The goal is faster, more reliable play with less human intervention. The project improves the agent's ability to
 play; it does not change the game.
 
+<p align="center">
+  <img src="docs/media/quest-1.gif" width="720" alt="The agent navigating through town, entering the bakery and talking to Angus"><br>
+  <sub>An earlier gameplay recording: visiting the bakery and talking to Angus (2× speed).
+  <a href="docs/media/quest-1.mp4">Watch the full video</a>.</sub>
+</p>
+
 ## The agent loop
 
 **Observe → understand → decide → act → verify → learn**

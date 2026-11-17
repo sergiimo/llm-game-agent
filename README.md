@@ -1,288 +1,223 @@
-# A self-evolving AI agent for software with no automation API
+# Building AI agents that improve games through evidence
 
-This project explores a question: **how can an AI system operate unfamiliar software, learn from the application’s
-feedback, and improve its own implementation when it fails?**
+**An engineering case study in connecting AI decisions to real game behaviour, checking outcomes, and learning from failures.**
 
-The test bed is *Wylde Flowers*, a commercial 3D macOS game with no public automation API, plugin system or
-accessibility tree. The agent sees the window, sends ordinary mouse and keyboard events, and reads reverse-engineered
-log and save files as ground truth.
+This project builds an AI agent that operates *Wylde Flowers*, a commercial 3D macOS game, through screenshots,
+mouse clicks and keyboard input. It combines local visual recognition, persistent task and world state, model-owned
+decisions, and verification against the game's logs and decoded saves.
 
-It is not one giant vision model clicking pixels. It is a hybrid AI system with:
+The broader problem is relevant to autonomous game optimisation: **how do you let an agent change something,
+measure what actually happened, and decide whether that change deserves to persist?**
 
-- local perception from NumPy, OCR, tracking and pretrained vision embeddings;
-- a persistent world graph and a learned transition model;
-- an LLM/VLM used at uncertainty boundaries rather than on every frame;
-- one evidence-driven improvement loop that can update state, learn new knowledge or escalate a systemic gap into a
-  tested code change.
+This repository implements parts of that loop in a gameplay automation test bed. It is not a shipped mobile SDK or
+a retention optimisation product. Its value as a case study is the concrete engineering underneath the agent:
+execution boundaries, durable state, evidence provenance, recovery and evaluation.
 
-<p align="center">
-  <img src="docs/media/quest-1.gif" width="720" alt="An agent moving through a 3D town, entering a shop and talking to a character"><br>
-  <sub>A quest agent at work (2× speed). The caption is the live tool call.
-  <b><a href="docs/media/quest-1.mp4">Full video (MP4, 72 s)</a></b></sub>
-</p>
+## The engineering problem
 
----
+A plausible model answer is only the beginning. A practical agent must also handle:
 
-## One recursive improvement loop
+- ambiguous visual evidence and objects that look alike;
+- delayed animations, changing screens and stale coordinates;
+- interrupted tasks that must resume without repeating a purchase or losing an interaction phase;
+- actions whose delivery is uncertain after a timeout;
+- apparent success contradicted by application evidence;
+- corrections that help one case but may regress another.
 
-The system has one loop, closed around evidence:
+These issues surfaced during navigation, gardening and shop interactions. They led to a design that records intent
+before execution, preserves evidence around each action, and separates proposed outcomes from verified outcomes.
 
-**goal → observe → predict and plan → act → verify → improve → repeat**
+## What is implemented
+
+The current public gameplay entry point is a **model-owned turn loop**. Local code gathers clues and may recommend
+an action; the gameplay model explicitly chooses each continuation. An observation returns `NEXT` without issuing
+input. A versioned decision can execute at most one guarded input.
 
 ```mermaid
 flowchart LR
-    G["goal"] --> O["observe"]
-    O --> P["predict / plan"]
-    P --> A["act once"]
-    A --> V["verify from application evidence"]
-    V --> D{"smallest sufficient correction"}
-    D -->|"current fact"| S["update world state"]
-    D -->|"unknown appearance"| M["add a vector example"]
-    D -->|"missing behavior"| T["add or revise a transition"]
-    D -->|"missing capability"| C["fixture · patch · test · gate"]
+    O["Observe: frame, UI, graph, logs"] --> M["Model decision: action or correction"]
+    M --> G["Validate turn and action preconditions"]
+    G --> A["Persist intent; execute at most one input"]
+    A --> V["Capture result; check expected outcome"]
+    V --> S["Update task, world and evidence"]
     S --> O
-    M --> O
-    T --> O
-    C --> O
+    V --> C["Surprise: preserve evidence and request correction"]
+    C --> M
 ```
 
-Execution, learning and code evolution are not separate machines. They are correction depths inside the same loop:
-
-| Evidence says… | Smallest correction | Commit point |
-|---|---|---|
-| The world changed | Update object or agent state in the graph | Immediately, from proof |
-| Perception did not recognise something | Store a labelled vector example or relation | Immediately or after agreement |
-| The system did not know what an action does | Add or revise a checked transition | After repeated evidence |
-| The implementation cannot represent or solve the case | Reproduce it, patch the responsible layer and run gates | Offline, under supervisor control |
-
-Routine perception is local and cheap. The controller acts once and captures the before/after frames, bubbles,
-movement, screen text and new log lines. The application log and decoded save determine whether the prediction was
-right. Missing or contradictory evidence stops the action instead of being replaced with a plausible explanation.
-
-The loop preserves the informative cases:
-
-- an unknown prompt becomes a labelled vector example after the game event names its action;
-- a clicked object can be relabelled when the event proves its real kind;
-- a model answer can name a previously unknown crop icon or state;
-- repeated observations can add or revise a transition;
-- successful movement can teach a relation between graph nodes;
-- a systemic failure becomes a fixture, a minimal patch and another measured run.
-
-Correct, familiar cases mostly pass through. Disagreements decide how deeply the system must change.
-
-The final correction depth is **agent-assisted self-evolution**, not uncontrolled hot-patching. Gameplay never
-rewrites its own code during an action. It emits the same evidence record used by the earlier correction depths; a
-coding agent consumes that record offline, and code changes pass tests, live gates and benchmarks before becoming the
-next runtime.
-
----
-
-## Persistent intelligence: graph, vectors and transitions
-
-An LLM context window is not the world model. Durable state lives outside the model in three complementary forms.
-
-| Memory | What it represents | Why it exists |
-|---|---|---|
-| **World graph** | object identity, kind, state, area and learned relations | Keeps “what exists and what is true now” separate from pixels and prose |
-| **Vector memories** | what prompts, objects, items and crop icons look like | Turns a new labelled example into immediate recognition without retraining |
-| **Transition table** | when an action applies, its checked steps, effect, needs and proof | Makes behavior inspectable, composable and learnable |
-
-### World graph
-
-The save contains hundreds of positioned records with opaque prefab identifiers. The graph names objects from state
-fields or live events, clusters nearby objects into areas, and applies events newer than the last save.
-
-Kinds and states are properties, not hard-coded branches. A goal is a graph query for objects whose state should
-change. The graph answers:
-
-- Which objects match this goal?
-- Which area contains them?
-- What is known, stale or still unnamed?
-- Which object did the last event actually affect?
-- Which relation or area should navigation try next?
-
-The graph provides memory and constraints; it never overrides fresh evidence from the screen or game log.
-
-### Vector memories
-
-The system uses pretrained encoders as reusable perception:
-
-- **Apple Vision feature prints** produce 768-dimensional embeddings for prompt, item and crop-icon recognition.
-- **DINOv2-small** produces 384-dimensional patch embeddings for object heatmaps.
-- Small NumPy-backed nearest-neighbour stores hold labelled examples and reject distant matches as unknown.
-
-The graph and vectors solve different problems:
-
-    vector memory: “this looks like a GardenBed”
-    graph memory:  “this is a bed in GardenSouth, currently ready”
-
-Visual identity is generally tied to graph kinds. Individual identity comes from relations and application evidence,
-not from pretending an embedding can distinguish every look-alike instance.
-
-### Transition model
-
-Actions are data:
-
-    current state → visible affordance → checked steps → effect
-                                             └──────── proof
-
-The planner performs breadth-first search over effects. Preconditions become subgoals. If watering discovers an empty
-can, the same planner finds a transition that makes the can full, reaches the well, verifies the fill event and then
-returns to watering.
-
-A learned transition is not trusted after one lucky observation. It needs repeated agreement; repeated
-contradictions revise the expectation and are reported as surprises.
-
----
-
-## Where the models fit
-
-| Component | Responsibility |
+| Capability | Implementation and purpose |
 |---|---|
-| **Local vision** | Segment prompts, read UI text, track the avatar and retrieve visual examples |
-| **Goal engine** | Query the graph, choose transition paths, create subgoals and demand proof |
-| **VLM fallback** | Answer one typed uncertainty: a click cell, button name or object/state name |
-| **Task agent** | Select or write the goal, interpret evidence and manage a bounded run |
-| **Supervisor** | Gate decisions, watch safety signals, own shared knowledge and drive code evolution |
-| **Coding agent** | Convert a captured failure into a test, patch and verification result |
+| Model-owned decisions | [play.py](tools/game/play.py) and [turn.py](tools/game/turn.py) expose observations, accept explicit decisions and guard execution. The model is not merely an exceptional vision fallback. |
+| Durable task state | [task_state.py](tools/game/task_state.py) persists the active target, interaction phase, crop, nested subgoals and pending intent, using the SQLite runtime store. |
+| Grounded perception | OCR, Apple Vision feature prints and DINOv2 patch embeddings provide text, visual matches and object candidates. Labelled examples live in local vector stores. |
+| World and navigation memory | Object state, containment and relations live in a graph. [navigation.py](tools/game/navigation.py) supplies walkable graph paths, qualitative localization, compass/range hints and progress checks for model-selected waypoints. |
+| Action verification | [primitives.py](tools/game/primitives.py), [experience.py](tools/game/experience.py) and [integrate.py](tools/game/integrate.py) connect actions to observations, verification checks and replayable updates. |
+| Transport uncertainty | [wfc.py](tools/wfc.py) avoids automatically resending a request when it may already have reached the daemon. A timeout is not treated as proof that nothing happened. |
+| Human-readable audit trail | Each run has timestamped decisions, results and corrections in `decisions.md`, generated from the canonical SQLite timeline. Navigation entries include graph and compass evidence. |
+| Evaluation tooling | Component hit/miss records, captured replay tests and benchmark tooling track calls, elapsed time, stuck episodes and escalations. |
 
-The model is deliberately removed from high-frequency control. It does not repeatedly describe the whole screenshot.
-Most frames become structured observations; model vision receives only the unresolved question and the evidence
-needed to answer it.
+Visual similarity identifies an appearance or kind; it does not prove the identity of one of several identical beds.
+Positioned game events and other scoped evidence bind interactions to actual objects. Save-derived facts carry
+provenance because an autosave can lag behind the live screen.
 
-Each vision question carries a pending record with its goal, parameters, transition and failed step. The answer is
-therefore applied to the uncertainty that produced it, rather than becoming unscoped chat advice.
+Transition tables remain available as knowledge and recommendation inputs. Older scheduler code and historical
+specifications also remain in the repository; they should not be mistaken for the current public execution contract.
 
----
+## Learning without trusting every model answer
 
-## Architectural decisions
+The system distinguishes several kinds of correction:
 
-### Ground truth beats confidence
+1. **State:** apply a verified event to the current world or interaction.
+2. **Perception:** add a labelled appearance example or correct a mistaken match with supporting evidence.
+3. **Behaviour knowledge:** record transition observations and revise expectations when outcomes disagree.
+4. **Implementation:** preserve a gap for an offline code change, replay and live verification.
 
-The application log and decoded save are treated as supervision:
+The integration boundary journals applied updates so replay need not teach the same experience twice. Runtime code
+does not rewrite itself during an action. Model explanations are useful hypotheses; application evidence determines
+what can be recorded as verified.
 
-- log events prove interactions, pickups, dialogue, scenes, quests and object positions;
-- the save supplies inventory, quests, resources and object state;
-- cards and bubble changes fill short-lived gaps.
+For example, a purchase requires matching inventory and money evidence. A refused click must remain distinguishable
+from a click that reached the game but failed. An interrupted gardening task must retain its target and phase while
+resolving a surprise. These are constraints on agent execution, not prompt-only requests to “be careful.”
 
-For example, the game can emit a plant event when the picker closes even if planting was cancelled. The system
-therefore requires the totalPlanted statistic before changing the graph. A confident visual prediction is weaker than
-the application’s own evidence.
+## Applying the approach to autonomous mobile game optimisation
 
-### Uncertainty is a typed interface
+Consider a product consisting of a lightweight Unity SDK and a cloud agent that detects player friction, proposes
+changes to retry assistance, rewards, difficulty pacing or ad timing, and retains changes only when they improve
+retention.
 
-“Ask the model” is not a general escape hatch. The engine may ask exactly one question of one type:
+The transferable engineering pattern is:
 
-- **click** — which visible object or safe ground cell to use;
-- **button** — which on-screen control continues the expected transition;
-- **name** — what an unknown icon or state change represents.
+**observe → form a hypothesis → constrain an intervention → execute → measure → promote or roll back**
 
-The run stops after repeated unproductive questions. Unknown is a valid state, not permission to guess.
+There is an additional requirement: a gameplay receipt can establish that an action happened, whereas retention
+uplift requires a causal experiment across players. The benchmark tooling here is not an A/B testing engine and
+does not establish Day 1, Day 7 or Day 30 retention improvement.
 
-### Data before code
+| This repository demonstrates | How the capability transfers | Additional product work |
+|---|---|---|
+| Structured observations and evidence provenance | Trace a player-friction hypothesis to specific telemetry | Unity event schema, analytics adapters, identity and data-quality checks |
+| Explicit decisions with constrained execution | Let the agent choose among approved interventions | Typed remote configuration, eligibility rules and studio-owned limits |
+| Persistent tasks and pending intents | Recover experiment orchestration without duplicate launches | Durable cloud workflows, versioned assignments and deployment state |
+| Before/after evidence and outcome checks | Verify actual treatment exposure before interpreting metrics | Stable randomisation, control groups, exposure events and cohort analysis |
+| Guard refusals and preserved failures | Stop or reverse harmful treatment and retain its history | Operational and product guardrails, kill switch and automatic rollback |
+| Replay, evaluation and recorded corrections | Investigate bad hypotheses and improve future proposals | Experiment analysis, staged promotion and cross-game validation |
 
-The smallest correction wins:
+### A concrete MVP application
 
-1. add a visual example;
-2. update graph state or a relation;
-3. add or revise a transition;
-4. clarify shared knowledge;
-5. change code only when the abstraction is wrong.
+An initial pilot could test **optional retry assistance after repeated level failure**:
 
-This keeps self-improvement inspectable and prevents every new object or chore from becoming another special-case
-function.
+1. The SDK reports level attempts, failures, retry offers, actual offer exposure and subsequent sessions.
+2. The cloud agent identifies an eligible segment and proposes a bounded assistance change, including its hypothesis.
+3. The experiment service assigns eligible players consistently to treatment or control before exposure. An
+   appropriate persistent holdout measures the cumulative effect of the optimisation programme.
+4. The SDK applies a versioned configuration at a defined safe boundary and acknowledges the version used.
+5. Guardrails monitor operational failures and agreed player-experience or commercial limits. A breach disables
+   the treatment and restores the known configuration, subject to client connectivity and cache expiry.
+6. The analysis service evaluates mature retention cohorts under a predefined statistical decision rule. The agent
+   receives the result and evidence, then proposes promotion, revision or rejection within its authority.
 
-### Fail closed and preserve evidence
+Retry completion and session length can provide early diagnostic signals, but they cannot substitute for retention.
+D1, D7 and D30 need explicit definitions, adequate sample sizes and time for cohorts to mature. If all three are
+required for final promotion, D30 results cannot be available in a weekly demo. Weekly demos can show integration,
+experiment delivery, guardrail behaviour and outcomes whose observation windows have actually completed.
 
-World clicks are allowed only in gameplay. Cards are closed only through known screen rules. User decisions such as
-spending, sleeping or irreversible story choices remain gated. Every failure keeps the frame that existed before
-cleanup, so diagnosis starts from evidence rather than from the agent’s story about what happened.
+Repeatedly checking ordinary significance tests, changing eligibility after exposure, or comparing self-selected
+player groups would undermine the result. Experiment assignment, analysis rules and treatment history belong in
+the experimentation service; the LLM proposes hypotheses and interprets evidence within that contract.
 
----
+### Remote changes have a defined boundary
 
-## The deepest correction: changing code
+“No app update” is achievable for **behaviours already exposed by the installed SDK integration**: reward amounts,
+retry policies, difficulty parameters or allowed ad-placement settings. A new game mechanic or a missing client hook
+still requires an app update. The SDK should ship validated configuration schemas, local defaults, cached versions
+and an expiry policy so play remains functional when the cloud is unavailable.
 
-When state, visual memory and transition knowledge cannot express the fix, the same improvement loop escalates its
-evidence into the repository's code factory:
+The under-30-minute integration target should be measured with a sample Unity project and a studio onboarding pilot:
+install, initialise, emit required events, wire the first intervention hook and confirm exposure in the dashboard.
+Actual integration time depends on the game's existing analytics and gameplay hooks.
 
-**live discrepancy → preserved experience → minimal failing fixture → patch → offline suite → live gate → benchmark → next runtime**
+A framework such as GrowthBook could be evaluated for assignment and experiment analysis. The surrounding cloud
+orchestrator would still need to connect hypotheses, approved interventions, exposure evidence, guardrails and
+rollback. No Unity/C#, cloud backend, GrowthBook integration or live studio pilot is implemented in this repository.
 
-The captured experience contains the goal, prediction, action, application evidence, discrepancy and frame artifacts.
-That makes the failure replayable and keeps the code change causally connected to what actually happened.
+## Current status and limits
 
-The hierarchy separates responsibilities:
+- **Implemented:** the Python/macOS gameplay toolkit, model-owned turn protocol, durable interactions, visual
+  memories, graph/navigation evidence, verification and logging infrastructure.
+- **Validation:** historical live demonstrations and offline tests exist. Some current universal workflows still
+  list live verification as pending. This README makes no claim of unattended production reliability or a measured
+  end-to-end success rate.
+- **Research directions:** local Qwen inference, RxInfer belief models and Laya-like specialists have been discussed.
+  They are not integrated into the current runtime. Their value needs comparative measurement before adoption.
+- **Product extension:** the mobile retention system above is an application design showing how the engineering
+  approach transfers. It is not an existing customer deployment or a claim of measured retention uplift.
 
-- the **supervisor** owns the current goal, plan, safety gates and final integration;
-- a **task agent** owns one bounded goal and reports gaps rather than improvising;
-- an **action agent** executes one concrete step with a small model and a hard call budget;
-- the **watcher** independently evaluates clicks, predictions and terminal conditions;
-- tests use a fake game whose behavior is independent of the transition table, avoiding circular “tests” that merely
-  repeat the implementation’s assumptions.
+The current stack is Python, macOS Quartz/Apple Vision through PyObjC, NumPy, PyTorch/DINOv2 and SQLite runtime
+state. An external model-capable agent drives gameplay turns; installing the repository does not provision a local
+model or start an autonomous cloud agent.
 
-Run logs, retrospectives and benchmarks make evolution measurable. A fix is not “better” because an agent says so; it
-must remove a reproduced failure without regressing the existing corpus.
+## Inspect or run the project
 
-The proposed code refactor that gives all correction depths one evidence protocol is documented in
-[Unified improvement loop refactor](docs/superpowers/specs/2026-11-04-unified-improvement-loop-refactor.md).
+The test bed requires macOS, *Wylde Flowers*, Python 3.12+, `uv`, Screen & System Audio Recording permission and
+Accessibility permission. The wrapper uses the repository's virtual environment.
 
----
+```sh
+uv sync
+./wf status
+./wf world kinds
+```
 
-## Evidence from live evolution
+For a model-driven run, create a task directory and review its plan before continuing:
 
-The architecture emerged from real failures:
+```sh
+./wf run start garden-demo "Inspect and maintain the garden"
+./wf play garden region=Garden
+```
 
-- A second garden that no code knew about appeared from save records as a new graph area with 12 beds.
-- The generic engine planted all 12 beds using transition proofs rather than a garden-specific loop.
-- An empty watering can became a planned fill-can subgoal and then returned to the original goal.
-- A hive’s ready marker was initially mistaken for a ready crop; ownership constraints now bind affordances to kinds.
-- Crop identity was absent from the save, so ready-bubble icons gained their own vector memory and typed naming
-  question.
-- Dusk icons, stale daemon code, unsafe Escape behavior and unexpected cards each produced tests and narrower safety
-  rules.
+The second command observes and returns `NEXT`; it does not automatically complete gardening. The model reads the
+current frame and evidence, then supplies a decision with the exact returned `turn_id`. Read the
+[gameplay workflow](.claude/skills/wylde-play/SKILL.md) and
+[action contract](.claude/skills/wylde-play/actions/INDEX.md) before issuing a continuation.
 
-The important result is not that the agent finished one chore. It is that failures changed the reusable system:
-perception memory, world representation, transition knowledge, tests and agent instructions all evolved together.
+Check the current source-specific game clock before gameplay and follow the active deadline and human-handoff
+rules in [AGENTS.md](AGENTS.md), [requirements.md](requirements.md) and the gameplay workflow. Spending, sleeping
+and story choices follow the user's task scope.
 
----
+Structured runtime state is local and git-ignored in `runs/wf.sqlite3`; task directories hold human-readable
+projections and media:
 
-## Boundaries
+```text
+runs/wf.sqlite3   authoritative runs, tasks, observations, intents, experiences and world overlays
+runs/<timestamp>-<task>/
+  plan.md          task plan
+  decisions.md    generated timestamped observation, decision, outcome and correction summaries
+  progress.md     generated step timestamps and budget tracking
+  retro-N.md      run-local retrospective
+```
 
-- There is no public automation API, but the system does use reverse-engineered read-only log and save side channels.
-- The neural encoders are pretrained; the project learns memories and symbolic behavior, not a foundation model.
-- The code factory is supervised and gated. It does not modify production code during gameplay.
-- Icon-dependent work stops outside reliable lighting.
-- Long navigation may still require one model-provided direction.
-- Spending, sleeping and irreversible story decisions remain human decisions.
+Runtime recovery reads SQLite, not Markdown or legacy run-local JSON files. JSONL is available as an explicit
+`./wf run export --jsonl <run>` diagnostic export. See the [runtime store](docs/architecture/runtime-store.md).
 
----
+Read summaries with `./wf run status`, inspect component evaluation with `./wf eval`, and compare recorded benchmark
+runs with `./wf bench compare`. These commands expose evidence; they do not by themselves establish reliability.
 
-## Repository map
+## Repository guide
 
-| Layer | Main paths |
+| Area | Start here |
 |---|---|
-| Runtime brain | [tools/game/engine.py](tools/game/engine.py), [world.py](tools/game/world.py), [plan.py](tools/game/plan.py), [actions.json](tools/game/actions.json) |
-| Perception and vector memory | [tools/game/observe.py](tools/game/observe.py), [tools/objects/](tools/objects), [tools/game/icons.py](tools/game/icons.py) |
-| Evidence and learning | [tools/game/act.py](tools/game/act.py), [learn.py](tools/game/learn.py), [ask.py](tools/game/ask.py) |
-| Control plane | [tools/wf.py](tools/wf.py), [tools/wfc.py](tools/wfc.py) |
-| Code factory | [tools/runwatch.py](tools/runwatch.py), [tools/evals/](tools/evals), [tools/bench/](tools/bench), run-local `runs/<task>/retro-N.md` |
-| Shared knowledge | [docs/](docs/INDEX.md), [docs/architecture/self-improvement.md](docs/architecture/self-improvement.md), [AGENTS.md](AGENTS.md), [.claude/](.claude) |
-
-## Try it
-
-    uv sync
-    ./wf status
-    ./wf world kinds
-    ./wf achieve water
-    ./wf eval
-    ./wf learn
-
-The current test bed requires macOS, *Wylde Flowers*, Screen & System Audio Recording permission and Accessibility
-permission.
-
----
+| Runtime storage | [runtime-store.md](docs/architecture/runtime-store.md), [schema.py](tools/runtime/schema.py), [world_store.py](tools/game/world_store.py) |
+| Public gameplay loop | [play.py](tools/game/play.py), [turn.py](tools/game/turn.py), [task_state.py](tools/game/task_state.py) |
+| Guarded actions and verification | [primitives.py](tools/game/primitives.py), [experience.py](tools/game/experience.py), [integrate.py](tools/game/integrate.py) |
+| Perception and world memory | [observe.py](tools/game/observe.py), [objects/](tools/objects), [world.py](tools/game/world.py) |
+| Navigation evidence | [navigation.py](tools/game/navigation.py) |
+| Runtime and transport | [wf.py](tools/wf.py), [wfc.py](tools/wfc.py), [runtime/](tools/runtime) |
+| Native gameplay bridge and timing | [native_bridge.py](tools/game/native_bridge.py), [native_tools.py](tools/native_tools.py), [owner_timing.py](tools/owner_timing.py) |
+| Evaluation | [evals/](tools/evals), [bench/](tools/bench), [turn tests](tools/test_turn.py), [play tests](tools/test_play.py) |
+| Operations and game knowledge | [Docs index](docs/INDEX.md), [Wiki index](wiki/INDEX.md), [operating instructions](AGENTS.md) |
 
 ## Credits and licences
 
-- Test bed: *Wylde Flowers* © Studio Drydock. This is an unofficial research project and is not affiliated with or
-  endorsed by Studio Drydock.
-- wiki/ derive from the game’s fan wiki (Fandom), CC BY-SA 3.0.
+- *Wylde Flowers* © Studio Drydock. This is an unofficial research project, not affiliated with or endorsed by
+  Studio Drydock.
+- Imported material in `wiki/` derives from the game's fan wiki (Fandom); CC BY-SA 3.0 attribution is retained.

@@ -1,17 +1,18 @@
-# Building AI agents that improve games through evidence
+# An AI agent that plays Wylde Flowers
 
-**An engineering case study in connecting AI decisions to real game behaviour, checking outcomes, and learning from failures.**
+**A hands-on project in visual AI agents, persistent memory, action verification and learning from live failures.**
 
-This project builds an AI agent that operates *Wylde Flowers*, a commercial 3D macOS game, through screenshots,
-mouse clicks and keyboard input. It combines local visual recognition, persistent task and world state, model-owned
-decisions, and verification against the game's logs and decoded saves.
+This project explores how an AI agent can operate a real game, remember what it has learned, and improve its own
+ability to play. The test bed is *Wylde Flowers*, a commercial 3D macOS game. The agent observes screenshots, sends
+ordinary mouse and keyboard input, and reads game logs and decoded saves as additional evidence.
 
-The broader problem is relevant to autonomous game optimisation: **how do you let an agent change something,
-measure what actually happened, and decide whether that change deserves to persist?**
+Tasks include navigating between locations, tending garden beds, interacting with characters and using shops.
+The engineering work combines language and vision models with local perception, a world graph, durable task state
+and an instrumented execution loop. Development happens through live attempts, recorded failures, code changes and
+verification.
 
-This repository implements parts of that loop in a gameplay automation test bed. It is not a shipped mobile SDK or
-a retention optimisation product. Its value as a case study is the concrete engineering underneath the agent:
-execution boundaries, durable state, evidence provenance, recovery and evaluation.
+The goal is faster, more reliable gameplay with less human intervention. This is an experimental agent toolkit;
+reliable unattended play remains work in progress. It improves the agent's behaviour, not the game itself.
 
 ## The engineering problem
 
@@ -35,13 +36,13 @@ input. A versioned decision can execute at most one guarded input.
 
 ```mermaid
 flowchart LR
-    O["Observe: frame, UI, graph, logs"] --> M["Model decision: action or correction"]
+    O["Observe: frame, UI, graph, logs"] --> M["Model reconciles evidence and chooses next action"]
     M --> G["Validate turn and action preconditions"]
     G --> A["Persist intent; execute at most one input"]
     A --> V["Capture result; check expected outcome"]
     V --> S["Update task, world and evidence"]
     S --> O
-    V --> C["Surprise: preserve evidence and request correction"]
+    V --> C["Surprise: preserve evidence for model-owned recovery"]
     C --> M
 ```
 
@@ -54,7 +55,7 @@ flowchart LR
 | Action verification | [primitives.py](tools/game/primitives.py), [experience.py](tools/game/experience.py) and [integrate.py](tools/game/integrate.py) connect actions to observations, verification checks and replayable updates. |
 | Transport uncertainty | [wfc.py](tools/wfc.py) avoids automatically resending a request when it may already have reached the daemon. A timeout is not treated as proof that nothing happened. |
 | Human-readable audit trail | Each run has timestamped decisions, results and corrections in `decisions.md`, generated from the canonical SQLite timeline. Navigation entries include graph and compass evidence. |
-| Evaluation tooling | Component hit/miss records, captured replay tests and benchmark tooling track calls, elapsed time, stuck episodes and escalations. |
+| Evaluation tooling | Component hit/miss records, replay tests, benchmark tooling and SQLite-backed live navigation evaluations record outcomes and timing. |
 
 Visual similarity identifies an appearance or kind; it does not prove the identity of one of several identical beds.
 Positioned game events and other scoped evidence bind interactions to actual objects. Save-derived facts carry
@@ -80,66 +81,45 @@ For example, a purchase requires matching inventory and money evidence. A refuse
 from a click that reached the game but failed. An interrupted gardening task must retain its target and phase while
 resolving a surprise. These are constraints on agent execution, not prompt-only requests to “be careful.”
 
-## Applying the approach to autonomous mobile game optimisation
+## Engineering lessons from the project
 
-Consider a product consisting of a lightweight Unity SDK and a cloud agent that detects player friction, proposes
-changes to retry assistance, rewards, difficulty pacing or ad timing, and retains changes only when they improve
-retention.
+The work goes beyond asking a model where to click. Several recurring problems have shaped the implementation:
 
-The transferable engineering pattern is:
+- **Recognition and identity are different.** An embedding can recognise a bed, but distinguishing identical beds
+  needs location and interaction evidence. Visual candidates and confirmed object identity are kept separate.
+- **Movement is not arrival.** A click can move the character without advancing the route. Navigation needs a
+  current location hypothesis, a next objective and evidence of progress toward that objective.
+- **A timeout creates uncertainty.** Retrying an input whose delivery is unknown can repeat an interaction. Pending
+  intent and observed results must be reconciled before another action.
+- **Memory needs provenance and scope.** Facts from another save profile, stale screenshots or earlier interactions
+  can produce convincing but incorrect decisions. The runtime records observation identity and save lineage.
+- **Latency needs attribution.** Capture, perception, persistence, action settling and external model/tool gaps must
+  be measured separately before choosing what to optimise.
 
-**observe → form a hypothesis → constrain an intervention → execute → measure → promote or roll back**
+These problems provide practical experience in building and debugging agents that interact with a changing
+environment. The code and run evidence are the case study; no production deployment or business outcome is implied.
 
-There is an additional requirement: a gameplay receipt can establish that an action happened, whereas retention
-uplift requires a causal experiment across players. The benchmark tooling here is not an A/B testing engine and
-does not establish Day 1, Day 7 or Day 30 retention improvement.
+## Current architecture and experimental work
 
-| This repository demonstrates | How the capability transfers | Additional product work |
-|---|---|---|
-| Structured observations and evidence provenance | Trace a player-friction hypothesis to specific telemetry | Unity event schema, analytics adapters, identity and data-quality checks |
-| Explicit decisions with constrained execution | Let the agent choose among approved interventions | Typed remote configuration, eligibility rules and studio-owned limits |
-| Persistent tasks and pending intents | Recover experiment orchestration without duplicate launches | Durable cloud workflows, versioned assignments and deployment state |
-| Before/after evidence and outcome checks | Verify actual treatment exposure before interpreting metrics | Stable randomisation, control groups, exposure events and cohort analysis |
-| Guard refusals and preserved failures | Stop or reverse harmful treatment and retain its history | Operational and product guardrails, kill switch and automatic rollback |
-| Replay, evaluation and recorded corrections | Investigate bad hypotheses and improve future proposals | Experiment analysis, staged promotion and cross-game validation |
+The intended gameplay owner is one model-capable agent that handles observation, decisions and recoverable surprises
+through a task. It receives a bounded receipt containing the current full-scale frame, visual candidates, relevant
+world facts and the previous action result. The runtime persists decisions and executes primitives; it does not
+contain a self-sufficient local model player.
 
-### A concrete MVP application
+Navigation uses graph connectivity and qualitative directions/ranges. The gameplay model updates its current
+semantic location and next objective from current evidence. Those beliefs are short-lived; stored route knowledge
+does not turn an old screen coordinate into a valid new click.
 
-An initial pilot could test **optional retry assistance after repeated level failure**:
+An experimental [native bridge](tools/game/native_bridge.py) exposes observation, action and note operations through
+the same durable turn boundary. [Host-facing packaging](tools/native_tools.py) returns bounded text and the saved
+frame. This is an alternative interface under evaluation, not a completed replacement for the gameplay workflow.
+The [documented live trial](docs/testing/INDEX.md) exercised transport and movement but did not complete leaving the
+House. Its receipt distinguishes physical movement from verified navigation progress.
 
-1. The SDK reports level attempts, failures, retry offers, actual offer exposure and subsequent sessions.
-2. The cloud agent identifies an eligible segment and proposes a bounded assistance change, including its hypothesis.
-3. The experiment service assigns eligible players consistently to treatment or control before exposure. An
-   appropriate persistent holdout measures the cumulative effect of the optimisation programme.
-4. The SDK applies a versioned configuration at a defined safe boundary and acknowledges the version used.
-5. Guardrails monitor operational failures and agreed player-experience or commercial limits. A breach disables
-   the treatment and restores the known configuration, subject to client connectivity and cache expiry.
-6. The analysis service evaluates mature retention cohorts under a predefined statistical decision rule. The agent
-   receives the result and evidence, then proposes promotion, revision or rejection within its authority.
-
-Retry completion and session length can provide early diagnostic signals, but they cannot substitute for retention.
-D1, D7 and D30 need explicit definitions, adequate sample sizes and time for cohorts to mature. If all three are
-required for final promotion, D30 results cannot be available in a weekly demo. Weekly demos can show integration,
-experiment delivery, guardrail behaviour and outcomes whose observation windows have actually completed.
-
-Repeatedly checking ordinary significance tests, changing eligibility after exposure, or comparing self-selected
-player groups would undermine the result. Experiment assignment, analysis rules and treatment history belong in
-the experimentation service; the LLM proposes hypotheses and interprets evidence within that contract.
-
-### Remote changes have a defined boundary
-
-“No app update” is achievable for **behaviours already exposed by the installed SDK integration**: reward amounts,
-retry policies, difficulty parameters or allowed ad-placement settings. A new game mechanic or a missing client hook
-still requires an app update. The SDK should ship validated configuration schemas, local defaults, cached versions
-and an expiry policy so play remains functional when the cloud is unavailable.
-
-The under-30-minute integration target should be measured with a sample Unity project and a studio onboarding pilot:
-install, initialise, emit required events, wire the first intervention hook and confirm exposure in the dashboard.
-Actual integration time depends on the game's existing analytics and gameplay hooks.
-
-A framework such as GrowthBook could be evaluated for assignment and experiment analysis. The surrounding cloud
-orchestrator would still need to connect hypotheses, approved interventions, exposure evidence, guardrails and
-rollback. No Unity/C#, cloud backend, GrowthBook integration or live studio pilot is implemented in this repository.
+The project also includes SQLite-backed live navigation evaluations and timing instrumentation. The
+[requirements](requirements.md) set a three-second end-to-end turn budget; that is a target, not a demonstrated
+performance claim. [Timing reports](tools/owner_timing.py) distinguish measured runtime phases from host/model
+subdivisions that remain unmeasured without a host trace.
 
 ## Current status and limits
 
@@ -150,8 +130,6 @@ rollback. No Unity/C#, cloud backend, GrowthBook integration or live studio pilo
   end-to-end success rate.
 - **Research directions:** local Qwen inference, RxInfer belief models and Laya-like specialists have been discussed.
   They are not integrated into the current runtime. Their value needs comparative measurement before adoption.
-- **Product extension:** the mobile retention system above is an application design showing how the engineering
-  approach transfers. It is not an existing customer deployment or a claim of measured retention uplift.
 
 The current stack is Python, macOS Quartz/Apple Vision through PyObjC, NumPy, PyTorch/DINOv2 and SQLite runtime
 state. An external model-capable agent drives gameplay turns; installing the repository does not provision a local
@@ -212,8 +190,8 @@ runs with `./wf bench compare`. These commands expose evidence; they do not by t
 | Perception and world memory | [observe.py](tools/game/observe.py), [objects/](tools/objects), [world.py](tools/game/world.py) |
 | Navigation evidence | [navigation.py](tools/game/navigation.py) |
 | Runtime and transport | [wf.py](tools/wf.py), [wfc.py](tools/wfc.py), [runtime/](tools/runtime) |
-| Native gameplay bridge and timing | [native_bridge.py](tools/game/native_bridge.py), [native_tools.py](tools/native_tools.py), [owner_timing.py](tools/owner_timing.py) |
-| Evaluation | [evals/](tools/evals), [bench/](tools/bench), [turn tests](tools/test_turn.py), [play tests](tools/test_play.py) |
+| Experimental native gameplay bridge and timing | [native_bridge.py](tools/game/native_bridge.py), [native_tools.py](tools/native_tools.py), [owner_timing.py](tools/owner_timing.py) |
+| Evaluation | [testing guide](docs/testing/INDEX.md), [live_eval.py](tools/runtime/live_eval.py), [evals/](tools/evals), [bench/](tools/bench), [turn tests](tools/test_turn.py), [play tests](tools/test_play.py) |
 | Operations and game knowledge | [Docs index](docs/INDEX.md), [Wiki index](wiki/INDEX.md), [operating instructions](AGENTS.md) |
 
 ## Credits and licences

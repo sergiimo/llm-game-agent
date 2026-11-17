@@ -3,7 +3,7 @@
 **A hands-on project in visual AI agents, persistent memory, action verification and learning from live failures.**
 
 This project explores how an AI agent can operate a real game, remember what it has learned, and improve its own
-ability to play. The test bed is *Wylde Flowers*, a commercial 3D macOS game. The agent observes screenshots, sends
+ability to play. The test bed is *Wylde Flowers*, a commercial game running on macOS. The agent observes screenshots, sends
 ordinary mouse and keyboard input, and reads game logs and decoded saves as additional evidence.
 
 Tasks include navigating between locations, tending garden beds, interacting with characters and using shops.

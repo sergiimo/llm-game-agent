@@ -64,6 +64,18 @@ provenance because an autosave can lag behind the live screen.
 Transition tables remain available as knowledge and recommendation inputs. Older scheduler code and historical
 specifications also remain in the repository; they should not be mistaken for the current public execution contract.
 
+### Graph example and perception cost
+
+![World graph: nested regions, a directed Bed-to-Well path, and a perception-cost pyramid with graph at the base, vectors in the middle and model vision at the top](docs/media/world-graph.png)
+
+The example shows selected relationships from [the static Farm graph](tools/objects/graph/Farm.json), not a live
+location estimate. The perception order is **graph → vectors → model vision**: use the task and likely region to
+select relevant landmarks, look for their visual matches, then resolve unfamiliar or conflicting evidence with
+model vision. Missing matches call for re-examining the location hypothesis and broadening the search.
+
+The pyramid illustrates conceptual perception cost, not measured latency. The gameplay model still owns action
+decisions; it is not used only at the top of this perception hierarchy.
+
 ## Learning without trusting every model answer
 
 The system distinguishes several kinds of correction:
